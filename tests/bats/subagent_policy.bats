@@ -26,7 +26,7 @@ with open(cfg, encoding="utf-8") as fh:
     tp = (yaml.safe_load(fh) or {}).get("tool_policies", {}) or {}
 VALID = {"always", "conditional", "never"}
 VALID_MODELS = {"haiku", "sonnet", "opus", "charter"}
-VALID_SESSION_MODELS = {"opus", "fable"}
+VALID_SESSION_MODELS = {"opus"}
 DISPATCHING = ("always", "conditional")
 MARKER = "## Sub-agent dispatch"
 SESSION_MARKER = "## Session model"
@@ -133,9 +133,10 @@ elif check == "model_in_body":         # T8
         if needle not in sec:
             fail.append(f"{s}: dispatch section does not name the pinned model ({m!r}; expected {needle!r})")
 elif check == "session_model":         # T9
-    # Fable 5 bills 2x Opus. A skill may declare it needs a long-horizon session,
-    # but the switch is the user's call: the skill must ASK, never assume it is
-    # already active. Enumerated from the field's presence, not a name list.
+    # The `fable` session tier was retired 2026-08-17; Opus (1M) is now both the
+    # top tier and the default, so no skill can name a costlier session model.
+    # Any session_model pin must still be a known tier and justify itself.
+    # Enumerated from the field's presence, not a name list.
     for s in skills:
         e = entry(s)
         sm = e.get("session_model")
@@ -148,12 +149,6 @@ elif check == "session_model":         # T9
             continue
         if not e.get("session_model_rationale"):
             fail.append(f"{s}: session_model: {sm} but no session_model_rationale")
-        if sm == "fable":
-            b = body(s)
-            if SESSION_MARKER not in b:
-                fail.append(f"{s}: session_model: fable but no '{SESSION_MARKER}' section in SKILL.md")
-            elif "ask the user to switch" not in b:
-                fail.append(f"{s}: '{SESSION_MARKER}' section does not instruct asking the user to switch")
 else:
     print(f"unknown check: {check}", file=sys.stderr)
     sys.exit(2)
@@ -207,7 +202,7 @@ PY
     [ "$status" -eq 0 ] || { echo "$output"; false; }
 }
 
-@test "a skill wanting Fable asks the user to switch (never assumes)" {
+@test "session_model pins are valid and carry a rationale" {
     run run_check session_model
     [ "$status" -eq 0 ] || { echo "$output"; false; }
 }

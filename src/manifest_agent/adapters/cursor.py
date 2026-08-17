@@ -17,8 +17,12 @@ from manifest_agent.adapters.base import (
     native_command_result,
     normalize_native_mcp_inventory,
 )
-from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.adapters.capability_receipt import (
+    expected_uninstall_plugin_ids,
+)
+from manifest_agent.contracts import DOMAIN_BUNDLES, PORTABLE_BUNDLES
 from manifest_agent.models import (
+    AdapterPluginState,
     CapabilityTier,
     CommandResult,
     DesiredState,
@@ -136,10 +140,71 @@ class CursorAdapter(CapabilityAdapterMixin):
         capabilities = self.install_capabilities(desired)
         return combine_results(capabilities, self.inspect(desired))
 
+    def _native_reconcile_inventory(
+        self,
+        desired: DesiredState,
+        *,
+        capture_backups: bool,
+        identifiers: set[str] | None = None,
+    ) -> tuple[AdapterPluginState, ...]:
+        del desired, capture_backups, identifiers
+        command, error = self._execute(
+            (
+                self.executable,
+                "plugin",
+                "marketplace",
+                "list",
+                "--format",
+                "json",
+            )
+        )
+        if error is not None or command is None:
+            raise ValueError("Cursor marketplace inventory is unavailable")
+        row, parse_error = _marketplace_row(command.stdout)
+        if parse_error is not None:
+            raise ValueError(parse_error)
+        source = row.get("gitUrl")
+        reference = row.get("gitRef")
+        scope = row.get("scope")
+        if (
+            not isinstance(source, str)
+            or not isinstance(reference, str)
+            or scope != "user"
+        ):
+            raise ValueError("Cursor marketplace inventory lacks exact native metadata")
+        return (
+            AdapterPluginState(
+                "manifest-marketplace",
+                reference,
+                True,
+                source_identity=_normalized_url(source),
+            ),
+        )
+
+    def _desired_reconcile_inventory(
+        self, desired: DesiredState
+    ) -> tuple[AdapterPluginState, ...]:
+        return (
+            AdapterPluginState(
+                "manifest-marketplace",
+                desired.source_commit,
+                True,
+                source_identity=_normalized_url(desired.repository_url),
+            ),
+        )
+
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only the singular marketplace URL owned by the receipt."""
+        identity_errors = tuple(
+            f"receipt contains non-canonical plugin ID: {plugin_id}"
+            for plugin_id in receipt.plugin_ids
+            if plugin_id not in PORTABLE_BUNDLES
+        )
         invalid = self.validate_uninstall_receipt(
-            receipt, receipt.plugin_ids, DOMAIN_BUNDLES
+            receipt,
+            receipt.plugin_ids,
+            expected_uninstall_plugin_ids(receipt.plugin_ids),
+            identity_errors=identity_errors,
         )
         if invalid is not None:
             return invalid
@@ -218,7 +283,7 @@ class CursorAdapter(CapabilityAdapterMixin):
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     if tuple(contract.name for contract in desired.contracts) != DOMAIN_BUNDLES:
         return _blocked("desired state must contain the exact canonical domains")
-    if any(not contract.version for contract in desired.contracts):
+    if any(not contract.version for contract in desired.all_contracts):
         return _blocked("desired plugin versions must be non-empty")
     if not _COMMIT.fullmatch(desired.source_commit):
         return _blocked("Cursor marketplace commit must be immutable")

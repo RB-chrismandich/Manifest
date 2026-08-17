@@ -139,10 +139,9 @@ class TestRegistrySafetyAndResolution:
         assert exc.value.code == 2
 
     def test_unsupported_transport_rejected(self, tmp_path):
-        """K2: only 'stdin' transport is implemented; anything else must be
-        rejected at registry load time, not silently drop the prompt."""
+        """K2: unknown transports are rejected rather than dropping prompts."""
         bad = _valid_backend("codex")
-        bad["input"]["transport"] = "argv"
+        bad["input"]["transport"] = "socket"
         path = tmp_path / "backends.json"
         path.write_text(json.dumps({"backends": [bad]}))
         with pytest.raises(delegate.RegistryError, match="unsupported"):
@@ -150,7 +149,7 @@ class TestRegistrySafetyAndResolution:
 
     def test_unsupported_transport_via_cli_exits_2(self, tmp_path):
         bad = _valid_backend("codex")
-        bad["input"]["transport"] = "argv"
+        bad["input"]["transport"] = "socket"
         path = tmp_path / "backends.json"
         path.write_text(json.dumps({"backends": [bad]}))
         with pytest.raises(SystemExit) as exc:

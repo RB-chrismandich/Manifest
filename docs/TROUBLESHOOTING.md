@@ -898,6 +898,46 @@ curl -I https://registry.npmjs.org
 
 ---
 
+## Python Tests Fail to Collect
+
+Run the Python suite as:
+
+```bash
+PYTHONNOUSERSITE=1 uv run pytest tests/python/ -m "not native"
+```
+
+Both parts matter, and each masks a different failure as a code error.
+
+### `ModuleNotFoundError: No module named 'manifest_model_policy'`
+
+Cause: `uv run --project configs/claude pytest` resolves `pytest` from the
+**system** interpreter, not the project venv, so the venv's editable installs
+are invisible. The package imports fine under `uv run --project configs/claude
+python -c 'import manifest_model_policy'`, which makes this look like a
+dependency bug rather than an interpreter mismatch.
+
+Confirm it by checking any traceback or warning path for a system prefix such
+as `/Library/Frameworks/Python.framework/...`. Fix: run `uv run pytest` from
+the repository root, without `--project`.
+
+### `ImportError: ... incompatible architecture (have 'arm64', need 'x86_64')`
+
+Cause: a package in the user site directory (`~/Library/Python/<ver>/lib/...`)
+shadows the venv copy — `rpds`, pulled in by `jsonschema`, is the usual one on
+Apple Silicon. Fix: prefix with `PYTHONNOUSERSITE=1`.
+
+### Mutation-testing a guard
+
+`uv run` re-syncs the environment before the command, which silently reverts any
+mutation applied to an installed distribution. To flip installed state and
+observe a test fail, bypass the sync:
+
+```bash
+PYTHONNOUSERSITE=1 ./.venv/bin/python -m pytest <target>
+```
+
+---
+
 ## Getting More Help
 
 ### Still Having Issues?
@@ -933,3 +973,52 @@ curl -I https://registry.npmjs.org
 - [Configuration Guide](CONFIGURATION.md) - All configuration options
 - [README.md](../README.md) - Project overview
 - [CLAUDE.md](../CLAUDE.md) - Repository context
+
+## Codex Native Plugin Convergence
+
+Inspect the native inventory with:
+
+```bash
+codex plugin list --marketplace manifest --json
+```
+
+If convergence fails, the flat `~/.codex/skills` link intentionally remains.
+Fix the reported native error, then run:
+
+```bash
+manifest bootstrap-sync --source /path/to/Manifest --harness codex --non-interactive --json
+```
+
+If Codex still reports `Exceeded skills context budget`, inspect the actual
+startup list rather than counting installed plugin skills:
+
+```bash
+codex debug prompt-input | jq -r '.[0].content[0].text'
+```
+
+A converged Manifest installation exposes only
+`manifest-code-quality:antipattern-detect`, `manifest-security:code-audit`, and
+`manifest-workspace:help` for implicit routing. Other skills remain installed
+and explicitly callable as `$bundle:skill`; their absence from this startup list
+is intentional. In a source checkout, regenerate and validate the policy before
+rerunning bootstrap:
+
+```bash
+uv run python tools/generate_plugin_views.py --repo-root .
+uv run python tools/generate_plugin_views.py --check --repo-root .
+```
+
+ADHD hook diagnostics live under
+`$XDG_STATE_HOME/manifest/diagnostics/manifest-i-have-adhd.json` (or
+`~/.local/state/manifest/...`). Records contain only plugin, version, harness,
+and a stable reason code. `manifest reconcile --apply` reports this state. The
+upstream `i-have-adhd@i-have-adhd` plugin remains installed but is disabled
+after the mirrored hook verifies; uninstall restores its prior enabled field
+only while that field still equals Manifest's written value.
+
+Antigravity verifies the generated Gemini-extension context asset used by its
+Gemini-lineage import path. Devin verifies the generated rule against
+`~/.codeium/windsurf/memories/global_rules.md`, which `devin rules` reports as
+always-on. If that Devin file already contains different non-empty user content,
+bootstrap preserves it and reports the collision; move or merge that content,
+then rerun bootstrap so the pinned ADHD rule can be installed.

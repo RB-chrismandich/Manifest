@@ -81,6 +81,15 @@ class BundleContract:
 
 
 @dataclass(frozen=True)
+class CatalogPlugin:
+    """One immutable plugin entry from the canonical local marketplace."""
+
+    name: str
+    version: str
+    source: str
+
+
+@dataclass(frozen=True)
 class DesiredState:
     """The verified release and requested install scope."""
 
@@ -95,10 +104,17 @@ class DesiredState:
     contracts: tuple[BundleContract, ...]
     selected_optional: frozenset[str]
     requested_harnesses: tuple[str, ...]
+    catalog_plugins: tuple[CatalogPlugin, ...] = ()
+    addon_contracts: tuple[BundleContract, ...] = ()
 
     def bundle_path(self, name: str) -> Path:
         """Return a bundle path inside the resolved immutable release."""
         return self.release_root / "plugins" / name
+
+    @property
+    def all_contracts(self) -> tuple[BundleContract, ...]:
+        """Every authoritative portable contract, domains first then addons."""
+        return (*self.contracts, *self.addon_contracts)
 
 
 @dataclass(frozen=True)
@@ -137,6 +153,51 @@ class HarnessResult:
     errors: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     owned_entries: tuple[OwnedEntry, ...] = ()
+
+
+@dataclass(frozen=True)
+class AdapterPluginState:
+    """Versioned native plugin state authorized by a reconciliation handle."""
+
+    identifier: str
+    version: str
+    enabled: bool
+    rollback_data: dict[str, Any] | None = None
+    installed_path: str | None = None
+    installed_sha256: str | None = None
+    retirement_phase: str | None = None
+    source_identity: str | None = None
+
+
+@dataclass(frozen=True)
+class AdapterMarketplaceState:
+    """Exact native marketplace identity authorized by a mutation handle."""
+
+    identifier: str
+    source_kind: str
+    source: str
+    immutable_ref: str | None
+    checkout_root: str
+
+
+@dataclass(frozen=True)
+class AdapterMutationHandle:
+    """Durable adapter-owned authority for one release transition."""
+
+    schema_version: int
+    harness: str
+    adapter_version: str
+    target_identity: str
+    prior_inventory: tuple[AdapterPluginState, ...]
+    target_inventory: tuple[AdapterPluginState, ...]
+    prior_marketplace: AdapterMarketplaceState | None = None
+    target_marketplace: AdapterMarketplaceState | None = None
+    prior_cas: str | None = None
+    target_cas: str | None = None
+    prior_capabilities: dict[str, str] | None = None
+    target_capabilities: dict[str, str] | None = None
+    prior_owned_files: tuple[dict[str, Any], ...] = ()
+    target_owned_files: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)

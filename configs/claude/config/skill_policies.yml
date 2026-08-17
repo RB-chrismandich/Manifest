@@ -9,11 +9,11 @@
 # A PR that adds or removes a skill MUST change the matching partition count and
 # catalog expected_total in the same commit, and give the new skill a bundle or
 # classify it as an independent marketplace addon.
-domain_expected_total: 110
+domain_expected_total: 111
 addon_expected_total: 6
 # Eight canonical domains plus the policy addon. This deliberately excludes
 # independent marketplace addons from the policy partition.
-policy_expected_total: 116
+policy_expected_total: 117
 independent_addon_expected_total: 1
 # Marketplace addons are intentionally installable without selecting a domain
 # bundle, but still appear in the global catalog and reference-validation gate.
@@ -22,7 +22,16 @@ independent_addons:
     - docker-compose-commandments
 # The exact global mirror/catalog count, including independent marketplace
 # addons. Consumers that inspect every installed skill must use this field.
-expected_total: 117
+expected_total: 118
+
+# Codex loads skill names, descriptions, and paths into the initial model prompt,
+# capped at 2% of context (or 8,000 characters when context is unknown). Keep only
+# automatic routing and discovery entry points implicit; every other installed
+# skill remains available through explicit `$bundle:skill` invocation.
+codex_implicit_invocation_allowlist:
+  - manifest-code-quality:antipattern-detect
+  - manifest-security:code-audit
+  - manifest-workspace:help
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
@@ -90,6 +99,9 @@ bundles:
   manifest-delegate:  # 2 skills
     - delegate
     - delegate-setup
+
+  manifest-i-have-adhd:  # 1 skill
+    - i-have-adhd
 
   manifest-docs:  # 4 skills
     - docs-all

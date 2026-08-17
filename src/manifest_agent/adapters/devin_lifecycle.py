@@ -6,7 +6,10 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from manifest_agent.adapters.base import combine_results, native_command_result
-from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.adapters.capability_receipt import (
+    expected_uninstall_plugin_ids,
+)
+from manifest_agent.contracts import PORTABLE_BUNDLES
 from manifest_agent.models import (
     CapabilityTier,
     HarnessReceipt,
@@ -17,6 +20,7 @@ from manifest_agent.process import redact_text
 
 if TYPE_CHECKING:
     from manifest_agent.adapters.devin import DevinAdapter
+    from manifest_agent.models import OwnedEntry
 
 
 def uninstall_devin(adapter: DevinAdapter, receipt: HarnessReceipt) -> HarnessResult:
@@ -25,16 +29,19 @@ def uninstall_devin(adapter: DevinAdapter, receipt: HarnessReceipt) -> HarnessRe
     invalid = adapter.validate_uninstall_receipt(
         receipt,
         plugin_ids,
-        DOMAIN_BUNDLES,
+        expected_uninstall_plugin_ids(plugin_ids),
         identity_errors=id_errors,
     )
     if invalid is not None:
         return invalid
+    rule_entry, rule_preflight = _receipt_owned_rule(adapter, receipt)
+    if rule_preflight.state is ResultState.BLOCKED:
+        return rule_preflight
     capabilities = adapter.remove_capabilities(receipt)
 
     before, error = adapter._list_installed()
     if error is not None:
-        return combine_results(capabilities, error)
+        return combine_results(rule_preflight, capabilities, error)
     assert before is not None
     unowned = before - set(plugin_ids)
 
@@ -42,27 +49,51 @@ def uninstall_devin(adapter: DevinAdapter, receipt: HarnessReceipt) -> HarnessRe
 
     after, list_error = adapter._list_installed()
     if list_error is not None:
-        return combine_results(capabilities, *failures, list_error)
+        return combine_results(rule_preflight, capabilities, *failures, list_error)
     assert after is not None
     ownership = _uninstall_inventory_result(plugin_ids, unowned, after)
     if failures or ownership.state is ResultState.BLOCKED:
-        return combine_results(capabilities, *failures, ownership)
+        return combine_results(rule_preflight, capabilities, *failures, ownership)
+
+    rule = (
+        adapter.restore_receipt_owned_file(rule_entry)
+        if rule_entry is not None
+        else HarnessResult("devin", ResultState.READY, (), {})
+    )
+    if rule.state is ResultState.BLOCKED:
+        return combine_results(rule_preflight, capabilities, ownership, rule)
 
     command, error = adapter._execute((adapter.name, "plugins", "prune"))
     if error is not None:
-        return combine_results(capabilities, error)
+        return combine_results(rule_preflight, rule, capabilities, error)
     assert command is not None
     if command.returncode != 0:
         failure = native_command_result(adapter.name, command, CapabilityTier.REQUIRED)
-        return combine_results(capabilities, failure)
+        return combine_results(rule_preflight, rule, capabilities, failure)
 
     final, final_error = adapter._list_installed()
     if final_error is not None:
-        return combine_results(capabilities, final_error)
+        return combine_results(rule_preflight, rule, capabilities, final_error)
     assert final is not None
     return combine_results(
-        capabilities, _uninstall_inventory_result(plugin_ids, unowned, final)
+        rule_preflight,
+        rule,
+        capabilities,
+        _uninstall_inventory_result(plugin_ids, unowned, final),
     )
+
+
+def _receipt_owned_rule(
+    adapter: DevinAdapter, receipt: HarnessReceipt
+) -> tuple[OwnedEntry | None, HarnessResult]:
+    entries = tuple(
+        entry for entry in receipt.owned_entries if entry.kind == "owned-file"
+    )
+    if not entries:
+        return None, HarnessResult("devin", ResultState.READY, (), {})
+    if len(entries) == 1 and entries[0].identifier == "devin-global-rules":
+        return entries[0], adapter.validate_receipt_owned_file(entries[0])
+    return None, blocked("receipt lacks exact Devin global rule ownership")
 
 
 def _remove_plugins(
@@ -95,7 +126,7 @@ def _receipt_plugin_ids(
     ids: list[str] = []
     errors: list[str] = []
     for identifier in receipt.plugin_ids:
-        if identifier not in DOMAIN_BUNDLES:
+        if identifier not in PORTABLE_BUNDLES:
             errors.append(f"receipt contains non-canonical plugin ID: {identifier}")
         elif identifier not in ids:
             ids.append(identifier)

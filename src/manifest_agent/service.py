@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
@@ -14,9 +16,15 @@ from manifest_agent import __version__
 from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
 from manifest_agent.adapters.registry import AdapterRegistry
 from manifest_agent.capabilities import resolve_capabilities
-from manifest_agent.contracts import DOMAIN_BUNDLES, load_domain_contracts
+from manifest_agent.catalog import load_catalog
+from manifest_agent.contracts import (
+    DOMAIN_BUNDLES,
+    load_addon_contracts,
+    load_domain_contracts,
+)
 from manifest_agent.migration import MigrationService
 from manifest_agent.models import (
+    CatalogPlugin,
     DesiredState,
     HarnessReceipt,
     HarnessResult,
@@ -75,6 +83,7 @@ class ManifestService:
         snapshot_root: Path | None = None,
         release_resolver: Callable[[str | Path], ResolvedRelease] = resolve_release,
         contract_loader: Callable[[Path], tuple[Any, ...]] = load_domain_contracts,
+        addon_contract_loader: Callable[[Path], tuple[Any, ...]] = load_addon_contracts,
         capability_planner: Callable[[Sequence[Any], Sequence[str]], Any] = (
             resolve_capabilities
         ),
@@ -94,6 +103,7 @@ class ManifestService:
         self.snapshot_root = snapshot_root or self.receipt_path.parent / "snapshots"
         self.release_resolver = release_resolver
         self.contract_loader = contract_loader
+        self.addon_contract_loader = addon_contract_loader
         self.capability_planner = capability_planner
         self.lock_factory = lock_factory
         self.runner = runner or CommandRunner()
@@ -181,6 +191,12 @@ class ManifestService:
                 (diagnostic(exception),),
             )
         return report("install", results, notes)
+
+    def bootstrap_sync(self) -> ServiceReport:
+        """Converge native plugins and perform receipt-backed final cutovers."""
+        from manifest_agent.bootstrap_sync import BootstrapSyncService
+
+        return BootstrapSyncService(self).run()
 
     def _upgrade_retired_graphify_receipt(
         self, receipt: InstallationReceipt, desired: DesiredState
@@ -413,7 +429,8 @@ class ManifestService:
         if error is not None:
             return report("reconcile", {}, errors=(error,))
         assert desired is not None
-        return _reconcile_desired(self, receipt, desired, apply=apply)
+        result = _reconcile_desired(self, receipt, desired, apply=apply)
+        return _reconcile_runtime_diagnostics(self, desired, result, apply=apply)
 
     def uninstall(self) -> ServiceReport:
         """Remove only receipt-recorded ownership in reverse harness order."""
@@ -458,15 +475,45 @@ class ManifestService:
         return report("uninstall", ordered(results, HARNESS_ORDER), notes)
 
     def _desired_state(
-        self, receipt_release: str | None = None
+        self, receipt_release: str | None = None, *, exact_release: bool = False
     ) -> tuple[DesiredState | None, str | None]:
         selector: str | Path = (
-            self.source or self.release or receipt_release or __version__
+            receipt_release
+            if exact_release and receipt_release is not None
+            else self.source or self.release or receipt_release or __version__
         )
         try:
             resolved = self.release_resolver(selector)
             contracts = self.contract_loader(resolved.release_root / "plugins")
-            self.capability_planner(contracts, self.selected_optional)
+            addon_contracts = self.addon_contract_loader(
+                resolved.release_root / "plugins"
+            )
+            authoritative_contracts = (*contracts, *addon_contracts)
+            self.capability_planner(authoritative_contracts, self.selected_optional)
+            marketplace_path = (
+                resolved.release_root / ".claude-plugin" / "marketplace.json"
+            )
+            catalog = (
+                load_catalog(marketplace_path)
+                if marketplace_path.exists()
+                else tuple(
+                    CatalogPlugin(
+                        contract.name,
+                        contract.version,
+                        f"./plugins/{contract.name}",
+                    )
+                    # Addons must be included: the loop below validates every
+                    # authoritative contract against this catalog, so omitting
+                    # them makes a marketplace-less release root fail always.
+                    for contract in authoritative_contracts
+                )
+            )
+            catalog_versions = {plugin.name: plugin.version for plugin in catalog}
+            for contract in authoritative_contracts:
+                if catalog_versions.get(contract.name) != contract.version:
+                    raise ValueError(
+                        f"catalog identity for {contract.name} disagrees with its portable contract"
+                    )
             return (
                 DesiredState(
                     resolved.version,
@@ -480,6 +527,8 @@ class ManifestService:
                     tuple(contracts),
                     frozenset(self.selected_optional),
                     self.harnesses,
+                    catalog,
+                    tuple(addon_contracts),
                 ),
                 None,
             )
@@ -580,6 +629,122 @@ def _detect(name: str, adapter: HarnessAdapter) -> Detection:
     # constitution: exempt C-ERR -- adapters are a native process boundary.
     except Exception as exception:
         return Detection(False, None, None, diagnostic(exception))
+
+
+_ADHD_DIAGNOSTIC = "manifest-i-have-adhd.json"
+_ADHD_REASONS = frozenset(
+    {
+        "invalid-event",
+        "invalid-json",
+        "invalid-payload",
+        "missing-guidance",
+        "runtime-error",
+    }
+)
+_ADHD_HARNESSES = frozenset({"native", "claude", "codex"})
+
+
+def _load_adhd_diagnostics(root: Path, version: str) -> tuple[str, ...]:
+    """Decode only trusted, bounded addon diagnostics into stable reason codes."""
+    path = root / _ADHD_DIAGNOSTIC
+    if path.is_symlink() or not path.is_file():
+        return ()
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as stream:
+            raw = stream.read(4097)
+        if len(raw) > 4096:
+            return ()
+        rows = json.loads(raw)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return ()
+    if not isinstance(rows, list) or len(rows) > 100:
+        return ()
+    reasons: list[str] = []
+    allowed = {"plugin", "version", "harness", "reason"}
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != allowed:
+            continue
+        if not all(
+            isinstance(row[key], str) and len(row[key].encode("utf-8")) <= 512
+            for key in allowed
+        ):
+            continue
+        if (
+            row["plugin"] != "manifest-i-have-adhd"
+            or row["version"] != version
+            or row["harness"] not in _ADHD_HARNESSES
+            or row["reason"] not in _ADHD_REASONS
+        ):
+            continue
+        reasons.append(row["reason"])
+    return tuple(dict.fromkeys(reasons))
+
+
+def _clear_adhd_diagnostic(root: Path) -> None:
+    path = root / _ADHD_DIAGNOSTIC
+    if path.is_symlink():
+        raise RuntimeError("owned ADHD diagnostic path became a symlink")
+    path.unlink(missing_ok=True)
+
+
+def _reconcile_runtime_diagnostics(service, desired, result, *, apply: bool):
+    addon = next(
+        (i for i in desired.catalog_plugins if i.name == "manifest-i-have-adhd"),
+        None,
+    )
+    if addon is None:
+        return result
+    root = xdg_paths().state / "diagnostics"
+    reasons = _load_adhd_diagnostics(root, addon.version)
+    if not reasons:
+        return result
+    codex = result.harnesses.get("codex")
+    if codex is None:
+        return replace(
+            result,
+            notes=(*result.notes, "ADHD runtime diagnostic awaits an owned harness"),
+        )
+    adapter = service.adapters.get("codex")
+    if apply and adapter is not None and hasattr(adapter, "probe_adhd_hook"):
+        probe = adapter.probe_adhd_hook(desired)
+        if probe.state is ResultState.READY:
+            _clear_adhd_diagnostic(root)
+            repaired = replace(
+                codex,
+                capabilities={**codex.capabilities, **probe.capabilities},
+                warnings=tuple(
+                    warning
+                    for warning in codex.warnings
+                    if not warning.startswith("ADHD runtime diagnostic:")
+                ),
+            )
+            harnesses = dict(result.harnesses)
+            harnesses["codex"] = repaired
+            return report(
+                "reconcile",
+                harnesses,
+                (*result.notes, "repaired owned ADHD SessionStart diagnostic"),
+                result.errors,
+            )
+        harnesses = dict(result.harnesses)
+        harnesses["codex"] = combine_results(codex, probe)
+        return report("reconcile", harnesses, result.notes, result.errors)
+    degraded = replace(
+        codex,
+        state=(
+            codex.state
+            if codex.state in {ResultState.BLOCKED, ResultState.DRIFTED}
+            else ResultState.DEGRADED
+        ),
+        warnings=(
+            *codex.warnings,
+            *(f"ADHD runtime diagnostic: {reason}" for reason in reasons),
+        ),
+    )
+    harnesses = dict(result.harnesses)
+    harnesses["codex"] = degraded
+    return report("reconcile", harnesses, result.notes, result.errors)
 
 
 def _adapter_call(name: str, operation: Callable[..., Any], arg: Any) -> HarnessResult:

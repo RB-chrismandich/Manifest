@@ -21,7 +21,7 @@
 | `--no-claude` | Disable Claude CLI (enabled by default) |
 | `--no-antigravity` | Disable Antigravity for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
 | `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced (default: flash) |
 | `--check-credits` | Run pre-flight credit check |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
@@ -51,7 +51,6 @@ The orchestrating agent (Claude) selects models based on task complexity:
 | mini/haiku | cursor-grok-4.5-low | claude-haiku-4-5 | - | gpt-5.6-luna | gemini-3.6-flash-low |
 | flash/sonnet | cursor-grok-4.5-medium | claude-sonnet-5 | gemini-3-flash-preview | gpt-5.6-terra | gemini-3.6-flash-high |
 | advanced/opus/pro | cursor-grok-4.5-high | claude-opus-5 | gemini-3-pro-preview | gpt-5.6-sol | claude-opus-4-6-thinking |
-| fable (security) | - | claude-fable-5 | - | - | - |
 
 **Known correlation**: Antigravity serves Gemini/Claude model families also present via
 direct API; consensus scores can be inflated by same-family agreement, and agy's catalog
@@ -88,7 +87,7 @@ When consensus is low, `SynthesisEngine` merges agent outputs. Configure
 The script automatically detects credit/quota exhaustion and falls back:
 
 - **Cursor**: cursor-grok-4.5-high → cursor-grok-4.5-medium → cursor-grok-4.5-low → auto
-- **Claude**: fable → opus → sonnet → haiku
+- **Claude**: opus → sonnet → haiku
 - **Codex**: gpt-5.6-sol → gpt-5.6-terra → gpt-5.6-luna
 - **Antigravity**: advanced → flash → mini
 

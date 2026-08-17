@@ -29,7 +29,11 @@ components:
       path: hooks/manifest-hooks.json
       compatibility:
         claude: {mode: generated}
-        codex: {mode: unsupported, reason: Codex has no native lifecycle hook surface.}
+        codex:
+          mode: degraded
+          reason: >-
+            The advisory manifest-hooks catalog is not a Codex lifecycle hook
+            registration. Codex lifecycle support is declared per event below.
         gemini:
           mode: degraded
           reason: >-
@@ -37,8 +41,35 @@ components:
             catalog as native BeforeTool hooks; use ai-hooks-integration for
             explicit installation.
         cursor: {mode: generated}
-        antigravity: {mode: unsupported, reason: Antigravity has no native lifecycle hook surface.}
-        devin: {mode: unsupported, reason: Devin has no native lifecycle hook surface.}
+        antigravity: {mode: degraded, reason: Antigravity has no native lifecycle hook surface.}
+        devin: {mode: degraded, reason: Devin has no native lifecycle hook surface.}
+    - id: codex-session-start
+      path: hooks/codex-lifecycle-events.json
+      compatibility:
+        claude: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
+        codex: {mode: native}
+        gemini: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
+        cursor: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
+        antigravity: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
+        devin: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
+    - id: codex-stop
+      path: hooks/codex-lifecycle-events.json
+      compatibility:
+        claude: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
+        codex: {mode: native}
+        gemini: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
+        cursor: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
+        antigravity: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
+        devin: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
+    - id: codex-permission-request
+      path: hooks/codex-lifecycle-events.json
+      compatibility:
+        claude: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
+        codex: {mode: native}
+        gemini: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
+        cursor: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
+        antigravity: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
+        devin: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
   runtime:
     - {id: parallel-agent-scripts, path: skills/parallel-agent/scripts}
     - {id: parallel-agent-config, path: skills/parallel-agent/config}

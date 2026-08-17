@@ -844,8 +844,12 @@ class TestAntigravityAgent:
         class FakeProc:
             returncode = 0
 
-            async def communicate(self):
-                return (b"OK", b"")
+            def __init__(self):
+                self.stdout = _AsyncBytesStream(b"OK")
+                self.stderr = _AsyncBytesStream(b"")
+
+            async def wait(self):
+                return self.returncode
 
         async def fake_exec(*args, **kwargs):
             return FakeProc()
@@ -881,8 +885,14 @@ class TestAntigravityAgent:
         class FakeProc:
             returncode = 1
 
-            async def communicate(self):
-                return (b"", b"Error: unauthorized, please run agy login")
+            def __init__(self):
+                self.stdout = _AsyncBytesStream(b"")
+                self.stderr = _AsyncBytesStream(
+                    b"Error: unauthorized, please run agy login"
+                )
+
+            async def wait(self):
+                return self.returncode
 
         async def fake_exec(*args, **kwargs):
             return FakeProc()
@@ -909,15 +919,18 @@ class TestAntigravityAgent:
             def __init__(self):
                 self.killed = False
                 self.returncode = None
-
-            async def communicate(self):
-                await asyncio.sleep(3600)
+                self.stdout = _AsyncBytesStream(b"")
+                self.stderr = _AsyncBytesStream(b"")
+                self._terminated = asyncio.Event()
 
             def kill(self):
                 self.killed = True
+                self._terminated.set()
 
             async def wait(self):
-                return 0
+                await self._terminated.wait()
+                self.returncode = -9
+                return self.returncode
 
         proc = HangingProc()
 
@@ -946,15 +959,18 @@ class TestAntigravityAgent:
             def __init__(self):
                 self.killed = False
                 self.returncode = None
-
-            async def communicate(self):
-                await asyncio.sleep(3600)
+                self.stdout = _AsyncBytesStream(b"")
+                self.stderr = _AsyncBytesStream(b"")
+                self._terminated = asyncio.Event()
 
             def kill(self):
                 self.killed = True
+                self._terminated.set()
 
             async def wait(self):
-                return 0
+                await self._terminated.wait()
+                self.returncode = -9
+                return self.returncode
 
         proc = HangingProc()
 
@@ -993,6 +1009,15 @@ async def _wrap(proc):
     return proc
 
 
+class _AsyncBytesStream:
+    def __init__(self, data):
+        self._data = data
+
+    async def read(self, _size=-1):
+        data, self._data = self._data, b""
+        return data
+
+
 class TestDevinCreditCheck:
     """check_credits' devin probe.
 
@@ -1020,8 +1045,12 @@ class TestDevinCreditCheck:
         class FakeProc:
             returncode = 0
 
-            async def communicate(self):
-                return (b"Claude Opus 4.8\nGPT-5.5\nSWE-1.6\n", b"")
+            def __init__(self):
+                self.stdout = _AsyncBytesStream(b"Claude Opus 4.8\nGPT-5.5\nSWE-1.6\n")
+                self.stderr = _AsyncBytesStream(b"")
+
+            async def wait(self):
+                return self.returncode
 
         monkeypatch.setattr(
             asyncio, "create_subprocess_exec", lambda *a, **k: _wrap(FakeProc())
@@ -1040,8 +1069,14 @@ class TestDevinCreditCheck:
         class FakeProc:
             returncode = 1
 
-            async def communicate(self):
-                return (b"", b"Error: Not logged in. Run `devin auth login`.")
+            def __init__(self):
+                self.stdout = _AsyncBytesStream(b"")
+                self.stderr = _AsyncBytesStream(
+                    b"Error: Not logged in. Run `devin auth login`."
+                )
+
+            async def wait(self):
+                return self.returncode
 
         monkeypatch.setattr(
             asyncio, "create_subprocess_exec", lambda *a, **k: _wrap(FakeProc())
@@ -1102,8 +1137,12 @@ class TestDevinCreditCheck:
         class FakeProc:
             returncode = 1
 
-            async def communicate(self):
-                return (b"Not logged in.", b"")
+            def __init__(self):
+                self.stdout = _AsyncBytesStream(b"Not logged in.")
+                self.stderr = _AsyncBytesStream(b"")
+
+            async def wait(self):
+                return self.returncode
 
         monkeypatch.setattr(
             asyncio, "create_subprocess_exec", lambda *a, **k: _wrap(FakeProc())
@@ -1122,15 +1161,18 @@ class TestDevinCreditCheck:
             def __init__(self):
                 self.killed = False
                 self.returncode = None
-
-            async def communicate(self):
-                await asyncio.sleep(3600)
+                self.stdout = _AsyncBytesStream(b"")
+                self.stderr = _AsyncBytesStream(b"")
+                self._terminated = asyncio.Event()
 
             def kill(self):
                 self.killed = True
+                self._terminated.set()
 
             async def wait(self):
-                return 0
+                await self._terminated.wait()
+                self.returncode = -9
+                return self.returncode
 
         proc = HangingProc()
 

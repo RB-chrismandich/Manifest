@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -96,6 +97,81 @@ def smoke(args: tuple[str, ...]) -> None:
 
         sys.argv = ["manifest smoke", *args]
         raise SystemExit(smoke_main())
+
+
+@cli.command("skill-run")
+@click.argument("skill_path")
+@click.option(
+    "--harness",
+    required=True,
+    type=click.Choice(
+        ("claude", "codex", "gemini", "cursor", "antigravity", "agy", "devin")
+    ),
+)
+@click.option(
+    "--task-file", type=click.Path(path_type=Path, exists=True, dir_okay=False)
+)
+@click.option("--model")
+@click.option("--model-chain")
+@click.option("--model-fallback", type=click.Choice(("auto", "confirm")))
+@click.option("--recovery-id")
+@click.option("--expected-version", type=int)
+@click.option("--fallback-decision", type=click.Choice(("approve", "reject", "auto")))
+@click.option("--replacement-tier")
+@click.option("--replacement-mode", type=click.Choice(("auto", "confirm")))
+@click.option("--non-interactive", is_flag=True)
+@click.option("--json", "as_json", is_flag=True)
+@click.pass_context
+def skill_run_cmd(
+    context: click.Context,
+    skill_path: str,
+    harness: str,
+    task_file: Path | None,
+    model: str | None,
+    model_chain: str | None,
+    model_fallback: str | None,
+    recovery_id: str | None,
+    expected_version: int | None,
+    fallback_decision: str | None,
+    replacement_tier: str | None,
+    replacement_mode: str | None,
+    non_interactive: bool,
+    as_json: bool,
+) -> None:
+    """Run one skill through an explicit model-aware native handoff."""
+    with guarded_imports():
+        from manifest_model_policy.skill_run import (
+            SkillRunExecutionError,
+            execute_skill_command,
+        )
+
+        try:
+            outcome = execute_skill_command(
+                skill=skill_path,
+                harness=harness,
+                task_stream=sys.stdin.buffer,
+                config_path=runtime_root() / "config/parallel_agent.yml",
+                task_file=task_file,
+                model=model,
+                model_chain=model_chain,
+                model_fallback=model_fallback,
+                recovery_id=recovery_id,
+                expected_version=expected_version,
+                fallback_decision=fallback_decision,
+                replacement_tier=replacement_tier,
+                replacement_mode=replacement_mode,
+                non_interactive=non_interactive,
+                as_json=as_json,
+                confirm_callback=click.confirm,
+            )
+        except (OSError, SkillRunExecutionError, UnicodeError, ValueError) as error:
+            raise click.UsageError(str(error)) from error
+    if as_json:
+        click.echo(json.dumps(outcome.payload, sort_keys=True))
+    else:
+        click.echo("\n".join(outcome.text))
+    if outcome.exit_code:
+        context.exit(outcome.exit_code)
 
 
 @cli.group()

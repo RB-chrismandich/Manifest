@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
+from dataclasses import replace
 
 import pytest
 
 import manifest_agent.service as service_module
-from manifest_agent.models import ResultState
+from manifest_agent.models import CatalogPlugin, HarnessResult, ResultState
 from manifest_agent.state import read_receipt
 from tests.python.manifest_agent.test_service_install import (
     FakeAdapter,
@@ -167,6 +169,62 @@ def test_reconcile_apply_locks_before_reading_receipt(service_factory, monkeypat
     service.reconcile(apply=True)
 
     assert events[:2] == ["lock", "read"]
+
+
+def test_reconcile_reports_and_repairs_owned_adhd_diagnostic(
+    service_factory, tmp_path, monkeypatch
+):
+    class DiagnosticAdapter(FakeAdapter):
+        def probe_adhd_hook(self, desired):
+            del desired
+            self.calls.append("probe")
+            return HarnessResult(
+                "codex",
+                ResultState.READY,
+                (),
+                {"addon:manifest-i-have-adhd:session-start": "verified"},
+            )
+
+    codex = DiagnosticAdapter("codex", harness_result("codex"))
+    service = service_factory({"codex": codex}, harnesses=("codex",))
+    assert service.install().state is ResultState.READY
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+    desired = replace(
+        desired,
+        catalog_plugins=(
+            *desired.catalog_plugins,
+            CatalogPlugin(
+                "manifest-i-have-adhd", "0.1.0", "./plugins/manifest-i-have-adhd"
+            ),
+        ),
+    )
+    service._desired_state = lambda receipt_release=None: (desired, None)
+    state = tmp_path / "runtime-state"
+    diagnostic = state / "manifest/diagnostics/manifest-i-have-adhd.json"
+    diagnostic.parent.mkdir(parents=True)
+    diagnostic.write_text(
+        json.dumps(
+            [
+                {
+                    "plugin": "manifest-i-have-adhd",
+                    "version": "0.1.0",
+                    "harness": "native",
+                    "reason": "missing-guidance",
+                }
+            ]
+        )
+    )
+    monkeypatch.setenv("XDG_STATE_HOME", str(state))
+    codex.calls.clear()
+
+    observed = service.reconcile(apply=False)
+    repaired = service.reconcile(apply=True)
+
+    assert observed.harnesses["codex"].state is ResultState.DEGRADED
+    assert repaired.state is ResultState.READY
+    assert "probe" in codex.calls
+    assert not diagnostic.exists()
 
 
 def test_reconcile_apply_unowned_v2_target_does_not_rewrite_v1_receipt(

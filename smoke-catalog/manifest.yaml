@@ -663,7 +663,7 @@ tests:
             #!/usr/bin/env bash
             cat <<JSON
             \\\`\\\`\\\`json
-            {"backend": "$1", "model": "stub-tier", "outcome": "success", "attempted": "noop", "changes": [], "succeeded": ["noop"], "failed": [], "follow_ups": []}
+            {"backend": "$1", "model": "stub-tier", "outcome": "success", "findings": [{"severity": "low", "text": "stub finding for second-opinion binding"}], "attempted": "noop", "changes": [], "succeeded": ["noop"], "failed": [], "follow_ups": []}
             \\\`\\\`\\\`
             JSON
             EOS
@@ -699,7 +699,8 @@ tests:
             out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" task 'original task' --backend stub-a --wait)
             job_id=$(echo "$out" | grep -oE '^job_id: .*' | awk '{print $2}')
             test -n "$job_id"
-            so_out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" task --second-opinion --of "$job_id" --backend stub-b --wait)
+            printf 'compare the two approaches' > "$sb/second-opinion-task.txt"
+            so_out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" task --second-opinion --of "$job_id" --backend stub-b --task-file "$sb/second-opinion-task.txt" --wait)
             echo "$so_out" | grep -q 'backend: stub-b'
             echo "$so_out" | grep -q "$job_id"
             echo 'delegate second opinion attribution verified'
@@ -787,8 +788,8 @@ tests:
               '{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{}}]}' \
               > "$transcript"
             out=$(cd "$sb/repo" && python3 "$gate_py" gate --transcript "$transcript" --json --enable-review-gate-for-test 2>&1) || true
-            echo "$out" | grep -Eq '"decision"\s*:\s*"block"|"decision"\s*:\s*"allow"|systemMessage' \
-              || { echo "FAIL: expected block decision or fail-open allow/systemMessage, got: $out"; exit 1; }
+            echo "$out" | grep -Eq '"decision"\s*:\s*"block"|"decision"\s*:\s*"approve"|systemMessage' \
+              || { echo "FAIL: expected block decision or fail-open approve/systemMessage, got: $out"; exit 1; }
             echo 'delegate gate enabled-pause verified'
   - id: delegate-gate-disabled-no-pause
     title: disabled review gate allows the Stop through with no pause
@@ -816,7 +817,7 @@ tests:
               '{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{}}]}' \
               > "$transcript"
             out=$(cd "$sb/repo" && HOME="$sb" python3 "$gate_py" gate --transcript "$transcript" --json 2>&1)
-            echo "$out" | grep -Eq '"decision"\s*:\s*"allow"|systemMessage' \
-              || { echo "FAIL: expected allow (gate off by default) or fail-open systemMessage, got: $out"; exit 1; }
+            echo "$out" | grep -Eq '"decision"\s*:\s*"approve"|systemMessage' \
+              || { echo "FAIL: expected approve (gate off by default) or fail-open systemMessage, got: $out"; exit 1; }
             echo "$out" | grep -q '"decision"\s*:\s*"block"' && { echo "FAIL: gate blocked while disabled: $out"; exit 1; } || true
             echo 'delegate gate disabled-no-pause verified'

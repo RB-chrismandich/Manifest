@@ -173,9 +173,9 @@ def resolve_capabilities(
 ) -> CapabilityPlan:
     """Build a deterministic union while rejecting tier/selection ambiguity."""
     names = tuple(contract.name for contract in contracts)
-    if len(contracts) != len(DOMAIN_BUNDLES) or set(names) != set(DOMAIN_BUNDLES):
+    if len(names) != len(set(names)) or not set(DOMAIN_BUNDLES) <= set(names):
         raise CapabilityConflict(
-            f"capability planning requires the exact {len(DOMAIN_BUNDLES)} contracts"
+            "capability planning requires every domain contract exactly once"
         )
     tiers = {
         kind: {tier: set() for tier in CapabilityTier}

@@ -52,7 +52,7 @@ Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
 
 ## Session model
 
-This workflow requires Fable; ask the user to switch to Fable before starting the loop.
+This workflow runs on the session default, Opus (1M context) — the top tier. It previously required Fable, retired 2026-08-17.
 
 This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
 until the gates clear.

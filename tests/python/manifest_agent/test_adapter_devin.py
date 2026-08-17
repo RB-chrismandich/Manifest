@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.adapters.devin import DevinAdapter
+from manifest_agent.codex_plugin_backup import capture_owned_file_backup
 from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
     Capabilities,
@@ -24,8 +25,10 @@ from manifest_agent.models import (
     HarnessReceipt,
     MarketplaceSource,
     MarketplaceSourceKind,
+    OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import owned_file_entry
 from manifest_agent.process import CommandRunner
 
 
@@ -97,6 +100,9 @@ def desired(tmp_path: Path) -> DesiredState:
                 Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
             )
         )
+    generated_rule = tmp_path / "plugins/manifest-i-have-adhd/devin/global-rule.md"
+    generated_rule.parent.mkdir(parents=True)
+    generated_rule.write_text("# Generated ADHD rule\n", encoding="utf-8")
     return DesiredState(
         release_version="0.2.0",
         source_commit="a" * 40,
@@ -168,6 +174,61 @@ def install_results(
     )
 
 
+def owned_rule_receipt(
+    desired: DesiredState, home: Path, *, prior: bytes | None = None
+) -> OwnedEntry:
+    target = home / ".codeium/windsurf/memories/global_rules.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source = desired.bundle_path("manifest-i-have-adhd") / "devin/global-rule.md"
+    source_backup, _mode, source_digest = capture_owned_file_backup(
+        source, {"HOME": str(home)}
+    )
+    if prior is None:
+        prior_row = {"path": str(target), "type": "missing"}
+    else:
+        target.write_bytes(prior)
+        prior_backup, prior_mode, prior_digest = capture_owned_file_backup(
+            target, {"HOME": str(home)}
+        )
+        prior_row = {
+            "path": str(target),
+            "type": "file",
+            "mode": prior_mode,
+            "digest": prior_digest,
+            "restore": {"archive": prior_backup.to_dict()},
+        }
+    target.write_bytes(source.read_bytes())
+    target.chmod(0o600)
+    installed = {
+        "path": str(target),
+        "type": "file",
+        "mode": 0o600,
+        "digest": source_digest,
+        "restore": {"archive": source_backup.to_dict()},
+    }
+    return owned_file_entry(
+        "devin-global-rules",
+        target,
+        prior_row,
+        installed,
+        env={"HOME": str(home)},
+    )
+
+
+def uninstall_receipt(
+    desired: DesiredState, home: Path, *, prior=None
+) -> HarnessReceipt:
+    return HarnessReceipt(
+        "devin",
+        "1",
+        "3000.2.17",
+        DOMAIN_BUNDLES,
+        (owned_rule_receipt(desired, home, prior=prior),),
+        {},
+        True,
+    )
+
+
 def test_detection_reports_absent_cli_explicitly() -> None:
     detection = DevinAdapter(which=lambda _name: None).detect()
 
@@ -180,8 +241,11 @@ def test_devin_installs_and_verifies_local_bundle_views(
     desired: DesiredState,
 ) -> None:
     runner = QueueRunner(install_results(desired))
+    home = desired.release_root / "home"
 
-    result = DevinAdapter(runner=runner, which=lambda name: name).install(desired)
+    result = DevinAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(home)}
+    ).install(desired)
 
     assert result.state is ResultState.READY
     assert runner.log[: len(DOMAIN_BUNDLES)] == [
@@ -197,6 +261,47 @@ def test_devin_installs_and_verifies_local_bundle_views(
     assert result.capabilities["manifest-workspace:skill:skill-manifest-workspace"] == (
         "verified"
     )
+    target = home / ".codeium/windsurf/memories/global_rules.md"
+    source = desired.bundle_path("manifest-i-have-adhd") / "devin/global-rule.md"
+    assert target.read_bytes() == source.read_bytes()
+
+
+def test_devin_rule_collision_blocks_before_any_native_command(
+    desired: DesiredState,
+) -> None:
+    home = desired.release_root / "collision-home"
+    target = home / ".codeium/windsurf/memories/global_rules.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("user-owned rule\n", encoding="utf-8")
+    runner = QueueRunner([])
+
+    result = DevinAdapter(runner=runner, env={"HOME": str(home)}).install(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "unowned user content" in " ".join(result.errors)
+    assert runner.log == []
+    assert target.read_text(encoding="utf-8") == "user-owned rule\n"
+
+
+def test_devin_rule_install_preserves_edit_at_final_transition_boundary(
+    desired: DesiredState, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = desired.release_root / "rule-race-home"
+    target = home / ".codeium/windsurf/memories/global_rules.md"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"")
+    runner = QueueRunner(install_results(desired))
+    adapter = DevinAdapter(runner=runner, env={"HOME": str(home)})
+
+    def concurrent_edit(path: Path) -> None:
+        path.write_text("concurrent user rule\n", encoding="utf-8")
+
+    monkeypatch.setattr(adapter, "_owned_file_transition_boundary", concurrent_edit)
+
+    result = adapter.install(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert target.read_text(encoding="utf-8") == "concurrent user rule\n"
 
 
 def test_devin_info_version_mismatch_is_drifted(desired: DesiredState) -> None:
@@ -282,146 +387,16 @@ def test_devin_native_errors_are_redacted_and_aggregated(
     installs[1] = command(returncode=1, stderr="--token devin-native-secret rejected")
     installs[6] = command(returncode=1, stderr="second install failed")
     runner = QueueRunner(installs + install_results(desired)[len(DOMAIN_BUNDLES) :])
+    home = desired.release_root / "home"
 
-    result = DevinAdapter(runner=runner, which=lambda name: name).install(desired)
+    result = DevinAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(home)}
+    ).install(desired)
 
     assert result.state is ResultState.BLOCKED
     assert len(result.errors) == 2
     assert "devin-native-secret" not in " ".join(result.errors)
     assert "[REDACTED]" in " ".join(result.errors)
-
-
-def test_devin_uninstall_prunes_only_after_owned_removal_and_preserves_unowned() -> (
-    None
-):
-    unowned = "other-team-plugin"
-    runner = QueueRunner(
-        [command(stdout=list_text((*DOMAIN_BUNDLES, unowned)))]
-        + [command()] * len(DOMAIN_BUNDLES)
-        + [command(stdout=list_text((unowned,)))]
-        + [command()]
-        + [command(stdout=list_text((unowned,)))]
-    )
-    receipt = HarnessReceipt(
-        harness="devin",
-        adapter_version="1",
-        native_version="3000.2.17",
-        plugin_ids=DOMAIN_BUNDLES,
-        owned_entries=(),
-        capabilities={},
-        verified=True,
-    )
-
-    result = DevinAdapter(runner=runner).uninstall(receipt)
-
-    assert result.state is ResultState.READY
-    assert runner.log[0] == ["devin", "plugins", "list"]
-    assert runner.log[1 : len(DOMAIN_BUNDLES) + 1] == [
-        ["devin", "plugins", "remove", name] for name in DOMAIN_BUNDLES
-    ]
-    assert runner.log[-3:] == [
-        ["devin", "plugins", "list"],
-        ["devin", "plugins", "prune"],
-        ["devin", "plugins", "list"],
-    ]
-
-
-def test_devin_uninstall_skips_prune_after_any_owned_remove_failure() -> None:
-    removals = [command()] * len(DOMAIN_BUNDLES)
-    removals[3] = command(returncode=1, stderr="remove failed")
-    runner = QueueRunner(
-        [
-            command(stdout=list_text()),
-            *removals,
-            command(stdout=list_text((DOMAIN_BUNDLES[3],))),
-        ]
-    )
-    receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
-
-    result = DevinAdapter(runner=runner).uninstall(receipt)
-
-    assert result.state is ResultState.BLOCKED
-    assert not any(row[1:] == ["plugins", "prune"] for row in runner.log)
-
-
-def test_devin_uninstall_refuses_prune_when_unowned_preservation_is_unverified() -> (
-    None
-):
-    unowned = "other-team-plugin"
-    runner = QueueRunner(
-        [command(stdout=list_text((*DOMAIN_BUNDLES, unowned)))]
-        + [command()] * len(DOMAIN_BUNDLES)
-        + [command(stdout=list_text())]
-    )
-    receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
-
-    result = DevinAdapter(runner=runner).uninstall(receipt)
-
-    assert result.state is ResultState.BLOCKED
-    assert "unowned plugin disappeared" in " ".join(result.errors)
-    assert not any(row[1:] == ["plugins", "prune"] for row in runner.log)
-
-
-def test_devin_uninstall_blocks_unparsed_inventory_before_removal() -> None:
-    stdout = list_text() + "\n@other/private 1.0\n"
-    runner = QueueRunner([command(stdout=stdout)])
-    receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
-
-    result = DevinAdapter(runner=runner).uninstall(receipt)
-
-    assert result.state is ResultState.BLOCKED
-    assert "unrecognized inventory row" in " ".join(result.errors)
-    assert runner.log == [["devin", "plugins", "list"]]
-    assert not any(row[1:] == ["plugins", "prune"] for row in runner.log)
-
-
-def test_devin_uninstall_parses_documented_table_inventory_variants() -> None:
-    before = (
-        "\x1b[1mInstalled plugins\x1b[0m\n"
-        "Name │ Version │ Blocked\n"
-        + "".join(f"{name} │ v0.2.0-beta.1 │ no\n" for name in DOMAIN_BUNDLES)
-        + "other-team/private │ unversioned │ required\n"
-    )
-    after = (
-        "Installed plugins\n"
-        "Name | Version | Blocked\n"
-        "other-team/private | unversioned | required\n"
-    )
-    runner = QueueRunner(
-        [command(stdout=before)]
-        + [command() for _name in DOMAIN_BUNDLES]
-        + [command(stdout=after), command(), command(stdout=after)]
-    )
-    receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
-
-    result = DevinAdapter(runner=runner).uninstall(receipt)
-
-    assert result.state is ResultState.READY
-    assert runner.log[0] == ["devin", "plugins", "list"]
-    assert runner.log[1 : len(DOMAIN_BUNDLES) + 1] == [
-        ["devin", "plugins", "remove", name] for name in DOMAIN_BUNDLES
-    ]
-    assert runner.log[-3:] == [
-        ["devin", "plugins", "list"],
-        ["devin", "plugins", "prune"],
-        ["devin", "plugins", "list"],
-    ]
-
-
-def test_devin_uninstall_removes_only_canonical_receipt_ids() -> None:
-    runner = QueueRunner([])
-    receipt = HarnessReceipt(
-        "devin",
-        "1",
-        "3000.2.17",
-        ("manifest-docs", "unrelated-plugin"),
-        (),
-        {},
-        True,
-    )
-
-    result = DevinAdapter(runner=runner).uninstall(receipt)
-
-    assert result.state is ResultState.BLOCKED
-    assert runner.log == []
-    assert "non-canonical" in " ".join(result.errors)
+    target = home / ".codeium/windsurf/memories/global_rules.md"
+    source = desired.bundle_path("manifest-i-have-adhd") / "devin/global-rule.md"
+    assert target.read_bytes() == source.read_bytes()

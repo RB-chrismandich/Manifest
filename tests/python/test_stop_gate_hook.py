@@ -88,3 +88,40 @@ def test_wrapper_timeout_outlasts_backend_budget_cap():
         f"real cleanup overhead so the gate reaps its backend before the wrapper "
         f"kills delegate.py; got {overhead}s of headroom"
     )
+
+
+def test_wrapper_timeout_stays_under_the_declared_hook_timeout():
+    """The declared hooks.json Stop timeout is the harness's hard ceiling.
+
+    Only the lower bound (wrapper > backend cap) was ever guarded, so the
+    wrapper sat at exactly the declared 900s with no room to catch
+    TimeoutExpired, format, and flush its fail-open JSON -- Claude Code would
+    kill it mid-write and receive no decision at all. Bound the other end too:
+    backend cap < wrapper < declared hook timeout.
+    """
+    import importlib.util
+
+    pkg_dir = SCRIPT.parent.parent
+    if str(pkg_dir) not in sys.path:
+        sys.path.insert(0, str(pkg_dir))
+
+    spec = importlib.util.spec_from_file_location("stop_gate_hook", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    hooks = json.loads((pkg_dir / "hooks" / "hooks.json").read_text())
+    stop_timeouts = [
+        hook["timeout"]
+        for matcher in hooks["hooks"]["Stop"]
+        for hook in matcher["hooks"]
+        if "timeout" in hook
+    ]
+    assert stop_timeouts, "hooks.json declares no Stop timeout to bound against"
+    declared = min(stop_timeouts)
+    wrapper = mod.GATE_WRAPPER_TIMEOUT_SECONDS
+    margin = declared - wrapper
+    assert margin >= 15, (
+        f"wrapper timeout ({wrapper}s) must stay under the declared Stop hook "
+        f"timeout ({declared}s) by enough to catch, format, and flush the "
+        f"fail-open decision; got {margin}s of margin"
+    )

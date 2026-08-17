@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the checked release-evidence matrix for the eight domain bundles.
+"""Render checked release evidence for every authoritative plugin contract.
 
 This rendering is deliberately contract evidence, not a substitute for the
 protected live workflow.  A live report may be supplied with ``--inspection``;
@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from manifest_agent.contracts import (  # noqa: E402
     DOMAIN_BUNDLES,
     CapabilityTier,
+    load_addon_contracts,
     load_domain_contracts,
 )
 
@@ -44,10 +45,12 @@ def _status(status: Any, *, optional: bool = False) -> str:
         return "N/A(contract optional; not selected)"
     if status.mode in {"native", "generated", "imported"}:
         return "READY"
+    if status.mode == "not_applicable":
+        return f"N/A({status.reason or 'harness-specific contract surface'})"
     if status.mode == "degraded":
         return f"DEGRADED({status.reason or 'contract-declared degradation'})"
     if status.mode == "unsupported":
-        return f"N/A({status.reason or 'contract-declared unsupported surface'})"
+        return f"BLOCKED({status.reason or 'required contract surface unsupported'})"
     return f"BLOCKED(unknown contract compatibility mode {status.mode!r})"
 
 
@@ -109,7 +112,9 @@ def _evidence_status(
 ) -> str | None:
     """Return a precise blocking reason when verified evidence does not join."""
     state = record["state"]
-    if state != "READY":
+    if state != "READY" and not all(
+        key in record for key in ("installed_plugin_ids", "components", "capabilities")
+    ):
         return state
     if bundle not in record["installed_plugin_ids"]:
         return f"BLOCKED(plugin {bundle!r} is not installed)"
@@ -153,9 +158,10 @@ def _append_row(
 
 
 def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list[str]]]:
-    contracts = load_domain_contracts(ROOT / "plugins")
-    if tuple(contract.name for contract in contracts) != DOMAIN_BUNDLES:
+    domains = load_domain_contracts(ROOT / "plugins")
+    if tuple(contract.name for contract in domains) != DOMAIN_BUNDLES:
         raise MatrixError("domain contracts are incomplete or unexpectedly ordered")
+    contracts = (*domains, *load_addon_contracts(ROOT / "plugins"))
     rows: list[tuple[str, str, list[str]]] = []
     inspection_records = _inspection_records(inspection)
     for contract in contracts:

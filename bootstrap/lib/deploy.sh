@@ -522,63 +522,59 @@ prune_cursor_rules() {
     fi
 }
 
-# codex_manifest_plugins_cover_catalog — true when every plugin in this
-# checkout's Manifest marketplace is installed and enabled in Codex.
-codex_manifest_plugins_cover_catalog() {
-    local marketplace="$SCRIPT_DIR/.claude-plugin/marketplace.json"
-    local plugin_state
-
-    [[ -r "$marketplace" ]] || return 1
-    command_exists codex && command_exists python3 || return 1
-    plugin_state="$(codex plugin list --marketplace manifest --json 2> /dev/null)" || return 1
-
-    python3 -c '
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as handle:
-    expected = {plugin["name"] for plugin in json.load(handle).get("plugins", [])}
-state = json.load(sys.stdin)
-enabled = {
-    plugin.get("name")
-    for plugin in state.get("installed", [])
-    if plugin.get("installed") and plugin.get("enabled")
-}
-raise SystemExit(0 if expected and expected <= enabled else 1)
-' "$marketplace" <<< "$plugin_state" 2> /dev/null
-}
-
-# configure_codex_skill_source — retain the flat harness catalog until Codex
-# has complete plugin coverage, then keep only Codex's own system skills.
+# configure_codex_skill_source — establish only the safe legacy fallback.
+# The Python bootstrap-sync coordinator owns verified final cutover.
 configure_codex_skill_source() {
     local root="${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
     local skills_dir="$CODEX_TARGET_DIR/skills"
     local current_target
 
-    if ! codex_manifest_plugins_cover_catalog; then
-        # This also runs during sibling-only repointing, before Codex config deploy.
-        mkdir -p "$CODEX_TARGET_DIR"
-        create_symlink "$skills_dir" "$root" "Codex skills"
-        return 0
-    fi
-
     if [[ -L "$skills_dir" ]]; then
         current_target="$(readlink "$skills_dir")"
-        if [[ "$current_target" != "$root" ]]; then
+        if [[ "$current_target" == "$root" ]]; then
+            return 0
+        else
             print_warning "Codex skills points to user-managed target: $current_target (leaving unchanged)"
             return 0
         fi
-        unlink "$skills_dir"
-    elif [[ -e "$skills_dir" && ! -d "$skills_dir" ]]; then
-        print_warning "Codex skills is user-managed and not a directory (leaving unchanged)"
+    elif [[ -e "$skills_dir" ]]; then
         return 0
     fi
+    mkdir -p "$CODEX_TARGET_DIR"
+    create_symlink "$skills_dir" "$root" "Codex skills"
+}
 
-    mkdir -p "$skills_dir"
-    if [[ -d "$root/.system" ]]; then
-        create_symlink "$skills_dir/.system" "$root/.system" "Codex system skills"
+sync_native_plugins() {
+    [[ "${ENABLE_CODEX:-true}" == true ]] || return 0
+    command_exists codex || {
+        print_info "Codex CLI not found — skipping native plugin reconciliation"
+        return 0
+    }
+    local uv_bin=""
+    if command_exists uv; then
+        uv_bin="$(command -v uv)"
+    elif [[ -x "$HOME/.local/bin/uv" ]]; then
+        uv_bin="$HOME/.local/bin/uv"
+    else
+        print_error "uv is required for Codex plugin reconciliation"
+        return 1
     fi
-    print_success "Codex uses Manifest plugins; retired the flat legacy skill catalog"
+    local output state
+    output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest bootstrap-sync \
+        --source "$SCRIPT_DIR" --harness codex --non-interactive --json)" || {
+        print_error "Codex native plugin reconciliation failed"
+        [[ -n "$output" ]] && print_error "$output"
+        return 1
+    }
+    state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<< "$output")" || {
+        print_error "Codex reconciliation returned invalid JSON"
+        return 1
+    }
+    if [[ "$state" != READY ]]; then
+        print_error "Codex plugin reconciliation returned $state"
+        return 1
+    fi
+    print_success "Codex native plugins reconciled"
 }
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
@@ -1288,6 +1284,12 @@ deploy_codex_configs() {
     # cutover, system-only once every Manifest plugin is installed and enabled.
     link_shared_assets "$CODEX_TARGET_DIR" "Codex" "false"
     configure_codex_skill_source
+    # Non-blocking: callers invoke deploy_codex_configs bare under `set -e`, so
+    # returning non-zero here would abort bootstrap.sh outright and skip every
+    # later step (Antigravity, Devin, sync-skills, the deploy stamp). A BLOCKED
+    # reconciliation is a normal coordinator outcome, not a deploy failure.
+    sync_native_plugins ||
+        print_warning "Codex native plugin reconciliation incomplete — continuing"
 
     print_success "Codex configuration deployed to $CODEX_TARGET_DIR"
 }
@@ -1366,6 +1368,114 @@ deploy_antigravity_configs() {
 # config.json is merged user-wins, never overwritten: it is the user's own file
 # (models, permissions, MCP servers, proxy). An explicit `claude: false` is
 # reported, not silently flipped — the user's stated intent wins over ours.
+devin_rule_sha256() {
+    python3 - "$1" << 'PYEOF'
+import hashlib
+import pathlib
+import sys
+
+print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())
+PYEOF
+}
+
+install_devin_rule_file() {
+    local source="$1" target="$2" temporary
+    temporary="$(mktemp "${target}.tmp.XXXXXX")" || return 1
+    if ! cp "$source" "$temporary" || ! chmod 600 "$temporary" || ! mv -f "$temporary" "$target"; then
+        rm -f "$temporary"
+        return 1
+    fi
+}
+
+write_devin_rule_checksum() {
+    local marker="$1" checksum="$2" temporary
+    temporary="$(mktemp "${marker}.tmp.XXXXXX")" || return 1
+    if ! chmod 600 "$temporary" ||
+        ! printf '%s\n' "$checksum" > "$temporary" ||
+        ! mv -f "$temporary" "$marker"; then
+        rm -f "$temporary"
+        return 1
+    fi
+}
+
+deploy_devin_adhd_rule() {
+    local source="$SCRIPT_DIR/plugins/manifest-i-have-adhd/devin/global-rule.md"
+    local target="$HOME/.codeium/windsurf/memories/global_rules.md"
+    local marker="$HOME/.codeium/windsurf/memories/.manifest-i-have-adhd.sha256"
+    [[ -f "$source" ]] || return 0
+
+    mkdir -p "$(dirname "$target")"
+    if [[ -L "$target" || (-e "$target" && ! -f "$target") ]]; then
+        print_warning "Preserved user-managed $target; ADHD always-on delivery is blocked"
+        return 0
+    fi
+
+    local source_sha recorded_sha="" marker_usable=false
+    source_sha="$(devin_rule_sha256 "$source")" || {
+        print_error "Could not hash Devin ADHD rule source: $source"
+        return 1
+    }
+    if [[ -f "$marker" && ! -L "$marker" ]]; then
+        IFS= read -r recorded_sha < "$marker" || recorded_sha=""
+    fi
+    if [[ ! -e "$marker" && ! -L "$marker" ]]; then
+        marker_usable=true
+    elif [[ "$recorded_sha" =~ ^[0-9a-f]{64}$ ]]; then
+        marker_usable=true
+    fi
+
+    if [[ ! -e "$target" || ! -s "$target" ]]; then
+        if [[ "$marker_usable" != true ]]; then
+            print_warning "Preserved user-managed $marker; ADHD rule ownership is blocked"
+            return 0
+        fi
+        install_devin_rule_file "$source" "$target" || {
+            print_error "Could not deploy Devin ADHD rule: $target"
+            return 1
+        }
+        write_devin_rule_checksum "$marker" "$source_sha" || {
+            print_error "Could not record Devin ADHD rule ownership: $marker"
+            return 1
+        }
+        print_success "Devin always-on ADHD rule deployed"
+        return 0
+    fi
+
+    if cmp -s "$source" "$target"; then
+        if [[ "$marker_usable" == true ]]; then
+            write_devin_rule_checksum "$marker" "$source_sha" || {
+                print_error "Could not record Devin ADHD rule ownership: $marker"
+                return 1
+            }
+        fi
+        print_info "Devin always-on ADHD rule already current"
+        return 0
+    fi
+
+    local target_sha
+    if [[ "$recorded_sha" =~ ^[0-9a-f]{64}$ ]]; then
+        target_sha="$(devin_rule_sha256 "$target")" || {
+            print_error "Could not hash deployed Devin ADHD rule: $target"
+            return 1
+        }
+        if [[ "$target_sha" == "$recorded_sha" ]]; then
+            install_devin_rule_file "$source" "$target" || {
+                print_error "Could not update Devin ADHD rule: $target"
+                return 1
+            }
+            write_devin_rule_checksum "$marker" "$source_sha" || {
+                print_error "Could not update Devin ADHD rule ownership: $marker"
+                return 1
+            }
+            print_success "Devin always-on ADHD rule updated"
+            return 0
+        fi
+    fi
+
+    print_warning "Preserved user-managed $target; ADHD always-on delivery is blocked"
+    return 0
+}
+
 deploy_devin_config() {
     if [[ "${ENABLE_DEVIN:-false}" != true ]]; then
         print_info "Devin disabled — skipping config deployment"
@@ -1424,6 +1534,7 @@ PYEOF
             ;;
         *) print_warning "Could not update $cfg (manual edit may be needed)" ;;
     esac
+    deploy_devin_adhd_rule || return 1
     return 0
 }
 

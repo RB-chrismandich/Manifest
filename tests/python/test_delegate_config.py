@@ -1,23 +1,11 @@
 #!/usr/bin/env python3
-"""User configuration, services.yml enable flags, and model tiers (D3, FR-013).
-
-Split out of the former test_delegate_dispatcher.py, which had grown past the
-500-line file ceiling; the split follows the manifest_delegate package's own
-module boundaries. Shared loader and registry-entry factory live in
-_delegate_inproc.py.
-
-Run with: uv run --project configs/claude pytest tests/python/test_delegate_config.py -q
-"""
+"""User configuration, services enable flags, and model tier behavior."""
 
 import json
 import os
 
 import pytest
 from _delegate_inproc import delegate
-
-# ---------------------------------------------------------------------------
-# User configuration (T006)
-# ---------------------------------------------------------------------------
 
 
 class TestUserConfig:
@@ -206,6 +194,17 @@ class TestModelTiers:
         monkeypatch.setattr(delegate.config, "_yaml_module", lambda: None)
         tiers = delegate.load_model_tiers(config_dir=str(tmp_path))
         assert tiers == {}
+
+    def test_auto_tier_omits_backend_model_override(self):
+        entry = {
+            "invoke": ["codex", "exec", "-"],
+            "model_args": ["--model", "{model}"],
+            "sandbox": {"read_only_args": [], "write_args": []},
+        }
+
+        argv = delegate.backend.build_invoke_argv(entry, False, "auto", {})
+
+        assert argv == ["codex", "exec", "-"]
 
 
 class TestGateSetupWriteFormats:

@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import stat
 import sys
 
 from . import config, constants
@@ -14,6 +15,7 @@ from . import config, constants
 
 REGISTRY_PATH_ENV = "MANIFEST_DELEGATE_REGISTRY_PATH"
 DEFAULT_BUDGET_SECONDS = 600
+TASK_LIMIT = 1024 * 1024
 
 
 def _registry_path_override():
@@ -49,6 +51,11 @@ def map_model_tier(entry, tier):
     return tier
 
 
+def _effective_model(model_tier):
+    """The portable ``auto`` tier means the backend chooses its own model."""
+    return None if model_tier == "auto" else model_tier
+
+
 def resolve_model_tier(entry, user_config, model_arg):
     if model_arg:
         tier = model_arg
@@ -73,6 +80,7 @@ def build_invoke_argv(entry, write, model_tier, mapping):
     argv += list(
         (sandbox.get("write_args") if write else sandbox.get("read_only_args")) or []
     )
+    model_tier = _effective_model(model_tier)
     if model_tier:
         argv += [
             tok.replace("{model}", model_tier)
@@ -87,6 +95,7 @@ def build_resume_argv(entry, session_ref, write, model_tier, mapping):
     argv += list(
         (sandbox.get("write_args") if write else sandbox.get("read_only_args")) or []
     )
+    model_tier = _effective_model(model_tier)
     if model_tier:
         argv += [
             tok.replace("{model}", model_tier)
@@ -157,6 +166,17 @@ def extract_response_text(entry, raw_output):
 
 
 def check_payload_limits(entry, payload_bytes):
+    # TASK_LIMIT is the dispatcher's own ceiling and binds every backend,
+    # including those whose registry bound is looser (codex declares 10 MiB).
+    # Checked FIRST and here rather than only in the prompt readers: callers
+    # that build a prompt internally -- `review` assembles a diff -- never pass
+    # through those readers, and the ceiling was previously reached only inside
+    # the worker, where it surfaced as an unhandled ValueError after the job
+    # record had already been written.
+    if len(payload_bytes) > TASK_LIMIT:
+        return (
+            f"prompt exceeds the 1 MiB task limit ({len(payload_bytes)} > {TASK_LIMIT})"
+        )
     input_cfg = entry.get("input") or {}
     max_payload = input_cfg.get("max_payload_bytes")
     if max_payload is not None and len(payload_bytes) > max_payload:
@@ -176,20 +196,52 @@ def check_payload_limits(entry, payload_bytes):
 def _read_prompt(args):
     """Read the effective prompt text. Returns (text, error_message_or_None);
     never raises (D3: a bad --prompt-file must exit 2, not traceback)."""
-    prompt_file = getattr(args, "prompt_file", None)
+    task_file = getattr(args, "task_file", None)
+    prompt_file = task_file or getattr(args, "prompt_file", None)
+    file_option = "--task-file" if task_file else "--prompt-file"
     if prompt_file:
-        if os.path.isdir(prompt_file):
+        try:
+            info = os.lstat(prompt_file)
+        except OSError as exc:
+            return None, f"delegate: cannot read {file_option} {prompt_file}: {exc}"
+        if stat.S_ISDIR(info.st_mode):
             return (
                 None,
-                f"delegate: cannot read --prompt-file {prompt_file}: is a directory",
+                f"delegate: cannot read {file_option} {prompt_file}: is a directory",
+            )
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            return (
+                None,
+                f"delegate: cannot read {file_option} {prompt_file}: must be a safe regular file",
             )
         try:
-            with open(prompt_file, encoding="utf-8") as fh:
-                return fh.read(), None
+            descriptor = os.open(
+                prompt_file, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            )
+            with os.fdopen(descriptor, "rb") as fh:
+                data = fh.read(TASK_LIMIT + 1)
+            if len(data) > TASK_LIMIT:
+                return None, f"delegate: {file_option} exceeds the 1 MiB task limit"
+            return data.decode("utf-8"), None
         except (OSError, UnicodeDecodeError) as exc:
-            return None, f"delegate: cannot read --prompt-file {prompt_file}: {exc}"
+            return None, f"delegate: cannot read {file_option} {prompt_file}: {exc}"
     if args.prompt in (None, "-"):
-        return sys.stdin.read(), None
+        data = sys.stdin.buffer.read(TASK_LIMIT + 1)
+        if len(data) > TASK_LIMIT:
+            return None, (
+                f"delegate: stdin exceeds the 1 MiB task limit "
+                f"({len(data)} > {TASK_LIMIT})"
+            )
+        try:
+            return data.decode("utf-8"), None
+        except UnicodeDecodeError as exc:
+            return None, f"delegate: cannot read stdin as UTF-8: {exc}"
+    encoded = args.prompt.encode("utf-8")
+    if len(encoded) > TASK_LIMIT:
+        return None, (
+            f"delegate: prompt exceeds the 1 MiB task limit "
+            f"({len(encoded)} > {TASK_LIMIT})"
+        )
     return args.prompt, None
 
 

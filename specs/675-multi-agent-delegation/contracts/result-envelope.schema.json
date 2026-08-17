@@ -44,6 +44,19 @@
       "items": { "type": "string", "minLength": 1 },
       "description": "Recommended next steps; includes the resume invocation when session_ref exists"
     },
+    "findings": {
+      "type": "array",
+      "description": "Bounded conclusions that may be handed to a second-opinion backend; [] when none",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "text"],
+        "properties": {
+          "severity": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "session_ref": {
       "type": ["string", "null"],
       "description": "Backend thread/session/conversation id enabling resume (FR-015); null when not captured or unsupported"

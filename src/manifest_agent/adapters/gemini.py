@@ -19,8 +19,16 @@ from manifest_agent.adapters.base import (
     normalize_native_mcp_inventory,
     verify_declared_components,
 )
-from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.adapters.capability_receipt import (
+    expected_uninstall_plugin_ids,
+)
+from manifest_agent.codex_plugin_backup import (
+    capture_plugin_backup,
+    plugin_tree_sha256,
+)
+from manifest_agent.contracts import DOMAIN_BUNDLES, PORTABLE_BUNDLES
 from manifest_agent.models import (
+    AdapterPluginState,
     CapabilityTier,
     CommandResult,
     DesiredState,
@@ -114,7 +122,7 @@ class GeminiAdapter(CapabilityAdapterMixin):
         if invalid is not None:
             return invalid
         failures: list[HarnessResult] = []
-        for contract in desired.contracts:
+        for contract in desired.all_contracts:
             command, error = self._execute(
                 (
                     self.name,
@@ -135,13 +143,82 @@ class GeminiAdapter(CapabilityAdapterMixin):
         inspected = self.inspect(desired)
         return combine_results(*failures, capabilities, inspected)
 
+    def _native_reconcile_inventory(
+        self,
+        desired: DesiredState,
+        *,
+        capture_backups: bool,
+        identifiers: set[str] | None = None,
+    ) -> tuple[AdapterPluginState, ...]:
+        command, error = self._execute(
+            (self.name, "extensions", "list", "--output-format", "json")
+        )
+        if error is not None or command is None:
+            raise ValueError("Gemini extension inventory is unavailable")
+        rows, parse_error = _extension_rows(command.stdout)
+        if parse_error is not None:
+            raise ValueError(parse_error)
+        inventory = []
+        selected = identifiers or {contract.name for contract in desired.all_contracts}
+        for row in rows:
+            name = row.get("name")
+            if name not in selected:
+                continue
+            version = row.get("version")
+            active = row.get("isActive")
+            root = _extension_root(row)
+            if (
+                not isinstance(version, str)
+                or not isinstance(active, bool)
+                or root is None
+            ):
+                raise ValueError(
+                    "Gemini extension inventory lacks exact native metadata"
+                )
+            resolved = root.resolve(strict=True)
+            metadata = row.get("installMetadata")
+            native_source = row.get("source")
+            if not isinstance(native_source, str) and isinstance(metadata, Mapping):
+                native_source = metadata.get("source") or metadata.get("path")
+            if not isinstance(native_source, str):
+                raise ValueError("Gemini extension source identity is unavailable")
+            backup = None
+            if capture_backups:
+                backup = capture_plugin_backup(
+                    {
+                        "pluginId": name,
+                        "version": version,
+                        "enabled": active,
+                        "source": {"path": str(resolved)},
+                    },
+                    self._env,
+                    require_manifest_suffix=False,
+                ).to_dict()
+            inventory.append(
+                AdapterPluginState(
+                    name,
+                    version,
+                    active,
+                    rollback_data=backup,
+                    installed_path=str(resolved),
+                    installed_sha256=plugin_tree_sha256(resolved),
+                    source_identity=str(Path(native_source).resolve(strict=False)),
+                )
+            )
+        return tuple(sorted(inventory, key=lambda item: item.identifier))
+
+    def _expected_reconcile_source_identity(
+        self, desired: DesiredState, bundle: str
+    ) -> str:
+        return str(desired.bundle_path(bundle).resolve(strict=False))
+
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Uninstall only canonical extension names recorded by the receipt."""
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
         invalid = self.validate_uninstall_receipt(
             receipt,
             plugin_ids,
-            DOMAIN_BUNDLES,
+            expected_uninstall_plugin_ids(plugin_ids),
             identity_errors=id_errors,
         )
         if invalid is not None:
@@ -177,11 +254,11 @@ class GeminiAdapter(CapabilityAdapterMixin):
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     if tuple(contract.name for contract in desired.contracts) != DOMAIN_BUNDLES:
         return _blocked("desired state must contain the exact canonical domains")
-    if any(not contract.version for contract in desired.contracts):
+    if any(not contract.version for contract in desired.all_contracts):
         return _blocked("desired extension versions must be non-empty")
     missing = [
         contract.name
-        for contract in desired.contracts
+        for contract in desired.all_contracts
         if not desired.bundle_path(contract.name).is_dir()
     ]
     if missing:
@@ -213,7 +290,7 @@ def _verify_extensions(
     errors: list[str] = []
     drifted = False
     inactive = False
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         row = by_name.get(contract.name)
         if row is None:
             errors.append(f"missing required extension: {contract.name}")
@@ -234,7 +311,7 @@ def _verify_extensions(
     if errors:
         state = (
             ResultState.DRIFTED
-            if drifted and not inactive and len(installed) == len(desired.contracts)
+            if drifted and not inactive and len(installed) == len(desired.all_contracts)
             else ResultState.BLOCKED
         )
     return HarnessResult("gemini", state, tuple(installed), {}, tuple(errors))
@@ -250,7 +327,9 @@ def _component_evidence(
     mcp_servers: dict[str, tuple[str, ...]] = {}
     for row in rows:
         name = row.get("name")
-        if not isinstance(name, str) or name not in DOMAIN_BUNDLES:
+        if not isinstance(name, str) or name not in {
+            contract.name for contract in desired.all_contracts
+        }:
             continue
         root = _extension_root(row)
         if root is not None:
@@ -311,7 +390,7 @@ def _receipt_plugin_ids(
     ids: list[str] = []
     errors: list[str] = []
     for identifier in receipt.plugin_ids:
-        if identifier not in DOMAIN_BUNDLES:
+        if identifier not in PORTABLE_BUNDLES:
             errors.append(f"receipt contains non-canonical extension ID: {identifier}")
         elif identifier not in ids:
             ids.append(identifier)

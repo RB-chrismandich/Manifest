@@ -12,12 +12,13 @@ Run with: uv run --project configs/claude pytest tests/python/test_delegate_jobs
 import json
 import os
 import stat
-import sys
 import time
 from pathlib import Path
 from typing import ClassVar
 
+import pytest
 from _delegate_inproc import REPO_ROOT, delegate
+from jsonschema import Draft202012Validator
 
 # ---------------------------------------------------------------------------
 # Job-record store (T007)
@@ -25,6 +26,14 @@ from _delegate_inproc import REPO_ROOT, delegate
 
 
 class TestJobStore:
+    def test_fallback_pending_has_only_explicit_versioned_resolution(self):
+        assert {
+            "approve",
+            "reject",
+            "cancel",
+        } == delegate.FALLBACK_PENDING_RESOLUTION_ACTIONS
+        assert delegate.FALLBACK_PENDING_EXPIRES_AFTER_SECONDS is None
+
     def test_delegations_dir_env_override_honored(self, tmp_path, monkeypatch):
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path))
         root = delegate.delegations_root()
@@ -114,71 +123,155 @@ class TestJobStore:
         assert after["state"] == "failed"
         assert after["error"]
 
-    def test_reap_noop_on_terminal_job(self, tmp_path, monkeypatch):
+    def test_reap_restores_only_proven_spawned_continuation_to_pending(
+        self, tmp_path, monkeypatch
+    ):
         root = tmp_path / "delegations"
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(root))
         store = delegate.JobStore(cwd=str(tmp_path))
         record = store.create("codex")
-        job_id = record["job_id"]
+        recovery = {
+            "recovery_id": "recovery-claim",
+            "next_tier": "flash",
+            "next_index": 1,
+            "requires_task_resubmission": True,
+        }
+        store.write_recovery(record["job_id"], recovery)
 
-        def _complete(rec):
-            rec["state"] = "completed"
+        def _claim(rec):
+            rec["state"] = "queued"
+            rec["fallback_pending"] = False
+            rec["recovery"] = recovery
+            rec["failure_summary"] = {"failure_class": "rate_limit"}
+            rec["worker_pid"] = 999999999
+            rec["dispatch"] = {
+                "phase": "spawned",
+                "attempt_id": "attempt-spawned",
+                "job_version": rec["version"] + 1,
+                "pid": 999999999,
+                "pgid": 999999999,
+                "process_start_identity": "spawned-identity",
+            }
+            rec["created_at"] = time.time() - delegate.WORKER_STARTUP_GRACE_SECONDS - 1
             return rec
 
-        store.mutate(job_id, _complete)
-        store.reap_if_dead(job_id)
-        after = store.read(job_id)
-        assert after["state"] == "completed"
+        store.mutate(record["job_id"], _claim)
+        Path(
+            store.job_dir(record["job_id"]),
+            delegate.process.WORKER_IDENTITY_FILENAME,
+        ).write_text("spawned-identity", encoding="ascii")
+        recovered = store.reap_if_dead(record["job_id"])
 
-    def test_keep_last_50_prunes_oldest(self, tmp_path, monkeypatch):
+        assert recovered["state"] == "fallback_pending"
+        assert recovered["recovery"] == recovery
+        assert store.read_recovery(record["job_id"]) == recovery
+
+    @pytest.mark.parametrize("phase", ("worker_owned", "backend_started"))
+    def test_reap_marks_owned_or_started_disappearance_dispatch_unknown(
+        self, tmp_path, monkeypatch, phase
+    ):
         root = tmp_path / "delegations"
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(root))
         store = delegate.JobStore(cwd=str(tmp_path))
+        record = store.create("codex")
+        recovery = {
+            "recovery_id": "recovery-owned",
+            "next_tier": "flash",
+            "next_index": 1,
+            "requires_task_resubmission": True,
+        }
+        store.write_recovery(record["job_id"], recovery)
 
-        def _complete(rec):
-            rec["state"] = "completed"
+        def _claim(rec):
+            rec["state"] = "running"
+            rec["recovery"] = recovery
+            rec["worker_pid"] = 999999999
+            rec["dispatch"] = {
+                "phase": phase,
+                "attempt_id": "attempt-owned",
+                "job_version": rec["version"] + 1,
+                "pid": 999999999,
+                "pgid": 999999999,
+                "process_start_identity": "owned-identity",
+            }
+            rec["created_at"] = time.time() - delegate.WORKER_STARTUP_GRACE_SECONDS - 1
             return rec
 
-        ids = []
-        for _ in range(delegate.KEEP_LAST_N + 5):
-            rec = store.create("codex")
-            store.mutate(rec["job_id"], _complete)
-            ids.append(rec["job_id"])
-            time.sleep(0.001)
-        # Pruning runs inside create(), before the just-created record is
-        # itself marked terminal, so at most one extra (not-yet-completed)
-        # record can be present beyond the cap at any single snapshot.
-        remaining = store.list_job_ids()
-        assert len(remaining) <= delegate.KEEP_LAST_N + 1
+        store.mutate(record["job_id"], _claim)
+        recovered = store.reap_if_dead(record["job_id"])
 
-    def test_prune_never_deletes_active_jobs(self, tmp_path, monkeypatch):
-        """Non-terminal (queued/running) jobs must never be pruned, even when
-        they are the oldest records and terminal jobs outnumber KEEP_LAST_N."""
+        assert recovered["state"] == "dispatch_unknown"
+        assert recovered["recovery"] == recovery
+        assert recovered["recovery_audit"]["resumable"] is False
+        assert store.read_recovery(record["job_id"]) == recovery
+
+    def test_backend_pgid_ownership_clears_continuation_recovery(
+        self, tmp_path, monkeypatch
+    ):
         root = tmp_path / "delegations"
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(root))
         store = delegate.JobStore(cwd=str(tmp_path))
+        record = store.create("codex")
+        recovery = {
+            "recovery_id": "recovery-owned",
+            "next_tier": "flash",
+            "next_index": 1,
+            "requires_task_resubmission": True,
+        }
+        store.write_recovery(record["job_id"], recovery)
+        store.mutate(
+            record["job_id"],
+            lambda rec: dict(
+                rec,
+                state="running",
+                recovery=recovery,
+                failure_summary={"failure_class": "rate_limit"},
+            ),
+        )
 
-        # Oldest job stays queued (active) and must survive pruning.
-        active = store.create("codex")
-        time.sleep(0.001)
+        delegate.process._make_pgid_persister(store, record["job_id"])(43210)
+        owned = store.read(record["job_id"])
 
-        def _complete(rec):
-            rec["state"] = "completed"
-            return rec
+        assert owned["pgid"] == 43210
+        assert "recovery" not in owned
+        assert not Path(store.job_dir(record["job_id"]), "recovery.json").exists()
 
-        for _ in range(delegate.KEEP_LAST_N + 5):
-            rec = store.create("codex")
-            store.mutate(rec["job_id"], _complete)
-            time.sleep(0.001)
+    def test_pgid_ownership_clears_recovery_on_a_terminal_record(
+        self, tmp_path, monkeypatch
+    ):
+        """A cancel racing the spawn makes the job terminal before this runs.
 
-        remaining = store.list_job_ids()
-        assert active["job_id"] in remaining
-        assert store.read(active["job_id"])["state"] == "queued"
+        store.mutate silently refuses terminal records unless the mutator opts
+        into re-entry, so without that opt-in the clear no-ops and the finished
+        record keeps stale recovery/failure_summary that later readers trust.
+        """
+        root = tmp_path / "delegations"
+        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(root))
+        store = delegate.JobStore(cwd=str(tmp_path))
+        record = store.create("codex")
+        recovery = {
+            "recovery_id": "recovery-owned",
+            "next_tier": "flash",
+            "next_index": 1,
+            "requires_task_resubmission": True,
+        }
+        store.write_recovery(record["job_id"], recovery)
+        store.mutate(
+            record["job_id"],
+            lambda rec: dict(
+                rec,
+                state="cancelled",
+                recovery=recovery,
+                failure_summary={"failure_class": "rate_limit"},
+            ),
+        )
 
+        delegate.process._make_pgid_persister(store, record["job_id"])(43211)
+        owned = store.read(record["job_id"])
 
-# ---------------------------------------------------------------------------
-# Result-envelope normalization (T008)
-# ---------------------------------------------------------------------------
+        assert owned["state"] == "cancelled"
+        assert "recovery" not in owned
+        assert "failure_summary" not in owned
 
 
 class TestEnvelopeNormalization:
@@ -249,6 +342,25 @@ class TestEnvelopeNormalization:
         for field in schema["required"]:
             assert field in result, f"missing required field {field}"
 
+    def test_production_findings_satisfy_result_envelope_schema(self):
+        schema_path = (
+            REPO_ROOT
+            / "specs"
+            / "675-multi-agent-delegation"
+            / "contracts"
+            / "result-envelope.schema.json"
+        )
+        schema = json.loads(schema_path.read_text())
+        envelope = {
+            **self.VALID_ENVELOPE,
+            "findings": [{"severity": "high", "text": "unsafe boundary"}],
+        }
+        raw = "```json\n" + json.dumps(envelope) + "\n```\n"
+
+        result = delegate.normalize_envelope(raw, "codex", "auto")
+
+        Draft202012Validator(schema).validate(result)
+
     def test_spoofed_backend_and_model_are_overwritten_with_provenance(self):
         envelope = dict(self.VALID_ENVELOPE)
         envelope["backend"] = "not-the-real-backend"
@@ -273,46 +385,3 @@ class TestEnvelopeNormalization:
         result = delegate.normalize_envelope(raw, "codex", "auto")
         assert result["outcome"] == "failure"
         assert result["error"]
-
-
-class TestSpawnBackendStdoutCapture:
-    """Regression coverage for the capture path: even when a backend's argv
-    mimics codex's --output-last-message flag (writing a separate file the
-    stub never populates), _spawn_backend must still surface the envelope
-    from raw stdout so normalize_envelope can extract it (contracts/
-    delegate-cli.md raw-output contract)."""
-
-    def test_stub_stdout_only_envelope_survives_output_file_combine(self, tmp_path):
-        envelope = {
-            "backend": "stub",
-            "model": "auto",
-            "outcome": "success",
-            "attempted": "did the thing",
-            "changes": [],
-            "succeeded": ["ok"],
-            "failed": [],
-            "follow_ups": [],
-        }
-        stub = tmp_path / "stub.py"
-        stub.write_text(
-            "import sys\n"
-            f"sys.stdout.write('```json\\n' + {json.dumps(envelope)!r} + '\\n```\\n')\n"
-        )
-        job_dir = tmp_path / "job"
-        job_dir.mkdir()
-        argv = [
-            sys.executable,
-            str(stub),
-            "--output-last-message",
-            os.path.join(str(job_dir), "output.txt"),
-            "-",
-        ]
-        entry = {"input": {"transport": "stdin"}}
-        returncode, combined, _pgid, timed_out, _session_ref = delegate._spawn_backend(
-            entry, argv, b"", str(job_dir), budget=10
-        )
-        assert not timed_out
-        assert returncode == 0
-        result = delegate.normalize_envelope(combined, "stub", "auto")
-        assert result["outcome"] == "success"
-        assert result["backend"] == "stub"

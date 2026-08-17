@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -18,8 +17,18 @@ from manifest_agent.adapters.base import (
     normalize_native_mcp_inventory,
     verify_declared_components,
 )
-from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.adapters.capability_receipt import (
+    expected_uninstall_plugin_ids,
+)
+from manifest_agent.adapters.claude_inventory import (
+    _installed_manifest_ids,
+    _marketplace_row,
+    _native_inventory,
+    _plugin_rows,
+)
+from manifest_agent.contracts import DOMAIN_BUNDLES, PORTABLE_BUNDLES
 from manifest_agent.models import (
+    AdapterPluginState,
     CapabilityTier,
     CommandResult,
     DesiredState,
@@ -32,7 +41,6 @@ from manifest_agent.process import CommandRunner, redact_text
 
 _MARKETPLACE = "manifest"
 _ADAPTER_VERSION = "1"
-_CANONICAL_PLUGIN_IDS = tuple(f"{name}@{_MARKETPLACE}" for name in DOMAIN_BUNDLES)
 
 
 class ClaudeAdapter(CapabilityAdapterMixin):
@@ -125,7 +133,7 @@ class ClaudeAdapter(CapabilityAdapterMixin):
                 "--scope",
                 "user",
             )
-            for bundle in DOMAIN_BUNDLES
+            for bundle in (contract.name for contract in desired.all_contracts)
         ]
         failures, already_present = self._run_install_mutations(commands)
         capabilities = self.install_capabilities(desired)
@@ -133,6 +141,21 @@ class ClaudeAdapter(CapabilityAdapterMixin):
         if not _selected_plugins_match(desired, inspected):
             failures.extend(already_present)
         return combine_results(*failures, capabilities, inspected)
+
+    def _native_reconcile_inventory(
+        self,
+        desired: DesiredState,
+        *,
+        capture_backups: bool,
+        identifiers: set[str] | None = None,
+    ) -> tuple[AdapterPluginState, ...]:
+        return _native_inventory(self, capture_backups, identifiers)
+
+    def _expected_reconcile_source_identity(
+        self, desired: DesiredState, bundle: str
+    ) -> str:
+        del bundle
+        return f"directory:{Path(_marketplace_command_source(desired)).resolve(strict=False)}"
 
     def _inspect_marketplace(self, desired: DesiredState) -> HarnessResult:
         command, error = self._execute(
@@ -167,7 +190,7 @@ class ClaudeAdapter(CapabilityAdapterMixin):
         invalid = self.validate_uninstall_receipt(
             receipt,
             plugin_ids,
-            _CANONICAL_PLUGIN_IDS,
+            expected_uninstall_plugin_ids(plugin_ids),
             identity_errors=id_errors,
             marketplace_identifier=_MARKETPLACE,
         )
@@ -294,7 +317,7 @@ def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     names = tuple(contract.name for contract in desired.contracts)
     if names != DOMAIN_BUNDLES:
         return _blocked("desired state must contain the exact canonical domain plugins")
-    if any(not contract.version for contract in desired.contracts):
+    if any(not contract.version for contract in desired.all_contracts):
         return _blocked("desired plugin versions must be non-empty")
     if not desired.marketplace_source.source:
         return _blocked("desired marketplace source must be non-empty")
@@ -312,37 +335,6 @@ def _marketplace_command_source(desired: DesiredState) -> str:
     return str(desired.release_root)
 
 
-def _marketplace_row(
-    stdout: str,
-) -> tuple[Mapping[str, Any], str | None]:
-    try:
-        document = json.loads(stdout)
-    except json.JSONDecodeError:
-        return {}, "claude marketplace list did not return valid JSON"
-    if not isinstance(document, list) or any(
-        not isinstance(row, dict) for row in document
-    ):
-        return {}, "claude marketplace list JSON has an invalid schema"
-    matches = [row for row in document if row.get("name") == _MARKETPLACE]
-    if len(matches) != 1:
-        return {}, "claude marketplace list must contain exactly one manifest source"
-    return matches[0], None
-
-
-def _plugin_rows(stdout: str) -> tuple[list[Mapping[str, Any]], str | None]:
-    try:
-        document = json.loads(stdout)
-    except json.JSONDecodeError:
-        return [], "claude plugin list did not return valid JSON"
-    if isinstance(document, dict):
-        document = document.get("installed")
-    if not isinstance(document, list) or any(
-        not isinstance(row, dict) for row in document
-    ):
-        return [], "claude plugin list JSON has an invalid installed-plugin schema"
-    return document, None
-
-
 def _verify_rows(
     desired: DesiredState,
     rows: Sequence[Mapping[str, Any]],
@@ -353,7 +345,7 @@ def _verify_rows(
     installed: list[str] = []
     errors: list[str] = []
     drifted = False
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         plugin_id = f"{contract.name}@{_MARKETPLACE}"
         row = by_id.get(plugin_id)
         if row is None:
@@ -374,7 +366,7 @@ def _verify_rows(
             errors.append(f"plugin {plugin_id} is disabled")
     if not errors:
         state = ResultState.READY
-    elif drifted and len(installed) == len(desired.contracts):
+    elif drifted and len(installed) == len(desired.all_contracts):
         state = ResultState.DRIFTED
     else:
         state = ResultState.BLOCKED
@@ -389,7 +381,7 @@ def _component_evidence(
     roots: dict[str, Path] = {}
     mcp_servers: dict[str, tuple[str, ...]] = {}
     by_id = {row.get("id"): row for row in rows if isinstance(row.get("id"), str)}
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         row = by_id.get(f"{contract.name}@{_MARKETPLACE}")
         if row is None:
             continue
@@ -405,7 +397,7 @@ def _component_evidence(
 
 
 def _selected_plugins_match(desired: DesiredState, result: HarnessResult) -> bool:
-    expected = {f"{contract.name}@{_MARKETPLACE}" for contract in desired.contracts}
+    expected = {f"{contract.name}@{_MARKETPLACE}" for contract in desired.all_contracts}
     return set(result.installed_plugin_ids) == expected and not any(
         error.startswith(("missing required plugin:", "plugin "))
         for error in result.errors
@@ -423,29 +415,18 @@ def _receipt_plugin_ids(
     errors: list[str] = []
     for identifier in receipt.plugin_ids:
         plugin_id = (
-            f"{identifier}@{_MARKETPLACE}"
-            if identifier in DOMAIN_BUNDLES
-            else identifier
+            f"{identifier}@{_MARKETPLACE}" if "@" not in identifier else identifier
         )
         bundle, separator, marketplace = plugin_id.partition("@")
         if (
             separator != "@"
             or marketplace != _MARKETPLACE
-            or bundle not in DOMAIN_BUNDLES
+            or bundle not in PORTABLE_BUNDLES
         ):
             errors.append(f"receipt contains non-canonical plugin ID: {identifier}")
         elif plugin_id not in ids:
             ids.append(plugin_id)
     return tuple(ids), tuple(errors)
-
-
-def _installed_manifest_ids(rows: Sequence[Mapping[str, Any]]) -> set[str]:
-    return {
-        identifier
-        for row in rows
-        if isinstance((identifier := row.get("id")), str)
-        and identifier.endswith(f"@{_MARKETPLACE}")
-    }
 
 
 def _owns_marketplace(receipt: HarnessReceipt) -> bool:

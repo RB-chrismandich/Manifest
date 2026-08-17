@@ -657,7 +657,7 @@ produced this repo's 404ing Gemini tiers. Re-check with `model_check.sh`
 One effort ladder from a single family, so the tiers genuinely differ — all three
 previously read `auto`, which made the tier abstraction inert. `auto` and
 `composer-2.5` also verified and remain valid alternates. Cursor's newer premium
-ladder (`claude-opus-5-thinking-*`, `claude-fable-5-thinking-*`, `gpt-5.6-sol-*`,
+ladder (`claude-opus-5-thinking-*`, `gpt-5.6-sol-*`,
 `kimi-k3-high`) is **not** pinned: every one returned an account usage-limit
 `ActionRequiredError` (resets **2026-08-12**), making them unverifiable rather
 than broken. Re-probe after that date and promote `advanced` if they answer.
@@ -669,9 +669,8 @@ than broken. Re-probe after that date and promote `advanced` if they answer.
 | `haiku` | claude-haiku-4-5 | Quick queries | Lowest |
 | `sonnet` | claude-sonnet-5 | Code review (default) | Medium |
 | `opus` | claude-opus-5 | Security analysis | Higher |
-| `fable` | claude-fable-5 | Security tasks (default) | Highest |
 
-Full IDs, not the `opus`/`sonnet`/`haiku`/`fable` aliases (which also work): an
+Full IDs, not the `opus`/`sonnet`/`haiku` aliases (which also work): an
 alias is a moving target the provider can remap, so pinning one would let a tier
 change model without a diff in this repo.
 
@@ -970,7 +969,7 @@ metric into a verdict that is not a finding.
 
 ```bash
 --cursor-model <tier>       # Cursor model: mini, flash, advanced, auto (default: flash)
---claude-model <tier>       # Claude model: haiku, sonnet, opus, fable (default: sonnet)
+--claude-model <tier>       # Claude model: haiku, sonnet, opus (default: sonnet)
 --gemini-model <tier>       # Gemini model: flash, pro (default: flash)
 --codex-model <tier>        # Codex model: mini, flash, advanced, auto (default: auto)
 --antigravity-model <tier>  # Antigravity model: mini, flash, advanced (default: flash)
@@ -1099,3 +1098,33 @@ Configuration values are resolved in this order (highest to lowest priority):
 - [Troubleshooting](TROUBLESHOOTING.md) - Common configuration issues
 - [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) - Configuration hierarchy diagram
 - [CLAUDE.md](../CLAUDE.md) - Repository context
+
+## Native Plugin Reconciliation and ADHD Guidance
+
+Bootstrap invokes `manifest bootstrap-sync --source <checkout> --harness codex
+--non-interactive --json`. The coordinator installs and verifies the complete
+local marketplace before replacing the flat Codex skill link with a system-only
+directory. A failed plugin or hook verification keeps the legacy link and makes
+an enabled Codex deployment fail.
+
+Codex's initial model-visible skill metadata is separately bounded. Every
+Manifest skill ships a generated `agents/openai.yaml`; only
+`manifest-code-quality:antipattern-detect`, `manifest-security:code-audit`, and
+`manifest-workspace:help` allow implicit invocation. The remaining skills stay
+installed and are invoked explicitly as `$bundle:skill`. The qualified allowlist
+is maintained in `configs/claude/config/skill_policies.yml`, and
+`tools/generate_plugin_views.py --check` rejects missing, duplicate, or unknown
+entries and stale generated metadata.
+
+`manifest-i-have-adhd` mirrors commit
+`2d19ad205eb1d85fc9c3968bdeba4c2116518685` of `ayghri/i-have-adhd`. Its
+SessionStart launcher emits only canonical bundled guidance; session payload
+values are never reflected. Say `stop adhd mode` or `normal mode` to stop the
+style for the active session.
+
+Antigravity receives the same generated Gemini extension context through its
+measured Gemini-lineage import surface (`contextFileName` points to the pinned
+guidance). Devin receives the generated guidance through its native Windsurf
+`global_rules.md` always-on rule. Manifest writes that Devin file only when it
+is absent, empty, or already byte-identical; non-empty user content is preserved
+and reported as a blocking collision.

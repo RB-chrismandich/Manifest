@@ -10,6 +10,29 @@ from . import envelope as envelope_mod
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
+_REVIEW_OUTPUT_CONTRACT = (
+    "\n\nDo not create artifacts, plans, files, or ask for approval. This is a "
+    "single-turn read-only review; inspect the diff and return the final verdict now. "
+    "End your final message with exactly one fenced JSON block "
+    "(```json ... ```), and nothing after it, matching this shape:\n"
+    "```json\n"
+    "{\n"
+    '  "backend": "<your backend id>",\n'
+    '  "model": "<model or null>",\n'
+    '  "outcome": "success",\n'
+    '  "attempted": "<what you reviewed>",\n'
+    '  "changes": [],\n'
+    '  "succeeded": [],\n'
+    '  "failed": [],\n'
+    '  "follow_ups": [],\n'
+    '  "findings": [{"severity": "critical|high|medium|low|info", "text": "<finding>"}]\n'
+    "}\n"
+    "```\n"
+    'Set "findings" to [] when the diff has no issues. Use "partial" or '
+    '"failure" instead of "success" when the review is incomplete or failed. '
+    "Every array field must be an array of strings.\n\n"
+)
+
 
 class ReviewDiffError(Exception):
     """Raised when git invocations backing a review diff fail visibly."""
@@ -124,10 +147,14 @@ def _build_review_prompt(args):
         focus = " ".join(args.adversarial).strip()
         return (
             "Adversarial review: challenge the design of the following change.\n"
-            "Focus: {}\n\n{}".format(focus or "(none specified)", diff)
+            "Focus: {}".format(focus or "(none specified)")
+            + _REVIEW_OUTPUT_CONTRACT
+            + diff
         )
     return (
-        f"Review the following change for correctness, safety, and quality.\n\n{diff}"
+        "Review the following change for correctness, safety, and quality."
+        + _REVIEW_OUTPUT_CONTRACT
+        + diff
     )
 
 

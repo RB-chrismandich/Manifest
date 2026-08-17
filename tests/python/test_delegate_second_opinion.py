@@ -32,8 +32,9 @@ class _SOArgs:
     fresh = False
     second_opinion = True
     of = None
+    task_file = None
     prompt_file = None
-    prompt = "compare approaches"
+    prompt = None
     json = True
 
 
@@ -44,16 +45,38 @@ class TestSecondOpinion:
         monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
         store = delegate.JobStore(cwd=str(tmp_path))
         original = store.create("codex")
+        attempt_id = "attempt-original"
         store.mutate(
             original["job_id"],
             lambda r: {
                 **r,
                 "state": "completed",
-                "prompt_summary": "review auth flow",
-                "envelope": {"outcome": "success", "findings": ["uses bcrypt"]},
+                "attempt_id": attempt_id,
+                "result_attempt_id": attempt_id,
+                "findings_attempt_id": attempt_id,
+                "prompt_summary": "must never be reused",
+                "envelope": {
+                    "outcome": "success",
+                    "raw_output": "must never be reused",
+                    "findings": [
+                        {
+                            "severity": "low",
+                            "text": "Password hashing: The implementation uses bcrypt.",
+                        }
+                    ],
+                },
             },
         )
         return store, original["job_id"]
+
+    def _args(self, tmp_path, of_id, backend="claude"):
+        task_file = tmp_path / "second-opinion-task.txt"
+        task_file.write_text("compare the authentication approaches", encoding="utf-8")
+        args = _SOArgs()
+        args.backend = backend
+        args.of = of_id
+        args.task_file = str(task_file)
+        return args
 
     def test_second_opinion_injects_referenced_context(
         self, tmp_path, monkeypatch, capsys
@@ -67,16 +90,16 @@ class TestSecondOpinion:
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
-        args = _SOArgs()
-        args.backend = "claude"
-        args.of = of_id
+        args = self._args(tmp_path, of_id)
         rc = delegate.cmd_task(
             args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
         )
         assert rc == 0
         assert of_id in captured["prompt"]
-        assert "review auth flow" in captured["prompt"]
+        assert "Password hashing" in captured["prompt"]
         assert "uses bcrypt" in captured["prompt"]
+        assert "compare the authentication approaches" in captured["prompt"]
+        assert "must never be reused" not in captured["prompt"]
 
     def test_second_opinion_wait_output_attributes_original_job_id(
         self, tmp_path, monkeypatch, capsys
@@ -91,9 +114,7 @@ class TestSecondOpinion:
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
-        args = _SOArgs()
-        args.backend = "claude"
-        args.of = of_id
+        args = self._args(tmp_path, of_id)
         args.json = False
         rc = delegate.cmd_task(
             args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
@@ -116,9 +137,7 @@ class TestSecondOpinion:
 
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         monkeypatch.setattr(delegate.readiness, "probe_backend_readiness", fake_probe)
-        args = _SOArgs()
-        args.backend = "codex"
-        args.of = of_id
+        args = self._args(tmp_path, of_id, backend="codex")
         rc = delegate.cmd_task(
             args,
             [
@@ -146,9 +165,7 @@ class TestSecondOpinion:
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
-        args = _SOArgs()
-        args.backend = "claude"
-        args.of = of_id
+        args = self._args(tmp_path, of_id)
         args.write = True
         rc = delegate.cmd_task(
             args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
@@ -156,39 +173,24 @@ class TestSecondOpinion:
         assert rc == 0
         assert captured["write"] is False
 
-    def test_second_opinion_without_prompt_never_reads_stdin(
+    def test_second_opinion_without_resubmitted_task_is_rejected(
         self, tmp_path, monkeypatch, capsys
     ):
-        """Regression test for the --second-opinion hang: with no positional
-        prompt (args.prompt is None, the real CLI shape when only --of is
-        given), _build_task_prompt must not fall back to sys.stdin.read().
-        A stdin.read() call here would block forever waiting for input that
-        is never piped in second-opinion mode."""
+        """Missing explicit input must fail before touching an attached TTY."""
         _store, of_id = self._setup(tmp_path, monkeypatch)
-        captured = {}
-
-        class _BoomStdin:
-            def read(self):
-                raise AssertionError(
-                    "sys.stdin.read() must not be called in --second-opinion mode"
-                )
-
-        monkeypatch.setattr(sys, "stdin", _BoomStdin())
-
-        def fake_run(store_, job_id, entry, record, prompt_bytes):
-            captured["prompt"] = prompt_bytes.decode("utf-8")
-            return {"state": "completed", "envelope": {"outcome": "success"}}
-
-        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
-        args.prompt = None  # no positional prompt supplied, as in real usage
+
+        def unexpected_read(_args):
+            raise AssertionError("second opinion attempted to read implicit stdin")
+
+        monkeypatch.setattr(delegate.backend, "_read_prompt", unexpected_read)
         rc = delegate.cmd_task(
             args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
         )
-        assert rc == 0
-        assert of_id in captured["prompt"]
+        assert rc == 2
+        assert "explicit '-'" in capsys.readouterr().err
 
     def test_second_opinion_without_prompt_terminates_quickly(
         self, tmp_path, monkeypatch, capsys
@@ -197,7 +199,7 @@ class TestSecondOpinion:
         when no prompt is supplied, proving the hang is gone even if the
         stdin short-circuit above were ever bypassed by a refactor."""
         _store, of_id = self._setup(tmp_path, monkeypatch)
-        monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+        monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(b"fresh task")))
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {"state": "completed", "envelope": {"outcome": "success"}}
@@ -206,7 +208,7 @@ class TestSecondOpinion:
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
-        args.prompt = None
+        args.prompt = "-"
 
         result = {}
 
@@ -222,3 +224,123 @@ class TestSecondOpinion:
             "cmd_task did not return within 5s -- likely hung on stdin"
         )
         assert result["rc"] == 0
+
+    def test_task_prompt_injects_shared_result_envelope_contract(
+        self, tmp_path, monkeypatch
+    ):
+        _store, of_id = self._setup(tmp_path, monkeypatch)
+        args = self._args(tmp_path, of_id)
+        prompt, _write, error = delegate._build_task_prompt(args, None)
+
+        assert error is None
+        assert "End your final message with exactly one fenced JSON block" in prompt
+        assert '"attempted"' in prompt
+        assert '"follow_ups"' in prompt
+        assert '"findings"' in prompt
+
+    def test_second_opinion_create_rejects_source_mutation_under_cas(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        store, of_id = self._setup(tmp_path, monkeypatch)
+        args = self._args(tmp_path, of_id)
+        real_create = delegate.task.jobstore.JobStore.create_second_opinion
+
+        def mutate_before_create(self, source_job_id, backend_id, **kwargs):
+            def replace_attempt(record):
+                return {
+                    **record,
+                    "attempt_id": "attempt-replaced",
+                    "result_attempt_id": "attempt-replaced",
+                    "findings_attempt_id": "attempt-replaced",
+                }
+
+            replace_attempt.allow_terminal_reentry = True
+            store.mutate(
+                source_job_id,
+                replace_attempt,
+            )
+            return real_create(self, source_job_id, backend_id, **kwargs)
+
+        monkeypatch.setattr(
+            delegate.task.jobstore.JobStore,
+            "create_second_opinion",
+            mutate_before_create,
+        )
+
+        rc = delegate.cmd_task(
+            args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
+        )
+
+        assert rc == 2
+        assert "source changed" in capsys.readouterr().err
+        children = [
+            store.read(job_id) for job_id in store.list_job_ids() if job_id != of_id
+        ]
+        assert children == []
+
+
+class TestSecondOpinionAtomicBinding:
+    _setup = TestSecondOpinion._setup
+
+    def test_atomic_second_opinion_child_binds_source_identity(
+        self, tmp_path, monkeypatch
+    ):
+        store, of_id = self._setup(tmp_path, monkeypatch)
+        source = delegate.task._validated_second_opinion_context(
+            store.read_locked(of_id)
+        )
+
+        child = store.create_second_opinion(
+            of_id,
+            "claude",
+            expected_version=source["version"],
+            attempt_id=source["attempt_id"],
+            findings_digest=source["findings_digest"],
+            validator=delegate.task._validated_second_opinion_context,
+            extra={"kind": "task"},
+        )
+
+        assert child["second_opinion_of"] == of_id
+        assert child["second_opinion_source_version"] == source["version"]
+        assert child["second_opinion_attempt_id"] == source["attempt_id"]
+        assert child["second_opinion_findings_digest"] == source["findings_digest"]
+
+    def test_prune_eligible_source_does_not_deadlock_or_vanish(
+        self, tmp_path, monkeypatch
+    ):
+        """The source job is held under flock; create()'s prune must skip it.
+
+        flock is per open file description, so pruning the source would
+        re-open its .lock and block on the lock this call already holds.
+        """
+        store, of_id = self._setup(tmp_path, monkeypatch)
+        # Retention 0 makes every terminal job -- including the source -- a
+        # prune candidate, which is the deadlock trigger.
+        monkeypatch.setattr(
+            sys.modules["manifest_delegate.jobstore_prune"].constants,
+            "KEEP_LAST_N",
+            0,
+        )
+        source = delegate.task._validated_second_opinion_context(
+            store.read_locked(of_id)
+        )
+        result = {}
+
+        def _create():
+            result["child"] = store.create_second_opinion(
+                of_id,
+                "claude",
+                expected_version=source["version"],
+                attempt_id=source["attempt_id"],
+                findings_digest=source["findings_digest"],
+                validator=delegate.task._validated_second_opinion_context,
+                extra={"kind": "task"},
+            )
+
+        worker = threading.Thread(target=_create, daemon=True)
+        worker.start()
+        worker.join(timeout=10)
+
+        assert not worker.is_alive(), "create_second_opinion deadlocked on its own lock"
+        assert result["child"]["second_opinion_of"] == of_id
+        assert store.read(of_id)["job_id"] == of_id

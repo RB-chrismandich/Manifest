@@ -192,7 +192,7 @@ delegate.py gate --transcript <path> [--stop-hook-active] [--json]
 
 **At-most-once**: `--stop-hook-active` is the harness re-entry indicator
 (this Stop fires while the session is already continuing from a prior
-Stop-hook block) ⇒ immediate `allow`, before any other work. A `gate`-kind
+Stop-hook block) ⇒ immediate `approve`, before any other work. A `gate`-kind
 job is still recorded per run as the audit trail.
 
 **Edit detection (deterministic)**: scan the transcript JSONL for the last
@@ -209,7 +209,7 @@ over-triggering; the git probe fails closed to "no changes" (allow), so the
 gate stays fail-open.
 
 Check order: gate disabled / `--stop-hook-active` / no code edits in the
-finishing turn / backend unready ⇒ `allow` (exit 0). Otherwise runs one
+finishing turn / backend unready ⇒ `approve` (exit 0). Otherwise runs one
 read-only review delegation (gate budget) and emits
 `{"decision":"block","reason":<text>}` on
 stdout exactly once. The reason text MUST present findings severity-first,

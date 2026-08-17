@@ -30,9 +30,12 @@ PROG = "model_pricing.py"
 # broad would silently mis-price a future tier that shares the family name.
 # Every rate here is an exact model, matched longest-prefix so dated snapshot
 # ids (claude-haiku-4-5-20251001) resolve to their undated rate.
+# Retired models keep their rates: this table classifies HISTORICAL transcript
+# data, and dropping a retired id makes is_premium() return None (unclassified)
+# for every past request that used it, silently weakening the premium audit.
 PRICES: dict[str, tuple[float, float]] = {
-    "claude-fable-5": (10.00, 50.00),
     "claude-mythos-5": (10.00, 50.00),
+    "claude-fable-5": (10.00, 50.00),  # retired 2026-08-17; priced for history
     "claude-opus-5": (5.00, 25.00),
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-4-7": (5.00, 25.00),

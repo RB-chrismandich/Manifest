@@ -5,21 +5,27 @@ from __future__ import annotations
 import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
 from typing import Any
 
+from manifest_agent.adapters.antigravity_evidence import (
+    _component_evidence,
+    _expected_skill_paths,
+)
 from manifest_agent.adapters.base import (
     CapabilityAdapterMixin,
     Detection,
     NativeMcpInventory,
     combine_results,
     native_command_result,
-    normalize_component_identity,
     normalize_native_mcp_inventory,
     verify_declared_components,
 )
-from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.adapters.capability_receipt import (
+    expected_uninstall_plugin_ids,
+)
+from manifest_agent.contracts import DOMAIN_BUNDLES, PORTABLE_BUNDLES
 from manifest_agent.models import (
+    AdapterPluginState,
     CapabilityTier,
     CommandResult,
     DesiredState,
@@ -107,7 +113,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
                     "validate",
                     str(desired.bundle_path(name)),
                 )
-                for name in DOMAIN_BUNDLES
+                for name in (contract.name for contract in desired.all_contracts)
             ]
         )
         if validation_failures:
@@ -135,12 +141,84 @@ class AntigravityAdapter(CapabilityAdapterMixin):
                     "install",
                     f"{name}@{_MARKETPLACE}",
                 )
-                for name in DOMAIN_BUNDLES
+                for name in (contract.name for contract in desired.all_contracts)
             ]
         )
         capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
         return combine_results(*install_failures, capabilities, inspected)
+
+    def _native_reconcile_inventory(
+        self,
+        desired: DesiredState,
+        *,
+        capture_backups: bool,
+        identifiers: set[str] | None = None,
+    ) -> tuple[AdapterPluginState, ...]:
+        del capture_backups
+        command, error = self._execute((self.executable, "plugin", "list"))
+        if error is not None or command is None:
+            raise ValueError("Antigravity plugin inventory is unavailable")
+        rows, parse_error = _import_rows(command.stdout)
+        if parse_error is not None:
+            raise ValueError(parse_error)
+        selected = identifiers or {contract.name for contract in desired.all_contracts}
+        inventory = []
+        for row in rows:
+            name = row.get("name")
+            if name not in selected:
+                continue
+            version = row.get("version")
+            source = row.get("source")
+            components = row.get("components")
+            if (
+                not isinstance(version, str)
+                or not isinstance(source, str)
+                or not isinstance(components, list)
+                or not all(isinstance(item, str) for item in components)
+            ):
+                raise ValueError(
+                    "Antigravity plugin inventory lacks exact native metadata"
+                )
+            inventory.append(
+                AdapterPluginState(
+                    name,
+                    version,
+                    True,
+                    source_identity=json.dumps(
+                        {"components": components, "source": source},
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                )
+            )
+        return tuple(sorted(inventory, key=lambda item: item.identifier))
+
+    def _expected_reconcile_source_identity(
+        self, desired: DesiredState, bundle: str
+    ) -> str:
+        contract = next(item for item in desired.all_contracts if item.name == bundle)
+        components = ["skills"]
+        components.extend(
+            f"{kind}:{component.stable_id}"
+            for kind, values in (
+                ("guidance", contract.components.guidance),
+                ("hook", contract.components.hooks),
+                ("runtime", contract.components.runtime),
+            )
+            for component in values
+        )
+        return json.dumps(
+            {"components": components, "source": _MARKETPLACE},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+    def _expected_reconcile_tree_digest(
+        self, desired: DesiredState, bundle: str
+    ) -> str | None:
+        del desired, bundle
+        return None
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Uninstall only canonical plugin identifiers recorded in the receipt."""
@@ -148,7 +226,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
         invalid = self.validate_uninstall_receipt(
             receipt,
             plugin_ids,
-            DOMAIN_BUNDLES,
+            expected_uninstall_plugin_ids(plugin_ids),
             identity_errors=id_errors,
         )
         if invalid is not None:
@@ -194,19 +272,62 @@ class AntigravityAdapter(CapabilityAdapterMixin):
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     if tuple(contract.name for contract in desired.contracts) != DOMAIN_BUNDLES:
         return _blocked("desired state must contain the exact canonical domains")
-    if any(not contract.version for contract in desired.contracts):
+    if any(not contract.version for contract in desired.all_contracts):
         return _blocked("desired plugin versions must be non-empty")
-    errors = _generic_view_errors(desired, "antigravity", "imported")
+    unsupported = [
+        contract.compatibility["antigravity"].reason
+        for contract in desired.all_contracts
+        if contract.compatibility["antigravity"].mode == "unsupported"
+    ]
+    if unsupported:
+        return _blocked(
+            "Antigravity delivery is unsupported: " + "; ".join(unsupported)
+        )
+    errors = _generic_view_errors(desired, "antigravity")
+    errors.extend(_extension_context_errors(desired))
     if errors:
         return _blocked("invalid generic plugin view: " + "; ".join(errors))
     return None
 
 
-def _generic_view_errors(
-    desired: DesiredState, harness: str, expected_mode: str
-) -> list[str]:
+def _extension_context_errors(desired: DesiredState) -> list[str]:
     errors: list[str] = []
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
+        expected = tuple(
+            component.path
+            for component in contract.components.guidance
+            if component.compatibility is None
+            or (
+                component.compatibility.get("antigravity") is not None
+                and component.compatibility["antigravity"].mode
+                not in {"not_applicable", "unsupported"}
+            )
+        )
+        if not expected:
+            continue
+        extension = desired.bundle_path(contract.name) / "antigravity-extension.json"
+        try:
+            document = json.loads(extension.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
+            errors.append(
+                f"{contract.name} has no readable Antigravity extension context"
+            )
+            continue
+        context = (
+            document.get("contextFileName") if isinstance(document, Mapping) else None
+        )
+        actual = (context,) if isinstance(context, str) else context
+        if not isinstance(actual, (list, tuple)) or tuple(actual) != expected:
+            errors.append(
+                f"{contract.name} Antigravity extension context does not match "
+                "its selected contract"
+            )
+    return errors
+
+
+def _generic_view_errors(desired: DesiredState, harness: str) -> list[str]:
+    errors: list[str] = []
+    for contract in desired.all_contracts:
         path = desired.bundle_path(contract.name) / "plugin.json"
         try:
             document = json.loads(path.read_text(encoding="utf-8"))
@@ -225,23 +346,12 @@ def _generic_view_errors(
             or document.get("version") != contract.version
             or document.get("skills") != list(expected_skills)
             or not isinstance(surface, Mapping)
-            or surface.get("mode") != expected_mode
+            or surface.get("mode") != contract.compatibility[harness].mode
             or surface.get("skills") != list(expected_skills)
         ):
             errors.append(f"{contract.name} does not match its selected contract")
+            continue
     return errors
-
-
-def _expected_skill_paths(desired: DesiredState, bundle: str) -> tuple[str, ...]:
-    contract = next(item for item in desired.contracts if item.name == bundle)
-    skills_root = desired.bundle_path(bundle) / contract.components.skills_root
-    paths = {
-        str(path.parent.relative_to(desired.bundle_path(bundle)))
-        for pattern in contract.components.skills_include
-        for path in skills_root.glob(pattern)
-        if path.is_file()
-    }
-    return tuple(sorted(paths))
 
 
 def _import_rows(
@@ -266,7 +376,7 @@ def _verify_imports(
     errors: list[str] = []
     drifted = False
     identity_error = False
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         matches = [row for row in rows if row.get("name") == contract.name]
         if not matches:
             errors.append(f"missing required plugin: {contract.name}")
@@ -307,39 +417,10 @@ def _verify_imports(
             ResultState.DRIFTED
             if drifted
             and not identity_error
-            and len(installed) == len(desired.contracts)
+            and len(installed) == len(desired.all_contracts)
             else ResultState.BLOCKED
         )
     return HarnessResult("antigravity", state, tuple(installed), {}, tuple(errors))
-
-
-def _component_evidence(
-    desired: DesiredState,
-    rows: Sequence[Mapping[str, Any]],
-    which: Callable[[str], str | None],
-) -> set[str]:
-    evidence: set[str] = set()
-    by_name = {row.get("name"): row for row in rows if isinstance(row.get("name"), str)}
-    for contract in desired.contracts:
-        row = by_name.get(contract.name)
-        components = row.get("components") if row is not None else None
-        if (
-            row is not None
-            and row.get("source") == _MARKETPLACE
-            and isinstance(components, list)
-            and "skills" in components
-        ):
-            evidence.update(
-                normalize_component_identity(contract.name, "skill", Path(skill).name)
-                for skill in _expected_skill_paths(desired, contract.name)
-            )
-        for tier in CapabilityTier:
-            evidence.update(
-                normalize_component_identity(contract.name, "executable", executable)
-                for executable in contract.capabilities.executables[tier]
-                if which(executable) is not None
-            )
-    return evidence
 
 
 def _receipt_plugin_ids(
@@ -348,7 +429,7 @@ def _receipt_plugin_ids(
     ids: list[str] = []
     errors: list[str] = []
     for identifier in receipt.plugin_ids:
-        if identifier not in DOMAIN_BUNDLES:
+        if identifier not in PORTABLE_BUNDLES:
             errors.append(f"receipt contains non-canonical plugin ID: {identifier}")
         elif identifier not in ids:
             ids.append(identifier)

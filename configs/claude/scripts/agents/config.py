@@ -146,9 +146,8 @@ def _default_config() -> dict:
             # VERIFIED 2026-07-29 via `claude --model <id> -p`.
             "claude": {
                 "haiku": "claude-haiku-4-5",
-                "sonnet": "claude-sonnet-5",
-                "opus": "claude-opus-5",
-                "fable": "claude-fable-5",
+                "sonnet": "claude-sonnet-5[1m]",
+                "opus": "claude-opus-5[1m]",
             },
             # UNVERIFIED — the gemini CLI is ineligible on this account
             # (free-tier Code Assist discontinued) and no API key is set.
@@ -185,6 +184,15 @@ def _default_config() -> dict:
             # login-gated and cannot be enumerated here, so --devin-model
             # passes through verbatim (see parallel_agent.yml).
         },
+        "model_fallback": {
+            "mode": "confirm",
+            "chains": {
+                "codex": ["advanced", "flash", "mini", "auto"],
+                "gemini": ["pro", "flash", "auto"],
+                "antigravity": ["advanced", "flash", "mini", "auto"],
+                "cursor": ["advanced", "flash", "mini", "auto"],
+            },
+        },
         "cli_agents": {
             # claude/gemini entries back the OAuth CLI fallback used when
             # the provider SDK or its API key is unavailable (see
@@ -194,6 +202,8 @@ def _default_config() -> dict:
                 "base_args": [],
                 "model_args": ["--model", "{model}"],
                 "prompt_args": ["-p", "{prompt}"],
+                "skill_prompt_transport": "stdin",
+                "skill_prompt_args": ["-p"],
                 "output": "stdout",
             },
             "gemini": {
@@ -201,6 +211,8 @@ def _default_config() -> dict:
                 "base_args": [],
                 "model_args": ["-m", "{model}"],
                 "prompt_args": ["-p", "{prompt}"],
+                "skill_prompt_transport": "stdin",
+                "skill_prompt_args": ["-p", ""],
                 "output": "stdout",
             },
             "cursor": {
@@ -214,6 +226,8 @@ def _default_config() -> dict:
                 ],
                 "model_args": ["--model", "{model}"],
                 "prompt_args": ["{prompt}"],
+                "skill_prompt_transport": "stdin",
+                "skill_prompt_args": [],
                 "output": "stdout",
             },
             "codex": {
@@ -227,6 +241,8 @@ def _default_config() -> dict:
                     "{output_file}",
                 ],
                 "model_args": ["--model", "{model}"],
+                "skill_prompt_transport": "stdin",
+                "skill_prompt_args": ["-"],
                 "output": "file_then_stdout",
             },
             "antigravity": {
@@ -234,6 +250,10 @@ def _default_config() -> dict:
                 "base_args": [],
                 "model_args": ["--model", "{model}"],
                 "prompt_args": ["--print", "{prompt}"],
+                # agy silently discards piped stdin in --print mode, so the
+                # skill path must pass the prompt inline like prompt_args does.
+                "skill_prompt_transport": "argv",
+                "skill_prompt_args": ["--print", "{prompt}"],
                 "output": "stdout",
             },
             # devin: headless via -p/--print; --permission-mode auto
@@ -244,11 +264,13 @@ def _default_config() -> dict:
                 "base_args": ["--permission-mode", "auto"],
                 "model_args": ["--model", "{model}"],
                 "prompt_args": ["-p", "{prompt}"],
+                "skill_prompt_transport": "file",
+                "skill_prompt_args": ["--prompt-file", "{prompt_file}", "--print"],
                 "output": "stdout",
             },
         },
         "credit_fallback": {
-            "claude": ["fable", "opus", "sonnet", "haiku"],
+            "claude": ["opus", "sonnet", "haiku"],
             "cursor": ["advanced", "flash", "mini"],
             "gemini": ["pro", "flash"],
             "codex": ["advanced", "flash", "mini"],
@@ -355,13 +377,9 @@ class Config:
         A provider absent from cli_agents falls back to agent_roster.yml,
         using the roster's binary/model_args/prompt_args with generic-CLI
         defaults (base_args=[], output="stdout") for the fields the roster
-        omits. This makes roster-only construction possible at THIS layer —
-        no cli_agents entry, no new Python class needed for `Config`/
-        `CLIAgent` to build a spec. It does NOT make a roster-only agent
-        selectable or runnable end-to-end today: `cli.py`'s provider
-        selection, CLI flags, and rate-limiter/model wiring are still
-        hardcoded per-provider (not roster-aware). Closing that gap is
-        out of this task's scope — see agent_roster.yml.
+        omits. The roster-driven CLI then supplies selection flags, service
+        state, rate limiting, and bounded model-chain wiring without requiring
+        a provider-specific Python class.
         """
         spec = self.get(f"cli_agents.{provider}")
         if spec:

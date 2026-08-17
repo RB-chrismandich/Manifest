@@ -1,0 +1,14 @@
+---
+description: "'Shape output for a reader with ADHD: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible. Invoke with /i-have-adhd; stays on until \"stop adhd mode\".'"
+alwaysApply: true
+---
+
+# i-have-adhd
+
+'Shape output for a reader with ADHD: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible. Invoke with /i-have-adhd; stays on until "stop adhd mode".'
+
+<!-- Auto-generated from .claude/skills/i-have-adhd/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/i-have-adhd/SKILL.md` for the full skill definition.
+

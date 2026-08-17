@@ -147,6 +147,12 @@ jobs:
       - name: uv build (configs/claude)
         run: uv build --project configs/claude
 
+      # manifest-delegate ships its own pyproject/uv.lock. Without these it is
+      # the one packaging surface in the repo with no build-time verification,
+      # so its lockfile could drift silently.
+      - name: uv lock --check (plugins/manifest-delegate)
+        run: uv lock --check --project plugins/manifest-delegate
+
       # --- pre-commit on changed files: the no-bypass gate of record (feature 366) ---
       # Runs the repo's .pre-commit-config.yaml against files changed in this
       # PR/push so standards (ruff, shfmt, gitleaks, markdownlint, ...) cannot be
@@ -257,7 +263,15 @@ jobs:
         # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
         # asyncio-throttle backs RateLimiter. requirements-runtime.txt mirrors
         # configs/claude/uv.lock core deps for manifest_cli / scripts packages.
-        run: pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
+        #
+        # manifest-model-policy is a LOCAL-ONLY development/runtime package.
+        # The published coordinator wheel vendors its code and has no external
+        # dependency on this unregistered name, while source tests import the
+        # editable package. Install that package from its reviewed path before
+        # the root project; tests/python/test_requirements_drift.py enforces it.
+        run: |
+          pip install -e ./configs/claude/scripts/manifest_model_policy
+          pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
 
       - name: Run Python tests (if any exist)
         run: |

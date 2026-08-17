@@ -306,3 +306,22 @@ def test_workspace_gemini_hook_contract_matches_generated_degradation(
     )
     assert record["path"] == hook.path
     assert record["reason"] == declared.reason
+
+
+def test_codex_lifecycle_metadata_names_exact_native_events(
+    workspace_bundle: Path,
+) -> None:
+    document = json.loads(
+        (workspace_bundle / "hooks/codex-lifecycle-events.json").read_text()
+    )
+    assert {
+        (row["id"], row["native_event"], row["surface"]) for row in document["events"]
+    } == {
+        ("codex-session-start", "SessionStart", "hooks.SessionStart"),
+        ("codex-stop", "Stop", "hooks.Stop"),
+        (
+            "codex-permission-request",
+            "PermissionRequest",
+            "hooks.PermissionRequest",
+        ),
+    }

@@ -100,7 +100,6 @@
       "mini"
     ],
     "claude": [
-      "fable",
       "opus",
       "sonnet",
       "haiku"
@@ -133,10 +132,9 @@
       "mini": "gemini-3.6-flash-low"
     },
     "claude": {
-      "fable": "claude-fable-5",
       "haiku": "claude-haiku-4-5",
-      "opus": "claude-opus-5",
-      "sonnet": "claude-sonnet-5"
+      "opus": "claude-opus-5[1m]",
+      "sonnet": "claude-sonnet-5[1m]"
     },
     "codex": {
       "advanced": "gpt-5.5",

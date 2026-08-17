@@ -63,7 +63,7 @@
       },
       "readiness": {
         "version_cmd": ["claude", "--version"],
-        "auth_probe_cmd": ["claude", "config", "get", "-g", "hasCompletedOnboarding"],
+        "auth_probe_cmd": ["claude", "auth", "status"],
         "install_fix": "npm install -g @anthropic-ai/claude-code",
         "login_fix": "claude /login",
         "retired_check": null
@@ -81,8 +81,8 @@
       "aliases": ["agy"],
       "display_name": "Antigravity",
       "binary": "agy",
-      "invoke": ["agy", "-p"],
-      "resume": ["agy", "-p", "--conversation", "{session_ref}"],
+      "invoke": ["agy", "--print", "{prompt}"],
+      "resume": ["agy", "--print", "{prompt}", "--conversation", "{session_ref}"],
       "model_args": ["--model", "{model}"],
       "tier_source": "model_tiers",
       "default_tier": "flash",
@@ -91,13 +91,13 @@
         "pattern": "conversation[_-]id[:=]\\s*(\\S+)"
       },
       "input": {
-        "transport": "stdin",
-        "max_payload_bytes": 10485760,
+        "transport": "argv",
+        "max_payload_bytes": 65536,
         "max_context_bytes": null
       },
       "readiness": {
         "version_cmd": ["agy", "--version"],
-        "auth_probe_cmd": ["agy", "auth", "status"],
+        "auth_probe_cmd": ["agy", "models"],
         "install_fix": "Install the Antigravity IDE, then run: agy install",
         "login_fix": "agy login",
         "retired_check": null

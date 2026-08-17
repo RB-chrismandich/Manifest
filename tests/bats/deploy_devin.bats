@@ -20,10 +20,12 @@ setup() {
     export TARGET_DIR="$SANDBOX/dotclaude"
     export DEVIN_TARGET_DIR="$SANDBOX/config/devin"
     export ENABLE_DEVIN=true
+    export HOME="$SANDBOX/home"
+    export SCRIPT_DIR="$REPO_ROOT"
     mkdir -p "$TARGET_DIR/skills"
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     source "$REPO_ROOT/bootstrap/lib/common.sh"
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     source "$REPO_ROOT/bootstrap/lib/deploy.sh"
 }
 
@@ -34,6 +36,13 @@ teardown() {
 
 read_claude_flag() {
     python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['read_config_from']['claude'])" "$1"
+}
+
+write_adhd_fixture_source() {
+    export SCRIPT_DIR="$SANDBOX/source"
+    local source="$SCRIPT_DIR/plugins/manifest-i-have-adhd/devin/global-rule.md"
+    mkdir -p "$(dirname "$source")"
+    printf '%s\n' "$1" > "$source"
 }
 
 @test "disabled devin deploys nothing at all" {
@@ -49,6 +58,69 @@ read_claude_flag() {
     assert_success
     [ -f "$DEVIN_TARGET_DIR/config.json" ]
     assert_equal "$(read_claude_flag "$DEVIN_TARGET_DIR/config.json")" "True"
+}
+
+@test "fresh install deploys the generated Devin always-on ADHD rule" {
+    run deploy_devin_config
+    assert_success
+    local target="$HOME/.codeium/windsurf/memories/global_rules.md"
+    [ -f "$target" ]
+    cmp -s "$target" "$REPO_ROOT/plugins/manifest-i-have-adhd/devin/global-rule.md"
+}
+
+@test "an unchanged Manifest-owned Devin rule upgrades to the new source" {
+    write_adhd_fixture_source "manifest rule version one"
+    run deploy_devin_config
+    assert_success
+
+    write_adhd_fixture_source "manifest rule version two"
+    run deploy_devin_config
+
+    assert_success
+    assert_output --partial "updated"
+    assert_equal "$(cat "$HOME/.codeium/windsurf/memories/global_rules.md")" \
+        "manifest rule version two"
+}
+
+@test "a user edit to a previously owned Devin rule is preserved" {
+    write_adhd_fixture_source "manifest rule version one"
+    run deploy_devin_config
+    assert_success
+
+    local target="$HOME/.codeium/windsurf/memories/global_rules.md"
+    printf 'user customization\n' > "$target"
+    write_adhd_fixture_source "manifest rule version two"
+    run deploy_devin_config
+
+    assert_success
+    assert_output --partial "Preserved user-managed"
+    assert_equal "$(cat "$target")" "user customization"
+}
+
+@test "existing non-empty Devin global rules are preserved" {
+    local target="$HOME/.codeium/windsurf/memories/global_rules.md"
+    mkdir -p "$(dirname "$target")"
+    printf 'user rule\n' > "$target"
+    run deploy_devin_config
+    assert_success
+    assert_output --partial "Preserved user-managed"
+    assert_equal "$(cat "$target")" "user rule"
+}
+
+@test "a Devin global-rules symlink is preserved without touching its target" {
+    local target="$HOME/.codeium/windsurf/memories/global_rules.md"
+    local user_rule="$SANDBOX/user-global-rule.md"
+    mkdir -p "$(dirname "$target")"
+    : > "$user_rule"
+    ln -s "$user_rule" "$target"
+
+    run deploy_devin_config
+
+    assert_success
+    assert_output --partial "Preserved user-managed"
+    [ -L "$target" ]
+    assert_equal "$(readlink "$target")" "$user_rule"
+    [ ! -s "$user_rule" ]
 }
 
 @test "never creates a skills directory under the devin home (no double-registration)" {

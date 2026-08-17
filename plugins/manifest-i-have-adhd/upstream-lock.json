@@ -1,0 +1,10 @@
+{
+  "commit": "2d19ad205eb1d85fc9c3968bdeba4c2116518685",
+  "files": {
+    "LICENSE.upstream": "8acbb618089b738404f76ac60fca1aaa995d9a87995eddf95f0b777acd7f7d2c",
+    "skills/i-have-adhd/SKILL.md": "cae8c063977214b372c6897b7c93ac8faa573214a8635896f767e3bac092adf8"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ayghri/i-have-adhd",
+  "synced_at": "2026-08-06"
+}

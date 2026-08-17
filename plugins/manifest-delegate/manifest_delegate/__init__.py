@@ -122,7 +122,11 @@ from .jobs_cli import (  # noqa: F401  (flat re-export)
     cmd_status,
 )
 from .jobstore import (  # noqa: F401  (flat re-export)
+    FALLBACK_PENDING_EXPIRES_AFTER_SECONDS,
+    FALLBACK_PENDING_RESOLUTION_ACTIONS,
     NON_TERMINAL_STATES,
+    RESOLVABLE_STATES,
+    SETTLED_STATES,
     TERMINAL_STATES,
     JobStore,
     _atomic_write_0600,
@@ -152,7 +156,7 @@ from .process import (  # noqa: F401  (flat re-export)
     _kill_pgid,
     _launch_backend,
     _make_pgid_persister,
-    _read_file_tail,
+    _read_bounded_file,
     _read_pgid_file,
     _reap_cancelled_orphan,
     _spawn_backend,

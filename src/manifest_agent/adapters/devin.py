@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import json
-import re
+import hashlib
 import shutil
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -19,31 +18,29 @@ from manifest_agent.adapters.base import (
 )
 from manifest_agent.adapters.devin_lifecycle import blocked as _blocked
 from manifest_agent.adapters.devin_lifecycle import uninstall_devin
+from manifest_agent.adapters.devin_parsing import _list_plugin_ids, _parse_info
+from manifest_agent.adapters.devin_view import _generic_view_errors
+from manifest_agent.codex_plugin_backup import (
+    capture_owned_file_backup,
+    capture_plugin_backup,
+    plugin_tree_sha256,
+)
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
+    AdapterPluginState,
     CapabilityTier,
     CommandResult,
     DesiredState,
     HarnessReceipt,
     HarnessResult,
+    OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import owned_file_entry, owned_file_ownership
 from manifest_agent.process import CommandRunner, redact_text
 
 _ADAPTER_VERSION = "1"
-_ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-_PLUGIN_ID_PATTERN = r"(?:[A-Za-z0-9][A-Za-z0-9._-]*/)?[A-Za-z0-9][A-Za-z0-9._-]*"
-_PLUGIN_ID = re.compile(_PLUGIN_ID_PATTERN)
-_PLUGIN_VERSION_PATTERN = r"(?:v?\d+(?:\.\d+)+(?:[-+][0-9A-Za-z.-]+)?|unversioned)"
-_LIST_ROW = re.compile(
-    rf"^(?P<name>{_PLUGIN_ID_PATTERN})\s+"
-    rf"(?P<version>{_PLUGIN_VERSION_PATTERN})(?:\s+.*)?$",
-    re.IGNORECASE,
-)
-_LIST_SEPARATOR = re.compile(r"^[+|│─━═┄┈╌╍┅┉┴┬┼= _-]+$")
-_LIST_HEADINGS = frozenset(
-    {"installed", "plugin", "plugins", "name", "version", "blocked", "status"}
-)
+_ADHD_BUNDLE = "manifest-i-have-adhd"
 
 
 class DevinAdapter(CapabilityAdapterMixin):
@@ -62,6 +59,10 @@ class DevinAdapter(CapabilityAdapterMixin):
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+
+    def _adhd_rule_path(self) -> Path:
+        home = Path((self._env or {}).get("HOME", Path.home()))
+        return home / ".codeium/windsurf/memories/global_rules.md"
 
     def detect(self) -> Detection:
         """Report Devin CLI availability and its native version."""
@@ -101,7 +102,7 @@ class DevinAdapter(CapabilityAdapterMixin):
 
         failures: list[HarnessResult] = []
         info_rows: dict[str, Mapping[str, Any]] = {}
-        for contract in desired.contracts:
+        for contract in desired.all_contracts:
             command, error = self._execute(
                 (self.name, "plugins", "info", contract.name)
             )
@@ -121,7 +122,9 @@ class DevinAdapter(CapabilityAdapterMixin):
             info_rows[contract.name] = row
 
         plugins = _verify_plugins(desired, installed_ids, info_rows)
-        evidence = _component_evidence(desired, info_rows, self._which)
+        evidence = _component_evidence(
+            desired, info_rows, self._which, self._adhd_rule_path()
+        )
         components = verify_declared_components(self.name, desired, evidence)
         inspected = combine_results(plugins, components)
         return combine_results(*failures, inspected) if failures else inspected
@@ -131,9 +134,15 @@ class DevinAdapter(CapabilityAdapterMixin):
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
+        prepared_rule, rule_error = _prepare_adhd_rule(
+            desired, self._adhd_rule_path(), self._env
+        )
+        if rule_error is not None:
+            return rule_error
+        assert prepared_rule is not None
         failures: list[HarnessResult] = []
         already_present: list[HarnessResult] = []
-        for contract in desired.contracts:
+        for contract in desired.all_contracts:
             command, error = self._execute(
                 (
                     self.name,
@@ -152,11 +161,94 @@ class DevinAdapter(CapabilityAdapterMixin):
                 (already_present if _already_present(command) else failures).append(
                     result
                 )
+        rule = _apply_adhd_rule(self, prepared_rule)
         capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
-        if set(inspected.installed_plugin_ids) != set(DOMAIN_BUNDLES):
+        if set(inspected.installed_plugin_ids) != {
+            contract.name for contract in desired.all_contracts
+        }:
             failures.extend(already_present)
-        return combine_results(*failures, capabilities, inspected)
+        return combine_results(*failures, rule, capabilities, inspected)
+
+    def _native_reconcile_inventory(
+        self,
+        desired: DesiredState,
+        *,
+        capture_backups: bool,
+        identifiers: set[str] | None = None,
+    ) -> tuple[AdapterPluginState, ...]:
+        command, error = self._execute((self.name, "plugins", "list"))
+        if error is not None or command is None:
+            raise ValueError("Devin plugin inventory is unavailable")
+        installed, parse_error = _list_plugin_ids(command.stdout)
+        if parse_error is not None:
+            raise ValueError(parse_error)
+        selected = identifiers or {contract.name for contract in desired.all_contracts}
+        inventory = []
+        for name in sorted(installed & selected):
+            command, error = self._execute((self.name, "plugins", "info", name))
+            if error is not None or command is None:
+                raise ValueError(f"Devin plugin info is unavailable for {name}")
+            row, info_error = _parse_info(command.stdout)
+            if info_error is not None:
+                raise ValueError(info_error)
+            version = row.get("version")
+            source = row.get("source")
+            if not isinstance(version, str) or not isinstance(source, str):
+                raise ValueError("Devin plugin inventory lacks exact native metadata")
+            root = Path(source).resolve(strict=True)
+            backup = None
+            if capture_backups:
+                backup = capture_plugin_backup(
+                    {
+                        "pluginId": name,
+                        "version": version,
+                        "enabled": True,
+                        "source": {"path": str(root)},
+                    },
+                    self._env,
+                    require_manifest_suffix=False,
+                ).to_dict()
+            inventory.append(
+                AdapterPluginState(
+                    name,
+                    version,
+                    True,
+                    rollback_data=backup,
+                    installed_path=str(root),
+                    installed_sha256=plugin_tree_sha256(root),
+                    source_identity=str(root),
+                )
+            )
+        return tuple(inventory)
+
+    def _expected_reconcile_source_identity(
+        self, desired: DesiredState, bundle: str
+    ) -> str:
+        return str(desired.bundle_path(bundle).resolve(strict=False))
+
+    def _expected_reconcile_owned_files_from_prior(
+        self,
+        prior: tuple[dict[str, object], ...],
+        desired: DesiredState,
+    ) -> tuple[dict[str, object], ...]:
+        path = self._adhd_rule_path()
+        unexpected = tuple(item for item in prior if item.get("path") != str(path))
+        if unexpected:
+            raise ValueError("Devin receipt contains an unsupported owned file target")
+        source = desired.bundle_path(_ADHD_BUNDLE) / "devin/global-rule.md"
+        if source.is_symlink() or not source.is_file():
+            raise ValueError("generated Devin ADHD global rule is missing")
+        backup, _source_mode, digest = capture_owned_file_backup(source, self._env)
+        return (
+            {
+                "path": str(path),
+                "type": "file",
+                "mode": 0o600,
+                "digest": digest,
+                "restore": {"archive": backup.to_dict()},
+            },
+        )
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove receipt plugins and prune only after proving unowned safety."""
@@ -192,140 +284,19 @@ class DevinAdapter(CapabilityAdapterMixin):
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     if tuple(contract.name for contract in desired.contracts) != DOMAIN_BUNDLES:
         return _blocked("desired state must contain the exact canonical domains")
-    if any(not contract.version for contract in desired.contracts):
+    if any(not contract.version for contract in desired.all_contracts):
         return _blocked("desired plugin versions must be non-empty")
+    unsupported = [
+        contract.compatibility["devin"].reason
+        for contract in desired.all_contracts
+        if contract.compatibility["devin"].mode == "unsupported"
+    ]
+    if unsupported:
+        return _blocked("Devin delivery is unsupported: " + "; ".join(unsupported))
     errors = _generic_view_errors(desired)
     if errors:
         return _blocked("invalid generic plugin view: " + "; ".join(errors))
     return None
-
-
-def _generic_view_errors(desired: DesiredState) -> list[str]:
-    errors: list[str] = []
-    for contract in desired.contracts:
-        path = desired.bundle_path(contract.name) / "plugin.json"
-        try:
-            document = json.loads(path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
-            errors.append(f"{contract.name} has no readable plugin.json")
-            continue
-        if not isinstance(document, Mapping):
-            errors.append(f"{contract.name} plugin.json is not an object")
-            continue
-        harnesses = document.get("harnesses")
-        surface = harnesses.get("devin") if isinstance(harnesses, Mapping) else None
-        expected_skills = _expected_skill_paths(desired, contract.name)
-        if (
-            not expected_skills
-            or document.get("name") != contract.name
-            or document.get("version") != contract.version
-            or document.get("skills") != list(expected_skills)
-            or not isinstance(surface, Mapping)
-            or surface.get("mode") != "native"
-            or surface.get("skills") != list(expected_skills)
-        ):
-            errors.append(f"{contract.name} does not match its selected contract")
-    return errors
-
-
-def _expected_skill_paths(desired: DesiredState, bundle: str) -> tuple[str, ...]:
-    contract = next(item for item in desired.contracts if item.name == bundle)
-    bundle_root = desired.bundle_path(bundle)
-    skills_root = bundle_root / contract.components.skills_root
-    return tuple(
-        sorted(
-            {
-                str(path.parent.relative_to(bundle_root))
-                for pattern in contract.components.skills_include
-                for path in skills_root.glob(pattern)
-                if path.is_file()
-            }
-        )
-    )
-
-
-def _list_plugin_ids(stdout: str) -> tuple[set[str], str | None]:
-    plain = _ANSI.sub("", stdout).strip()
-    if not plain:
-        return set(), "devin plugins list returned an empty inventory"
-    plugin_ids: set[str] = set()
-    saw_empty_inventory = False
-    for line_number, raw_line in enumerate(plain.splitlines(), start=1):
-        line = _normalized_list_line(raw_line)
-        if not line:
-            continue
-        if line.lower() == "no plugins installed.":
-            saw_empty_inventory = True
-            continue
-        if _is_list_header(line) or _LIST_SEPARATOR.fullmatch(line):
-            continue
-        match = _LIST_ROW.fullmatch(line)
-        if match is None:
-            return (
-                set(),
-                f"devin plugins list contains an unrecognized inventory row "
-                f"at line {line_number}",
-            )
-        plugin_ids.add(match.group("name"))
-    if saw_empty_inventory and plugin_ids:
-        return set(), "devin plugins list returned a contradictory inventory"
-    if saw_empty_inventory:
-        return set(), None
-    if not plugin_ids:
-        return set(), "devin plugins list returned no parseable inventory rows"
-    return plugin_ids, None
-
-
-def _normalized_list_line(raw_line: str) -> str:
-    line = raw_line.strip()
-    if _LIST_SEPARATOR.fullmatch(line):
-        return line
-    line = line.strip("|│ ").lstrip("?*+!•├└ ").strip()
-    return " ".join(line.replace("│", " ").replace("|", " ").split())
-
-
-def _is_list_header(line: str) -> bool:
-    lowered = line.lower().rstrip(":")
-    if lowered == "installed plugins":
-        return True
-    words = set(lowered.split())
-    return (
-        bool(words)
-        and words <= _LIST_HEADINGS
-        and bool(words & {"name", "plugin", "plugins"})
-    )
-
-
-def _parse_info(stdout: str) -> tuple[Mapping[str, Any], str | None]:
-    plain = _ANSI.sub("", stdout)
-    row: dict[str, Any] = {"skills": set()}
-    in_skills = False
-    for raw_line in plain.splitlines():
-        stripped = raw_line.strip()
-        if not stripped:
-            continue
-        lowered = stripped.lower()
-        key, separator, value = stripped.partition(":")
-        field = key.lower()
-        if separator and field in {"plugin", "version", "source"}:
-            row["name" if field == "plugin" else field] = value.strip()
-            in_skills = False
-            continue
-        header = lowered.rstrip(":")
-        if header == "skills":
-            in_skills = True
-            continue
-        if header in {"required plugins", "optional plugins", "forbidden plugins"}:
-            in_skills = False
-            continue
-        if not in_skills or lowered == "(none)":
-            continue
-        skill = stripped.lstrip("-*+ ").split(maxsplit=1)[0]
-        if _PLUGIN_ID.fullmatch(skill):
-            row["skills"].add(skill)
-    if any(not row.get(field) for field in ("name", "version", "source")):
-        return {}, "devin plugins info omitted name, version, or source"
-    return row, None
 
 
 def _verify_plugins(
@@ -337,7 +308,7 @@ def _verify_plugins(
     errors: list[str] = []
     drifted = False
     identity_error = False
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         if contract.name not in installed_ids:
             errors.append(f"missing required plugin: {contract.name}")
             continue
@@ -369,8 +340,8 @@ def _verify_plugins(
             ResultState.DRIFTED
             if drifted
             and not identity_error
-            and len(installed) == len(desired.contracts)
-            and len(info_rows) == len(desired.contracts)
+            and len(installed) == len(desired.all_contracts)
+            and len(info_rows) == len(desired.all_contracts)
             else ResultState.BLOCKED
         )
     return HarnessResult("devin", state, tuple(installed), {}, tuple(errors))
@@ -380,9 +351,10 @@ def _component_evidence(
     desired: DesiredState,
     info_rows: Mapping[str, Mapping[str, Any]],
     which: Callable[[str], str | None],
+    rule_path: Path | None = None,
 ) -> set[str]:
     evidence: set[str] = set()
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         row = info_rows.get(contract.name)
         skills = row.get("skills") if row is not None else ()
         if isinstance(skills, set):
@@ -396,7 +368,85 @@ def _component_evidence(
                 for executable in contract.capabilities.executables[tier]
                 if which(executable) is not None
             )
+        if contract.name == _ADHD_BUNDLE and rule_path is not None:
+            generated = desired.bundle_path(contract.name) / "devin/global-rule.md"
+            try:
+                verified = generated.read_bytes() == rule_path.read_bytes()
+            except OSError:
+                verified = False
+            if verified:
+                for kind, components in (
+                    ("guidance", contract.components.guidance),
+                    ("hook", contract.components.hooks),
+                    ("runtime", contract.components.runtime),
+                ):
+                    evidence.update(
+                        normalize_component_identity(contract.name, kind, item.id)
+                        for item in components
+                    )
     return evidence
+
+
+def _prepare_adhd_rule(
+    desired: DesiredState, target: Path, env: Mapping[str, str] | None
+) -> tuple[OwnedEntry | None, HarnessResult | None]:
+    source = desired.bundle_path(_ADHD_BUNDLE) / "devin/global-rule.md"
+    if source.is_symlink() or not source.is_file():
+        return None, _blocked("generated Devin ADHD global rule is missing")
+    try:
+        source_backup, _source_mode, digest = capture_owned_file_backup(source, env)
+        prior: dict[str, object]
+        try:
+            prior_backup, prior_mode, prior_digest = capture_owned_file_backup(
+                target, env
+            )
+            prior = {
+                "path": str(target),
+                "type": "file",
+                "mode": prior_mode,
+                "digest": prior_digest,
+                "restore": {"archive": prior_backup.to_dict()},
+            }
+            if (
+                prior_digest != hashlib.sha256(b"").hexdigest()
+                and prior_digest != digest
+            ):
+                return None, _blocked(
+                    "Devin global_rules.md contains unowned user content"
+                )
+        except Exception:
+            if target.exists() or target.is_symlink():
+                return None, _blocked(
+                    "Devin global_rules.md is not a safe regular file"
+                )
+            prior = {"path": str(target), "type": "missing"}
+        installed = {
+            "path": str(target),
+            "type": "file",
+            "mode": 0o600,
+            "digest": digest,
+            "restore": {"archive": source_backup.to_dict()},
+        }
+        entry = owned_file_entry(
+            "devin-global-rules", target, prior, installed, env=env
+        )
+    except (OSError, ValueError):
+        return None, _blocked("could not prepare Devin ADHD global rule")
+    return entry, None
+
+
+def _apply_adhd_rule(adapter: DevinAdapter, entry: OwnedEntry) -> HarnessResult:
+    prior, installed, errors = owned_file_ownership(entry, env=adapter._env)
+    if errors or prior is None or installed is None or entry.target_path is None:
+        return _blocked("could not validate prepared Devin ADHD global rule")
+    try:
+        with adapter._owned_file_mutation_lock():
+            adapter._conditional_owned_file_transition(
+                Path(entry.target_path), prior, installed
+            )
+    except (OSError, ValueError):
+        return _blocked("could not install Devin ADHD global rule")
+    return HarnessResult("devin", ResultState.READY, (), {}, owned_entries=(entry,))
 
 
 def _resolved_path(value: str) -> str:

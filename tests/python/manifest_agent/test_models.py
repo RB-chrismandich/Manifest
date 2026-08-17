@@ -64,6 +64,8 @@ def test_desired_state_fields_are_stable():
         "contracts",
         "selected_optional",
         "requested_harnesses",
+        "catalog_plugins",
+        "addon_contracts",
     ]
 
 

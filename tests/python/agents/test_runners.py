@@ -6,7 +6,9 @@ Tests BaseAgent and CLIAgent in isolation — no external agent connections requ
 
 import asyncio
 import sys
+import time
 from pathlib import Path
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -15,7 +17,13 @@ SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from agents.config import Config, RateLimiter
-from agents.runners import BaseAgent, CLIAgent
+from agents.runners import BaseAgent, CLIAgent, ProviderAttemptError
+from manifest_model_policy import (
+    FailureClass,
+    ModelFallbackMode,
+    classify_failure,
+    resolve_chain,
+)
 
 
 def _make_config(tmp_path):
@@ -27,6 +35,26 @@ def _make_config(tmp_path):
 
 def _make_limiter():
     return RateLimiter(requests_per_minute=1000, burst_size=100)
+
+
+class _AsyncBytesStream:
+    def __init__(self, data):
+        self._data = data
+
+    async def read(self, _size=-1):
+        data, self._data = self._data, b""
+        return data
+
+
+def _mock_process(stdout=b"", stderr=b"", returncode=0):
+    """Return a subprocess-shaped mock for incremental stream acquisition."""
+    proc = Mock()
+    proc.stdout = _AsyncBytesStream(stdout)
+    proc.stderr = _AsyncBytesStream(stderr)
+    proc.returncode = returncode
+    proc.wait = AsyncMock(return_value=returncode)
+    proc.kill = Mock()
+    return proc
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +70,26 @@ class _ConcreteAgent(BaseAgent):
 
 
 class TestBaseAgent:
+    @pytest.mark.parametrize(
+        ("agent_name", "starting_tier", "expected"),
+        (
+            ("codex", "auto", ("advanced", "flash", "mini", "auto")),
+            ("claude", "sonnet", ("sonnet", "haiku")),
+        ),
+    )
+    def test_constructor_applies_configured_default_fallback_chain(
+        self, tmp_path, agent_name, starting_tier, expected
+    ):
+        agent = _ConcreteAgent(
+            agent_name,
+            starting_tier,
+            30,
+            _make_limiter(),
+            _make_config(tmp_path),
+        )
+
+        assert tuple(item.tier for item in agent.model_chain) == expected
+
     def test_credit_exhaustion_detection_quota(self, tmp_path):
         agent = _ConcreteAgent(
             "test", "sonnet", 30, _make_limiter(), _make_config(tmp_path)
@@ -91,11 +139,17 @@ class TestBaseAgent:
             async def _execute_impl(self, prompt, mode):
                 models_executed.append(self.model_name)
                 if not self.credit_fallback_used:
-                    raise RuntimeError("quota exceeded")
+                    raise ConnectionError("provider connection failed")
                 return {"status": "complete", "output": "ok", "model": self.model_name}
 
         agent = FlakyAgent(
-            "test", "sonnet", 30, _make_limiter(), Config(config_path=str(config_file))
+            "test",
+            "sonnet",
+            30,
+            _make_limiter(),
+            Config(config_path=str(config_file)),
+            model_chain=("sonnet", "haiku"),
+            fallback_mode="auto",
         )
         agent.model_name = agent._resolve_model("sonnet")
         result = asyncio.run(agent.execute("hello"))
@@ -113,6 +167,217 @@ class TestBaseAgent:
         result = asyncio.run(agent.execute("hello"))
         assert result["status"] == "failed"
         assert "timeout" in result["error"]
+
+    def test_timeout_uses_automatic_fallback_chain(self, tmp_path):
+        models_executed = []
+
+        class TimeoutThenSuccessAgent(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                models_executed.append(self.model_name)
+                if len(models_executed) == 1:
+                    raise TimeoutError
+                return {"status": "complete", "output": "ok"}
+
+        agent = TimeoutThenSuccessAgent(
+            "codex",
+            "advanced",
+            0.10,
+            _make_limiter(),
+            _make_config(tmp_path),
+            model_chain=("advanced", "flash"),
+            fallback_mode="auto",
+        )
+
+        async def announce_without_delay(_decision):
+            agent.credit_fallback_used = True
+
+        agent._announce_retry = announce_without_delay
+
+        result = asyncio.run(agent.execute("hello"))
+
+        assert result["status"] == "complete"
+        assert models_executed == ["advanced", "flash"]
+        assert result["fallback_reason"] == FailureClass.TRANSIENT.value
+
+    def test_fallback_attempts_share_one_monotonic_timeout_budget(self, tmp_path):
+        models_executed = []
+
+        class SlowFallbackAgent(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                models_executed.append(self.model_name)
+                if len(models_executed) == 1:
+                    await asyncio.sleep(0.12)
+                    raise ConnectionError("provider unavailable")
+                await asyncio.sleep(0.20)
+                return {"status": "complete", "output": "late"}
+
+        agent = SlowFallbackAgent(
+            "codex",
+            "advanced",
+            0.20,
+            _make_limiter(),
+            _make_config(tmp_path),
+            model_chain=("advanced", "flash"),
+            fallback_mode="auto",
+        )
+
+        async def announce_without_delay(_decision):
+            agent.credit_fallback_used = True
+
+        agent._announce_retry = announce_without_delay
+        started = time.monotonic()
+
+        result = asyncio.run(agent.execute("hello"))
+
+        elapsed = time.monotonic() - started
+        assert result["status"] == "failed"
+        assert models_executed == ["advanced", "flash"]
+        assert elapsed < 0.27
+
+    def test_returned_retryable_failure_advances_model_chain(
+        self, tmp_path, monkeypatch
+    ):
+        models_executed = []
+
+        class ReturnedFailureThenSuccess(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                models_executed.append(self.model_name)
+                if len(models_executed) == 1:
+                    return {
+                        "status": "failed",
+                        "error": "provider command failed",
+                        "fallback_reason": FailureClass.RATE_LIMIT.value,
+                    }
+                return {"status": "complete", "output": "ok"}
+
+        async def no_sleep(_seconds):
+            return None
+
+        monkeypatch.setattr(asyncio, "sleep", no_sleep)
+        agent = ReturnedFailureThenSuccess(
+            "codex",
+            "advanced",
+            1,
+            _make_limiter(),
+            _make_config(tmp_path),
+            model_chain=("advanced", "flash"),
+            fallback_mode="auto",
+        )
+
+        result = asyncio.run(agent.execute("hello"))
+
+        assert result["status"] == "complete"
+        assert models_executed == ["advanced", "flash"]
+        assert result["fallback_reason"] == FailureClass.RATE_LIMIT.value
+
+    def test_returned_terminal_failure_replaces_prior_retry_reason(
+        self, tmp_path, monkeypatch
+    ):
+        class ReturnedFailures(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                reason = (
+                    FailureClass.RATE_LIMIT
+                    if self.model_name == "advanced"
+                    else FailureClass.AUTH
+                )
+                return {
+                    "status": "failed",
+                    "error": "provider command failed",
+                    "fallback_reason": reason.value,
+                }
+
+        async def no_sleep(_seconds):
+            return None
+
+        monkeypatch.setattr(asyncio, "sleep", no_sleep)
+        agent = ReturnedFailures(
+            "codex",
+            "advanced",
+            1,
+            _make_limiter(),
+            _make_config(tmp_path),
+            model_chain=("advanced", "flash"),
+            fallback_mode="auto",
+        )
+
+        result = asyncio.run(agent.execute("hello"))
+
+        assert result["status"] == "failed"
+        assert result["fallback_reason"] == FailureClass.AUTH.value
+        assert len(result["model_attempts"]) == 2
+
+    def test_interactive_confirmation_does_not_block_peer_agent(self, tmp_path):
+        class RateLimitedAgent(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                await asyncio.sleep(0.01)
+                error = RuntimeError("rate limit")
+                error.status_code = 429
+                raise error
+
+        class PeerAgent(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                await asyncio.sleep(0.02)
+                return {"status": "complete", "output": "peer-ok"}
+
+        def confirm(_message):
+            time.sleep(0.15)
+            return False
+
+        rate_limited = RateLimitedAgent(
+            "codex",
+            "advanced",
+            1,
+            _make_limiter(),
+            _make_config(tmp_path),
+            model_chain=("advanced", "flash"),
+            fallback_mode="confirm",
+            interactive=True,
+            confirm_callback=confirm,
+        )
+        peer = PeerAgent(
+            "peer", "advanced", 0.05, _make_limiter(), _make_config(tmp_path)
+        )
+
+        async def run_both():
+            return await asyncio.gather(
+                rate_limited.execute("hello"), peer.execute("hello")
+            )
+
+        first, second = asyncio.run(run_both())
+
+        assert first["fallback_reason"] == FailureClass.RATE_LIMIT.value
+        assert second["status"] == "complete"
+
+    def test_execute_sdk_failure_uses_status_without_exposing_message(self, tmp_path):
+        secret_message = "raw provider failure sk-secret-do-not-retain"
+
+        class SDKFailureAgent(BaseAgent):
+            async def _execute_impl(self, prompt, mode):
+                del prompt, mode
+                error = RuntimeError(secret_message)
+                error.status_code = 429
+                raise error
+
+        agent = SDKFailureAgent(
+            "codex",
+            "advanced",
+            30,
+            _make_limiter(),
+            _make_config(tmp_path),
+            fallback_mode="confirm",
+        )
+
+        result = asyncio.run(agent.execute("private task"))
+
+        assert result["status"] == "failed"
+        assert result["fallback_reason"] == FailureClass.RATE_LIMIT.value
+        assert secret_message not in str(result)
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +552,7 @@ class TestCLIAgentCommandAssembly:
             config=_make_config(tmp_path),
         )
         cmd = agent._build_command("hello")
-        assert cmd == ["claude", "--model", "claude-sonnet-5", "-p", "hello"]
+        assert cmd == ["claude", "--model", "claude-sonnet-5[1m]", "-p", "hello"]
 
     def test_gemini_cli_command_shape(self, tmp_path):
         # gemini headless: -m takes the model, -p takes the prompt as its value
@@ -334,7 +599,7 @@ class TestCLIAgentCommandAssembly:
         assert cmd[-1] == raw_prompt
 
 
-class TestCLIAgentExecution:
+class TestCLIAgentOutputCollection:
     def test_missing_binary(self, tmp_path, monkeypatch):
         import shutil
 
@@ -393,7 +658,38 @@ class TestCLIAgentExecution:
         )
         result = agent._collect_output(1, b"", b"boom", None)
         assert result["status"] == "failed"
-        assert "boom" in result["error"]
+        assert "boom" not in result["error"]
+        assert result["failure_summary"]["exit_status"] == 1
+
+    def test_zero_exit_empty_stdout_is_malformed_output(self, tmp_path):
+        agent = CLIAgent(
+            "cursor",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+
+        result = agent._collect_output(0, b"", b"", None)
+
+        assert result["status"] == "failed"
+        assert result["fallback_reason"] == FailureClass.MALFORMED_OUTPUT.value
+        assert result["output"] == ""
+
+    def test_zero_exit_empty_output_file_and_stdout_is_malformed_output(self, tmp_path):
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        output_file = tmp_path / "empty-output.txt"
+        output_file.write_text(" \n", encoding="utf-8")
+
+        result = agent._collect_output(0, b"", b"", str(output_file))
+
+        assert result["status"] == "failed"
+        assert result["fallback_reason"] == FailureClass.MALFORMED_OUTPUT.value
+        assert result["output"] == ""
 
     def test_nonzero_exit_with_stdout_is_failed(self, tmp_path):
         """Issue #308: usage text on stdout + exit 1 must not count as an answer."""
@@ -407,10 +703,12 @@ class TestCLIAgentExecution:
             1, b"Usage: cursor-agent [options]", b"bad flag", None
         )
         assert result["status"] == "failed"
-        assert "bad flag" in result["error"]
-        assert "Usage: cursor-agent" in result["error"]  # preserved for debugging
+        assert "bad flag" not in result["error"]
+        assert "Usage: cursor-agent" not in result["error"]
         assert result["output"] == ""
 
+
+class TestCLIAgentExecution:
     def test_real_subprocess_roundtrip(self, tmp_path):
         """End-to-end through create_subprocess_exec using /bin/echo as the binary."""
         config = _make_config(tmp_path)
@@ -428,13 +726,60 @@ class TestCLIAgentExecution:
         assert result["status"] == "complete"
         assert result["output"] == "prefix --model fake-model-1 hello world"
 
+    def test_provider_stdout_and_stderr_truncation_is_unknown(self, tmp_path):
+        config = _make_config(tmp_path)
+        config.config["cli_agents"]["bounded"] = {
+            "binary": sys.executable,
+            "base_args": [
+                "-c",
+                "import sys; sys.stdout.write('o'*70000); "
+                "sys.stderr.write('e'*70000); raise SystemExit(1)",
+            ],
+            "prompt_args": [],
+            "output": "stdout",
+        }
+        agent = CLIAgent(
+            "bounded", model="auto", rate_limiter=_make_limiter(), config=config
+        )
+
+        result = asyncio.run(agent._execute_impl("ignored", "prompt"))
+
+        assert result["status"] == "failed"
+        assert result["fallback_reason"] == "unknown"
+        assert result["failure_summary"]["truncated"] == "true"
+
+    def test_provider_output_file_truncation_is_unknown(self, tmp_path):
+        config = _make_config(tmp_path)
+        config.config["cli_agents"]["bounded-file"] = {
+            "binary": sys.executable,
+            "base_args": [
+                "-c",
+                "from pathlib import Path; "
+                "Path(r'{output_file}').write_text('x'*70000)",
+            ],
+            "prompt_args": [],
+            "output": "file_then_stdout",
+        }
+        agent = CLIAgent(
+            "bounded-file",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=config,
+        )
+
+        result = asyncio.run(agent._execute_impl("ignored", "prompt"))
+
+        assert result["status"] == "failed"
+        assert result["fallback_reason"] == "unknown"
+        assert result["failure_summary"]["truncated"] == "true"
+
     def test_subprocess_stdin_is_devnull(self, tmp_path):
         """Headless CLIs must get EOF on stdin, not inherit the parent's.
 
         `claude -p` reads piped stdin; inheriting an open parent stdin makes it
         block until the timeout fires (observed: 300s hang). Pin stdin=DEVNULL.
         """
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         config = _make_config(tmp_path)
         config.config["cli_agents"]["fake"] = {
@@ -446,16 +791,14 @@ class TestCLIAgentExecution:
             "fake", model="auto", rate_limiter=_make_limiter(), config=config
         )
 
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(b"ok", b""))
-        proc.returncode = 0
+        proc = _mock_process(b"ok")
         with patch("asyncio.create_subprocess_exec", return_value=proc) as spawn:
             asyncio.run(agent._execute_impl("hi", "prompt"))
         assert spawn.call_args.kwargs["stdin"] is asyncio.subprocess.DEVNULL
 
     def test_antigravity_success_parses_stdout(self, tmp_path):
         """G6: antigravity CLIAgent execution, mirroring the generic cases above."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         agent = CLIAgent(
             "antigravity",
@@ -463,9 +806,7 @@ class TestCLIAgentExecution:
             rate_limiter=_make_limiter(),
             config=_make_config(tmp_path),
         )
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(b"OK\n", b""))
-        proc.returncode = 0
+        proc = _mock_process(b"OK\n")
         with (
             patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
             patch("asyncio.create_subprocess_exec", return_value=proc),
@@ -476,7 +817,7 @@ class TestCLIAgentExecution:
 
     def test_antigravity_nonzero_exit_is_failed(self, tmp_path):
         """G6: a non-credit-related nonzero exit stays a failed dict."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         agent = CLIAgent(
             "antigravity",
@@ -484,21 +825,19 @@ class TestCLIAgentExecution:
             rate_limiter=_make_limiter(),
             config=_make_config(tmp_path),
         )
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(b"", b"unrecognized flag: --bogus"))
-        proc.returncode = 1
+        proc = _mock_process(b"", b"unrecognized flag: --bogus", 1)
         with (
             patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
             patch("asyncio.create_subprocess_exec", return_value=proc),
         ):
             result = asyncio.run(agent._execute_impl("hello", "prompt"))
         assert result["status"] == "failed"
-        assert "unrecognized flag: --bogus" in result["error"]
+        assert "unrecognized flag: --bogus" not in result["error"]
 
     def test_antigravity_credit_exhaustion_stderr_raises(self, tmp_path):
         """G4/G6: credit-exhaustion stderr must raise (not return a failed dict)
         so BaseAgent.execute can walk credit_fallback.antigravity."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         agent = CLIAgent(
             "antigravity",
@@ -506,22 +845,21 @@ class TestCLIAgentExecution:
             rate_limiter=_make_limiter(),
             config=_make_config(tmp_path),
         )
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(return_value=(b"", b"Error: quota exceeded"))
-        proc.returncode = 1
+        proc = _mock_process(b"", b"Error: quota exceeded", 1)
         with (
             patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
             patch("asyncio.create_subprocess_exec", return_value=proc),
-            pytest.raises(RuntimeError, match="quota"),
+            pytest.raises(ProviderAttemptError) as exc_info,
         ):
             asyncio.run(agent._execute_impl("hello", "prompt"))
+        assert classify_failure(exc_info.value.evidence) is FailureClass.QUOTA
 
     def test_credit_exhaustion_pattern_in_stdout_does_not_raise(self, tmp_path):
         """A nonzero-exit answer whose STDOUT merely contains a pattern word
         (e.g. "credit") must not be misclassified as credit exhaustion — only
         stderr drives the fallback-triggering raise (generic CLIAgent path,
         exercised via antigravity)."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         agent = CLIAgent(
             "antigravity",
@@ -529,26 +867,23 @@ class TestCLIAgentExecution:
             rate_limiter=_make_limiter(),
             config=_make_config(tmp_path),
         )
-        proc = AsyncMock()
-        proc.communicate = AsyncMock(
-            return_value=(
-                b"your credit score summary is incomplete",
-                b"unrecognized flag: --bogus",
-            )
+        proc = _mock_process(
+            b"your credit score summary is incomplete",
+            b"unrecognized flag: --bogus",
+            1,
         )
-        proc.returncode = 1
         with (
             patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
             patch("asyncio.create_subprocess_exec", return_value=proc),
         ):
             result = asyncio.run(agent._execute_impl("hello", "prompt"))
         assert result["status"] == "failed"
-        assert "unrecognized flag: --bogus" in result["error"]
+        assert "unrecognized flag: --bogus" not in result["error"]
 
     def test_antigravity_credit_exhaustion_triggers_fallback_walk(self, tmp_path):
         """G4: quota-signalling agy stderr on the first attempt must trigger the
         configured credit_fallback.antigravity tier walk (advanced -> flash)."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         config = _make_config(tmp_path)
         agent = CLIAgent(
@@ -557,20 +892,17 @@ class TestCLIAgentExecution:
             rate_limiter=_make_limiter(),
             config=config,
         )
+        agent.model_chain = resolve_chain(
+            config.config, "antigravity", ("advanced", "flash")
+        )
+        agent.fallback_mode = ModelFallbackMode.AUTO
         calls = []
 
         async def fake_exec(*cmd, **kwargs):
             calls.append(cmd)
-            proc = AsyncMock()
             if len(calls) == 1:
-                proc.communicate = AsyncMock(
-                    return_value=(b"", b"Error: quota exceeded")
-                )
-                proc.returncode = 1
-            else:
-                proc.communicate = AsyncMock(return_value=(b"OK", b""))
-                proc.returncode = 0
-            return proc
+                return _mock_process(b"", b"Error: quota exceeded", 1)
+            return _mock_process(b"OK")
 
         with (
             patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),

@@ -171,8 +171,7 @@ def resolve_role_model_tier(charter_path: str | os.PathLike) -> str:
 
 
 # Cross-provider tier equivalence, mirroring the documented tier tables
-# (mini/haiku, flash/sonnet, advanced/opus/pro; fable is claude-only and
-# degrades to the advanced class elsewhere). Callers hand a *role* tier to
+# (mini/haiku, flash/sonnet, advanced/opus/pro). Callers hand a *role* tier to
 # whichever provider answers the route — e.g. synthesis passes "sonnet" to
 # antigravity — so an alias must translate before falling back to verbatim
 # passthrough, or the raw alias leaks to the provider CLI as --model.
@@ -184,7 +183,6 @@ _TIER_EQUIVALENTS = {
     "advanced": ("opus", "pro"),
     "opus": ("advanced", "pro"),
     "pro": ("advanced", "opus"),
-    "fable": ("advanced", "opus", "pro"),
 }
 
 

@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a0097c-cb56-7f91-a29f-7c7906fb664a"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"failed to parse plugin hooks config /home/user/.codex/plugins/cache/manifest/manifest-ops/0.2.0/hooks/version-pin.json: unknown field `_manifest`, expected `description` or `hooks` at line 2 column 13"}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"failed to parse plugin hooks config /home/user/.codex/plugins/cache/manifest/manifest-workspace/0.2.0/hooks/manifest-hooks.json: invalid type: map, expected a sequence at line 3 column 4"}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"error","message":"Exceeded skills context budget. All skill descriptions were removed and 1 additional skill was not included in the model-visible skills list."}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"OK"}}
+{"type":"turn.completed","usage":{"input_tokens":25484,"cached_input_tokens":1536,"cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":0}}

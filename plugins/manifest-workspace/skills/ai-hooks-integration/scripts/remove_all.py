@@ -7,9 +7,13 @@ Usage:
 
 import argparse
 import subprocess
+import sys
 from pathlib import Path
 
-from runtime.tool_config import get_default_path
+# Keep direct uninstall runs from adding unowned files to the skill tree.
+sys.dont_write_bytecode = True
+
+from runtime.tool_config import get_default_path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 REMOVE = ROOT / "remove_hooks.py"

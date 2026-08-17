@@ -89,7 +89,7 @@ tool list before routing to one.
 | `--no-claude` | Disable Claude CLI (enabled by default) |
 | `--no-antigravity` | Disable Antigravity for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
 | `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced (default: flash) |
 | `--check-credits` | Run pre-flight credit check |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
@@ -114,14 +114,13 @@ The orchestrating agent selects models based on task complexity:
 | mini/haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) |
 | flash/sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) |
 | advanced/opus/pro | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) |
-| fable (security) | - | claude-fable-5 | - | - | - |
 
 ### Credit Exhaustion Fallback
 
 The script automatically detects credit/quota exhaustion and falls back:
 
 - **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
-- **Claude**: fable → opus → sonnet → haiku
+- **Claude**: opus → sonnet → haiku
 - **Antigravity**: advanced → flash → mini
 
 Detection methods:
@@ -577,7 +576,7 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
 - **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-compose-commandments` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
 - **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
-- **Uncategorized**: `/automation-rework-breakeven` · `/code-audit-constitution` · `/code-to-design` · `/delegate` · `/delegate-setup` · `/deploy-reconcile` · `/design-loop` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/lifecycle-run` · `/loop-scaffold` · `/manage-design-system` · `/parallel-agent` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/render-verify` · `/review-round` · `/screen-prompts` · `/shadcn-ui` · `/spec-amend` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/upload-to-stitch`
+- **Uncategorized**: `/automation-rework-breakeven` · `/code-audit-constitution` · `/code-to-design` · `/delegate` · `/delegate-setup` · `/deploy-reconcile` · `/design-loop` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/i-have-adhd` · `/lifecycle-run` · `/loop-scaffold` · `/manage-design-system` · `/parallel-agent` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/render-verify` · `/review-round` · `/screen-prompts` · `/shadcn-ui` · `/spec-amend` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/upload-to-stitch`
 
 Run `/help <query>` for descriptions and when-to-use.
 

@@ -137,6 +137,13 @@ class TestResumeAndSecondOpinion:
                     "succeeded": [],
                     "failed": [],
                     "follow_ups": [],
+                    "findings": [
+                        {
+                            "title": "Session isolation",
+                            "detail": "The source run isolates session state.",
+                            "severity": "low",
+                        }
+                    ],
                 }
             }
         )
@@ -152,16 +159,15 @@ class TestResumeAndSecondOpinion:
             "--backend",
             "stub",
             "--json",
-            "hi",
+            "-",
+            input_text="hi",
         )
         assert second.returncode == 0
         assert "same" in second.stderr.lower() or "warning" in second.stderr.lower()
 
-    def test_second_opinion_job_record_carries_original_prompt_summary(
+    def test_second_opinion_job_record_excludes_original_task_material(
         self, env_factory
     ):
-        """J2: --second-opinion must not lose the original task's context;
-        the new job's record.json should carry a prompt_summary referencing it."""
         env = env_factory(
             control={
                 "envelope": {
@@ -173,6 +179,13 @@ class TestResumeAndSecondOpinion:
                     "succeeded": [],
                     "failed": [],
                     "follow_ups": [],
+                    "findings": [
+                        {
+                            "title": "Distinctive finding",
+                            "detail": "Review the isolated behavior only.",
+                            "severity": "medium",
+                        }
+                    ],
                 }
             }
         )
@@ -191,7 +204,8 @@ class TestResumeAndSecondOpinion:
             "--backend",
             "stub",
             "--json",
-            "hi",
+            "-",
+            input_text="hi",
         )
         assert second.returncode == 0, second.stderr
         second_id = _new_job_id(env_factory, known_ids={first_id})
@@ -202,7 +216,10 @@ class TestResumeAndSecondOpinion:
             if p.parent.name == second_id
         )
         record = json.loads(record_path.read_text())
-        assert "XYZZY" in record.get("prompt_summary", ""), record
+        assert "XYZZY" not in json.dumps(record), record
+        assert record["second_opinion_of"] == first_id
+        assert record["second_opinion_attempt_id"]
+        assert record["second_opinion_findings_digest"]
 
     def test_explicit_backend_mismatch_on_resume_exit_2(self, env_factory):
         entries = [_stub_entry(id_="stub"), _stub_entry(id_="noresume", resume=None)]

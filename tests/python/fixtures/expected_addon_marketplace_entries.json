@@ -38,5 +38,19 @@
     "name": "manifest-docker",
     "source": "./plugins/manifest-docker",
     "version": "0.1.0"
+  },
+  {
+    "category": "productivity",
+    "description": "Pinned ADHD-friendly always-on response guidance with harness-neutral delivery and fail-open diagnostics.",
+    "homepage": "https://github.com/RB-chrismandich/Manifest",
+    "keywords": [
+      "adhd",
+      "accessibility",
+      "productivity",
+      "always-on"
+    ],
+    "name": "manifest-i-have-adhd",
+    "source": "./plugins/manifest-i-have-adhd",
+    "version": "0.1.0"
   }
 ]

@@ -137,6 +137,7 @@ extract-static-html
 false-green-check-audit
 generate-design
 help
+i-have-adhd
 loop-scaffold
 manage-design-system
 parallel-agent
@@ -162,6 +163,7 @@ upload-to-stitch
 | `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
 | `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
+| `i-have-adhd` | Pinned from `ayghri/i-have-adhd`; preserving the upstream user-facing name keeps attribution and migration behavior exact. |
 | `delegate` | spec 675 delegation surface; name is the user-facing verb. |
 | `parallel-agent` | Harness orchestration is an established user-facing command, not a domain-purpose skill name. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
@@ -252,3 +254,9 @@ The 2026-07 migration (91 → 88 skills: 68 renames, 2 duplicate merges, 1 depre
 deletion) is recorded in
 [specs/480-skill-naming-taxonomy/rename-map.tsv](../specs/480-skill-naming-taxonomy/rename-map.tsv)
 and issue #478 — consult it when tracing an old name.
+
+## Model Metadata
+
+The optional `models` and `model_fallback` keys are portable execution policy,
+not part of a skill's identity. Use canonical harness names; `agy` normalizes to
+`antigravity`. Never place concrete provider model IDs in a `SKILL.md`.

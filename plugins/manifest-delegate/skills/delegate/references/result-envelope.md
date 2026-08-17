@@ -18,6 +18,10 @@ one of `success`, `partial`, `failure`. A `failure` outcome always carries
 `error`; missing-field or unparsable output is normalized to `failure`
 with `raw_output` preserved verbatim.
 
+Task, review, and gate prompts also request `findings` as objects with string
+`severity` and `text` fields. The list is the bounded handoff surface for
+`--second-opinion`; use `[]` when there is no conclusion to cross-check.
+
 ## Presentation rules
 
 - Relay `attempted`, `succeeded`, `failed`, and `follow_ups` as given —

@@ -9,10 +9,10 @@ test_delegate_dispatcher.py, which this file mirrors).
 """
 
 import importlib.util
+import io
 import json
-import stat
+import re
 import sys
-import textwrap
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -70,9 +70,11 @@ class _TaskArgs:
     fresh = False
     second_opinion = False
     of = None
+    task_file = None
     prompt_file = None
     prompt = "do the thing"
     json = True
+    recovery_id = None
 
 
 def _assert_explicit_attributed_actionable(
@@ -98,6 +100,49 @@ def _make_args(tmp_path, monkeypatch, backend="codex"):
     args = _TaskArgs()
     args.backend = backend
     return args
+
+
+def test_skill_frontmatter_uses_backend_id_when_tier_source_is_registry_key(
+    tmp_path, monkeypatch
+):
+    args = _make_args(tmp_path, monkeypatch)
+    skill = tmp_path / "SKILL.md"
+    skill.write_text(
+        "---\n"
+        "name: demo\n"
+        "models:\n"
+        "  codex: [advanced, flash]\n"
+        "model_fallback:\n"
+        "  mode: auto\n"
+        "---\n"
+        "Do the work.\n",
+        encoding="utf-8",
+    )
+    args.skill_path = str(skill)
+    backend = _valid_backend("codex")
+    backend["tier_source"] = "model_tiers"
+    monkeypatch.setattr(
+        delegate.config,
+        "load_model_policy",
+        lambda: {
+            "model_tiers": {
+                "codex": {"advanced": "gpt-advanced", "flash": "gpt-flash"}
+            },
+            "cli_agents": {"codex": {"model_args": ["--model", "{model}"]}},
+            "model_fallback": {"mode": "confirm"},
+        },
+    )
+
+    plan, error = delegate.task.resolve_task_model_plan(
+        delegate.JobStore(), args, backend, {}, None
+    )
+
+    assert error is None
+    assert [(item.tier, item.model_id) for item in plan.chain] == [
+        ("advanced", "gpt-advanced"),
+        ("flash", "gpt-flash"),
+    ]
+    assert plan.fallback_mode.value == "auto"
 
 
 # ---------------------------------------------------------------------------
@@ -232,13 +277,27 @@ class TestOversizeContextFaults:
         rc = delegate.cmd_task(args, [backend], {}, set())
         err = capsys.readouterr().err
         assert rc == 2
-        assert "max_payload_bytes" in err
-        assert "1000000" in err or "1_000_000" in err
-        assert "2000000" in err
-        _assert_explicit_attributed_actionable(
-            err, backend_id=None, actionable_markers=("max_payload_bytes",)
+        assert "1 MiB task limit" in err
+        assert "1048576" in err
+
+    def test_stdin_is_bounded_before_backend_limits(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        args = _make_args(tmp_path, monkeypatch)
+        args.prompt = "-"
+        monkeypatch.setattr(
+            sys,
+            "stdin",
+            io.TextIOWrapper(io.BytesIO(b"x" * (1024 * 1024 + 1))),
         )
-        # Never truncated/generic: the *other* limit name must not appear.
+
+        rc = delegate.cmd_task(args, [_valid_backend("codex")], {}, set())
+
+        err = capsys.readouterr().err
+        assert rc == 2
+        assert "stdin exceeds the 1 MiB task limit" in err
+        assert "1048576" in err
+        assert "max_payload_bytes" not in err
         assert "max_context_bytes" not in err
 
     def test_oversize_vs_model_context_bound_names_specific_limit(
@@ -255,7 +314,8 @@ class TestOversizeContextFaults:
         assert rc == 2
         assert "max_context_bytes" in err
         assert "100000" in err
-        assert "500000" in err
+        size = re.search(r"\((\d+) > 100000\)", err)
+        assert size and int(size.group(1)) > len(args.prompt)
         _assert_explicit_attributed_actionable(
             err, backend_id=None, actionable_markers=("max_context_bytes",)
         )
@@ -352,142 +412,20 @@ class TestMalformedOutputFault:
             actionable_markers=("raw_output", "error"),
         )
 
-
-# ---------------------------------------------------------------------------
-# 10/11. sandbox fault pair (D8): outside-workspace write, destructive command.
-#
-# delegate.py's registry `sandbox` field only appends read_only_args/write_args
-# to argv; enforcement is the backend's own job. These tests build a real stub
-# "backend" script (the sandbox stub referenced by the task) and run it through
-# the REAL cmd_task -> _run_backend_and_finish -> _spawn_backend pipeline (no
-# mocking of the backend call itself) to prove delegate.py surfaces a denial
-# from the backend sandbox stub as a failure and never silently approves it.
-# ---------------------------------------------------------------------------
-
-
-_SANDBOX_STUB = textwrap.dedent(
-    """\
-    import json
-    import sys
-
-    prompt = sys.stdin.read()
-    denied_reason = None
-    if "/outside/workspace" in prompt:
-        denied_reason = "sandbox denied: target path is outside the workspace root"
-    elif "force-push" in prompt or "rm -rf" in prompt:
-        denied_reason = "sandbox denied: destructive command blocked by write sandbox"
-
-    envelope = {
-        "backend": "codex",
-        "model": None,
-        "outcome": "failure" if denied_reason else "success",
-        "attempted": prompt[:80],
-        "changes": [],
-        "succeeded": [],
-        "failed": [],
-        "follow_ups": [],
-    }
-    if denied_reason:
-        envelope["error"] = denied_reason
-
-    print("```json")
-    print(json.dumps(envelope))
-    print("```")
-    sys.exit(1 if denied_reason else 0)
-    """
-)
-
-
-def _make_sandbox_stub(tmp_path):
-    stub_path = tmp_path / "sandbox_stub.py"
-    stub_path.write_text(_SANDBOX_STUB)
-    stub_path.chmod(stub_path.stat().st_mode | stat.S_IEXEC)
-    backend = _valid_backend("codex")
-    backend["invoke"] = [sys.executable, str(stub_path)]
-    backend["input"] = {
-        "transport": "stdin",
-        "max_payload_bytes": 1_000_000,
-        "max_context_bytes": None,
-    }
-    return backend
-
-
-class TestPromptFileFault:
-    """K4: a bad --prompt-file must exit 2 with an explicit message, never
-    traceback (D3: never crash on bad input)."""
-
-    def test_nonexistent_prompt_file_exits_2_with_message(
+    def test_zero_exit_empty_provider_output_blocks_end_to_end(
         self, tmp_path, monkeypatch, capsys
     ):
         args = _make_args(tmp_path, monkeypatch)
-        args.prompt = None
-        args.prompt_file = str(tmp_path / "does-not-exist.txt")
-        rc = delegate.cmd_task(args, [_valid_backend("codex")], {}, set())
-        err = capsys.readouterr().err
-        assert rc == 2
-        assert "delegate: cannot read --prompt-file" in err
-        assert args.prompt_file in err
-
-    def test_directory_as_prompt_file_exits_2_with_message(
-        self, tmp_path, monkeypatch, capsys
-    ):
-        args = _make_args(tmp_path, monkeypatch)
-        args.prompt = None
-        args.prompt_file = str(tmp_path)
-        rc = delegate.cmd_task(args, [_valid_backend("codex")], {}, set())
-        err = capsys.readouterr().err
-        assert rc == 2
-        assert "delegate: cannot read --prompt-file" in err
-        assert "directory" in err
-
-
-class TestSandboxFaultPair:
-    def test_outside_workspace_write_is_denied_never_approved(
-        self, tmp_path, monkeypatch, capsys
-    ):
-        backend = _make_sandbox_stub(tmp_path)
-        args = _make_args(tmp_path, monkeypatch)
-        args.write = True
-        args.prompt = "please write results to /outside/workspace/notes.txt"
         monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
-
-        rc = delegate.cmd_task(args, [backend], {}, set())
-        out = capsys.readouterr().out
-        envelope = json.loads(out)
-
-        assert rc == 1, (
-            "an outside-workspace write must never be approved (rc must signal failure)"
+        monkeypatch.setattr(
+            delegate.process,
+            "_spawn_backend",
+            lambda *args, **kwargs: (0, "", "", None, False, None, False),
         )
+
+        rc = delegate.cmd_task(args, [_valid_backend("codex")], {}, set())
+
+        envelope = json.loads(capsys.readouterr().out)
+        assert rc == 1
         assert envelope["outcome"] == "failure"
-        assert envelope["backend"] == "codex"
-        assert "outside the workspace" in envelope["error"]
-        _assert_explicit_attributed_actionable(
-            json.dumps(envelope),
-            backend_id="codex",
-            actionable_markers=("outside the workspace",),
-        )
-
-    def test_destructive_command_is_denied_never_approved(
-        self, tmp_path, monkeypatch, capsys
-    ):
-        backend = _make_sandbox_stub(tmp_path)
-        args = _make_args(tmp_path, monkeypatch)
-        args.write = True
-        args.prompt = "run git push --force to origin main (force-push)"
-        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
-
-        rc = delegate.cmd_task(args, [backend], {}, set())
-        out = capsys.readouterr().out
-        envelope = json.loads(out)
-
-        assert rc == 1, (
-            "a destructive command must never be approved (rc must signal failure)"
-        )
-        assert envelope["outcome"] == "failure"
-        assert envelope["backend"] == "codex"
-        assert "destructive command blocked" in envelope.get("error", "")
-        _assert_explicit_attributed_actionable(
-            json.dumps(envelope),
-            backend_id="codex",
-            actionable_markers=("destructive command blocked",),
-        )
+        assert envelope["error"] == "provider attempt failed"

@@ -51,7 +51,7 @@ def _gate_setup(tmp_path, monkeypatch):
 def _run_gate(transcript):
     args = _GateArgs()
     args.transcript = transcript
-    args.json = True  # emit a {"decision": ...} line for both allow and block
+    args.json = True  # emit a {"decision": ...} line for both approve and block
     return delegate.cmd_gate(
         args,
         [_valid_backend("codex")],

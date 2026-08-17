@@ -48,15 +48,14 @@ model_tiers:
   # VERIFIED 2026-07-29 — `claude --model <id> -p` on an OAuth (claude.ai max)
   # login; each call's modelUsage.canonicalModel in --output-format json echoed
   # the pinned string exactly. Full IDs rather than the aliases (opus/sonnet/
-  # haiku/fable), which also answer: an alias is a moving target the provider
-  # can remap, so pinning it would let a tier change model without a diff here.
-  # Re-checked 2026-08-02 against the published lineup: sonnet-5/opus-5/fable-5/
-  # haiku-4-5 are all still the newest active IDs in their tiers; no change.
+  # haiku), which also answer: an alias is a moving target the provider can
+  # remap, so pinning it would let a tier change model without a diff here.
+  # 2026-08-17: the fable tier was retired; sonnet and opus now pin their
+  # 1M-context variants, so every Claude tier above haiku is a 1M pin.
   claude:
     haiku: "claude-haiku-4-5"
-    sonnet: "claude-sonnet-5"
-    opus: "claude-opus-5"
-    fable: "claude-fable-5"
+    sonnet: "claude-sonnet-5[1m]"
+    opus: "claude-opus-5[1m]"
   # UNVERIFIED — retained only so tier lookups resolve to something.
   # Measured 2026-07-29: the gemini CLI is non-functional on this account. Every
   # invocation dies at the eligibility layer, before model selection, with
@@ -77,13 +76,13 @@ model_tiers:
   # inert for cursor (every role resolved to the same model). One effort ladder
   # from a single family, so the tiers genuinely differ.
   # Deliberately NOT the newer premium ladder (claude-opus-5-thinking-*,
-  # claude-fable-5-thinking-*, gpt-5.6-sol-*, kimi-k3-high, gpt-5.3-codex-*):
+  # gpt-5.6-sol-*, kimi-k3-high, gpt-5.3-codex-*):
   # every one of those returned an account-level ActionRequiredError usage limit
   # (resets 2026-08-12), so they are unverifiable this cycle — NOT confirmed
   # broken. Re-probed 2026-08-02 with catalog-exact slugs
-  # (claude-fable-5-thinking-high, gpt-5.6-sol-high, kimi-k3-high): still the
+  # (claude-opus-5-thinking-high, gpt-5.6-sol-high, kimi-k3-high): still the
   # same usage-limit error, and the catalog rejection shows premium slugs
-  # REQUIRE an effort suffix (bare claude-fable-5-thinking is not a model).
+  # REQUIRE an effort suffix (bare claude-opus-5-thinking is not a model).
   # Re-probe after 2026-08-12 and promote `advanced` if they answer.
   # `auto` and `composer-2.5` also proved served and remain valid alternates.
   cursor:
@@ -134,6 +133,16 @@ model_tiers:
 # sends no --model at all and the account default stands. Add a block here
 # only once `devin models list` has printed the IDs on a logged-in machine.
 
+# Portable ordered fallback policy. Concrete IDs remain exclusively in
+# model_tiers; skills may override these tier chains without embedding IDs.
+model_fallback:
+  mode: confirm
+  chains:
+    codex: [advanced, flash, mini, auto]
+    gemini: [pro, flash, auto]
+    antigravity: [advanced, flash, mini, auto]
+    cursor: [advanced, flash, mini, auto]
+
 # Timeout configuration (seconds)
 timeouts:
   default: 120
@@ -158,7 +167,6 @@ validation:
 # next-cheaper tier after its starting tier (never up-chain).
 credit_fallback:
   claude:
-    - fable
     - opus
     - sonnet
     - haiku
@@ -189,6 +197,8 @@ credit_fallback:
 # with priority file > stdout > stderr-on-error.
 # prompt_args: how the prompt is passed (default: trailing positional {prompt}).
 # Use when the CLI takes the prompt as the value of a flag (e.g. agy --print).
+# skill_prompt_transport/skill_prompt_args: direct `manifest skill-run` uses
+# stdin or a 0600 temporary file so its one-MiB task boundary never hits ARG_MAX.
 cli_agents:
   # claude/gemini entries back the OAuth CLI fallback: used when the provider
   # SDK or its API key is unavailable but the CLI is installed and logged in.
@@ -197,12 +207,16 @@ cli_agents:
     base_args: []
     model_args: ["--model", "{model}"]
     prompt_args: ["-p", "{prompt}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: ["-p"]
     output: stdout
   gemini:
     binary: gemini
     base_args: []
     model_args: ["-m", "{model}"]
     prompt_args: ["-p", "{prompt}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: ["-p", ""]
     output: stdout
   # cursor-agent runs headless via --print; --mode ask keeps it read-only
   # (review/analysis only — never edits files or runs shell, and can't hang on
@@ -212,33 +226,42 @@ cli_agents:
     base_args: ["--print", "--output-format", "text", "--mode", "ask"]
     model_args: ["--model", "{model}"]
     prompt_args: ["{prompt}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: []
     output: stdout
   codex:
     binary: codex
     base_args: ["exec", "--full-auto", "--color", "never",
                 "--output-last-message", "{output_file}"]
     model_args: ["--model", "{model}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: ["-"]
     output: file_then_stdout
   antigravity:
     binary: agy
     base_args: []
     model_args: ["--model", "{model}"]
     prompt_args: ["--print", "{prompt}"]
+    # agy discards piped stdin in print mode (no --prompt-file flag exists), so
+    # skill-run must pass the prompt inline. An oversized prompt then fails
+    # loudly with E2BIG instead of silently running agy against an empty input.
+    skill_prompt_transport: argv
+    skill_prompt_args: ["--print", "{prompt}"]
     output: stdout
   # devin runs headless via -p/--print. --permission-mode auto (the CLI's own
   # default, pinned here so a user-level config.json cannot silently widen it)
   # auto-approves read-only tools only; edit/exec approvals have no one to
   # answer them in non-interactive mode. Install: brew install --cask devin-cli
   # (or curl -fsSL https://cli.devin.ai/install.sh | bash), then devin auth login.
-  # Follow-up (unverified while logged out): devin also has --prompt-file FILE,
-  # which would sidestep ARG_MAX for very large synthesis payloads the way the
-  # claude/gemini stdin path does. Verify it on an authenticated machine before
-  # wiring it in — do not assume the flag's semantics from --help alone.
+  # Devin 3000.2.17 exposes --prompt-file FILE; skill-run uses it so large
+  # prompts stay out of argv while the ordinary parallel-agent path keeps -p.
   devin:
     binary: devin
     base_args: ["--permission-mode", "auto"]
     model_args: ["--model", "{model}"]
     prompt_args: ["-p", "{prompt}"]
+    skill_prompt_transport: file
+    skill_prompt_args: ["--prompt-file", "{prompt_file}", "--print"]
     output: stdout
 
 # Logging configuration

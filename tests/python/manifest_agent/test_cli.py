@@ -179,3 +179,26 @@ def test_migrate_runs_the_lifecycle_service(monkeypatch):
 
     assert result.exit_code == 0
     assert "migrate: READY" in result.output
+
+
+def test_skill_run_missing_provider_is_a_stable_usage_error(tmp_path, monkeypatch):
+    skill = tmp_path / "SKILL.md"
+    skill.write_text("---\nname: demo\n---\nDo the work.\n", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("PATH", str(tmp_path / "empty-bin"))
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        [
+            "skill-run",
+            str(skill),
+            "--harness",
+            "devin",
+            "--non-interactive",
+        ],
+        input="private task",
+    )
+
+    assert result.exit_code == 2
+    assert "provider launch failed before execution" in result.output
+    assert "Traceback" not in result.output

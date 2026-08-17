@@ -53,6 +53,7 @@
                         "native",
                         "generated",
                         "imported",
+                        "not_applicable",
                         "degraded",
                         "unsupported"
                     ]
@@ -62,7 +63,7 @@
             "allOf": [
                 {
                     "if": {
-                        "properties": {"mode": {"enum": ["degraded", "unsupported"]}}
+                        "properties": {"mode": {"enum": ["degraded", "unsupported", "not_applicable"]}}
                     },
                     "then": {"required": ["reason"]},
                     "else": {"not": {"required": ["reason"]}}

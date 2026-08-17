@@ -438,10 +438,14 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       written and takes precedence (D3 migration rule); budget validated
       1–840, new state confirmed (US4/FR-006)
 - [x] T033 [P] [US4] Author `plugins/manifest-delegate/scripts/stop_gate_hook.py`
-      (parses the Stop stdin JSON — `session_id`, `transcript_path`, `cwd`,
-      `hook_event_name`, `stop_hook_active` — and forwards the transcript
-      path plus `--stop-hook-active` to `delegate.py gate`, decision
-      passthrough) and
+      (reads the Stop stdin JSON and forwards `transcript_path` plus
+      `--stop-hook-active` to `delegate.py gate`, decision passthrough.
+      Disposition recorded 2026-08-16: the payload's other documented keys —
+      `session_id`, `cwd`, `hook_event_name` — are deliberately NOT parsed.
+      `gate` takes its job-record workspace from `os.getcwd()`, which the hook
+      inherits from the harness, and exposes no flag to accept `cwd`; the other
+      two feed no consumer. Parsing them would be dead surface, so the wrapper
+      stays at the two load-bearing keys) and
       `plugins/manifest-delegate/scripts/session_hook.py` (SessionStart:
       capture session id + transcript path for transfer; SessionEnd: orphan
       gate/job cleanup — reap: kill recorded backend pgids of non-terminal

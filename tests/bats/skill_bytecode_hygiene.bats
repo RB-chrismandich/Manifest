@@ -112,6 +112,8 @@ require_clean_tree() {
 
     local script
     for script in \
+        "scripts/install_all.py" \
+        "scripts/remove_all.py" \
         "scripts/runtime/unified_hook.py" \
         "scripts/merge_hooks.py" \
         "scripts/remove_hooks.py" \

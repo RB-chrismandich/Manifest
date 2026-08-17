@@ -100,6 +100,13 @@ m = re.search(r'GATE_WRAPPER_TIMEOUT_SECONDS\s*=\s*(\d+)', src)
 assert m, 'no GATE_WRAPPER_TIMEOUT_SECONDS constant found'
 val = int(m.group(1))
 assert val > 840, val
+# Upper bound too: hooks.json's declared Stop timeout is the harness's hard
+# ceiling. Only the lower bound was ever checked, which let the wrapper sit at
+# exactly 900 with no room to flush its fail-open JSON before being killed.
+import json
+hooks = json.load(open('$PLUGIN_DIR/hooks/hooks.json'))
+declared = min(h['timeout'] for m2 in hooks['hooks']['Stop'] for h in m2['hooks'] if 'timeout' in h)
+assert val < declared, (val, declared)
 assert 'timeout=GATE_WRAPPER_TIMEOUT_SECONDS' in src, 'wrapper does not use the constant'
 print('ok', val)
 "
@@ -115,6 +122,20 @@ print('ok', val)
   [ "$status" -eq 0 ]
   run bash -c "echo '{\"hook_event_name\":\"SessionEnd\",\"session_id\":\"t1\"}' | python3 '$PLUGIN_DIR/scripts/session_hook.py'"
   [ "$status" -eq 0 ]
+}
+
+@test "session_hook.py fails open when manifest-model-policy is absent" {
+  # The delegate module chain imports manifest_model_policy. A clean checkout,
+  # a CI image, or a user who installed the bundle without that distribution
+  # has no such module -- and a SessionStart hook that raises degrades every
+  # session it is attached to. The sibling test above passes on an ambient
+  # interpreter that HAS the package, so it cannot catch this; force an
+  # empty environment to pin the fail-open contract.
+  for ev in SessionStart SessionEnd; do
+    run env -i PATH=/usr/bin:/bin HOME="$BATS_TEST_TMPDIR" \
+      bash -c "echo '{\"hook_event_name\":\"$ev\",\"session_id\":\"t1\",\"transcript_path\":\"/tmp/x.jsonl\"}' | python3 '$PLUGIN_DIR/scripts/session_hook.py'"
+    [ "$status" -eq 0 ] || { echo "$ev exited $status: $output"; false; }
+  done
 }
 
 @test "stop_gate_hook.py fails open (exit 0) when transcript_path is missing" {

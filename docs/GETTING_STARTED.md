@@ -339,7 +339,6 @@ Choose models based on task complexity:
 | Lightweight | cursor-grok-4.5-low | claude-haiku-4-5 | - | gpt-5.6-luna | gemini-3.6-flash-low | Quick questions |
 | Balanced | cursor-grok-4.5-medium | claude-sonnet-5 | gemini-3-flash-preview | gpt-5.6-terra | gemini-3.6-flash-high | Code review |
 | Maximum | cursor-grok-4.5-high | claude-opus-5 | gemini-3-pro-preview | gpt-5.6-sol | claude-opus-4-6-thinking | Security analysis |
-| Security | - | claude-fable-5 | - | - | - | Critical security tasks |
 
 Verified 2026-07-29 by a live one-shot call per pin, **except** the Gemini and
 Codex columns: the `gemini` CLI is ineligible on a free-tier account (migrate to
