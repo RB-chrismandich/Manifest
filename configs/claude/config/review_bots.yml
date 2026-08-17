@@ -116,3 +116,44 @@ bots:
       pure line-rejoin), and edits may target paths that have since moved
       (both PRs wrote to `.retired skill supply/`, removed by feature 522). Judge the
       diff against current main, not the title.
+
+  clarity:
+    author_login: null         # varies by repo — see notes
+    role: author
+    invoke: n/a
+    identified_by: title_prefix
+    title_prefix: "💎 Clarity:"
+    branch_prefix: "clarity"   # BOTH "clarity/" and "clarity-" are in live use — match without the separator
+    notes: >
+      Added 2026-08-07 after a pr-triage-bots run on RB-chrismandich/whycast
+      surfaced five open PRs (#544, #545, #548, #550, #554) that no registry
+      entry matched — the same gap Forge had on 2026-07-27. Fourth Jules
+      persona. Verified via `gh pr list --state all --search "Clarity in:title"
+      --json author`: the persona has 12+ PRs going back to whycast #452.
+      Focus: static-analysis compliance — mypy type narrowing, guard clauses,
+      Optional handling.
+
+      Two facts that differ from the palette/bolt entries:
+
+      1. author_login is NOT stable across repos or across time. Older Clarity
+         PRs (whycast #452, #466, #468, #470, #494, #506, #515) show
+         author.login = RB-chrismandich (is_bot: false), matching the
+         palette/bolt situation. Newer ones (#541, #544, #545, #548, #550,
+         #554) show author.login = "app/google-labs-jules" with is_bot: true
+         — the Jules GitHub App was installed on that repo partway through,
+         so it now opens PRs under its own identity. The same split is visible
+         on Bolt in whycast (#516 = RB-chrismandich, #540/#543/#546/#547 =
+         app/google-labs-jules). Do not filter these personas by author;
+         the title prefix is the only identifier stable across both eras.
+
+      2. branch_prefix has no consistent separator: #545/#548/#554 use
+         "clarity/", #544/#550 use "clarity-". Match the bare word, not
+         "clarity/".
+
+      Triage caution — observed 2026-08-07: Clarity over-produces hard on a
+      single target (5 PRs for one 8-line cli.py fix; #550 and #554 were
+      byte-identical to #548, and #545's per-file hunk hashed identical too).
+      It also reaches for `(events or [])` fallbacks to silence Optional
+      errors (#544), which converts a failure into a silent empty iteration —
+      check its diffs against the repo's silent-failure conventions before
+      merging, and prefer the variant using explicit `is None` guards.
