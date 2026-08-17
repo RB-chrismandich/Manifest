@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import re
 import tomllib
 from importlib import metadata
@@ -221,16 +222,26 @@ def test_path_sourced_pins_are_installed_from_path_in_ci() -> None:
     )
 
     for name in targets:
-        path_install = f"pip install ./{sources[name]}"
+        # Editable and plain path installs both satisfy the pin locally, which
+        # is what keeps pip off the index. `-e` additionally makes the import
+        # resolve to the working tree, which is what
+        # test_installed_local_distribution_resolves_inside_this_repository
+        # checks — so accept either form rather than pinning one spelling.
+        candidates = (
+            f"pip install -e ./{sources[name]}",
+            f"pip install ./{sources[name]}",
+        )
         matching = [
-            script
+            (script, found)
             for script in _ci_install_steps()
-            if path_install in script and "pip install" in script
+            for found in (next((c for c in candidates if c in script), None),)
+            if found is not None
         ]
         assert matching, (
-            f"{CI_WORKFLOW.name}: no run step installs {name} via `{path_install}`"
+            f"{CI_WORKFLOW.name}: no run step installs {name} via "
+            f"`{candidates[0]}` or `{candidates[1]}`"
         )
-        for script in matching:
+        for script, path_install in matching:
             project_install = script.find("pip install -r")
             if project_install == -1:
                 continue
@@ -283,15 +294,26 @@ def test_installed_local_distribution_resolves_inside_this_repository() -> None:
     for name in targets:
         pyproject = _authored_distributions()[name]
         try:
-            dist = metadata.distribution(name)
+            # Presence check only: absence must fail, not skip. The location
+            # assertion below uses the imported module, not this metadata.
+            metadata.distribution(name)
         except metadata.PackageNotFoundError:
             pytest.fail(
                 f"{name} is declared by {pyproject.relative_to(REPO_ROOT)} but is not "
                 f"installed; this guard cannot prove provenance for a missing package"
             )
-        located = Path(dist.locate_file("")).resolve()
+        # Assert on where the EXECUTED CODE lives, not where the metadata
+        # landed. dist-info always goes to site-packages, so locate_file()
+        # only lands inside the repo when site-packages happens to be the
+        # repo's own .venv -- true locally, false on a CI runner using a
+        # hosted interpreter, which made this guard unpassable there. An
+        # editable path install points the import at the working tree; an
+        # index install copies files into site-packages, so this still
+        # catches a squatted name.
+        module = importlib.import_module(name.replace("-", "_"))
+        located = Path(module.__file__).resolve()
         assert located.is_relative_to(REPO_ROOT), (
-            f"{name} resolves to {located}, outside this repository. It exists only "
+            f"{name} imports from {located}, outside this repository. It exists only "
             f"here, so an out-of-tree copy is someone else's code — treat this as a "
             f"supply-chain incident, not a test failure"
         )

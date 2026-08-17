@@ -270,7 +270,7 @@ jobs:
         # editable package. Install that package from its reviewed path before
         # the root project; tests/python/test_requirements_drift.py enforces it.
         run: |
-          pip install ./configs/claude/scripts/manifest_model_policy
+          pip install -e ./configs/claude/scripts/manifest_model_policy
           pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
 
       - name: Run Python tests (if any exist)
