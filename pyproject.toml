@@ -20,6 +20,31 @@ manifest = "manifest_agent.cli:main"
 requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
+# The wheel is built FROM the sdist (`uv build`), so every force-include
+# source must actually ship in the sdist or hatchling raises
+# "Forced include not found" at wheel time. Hatchling's default sdist did
+# not carry configs/claude/config/, which broke CI the moment the model
+# policy force-includes were added. Keep this list in step with
+# [tool.hatch.build.targets.wheel.force-include] below.
+[tool.hatch.build.targets.sdist.force-include]
+"configs/claude/config/parallel_agent.yml" = "configs/claude/config/parallel_agent.yml"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/manifest_agent",
+  "configs/claude/scripts/manifest_model_policy/__init__.py",
+  "configs/claude/scripts/manifest_model_policy/controller.py",
+  "configs/claude/scripts/manifest_model_policy/failures.py",
+  "configs/claude/scripts/manifest_model_policy/frontmatter.py",
+  "configs/claude/scripts/manifest_model_policy/resolver.py",
+  "configs/claude/scripts/manifest_model_policy/skill_command.py",
+  "configs/claude/scripts/manifest_model_policy/skill_execution.py",
+  "configs/claude/scripts/manifest_model_policy/skill_process.py",
+  "configs/claude/scripts/manifest_model_policy/skill_recovery.py",
+  "configs/claude/scripts/manifest_model_policy/skill_run.py",
+  "schemas/manifest-capabilities.schema.json",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/manifest_agent"]
 
