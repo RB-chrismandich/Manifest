@@ -108,6 +108,24 @@ def _trusted_model_policy_distribution():
         return None, False
 
 
+def _reject_untrusted_runtime_override(trusted_identity):
+    """Exit when MANIFEST_RUNTIME_PYTHON names a different interpreter.
+
+    Compared against the canonical identity, not the exec path, so an alternate
+    spelling of the trusted interpreter passes and a substitute does not. The
+    override never becomes the exec target; it only asserts agreement.
+    """
+    runtime_override = os.environ.get("MANIFEST_RUNTIME_PYTHON")
+    if not runtime_override:
+        return
+    override = Path(runtime_override).expanduser()
+    if not override.is_absolute() or override.resolve(strict=False) != trusted_identity:
+        sys.stderr.write(
+            "delegate.py: rejected untrusted MANIFEST_RUNTIME_PYTHON override.\n"
+        )
+        sys.exit(2)
+
+
 def _ensure_root_model_policy_distribution(bare_help=False):
     """Re-exec through Manifest's root runtime when plain Python lacks policy.
 
@@ -120,20 +138,14 @@ def _ensure_root_model_policy_distribution(bare_help=False):
     policy, invalid = _trusted_model_policy_distribution()
     if policy is not None:
         return policy
-    trusted_runtime = Path(os.path.expanduser("~/.claude/.venv/bin/python")).resolve(
-        strict=False
-    )
-    runtime_override = os.environ.get("MANIFEST_RUNTIME_PYTHON")
-    if runtime_override:
-        override = Path(runtime_override).expanduser()
-        if (
-            not override.is_absolute()
-            or override.resolve(strict=False) != trusted_runtime
-        ):
-            sys.stderr.write(
-                "delegate.py: rejected untrusted MANIFEST_RUNTIME_PYTHON override.\n"
-            )
-            sys.exit(2)
+    # Exec target keeps the symlink. A venv's identity is the pyvenv.cfg beside
+    # the interpreter *as invoked*, so resolving it first lands in the base
+    # interpreter with no site-packages — and every uv-created venv symlinks
+    # bin/python, which made the re-exec below unable to ever find policy.
+    trusted_runtime = Path(os.path.expanduser("~/.claude/.venv/bin/python"))
+    # Identity for the override comparison stays canonical, so an equivalent
+    # spelling of the same interpreter is accepted and a different one is not.
+    _reject_untrusted_runtime_override(trusted_runtime.resolve(strict=False))
     if invalid:
         sys.stderr.write(
             "delegate.py: trusted Manifest runtime has an invalid "
@@ -141,9 +153,14 @@ def _ensure_root_model_policy_distribution(bare_help=False):
         )
         sys.exit(2)
     if os.environ.get(_REEXEC_SENTINEL) == "1":
+        # Distinct from the `invalid` message above: the re-exec landed in an
+        # interpreter that simply has no policy, which points at the runtime
+        # rather than at tampering. Sharing one message sends every diagnosis
+        # hunting a shadowed distribution that isn't there.
         sys.stderr.write(
-            "delegate.py: trusted Manifest runtime has an invalid "
-            "manifest-model-policy distribution.\n"
+            "delegate.py: re-exec into ~/.claude/.venv did not provide "
+            "manifest-model-policy; re-run ./bootstrap.sh to converge the "
+            "runtime.\n"
         )
         sys.exit(2)
     if trusted_runtime.is_file() and os.access(trusted_runtime, os.X_OK):

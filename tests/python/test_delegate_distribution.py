@@ -379,3 +379,91 @@ def test_module_cli_reports_malformed_skill_policy_without_traceback(
         in result.stderr
     )
     assert "Traceback" not in result.stderr
+
+
+def _recorder_runtime_home(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Home whose `.claude/.venv/bin/python` symlinks to an argv[0] recorder.
+
+    Returns the home, the symlink the guard must exec, and the resolved target.
+    Execing the resolved target instead of the symlink is what strands a venv
+    re-exec in the base interpreter, so the two paths stay distinguishable.
+    """
+    home = tmp_path / "runtime-home"
+    binaries = home / ".claude/.venv/bin"
+    binaries.mkdir(parents=True)
+    recorder = binaries / "real-python"
+    recorder.write_text('#!/bin/sh\nprintf "%s\\n" "$0"\nexit 0\n', encoding="utf-8")
+    recorder.chmod(0o755)
+    symlink = binaries / "python"
+    symlink.symlink_to(recorder.name)
+    return home, symlink, recorder
+
+
+def _policyless_launcher(tmp_path: Path) -> Path:
+    """Interpreter without manifest-model-policy, so the guard must re-exec."""
+    venv = tmp_path / "policyless-venv"
+    subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
+    _require_isolated_venv(venv)
+    return venv / "bin/python"
+
+
+def _run_guard(launcher: Path, home: Path, cwd: Path, **extra: str):
+    repo_root = Path(__file__).resolve().parents[2]
+    environment = dict(os.environ)
+    environment.update({"HOME": str(home), "PYTHONPATH": ""})
+    environment.pop("MANIFEST_DELEGATE_RUNTIME_REEXEC", None)
+    environment.update(extra)
+    return subprocess.run(
+        [
+            str(launcher),
+            str(repo_root / "plugins/manifest-delegate/scripts/delegate.py"),
+            "--help",
+        ],
+        cwd=cwd,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_reexec_targets_the_symlink_not_its_resolved_interpreter(
+    tmp_path: Path,
+) -> None:
+    home, symlink, recorder = _recorder_runtime_home(tmp_path)
+
+    result = _run_guard(_policyless_launcher(tmp_path), home, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == str(symlink)
+    assert result.stdout.strip() != str(recorder)
+
+
+def test_reexec_reaches_policy_inside_a_symlinked_venv(tmp_path: Path) -> None:
+    trusted = _trusted_policy_venv(tmp_path)
+    assert (trusted / "bin/python").is_symlink(), "venv did not symlink its interpreter"
+    home = tmp_path / "venv-home"
+    (home / ".claude").mkdir(parents=True)
+    (home / ".claude/.venv").symlink_to(trusted, target_is_directory=True)
+
+    result = _run_guard(_policyless_launcher(tmp_path), home, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    assert "Delegate tasks/reviews" in result.stdout
+    assert "manifest-model-policy" not in result.stderr
+
+
+def test_runtime_override_accepts_an_equivalent_spelling(tmp_path: Path) -> None:
+    home, symlink, _ = _recorder_runtime_home(tmp_path)
+    equivalent = symlink.parent / ".." / "bin" / symlink.name
+
+    result = _run_guard(
+        _policyless_launcher(tmp_path),
+        home,
+        tmp_path,
+        MANIFEST_RUNTIME_PYTHON=str(equivalent),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "rejected untrusted MANIFEST_RUNTIME_PYTHON" not in result.stderr
+    assert result.stdout.strip() == str(symlink)
