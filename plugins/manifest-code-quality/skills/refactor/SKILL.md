@@ -40,3 +40,14 @@ Inspect the target path and dispatch to the matching specialized engine:
 3. **Multi-Language Target**:
    - Dispatch sub-agents for each detected language domain.
    - Aggregate findings into a prioritized, cross-stack refactoring roadmap ordered by risk and architectural impact.
+
+## Sub-agent dispatch
+
+Dispatch only when the target spans **three or more** independent language
+domains; one or two engines run inline, because the aggregation step is the only
+shared work and it is cheaper than the fan-out.
+
+Pin every dispatched agent to **sonnet**. Language-domain refactor analysis is
+bounded, engine-guided work — it does not need the main-loop tier, and an
+unpinned agent inherits it. Selection rules and the cross-harness fallback are
+in `~/.claude/references/sub-agent-dispatch.md`.
