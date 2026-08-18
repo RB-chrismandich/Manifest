@@ -855,6 +855,18 @@ tool_policies:
     subagents: conditional
     subagent_trigger: candidate_findings >= 3
     subagent_model: opus
+  issue-manage:
+    subagents: never
+    subagent_rationale: Workflow router; dispatches to sibling issue skills sequentially.
+  pr-manage:
+    subagents: never
+    subagent_rationale: Workflow router; dispatches to sibling PR skills sequentially.
+  refactor:
+    subagents: never
+    subagent_rationale: Routes to language-specific refactor engines; each engine owns parallel-agent verification.
+  shell-audit:
+    subagents: never
+    subagent_rationale: Orchestrates sibling shell-audit-pipefail and shell-audit-errexit engines; no Task fan-out.
   shell-audit-pipefail:
     subagents: never
     subagent_rationale: Single-script audit; substitutions tightly coupled within one file.
