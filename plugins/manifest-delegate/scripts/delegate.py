@@ -57,6 +57,50 @@ if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
 
 
+def _trusted_editable_policy_roots():
+    """Directories an editable policy distribution may legitimately live in.
+
+    Two, and only two. The repo checkout that owns this script, for a developer
+    running `plugins/.../delegate.py` in place; and the deployed
+    `~/.claude/scripts` tree, which is what `~/.claude/pyproject.toml` pins as an
+    editable source and therefore what every `uv sync` of the home runtime
+    recreates. The home path is anchored to `~`, not to `__file__`, because the
+    installed plugin copy sits under `~/.claude/plugins/cache/...` and has no
+    repo above it to derive an anchor from.
+
+    This adds no trust root: the gate already re-execs `~/.claude/.venv`, and
+    `~/.claude/scripts` is the same bootstrap-owned tree beside it.
+    """
+    return (
+        (
+            Path(__file__).resolve().parents[3]
+            / "configs/claude/scripts/manifest_model_policy"
+        ).resolve(),
+        Path(os.path.expanduser("~/.claude/scripts/manifest_model_policy")).resolve(),
+    )
+
+
+def _editable_source_metadata(distribution, files, module_origin):
+    """True when the distribution is an editable install of a trusted source."""
+    for source_policy in _trusted_editable_policy_roots():
+        if module_origin != source_policy / "__init__.py":
+            continue
+        try:
+            direct_url = json.loads(distribution.read_text("direct_url.json") or "")
+            return (
+                direct_url.get("url") == source_policy.as_uri()
+                and direct_url.get("dir_info", {}).get("editable") is True
+                and any(str(item) == "_manifest_model_policy.pth" for item in files)
+            )
+        except (AttributeError, json.JSONDecodeError, ValueError):
+            # Unreadable or non-object metadata is untrusted, not absent: the
+            # caller turns a False here into a hard exit, while letting the
+            # exception reach its own handler would report the distribution as
+            # merely missing and allow `--help` to answer normally.
+            return False
+    return False
+
+
 def _trusted_model_policy_distribution():
     """Import and pin policy only from the exact distribution-owned package."""
     try:
@@ -81,21 +125,7 @@ def _trusted_model_policy_distribution():
         installed_runtime = distribution_root.is_relative_to(interpreter_root) and (
             module_origin in owned_policy_files
         )
-        source_root = Path(__file__).resolve().parents[3]
-        source_policy = (
-            source_root / "configs/claude/scripts/manifest_model_policy"
-        ).resolve()
-        source_metadata = False
-        if module_origin == source_policy / "__init__.py":
-            try:
-                direct_url = json.loads(distribution.read_text("direct_url.json") or "")
-                source_metadata = (
-                    direct_url.get("url") == source_policy.as_uri()
-                    and direct_url.get("dir_info", {}).get("editable") is True
-                    and any(str(item) == "_manifest_model_policy.pth" for item in files)
-                )
-            except (AttributeError, json.JSONDecodeError, ValueError):
-                source_metadata = False
+        source_metadata = _editable_source_metadata(distribution, files, module_origin)
         if not installed_runtime and not source_metadata:
             return None, True
         module = importlib.import_module("manifest_model_policy")
@@ -106,6 +136,24 @@ def _trusted_model_policy_distribution():
         return module, False
     except (ImportError, importlib.metadata.PackageNotFoundError, OSError, ValueError):
         return None, False
+
+
+def _reject_untrusted_runtime_override(trusted_identity):
+    """Exit when MANIFEST_RUNTIME_PYTHON names a different interpreter.
+
+    Compared against the canonical identity, not the exec path, so an alternate
+    spelling of the trusted interpreter passes and a substitute does not. The
+    override never becomes the exec target; it only asserts agreement.
+    """
+    runtime_override = os.environ.get("MANIFEST_RUNTIME_PYTHON")
+    if not runtime_override:
+        return
+    override = Path(runtime_override).expanduser()
+    if not override.is_absolute() or override.resolve(strict=False) != trusted_identity:
+        sys.stderr.write(
+            "delegate.py: rejected untrusted MANIFEST_RUNTIME_PYTHON override.\n"
+        )
+        sys.exit(2)
 
 
 def _ensure_root_model_policy_distribution(bare_help=False):
@@ -120,20 +168,14 @@ def _ensure_root_model_policy_distribution(bare_help=False):
     policy, invalid = _trusted_model_policy_distribution()
     if policy is not None:
         return policy
-    trusted_runtime = Path(os.path.expanduser("~/.claude/.venv/bin/python")).resolve(
-        strict=False
-    )
-    runtime_override = os.environ.get("MANIFEST_RUNTIME_PYTHON")
-    if runtime_override:
-        override = Path(runtime_override).expanduser()
-        if (
-            not override.is_absolute()
-            or override.resolve(strict=False) != trusted_runtime
-        ):
-            sys.stderr.write(
-                "delegate.py: rejected untrusted MANIFEST_RUNTIME_PYTHON override.\n"
-            )
-            sys.exit(2)
+    # Exec target keeps the symlink. A venv's identity is the pyvenv.cfg beside
+    # the interpreter *as invoked*, so resolving it first lands in the base
+    # interpreter with no site-packages — and every uv-created venv symlinks
+    # bin/python, which made the re-exec below unable to ever find policy.
+    trusted_runtime = Path(os.path.expanduser("~/.claude/.venv/bin/python"))
+    # Identity for the override comparison stays canonical, so an equivalent
+    # spelling of the same interpreter is accepted and a different one is not.
+    _reject_untrusted_runtime_override(trusted_runtime.resolve(strict=False))
     if invalid:
         sys.stderr.write(
             "delegate.py: trusted Manifest runtime has an invalid "
@@ -141,9 +183,14 @@ def _ensure_root_model_policy_distribution(bare_help=False):
         )
         sys.exit(2)
     if os.environ.get(_REEXEC_SENTINEL) == "1":
+        # Distinct from the `invalid` message above: the re-exec landed in an
+        # interpreter that simply has no policy, which points at the runtime
+        # rather than at tampering. Sharing one message sends every diagnosis
+        # hunting a shadowed distribution that isn't there.
         sys.stderr.write(
-            "delegate.py: trusted Manifest runtime has an invalid "
-            "manifest-model-policy distribution.\n"
+            "delegate.py: re-exec into ~/.claude/.venv did not provide "
+            "manifest-model-policy; re-run ./bootstrap.sh to converge the "
+            "runtime.\n"
         )
         sys.exit(2)
     if trusted_runtime.is_file() and os.access(trusted_runtime, os.X_OK):
