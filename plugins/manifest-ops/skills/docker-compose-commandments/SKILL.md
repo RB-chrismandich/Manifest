@@ -62,11 +62,10 @@ Rationale, failure mode, and the exact remedy for each: `references/commandments
    resolvers would drift apart:
 
    ```bash
-   ~/.claude/scripts/version_pin.sh docker-compose.yaml
+   /manifest-ops:version-pin docker-compose.yaml
    ```
 
-   That script ships with the full Manifest install. On a standalone install of
-   this plugin it will not exist; pin the tag and digest by hand instead.
+   That skill ships with the `manifest-ops` bundle.
 
 4. **Bypass only what is genuinely correct**, with a reason in the comment:
 
@@ -107,5 +106,5 @@ Compose files only — `docker-compose.y*ml`, `compose.y*ml`, and their
 
 Two neighbouring concerns are deliberately owned elsewhere in Manifest:
 supply-chain pinning across `requirements.txt`, Dockerfiles and compose alike
-(`~/.claude/scripts/version_pin.sh`), and host firewall rules for a published
+(`/manifest-ops:version-pin`), and host firewall rules for a published
 port (the `manifest-security` bundle's firewall audit).

@@ -108,6 +108,20 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
+      "description": "Inspect a target file or codebase, detect language, and route to the matching refactoring engine (Python, Go, Node/TypeScript, Shell, Terraform) with parallel agent verification.",
+      "name": "refactor",
+      "qualified_name": "manifest-code-quality:refactor"
+    },
+    {
+      "bundle": "manifest-code-quality",
+      "category": "code-quality",
+      "description": "Unified shell script safety and control-flow auditor. Runs both pipefail command substitution and errexit control-flow audits across target scripts in one pass.",
+      "name": "shell-audit",
+      "qualified_name": "manifest-code-quality:shell-audit"
+    },
+    {
+      "bundle": "manifest-code-quality",
+      "category": "code-quality",
       "description": "Use when a bash script under `set -euo pipefail` aborts in production but passes tests \u2014 audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`). Complements shell-audit-pipefail.",
       "name": "shell-audit-errexit",
       "qualified_name": "manifest-code-quality:shell-audit-errexit"
@@ -213,6 +227,13 @@
     {
       "bundle": "manifest-ops",
       "category": "deployment",
+      "description": "Use when reviewing or hardening a docker-compose file \u2014 image pinning, secrets, healthchecks, resource limits, network isolation, volumes, non-root, logs \u2014 or when chasing a DC-NNN finding. Implements the ten commandments DC-001 through DC-010.",
+      "name": "docker-compose-commandments",
+      "qualified_name": "manifest-ops:docker-compose-commandments"
+    },
+    {
+      "bundle": "manifest-ops",
+      "category": "deployment",
       "description": "Use to test or debug a service that only listens on an internal Docker network (no host port, no public route) \u2014 host curl/wget cannot reach it directly.",
       "name": "docker-probe-internal",
       "qualified_name": "manifest-ops:docker-probe-internal"
@@ -248,6 +269,13 @@
     {
       "bundle": "stitch-design",
       "category": "design",
+      "description": "Use when kicking off or resuming a full adversarial, spec-first UI design pass \u2014 scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the design loop sibling skills end to end.",
+      "name": "design-loop",
+      "qualified_name": "stitch-design:design-loop"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
       "description": "Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files. For source-only extraction (no Stitch project), use extract-design-md.",
       "name": "design-md",
       "qualified_name": "stitch-design:design-md"
@@ -279,6 +307,13 @@
       "description": "Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server.",
       "name": "generate-design",
       "qualified_name": "stitch-design:generate-design"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
+      "description": "Scaffold a design-pass artifact tree (.stitch/) \u2014 governance docs, prompts, designs, pinned render gate.",
+      "name": "loop-scaffold",
+      "qualified_name": "stitch-design:loop-scaffold"
     },
     {
       "bundle": "stitch-design",
@@ -325,9 +360,37 @@
     {
       "bundle": "stitch-design",
       "category": "design",
+      "description": "Run the render gate \u2014 faithful screenshots, hard font/frame assertions, pixel-scanned geometric limits.",
+      "name": "render-verify",
+      "qualified_name": "stitch-design:render-verify"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
+      "description": "Run one adversarial design review round \u2014 parallel lens reviewers, skeptic-verified blockers, consensus gate.",
+      "name": "review-round",
+      "qualified_name": "stitch-design:review-round"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
+      "description": "Author one colorless, geometry-only Stitch prompt per screen; colors and fonts banned from prompt text.",
+      "name": "screen-prompts",
+      "qualified_name": "stitch-design:screen-prompts"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
       "description": "Use when building UI with shadcn/ui \u2014 discovering, installing, or customizing components (Radix UI or Base UI + Tailwind), configuring components.json, building forms/dialogs/tables, or troubleshooting import or style conflicts.",
       "name": "shadcn-ui",
       "qualified_name": "stitch-design:shadcn-ui"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
+      "description": "Use when a design pass finds a spec gap: record it, then land as a normative spec edit.",
+      "name": "spec-amend",
+      "qualified_name": "stitch-design:spec-amend"
     },
     {
       "bundle": "stitch-design",
@@ -661,6 +724,13 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
+      "description": "Unified issue management manager. Dispatches to issue triage, prioritization, specification preparation, automated development, and git/PR synchronization.",
+      "name": "issue-manage",
+      "qualified_name": "manifest-forge:issue-manage"
+    },
+    {
+      "bundle": "manifest-forge",
+      "category": "version-control",
       "description": "Triage/groom/prep a single issue for the auto-dev loop \u2014 apply the `auto-dev` label when ready, else tighten scope and draft clarifying questions. Use before issue-dev-auto to assess or make-ready an issue for autonomous development.",
       "name": "issue-prep-auto",
       "qualified_name": "manifest-forge:issue-prep-auto"
@@ -713,6 +783,13 @@
       "description": "Use when a feature branch is rooted on another unmerged branch (or far behind main) and a rebase would replay unrelated commits or hit conflicts \u2014 isolate only your new commits onto a fresh branch off the real base.",
       "name": "pr-clean-base",
       "qualified_name": "manifest-forge:pr-clean-base"
+    },
+    {
+      "bundle": "manifest-forge",
+      "category": "version-control",
+      "description": "Unified pull request workflow manager. Dispatches to PR review, monitoring, comment addressing, stack merging, base cleaning, reapply resetting, or bot triaging.",
+      "name": "pr-manage",
+      "qualified_name": "manifest-forge:pr-manage"
     },
     {
       "bundle": "manifest-forge",

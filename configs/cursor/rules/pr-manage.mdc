@@ -1,0 +1,15 @@
+---
+description: "Unified pull request workflow manager. Dispatches to PR review, monitoring, comment addressing, stack merging, base cleaning, reapply resetting, or bot triaging."
+globs: ".claude/skills/pr-manage/**"
+alwaysApply: false
+---
+
+# pr-manage
+
+Unified pull request workflow manager. Dispatches to PR review, monitoring, comment addressing, stack merging, base cleaning, reapply resetting, or bot triaging.
+
+<!-- Auto-generated from .claude/skills/pr-manage/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/pr-manage/SKILL.md` for the full skill definition.
+

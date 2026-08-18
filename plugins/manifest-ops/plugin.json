@@ -6,6 +6,13 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "Antigravity exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface."
+          },
+          {
             "component_id": "version-pin",
             "component_type": "hooks",
             "mode": "degraded",
@@ -70,6 +77,7 @@
         "skills/config-validate-native",
         "skills/deploy-diagnose-drift",
         "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
         "skills/version-pin"
@@ -78,6 +86,13 @@
     "codex": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "Codex exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface."
+          },
           {
             "component_id": "version-pin",
             "component_type": "hooks",
@@ -143,6 +158,7 @@
         "skills/config-validate-native",
         "skills/deploy-diagnose-drift",
         "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
         "skills/version-pin"
@@ -151,6 +167,12 @@
     "cursor": {
       "compatibility": {
         "generated": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "generated",
+            "path": "hooks/compose-commandments.json"
+          },
           {
             "component_id": "version-pin",
             "component_type": "hooks",
@@ -186,6 +208,10 @@
       "components": {
         "hooks": [
           {
+            "id": "compose-commandments",
+            "path": "hooks/compose-commandments.json"
+          },
+          {
             "id": "version-pin",
             "path": "hooks/version-pin.json"
           }
@@ -219,6 +245,7 @@
         "skills/config-validate-native",
         "skills/deploy-diagnose-drift",
         "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
         "skills/version-pin"
@@ -227,6 +254,13 @@
     "devin": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "Devin exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface."
+          },
           {
             "component_id": "version-pin",
             "component_type": "hooks",
@@ -292,6 +326,7 @@
         "skills/config-validate-native",
         "skills/deploy-diagnose-drift",
         "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
         "skills/version-pin"
@@ -310,6 +345,7 @@
     "skills/config-validate-native",
     "skills/deploy-diagnose-drift",
     "skills/deploy-retire-component",
+    "skills/docker-compose-commandments",
     "skills/docker-probe-internal",
     "skills/process-diagnose-stall",
     "skills/version-pin"

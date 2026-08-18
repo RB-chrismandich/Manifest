@@ -1,6 +1,6 @@
 ---
 name: design-loop
-description: Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the adversarial-design-loop sibling skills end to end.
+description: Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the design loop sibling skills end to end.
 version: 0.1.0
 ---
 
@@ -30,7 +30,7 @@ durable, auditable git artifact.
 Execute in order; each phase's exit criteria gate the next. Detailed
 entry/exit contracts: `references/process.md`.
 
-1. **Scaffold** — invoke the `adversarial-design-loop:loop-scaffold` skill: create the artifact
+1. **Scaffold** — invoke the `stitch-design:loop-scaffold` skill: create the artifact
    directory (default `.stitch/`) with DESIGN.md, TOKENS.md, DECISIONS.md,
    SPEC-AMENDMENTS.md, metadata.json, prompts/, designs/, tools/.
 2. **Design system, hand-authored** — write DESIGN.md (mood, palette roles,
@@ -38,28 +38,28 @@ entry/exit contracts: `references/process.md`.
    proof tables) before generating anything. Turn DESIGN.md into the
    generator's design-system asset and apply it to every screen. Exact
    colors and font names live only here — never in screen prompts.
-3. **Screen prompts** — invoke the `adversarial-design-loop:screen-prompts` skill: one colorless,
+3. **Screen prompts** — invoke the `stitch-design:screen-prompts` skill: one colorless,
    fontless, geometry-only prompt file per screen.
 4. **Generate → edit → re-verify, tracked by ID** — generate each screen
    against the design system; revise in place through edit passes. Record
    every screen's generator ID in metadata.json, and every replacement as a
    `supersedes` chain entry with a note saying what it replaced and why.
    Never silently regenerate from scratch.
-5. **Render and verify** — invoke the `adversarial-design-loop:render-verify` skill: the generator's own
+5. **Render and verify** — invoke the `stitch-design:render-verify` skill: the generator's own
    thumbnails are never authoritative; the artifact is exported HTML plus a
    scripted, fonts-ready-asserted capture, pixel-scanned against the
    project's geometric limits.
-6. **Review rounds** — invoke the `adversarial-design-loop:review-round` skill repeatedly: parallel
+6. **Review rounds** — invoke the `stitch-design:review-round` skill repeatedly: parallel
    lens reviewers, skeptic-verified blockers, every ruling logged in
    DECISIONS.md. The loop exits only on the consensus gate: every lens
    APPROVE, zero upheld blockers.
 7. **Spec amendments** — whenever a round exposes a genuine hole in the
-   upstream spec, invoke the `adversarial-design-loop:spec-amend` skill: record it, adopt the
+   upstream spec, invoke the `stitch-design:spec-amend` skill: record it, adopt the
    resolution in the design system, and land the batch upstream once the
    pass stabilizes. Design-side fixes and spec-side gaps stay separate.
 8. **Deferred scope → production rounds** — scope may be deferred
    explicitly, never rushed. Deferred screens ship later through a declared
-   production round (`adversarial-design-loop:review-round` skill, production variant): mechanical
+   production round (`stitch-design:review-round` skill, production variant): mechanical
    gates only, and the commit message says outright that no adversarial
    panel ran.
 

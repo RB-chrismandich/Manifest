@@ -1,27 +1,52 @@
 {
   "harnesses": {
-    "claude": {
-      "state": "READY",
-      "version": "fixture-1",
-      "verified": true,
-      "installed_plugin_ids": [
-        "manifest-code-quality",
-        "manifest-docs",
-        "manifest-forge",
-        "manifest-ops",
-        "manifest-security",
-        "manifest-spec-planning",
-        "manifest-workspace",
-        "stitch-design",
-        "manifest-i-have-adhd"
-      ],
-      "components": {
-        "manifest-i-have-adhd": [
-          "guidance:adhd-always-on-guidance",
-          "hook:adhd-session-start",
-          "runtime:adhd-hook-runtime",
-          "skill:i-have-adhd"
+    "antigravity": {
+      "capabilities": {
+        "manifest-code-quality": [
+          "executable:git",
+          "executable:python3"
         ],
+        "manifest-docs": [
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-forge": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
+        "manifest-ops": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-security": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-spec-planning": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-workspace": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3",
+          "mcp:context7"
+        ],
+        "stitch-design": [
+          "executable:bash",
+          "executable:git",
+          "executable:node",
+          "executable:python3"
+        ]
+      },
+      "components": {
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -45,6 +70,8 @@
           "skill:project-scaffold",
           "skill:project-verify",
           "skill:python-refactor",
+          "skill:refactor",
+          "skill:shell-audit",
           "skill:shell-audit-errexit",
           "skill:shell-audit-pipefail",
           "skill:shell-refactor",
@@ -70,6 +97,7 @@
           "skill:git-commit",
           "skill:git-find-artifact",
           "skill:issue-dev-auto",
+          "skill:issue-manage",
           "skill:issue-prep-auto",
           "skill:issue-prioritize",
           "skill:issue-sync-commit",
@@ -78,6 +106,7 @@
           "skill:lifecycle-run",
           "skill:pr-address-comments",
           "skill:pr-clean-base",
+          "skill:pr-manage",
           "skill:pr-merge-stacked",
           "skill:pr-monitor",
           "skill:pr-reset-reapply",
@@ -85,12 +114,19 @@
           "skill:pr-triage-bots",
           "skill:repo-clean"
         ],
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-ops": [
+          "hook:compose-commandments",
           "hook:version-pin",
+          "runtime:ci-setup-templates",
           "runtime:ops-bin",
           "runtime:ops-config",
           "runtime:ops-references",
-          "runtime:ci-setup-templates",
           "skill:cache-warm-oob",
           "skill:ci-diagnose-drift",
           "skill:ci-reproduce-failure",
@@ -99,6 +135,7 @@
           "skill:config-validate-native",
           "skill:deploy-diagnose-drift",
           "skill:deploy-retire-component",
+          "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
           "skill:version-pin"
@@ -183,6 +220,8 @@
           "skill:token-conserve"
         ],
         "stitch-design": [
+          "agent:design-lens-reviewer",
+          "agent:skeptic-verifier",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -192,28 +231,47 @@
           "runtime:stitch-dist",
           "skill:a11y-audit",
           "skill:code-to-design",
+          "skill:design-loop",
           "skill:design-md",
           "skill:enhance-prompt",
           "skill:extract-design-md",
           "skill:extract-static-html",
           "skill:generate-design",
+          "skill:loop-scaffold",
           "skill:manage-design-system",
           "skill:performance-check",
           "skill:react-components",
           "skill:react-native",
           "skill:react-vite-dashboard",
           "skill:remotion",
+          "skill:render-verify",
+          "skill:review-round",
+          "skill:screen-prompts",
           "skill:shadcn-ui",
+          "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
       },
+      "installed_plugin_ids": [
+        "manifest-i-have-adhd",
+        "manifest-code-quality",
+        "manifest-docs",
+        "manifest-forge",
+        "manifest-ops",
+        "manifest-security",
+        "manifest-spec-planning",
+        "manifest-workspace",
+        "stitch-design"
+      ],
+      "state": "BLOCKED(required ADHD always-on surfaces unsupported)",
+      "verified": true,
+      "version": "fixture-1"
+    },
+    "claude": {
       "capabilities": {
-        "manifest-i-have-adhd": [
-          "executable:python3"
-        ],
         "manifest-code-quality": [
           "executable:git",
           "executable:python3"
@@ -225,6 +283,9 @@
         "manifest-forge": [
           "executable:bash",
           "executable:git",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
           "executable:python3"
         ],
         "manifest-ops": [
@@ -254,30 +315,8 @@
           "executable:node",
           "executable:python3"
         ]
-      }
-    },
-    "codex": {
-      "state": "READY",
-      "version": "fixture-1",
-      "verified": true,
-      "installed_plugin_ids": [
-        "manifest-code-quality",
-        "manifest-docs",
-        "manifest-forge",
-        "manifest-ops",
-        "manifest-security",
-        "manifest-spec-planning",
-        "manifest-workspace",
-        "stitch-design",
-        "manifest-i-have-adhd"
-      ],
+      },
       "components": {
-        "manifest-i-have-adhd": [
-          "guidance:adhd-always-on-guidance",
-          "hook:adhd-session-start",
-          "runtime:adhd-hook-runtime",
-          "skill:i-have-adhd"
-        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -301,6 +340,8 @@
           "skill:project-scaffold",
           "skill:project-verify",
           "skill:python-refactor",
+          "skill:refactor",
+          "skill:shell-audit",
           "skill:shell-audit-errexit",
           "skill:shell-audit-pipefail",
           "skill:shell-refactor",
@@ -326,6 +367,7 @@
           "skill:git-commit",
           "skill:git-find-artifact",
           "skill:issue-dev-auto",
+          "skill:issue-manage",
           "skill:issue-prep-auto",
           "skill:issue-prioritize",
           "skill:issue-sync-commit",
@@ -334,6 +376,7 @@
           "skill:lifecycle-run",
           "skill:pr-address-comments",
           "skill:pr-clean-base",
+          "skill:pr-manage",
           "skill:pr-merge-stacked",
           "skill:pr-monitor",
           "skill:pr-reset-reapply",
@@ -341,12 +384,19 @@
           "skill:pr-triage-bots",
           "skill:repo-clean"
         ],
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-ops": [
+          "hook:compose-commandments",
           "hook:version-pin",
+          "runtime:ci-setup-templates",
           "runtime:ops-bin",
           "runtime:ops-config",
           "runtime:ops-references",
-          "runtime:ci-setup-templates",
           "skill:cache-warm-oob",
           "skill:ci-diagnose-drift",
           "skill:ci-reproduce-failure",
@@ -355,6 +405,277 @@
           "skill:config-validate-native",
           "skill:deploy-diagnose-drift",
           "skill:deploy-retire-component",
+          "skill:docker-compose-commandments",
+          "skill:docker-probe-internal",
+          "skill:process-diagnose-stall",
+          "skill:version-pin"
+        ],
+        "manifest-security": [
+          "runtime:security-bin",
+          "runtime:security-references",
+          "skill:ci-audit-triggers",
+          "skill:ci-harden-workflow",
+          "skill:code-audit",
+          "skill:docker-audit-firewall",
+          "skill:llm-audit-traversal",
+          "skill:mcp-audit",
+          "skill:security-harden-proxy",
+          "skill:security-refute-findings",
+          "skill:security-review-diff",
+          "skill:security-triage-findings"
+        ],
+        "manifest-spec-planning": [
+          "runtime:cddl-runtime",
+          "runtime:plan-store",
+          "runtime:planning-config",
+          "runtime:planning-prompts",
+          "runtime:planning-references",
+          "runtime:spec-review",
+          "skill:design-validate",
+          "skill:plan-manage",
+          "skill:premise-verify",
+          "skill:spec-audit-tasks",
+          "skill:spec-decide-tradeoffs",
+          "skill:spec-implement-loop",
+          "skill:spec-review"
+        ],
+        "manifest-workspace": [
+          "agent:compatibility-translator",
+          "agent:context-chronicler",
+          "agent:dependency-guardian",
+          "agent:devpanel-chaos-engineer",
+          "agent:devpanel-debugger",
+          "agent:devpanel-developer",
+          "agent:devpanel-performance-auditor",
+          "agent:devpanel-spec-guard",
+          "agent:devpanel-tester",
+          "agent:executor",
+          "agent:explore",
+          "agent:mech-executor",
+          "agent:scout",
+          "agent:security-executor",
+          "agent:verifier",
+          "guidance:workspace-orchestration",
+          "guidance:workspace-token-economy",
+          "hook:manifest-hooks",
+          "runtime:command-catalog",
+          "runtime:deploy-reconcile-scripts",
+          "runtime:env-check-scripts",
+          "runtime:help-scripts",
+          "runtime:hook-integration-scripts",
+          "runtime:learning-capture-scripts",
+          "runtime:parallel-agent-config",
+          "runtime:parallel-agent-prompts",
+          "runtime:parallel-agent-references",
+          "runtime:parallel-agent-scripts",
+          "runtime:pr-smoke-scripts",
+          "runtime:skill-evolve-scripts",
+          "skill:ai-hooks-integration",
+          "skill:automation-rework-breakeven",
+          "skill:config-audit",
+          "skill:deploy-reconcile",
+          "skill:env-check",
+          "skill:help",
+          "skill:learning-capture",
+          "skill:memory-compress",
+          "skill:metrics-report",
+          "skill:parallel-agent",
+          "skill:pass-cli",
+          "skill:pr-smoke",
+          "skill:prompt-optimize",
+          "skill:session-checkpoint",
+          "skill:skill-evolve",
+          "skill:test-isolate-ambient",
+          "skill:token-benchmark",
+          "skill:token-conserve"
+        ],
+        "stitch-design": [
+          "agent:design-lens-reviewer",
+          "agent:skeptic-verifier",
+          "runtime:react-native-validator",
+          "runtime:react-validator",
+          "runtime:static-html-sources",
+          "runtime:stitch-build",
+          "runtime:stitch-build-lock",
+          "runtime:stitch-build-package",
+          "runtime:stitch-dist",
+          "skill:a11y-audit",
+          "skill:code-to-design",
+          "skill:design-loop",
+          "skill:design-md",
+          "skill:enhance-prompt",
+          "skill:extract-design-md",
+          "skill:extract-static-html",
+          "skill:generate-design",
+          "skill:loop-scaffold",
+          "skill:manage-design-system",
+          "skill:performance-check",
+          "skill:react-components",
+          "skill:react-native",
+          "skill:react-vite-dashboard",
+          "skill:remotion",
+          "skill:render-verify",
+          "skill:review-round",
+          "skill:screen-prompts",
+          "skill:shadcn-ui",
+          "skill:spec-amend",
+          "skill:stitch-loop",
+          "skill:taste-design",
+          "skill:upload-to-stitch",
+          "skill:ux-review"
+        ]
+      },
+      "installed_plugin_ids": [
+        "manifest-code-quality",
+        "manifest-docs",
+        "manifest-forge",
+        "manifest-ops",
+        "manifest-security",
+        "manifest-spec-planning",
+        "manifest-workspace",
+        "stitch-design",
+        "manifest-i-have-adhd"
+      ],
+      "state": "READY",
+      "verified": true,
+      "version": "fixture-1"
+    },
+    "codex": {
+      "capabilities": {
+        "manifest-code-quality": [
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-docs": [
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-forge": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
+        "manifest-ops": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-security": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-spec-planning": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-workspace": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3",
+          "mcp:context7"
+        ],
+        "stitch-design": [
+          "executable:bash",
+          "executable:git",
+          "executable:node",
+          "executable:python3"
+        ]
+      },
+      "components": {
+        "manifest-code-quality": [
+          "runtime:code-audit-references",
+          "runtime:constitution-config",
+          "runtime:constitution-references",
+          "runtime:constitution-scripts",
+          "runtime:scaffold-templates",
+          "runtime:smoke-scripts",
+          "runtime:smoke-vendor",
+          "skill:ai-code-audit",
+          "skill:antipattern-detect",
+          "skill:api-optimize-bulk",
+          "skill:cli-audit-help",
+          "skill:code-audit-constitution",
+          "skill:data-design-ingestion",
+          "skill:data-validate-live",
+          "skill:data-wire-field",
+          "skill:false-green-check-audit",
+          "skill:go-refactor",
+          "skill:llm-invoke-stdin",
+          "skill:node-refactor",
+          "skill:project-scaffold",
+          "skill:project-verify",
+          "skill:python-refactor",
+          "skill:refactor",
+          "skill:shell-audit",
+          "skill:shell-audit-errexit",
+          "skill:shell-audit-pipefail",
+          "skill:shell-refactor",
+          "skill:smoke-manage",
+          "skill:terraform-refactor",
+          "skill:test-pin-bug",
+          "skill:test-vary-fixtures"
+        ],
+        "manifest-docs": [
+          "runtime:docs-lint",
+          "runtime:docs-references",
+          "skill:docs-all",
+          "skill:docs-generate-diagrams",
+          "skill:docs-improve",
+          "skill:docs-improve-readme"
+        ],
+        "manifest-forge": [
+          "runtime:forge-bin",
+          "runtime:forge-config",
+          "runtime:forge-python",
+          "runtime:forge-references",
+          "skill:branch-clean",
+          "skill:git-commit",
+          "skill:git-find-artifact",
+          "skill:issue-dev-auto",
+          "skill:issue-manage",
+          "skill:issue-prep-auto",
+          "skill:issue-prioritize",
+          "skill:issue-sync-commit",
+          "skill:issue-sync-pr",
+          "skill:issue-triage",
+          "skill:lifecycle-run",
+          "skill:pr-address-comments",
+          "skill:pr-clean-base",
+          "skill:pr-manage",
+          "skill:pr-merge-stacked",
+          "skill:pr-monitor",
+          "skill:pr-reset-reapply",
+          "skill:pr-review",
+          "skill:pr-triage-bots",
+          "skill:repo-clean"
+        ],
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
+        "manifest-ops": [
+          "hook:compose-commandments",
+          "hook:version-pin",
+          "runtime:ci-setup-templates",
+          "runtime:ops-bin",
+          "runtime:ops-config",
+          "runtime:ops-references",
+          "skill:cache-warm-oob",
+          "skill:ci-diagnose-drift",
+          "skill:ci-reproduce-failure",
+          "skill:ci-setup",
+          "skill:config-debug-substitution",
+          "skill:config-validate-native",
+          "skill:deploy-diagnose-drift",
+          "skill:deploy-retire-component",
+          "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
           "skill:version-pin"
@@ -442,6 +763,8 @@
           "skill:token-conserve"
         ],
         "stitch-design": [
+          "agent:design-lens-reviewer",
+          "agent:skeptic-verifier",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -451,74 +774,30 @@
           "runtime:stitch-dist",
           "skill:a11y-audit",
           "skill:code-to-design",
+          "skill:design-loop",
           "skill:design-md",
           "skill:enhance-prompt",
           "skill:extract-design-md",
           "skill:extract-static-html",
           "skill:generate-design",
+          "skill:loop-scaffold",
           "skill:manage-design-system",
           "skill:performance-check",
           "skill:react-components",
           "skill:react-native",
           "skill:react-vite-dashboard",
           "skill:remotion",
+          "skill:render-verify",
+          "skill:review-round",
+          "skill:screen-prompts",
           "skill:shadcn-ui",
+          "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
       },
-      "capabilities": {
-        "manifest-i-have-adhd": [
-          "executable:python3"
-        ],
-        "manifest-code-quality": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-docs": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-forge": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-ops": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-security": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-spec-planning": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-workspace": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3",
-          "mcp:context7"
-        ],
-        "stitch-design": [
-          "executable:bash",
-          "executable:git",
-          "executable:node",
-          "executable:python3"
-        ]
-      }
-    },
-    "gemini": {
-      "state": "READY",
-      "version": "fixture-1",
-      "verified": true,
       "installed_plugin_ids": [
         "manifest-code-quality",
         "manifest-docs",
@@ -530,251 +809,265 @@
         "stitch-design",
         "manifest-i-have-adhd"
       ],
-      "components": {
-        "manifest-i-have-adhd": [
-          "guidance:adhd-always-on-guidance",
-          "hook:adhd-session-start",
-          "runtime:adhd-hook-runtime",
-          "skill:i-have-adhd"
-        ],
-        "manifest-code-quality": [
-          "runtime:code-audit-references",
-          "runtime:constitution-config",
-          "runtime:constitution-references",
-          "runtime:constitution-scripts",
-          "runtime:scaffold-templates",
-          "runtime:smoke-scripts",
-          "runtime:smoke-vendor",
-          "skill:ai-code-audit",
-          "skill:antipattern-detect",
-          "skill:api-optimize-bulk",
-          "skill:cli-audit-help",
-          "skill:code-audit-constitution",
-          "skill:data-design-ingestion",
-          "skill:data-validate-live",
-          "skill:data-wire-field",
-          "skill:false-green-check-audit",
-          "skill:go-refactor",
-          "skill:llm-invoke-stdin",
-          "skill:node-refactor",
-          "skill:project-scaffold",
-          "skill:project-verify",
-          "skill:python-refactor",
-          "skill:shell-audit-errexit",
-          "skill:shell-audit-pipefail",
-          "skill:shell-refactor",
-          "skill:smoke-manage",
-          "skill:terraform-refactor",
-          "skill:test-pin-bug",
-          "skill:test-vary-fixtures"
-        ],
-        "manifest-docs": [
-          "runtime:docs-lint",
-          "runtime:docs-references",
-          "skill:docs-all",
-          "skill:docs-generate-diagrams",
-          "skill:docs-improve",
-          "skill:docs-improve-readme"
-        ],
-        "manifest-forge": [
-          "runtime:forge-bin",
-          "runtime:forge-config",
-          "runtime:forge-python",
-          "runtime:forge-references",
-          "skill:branch-clean",
-          "skill:git-commit",
-          "skill:git-find-artifact",
-          "skill:issue-dev-auto",
-          "skill:issue-prep-auto",
-          "skill:issue-prioritize",
-          "skill:issue-sync-commit",
-          "skill:issue-sync-pr",
-          "skill:issue-triage",
-          "skill:lifecycle-run",
-          "skill:pr-address-comments",
-          "skill:pr-clean-base",
-          "skill:pr-merge-stacked",
-          "skill:pr-monitor",
-          "skill:pr-reset-reapply",
-          "skill:pr-review",
-          "skill:pr-triage-bots",
-          "skill:repo-clean"
-        ],
-        "manifest-ops": [
-          "hook:version-pin",
-          "runtime:ops-bin",
-          "runtime:ops-config",
-          "runtime:ops-references",
-          "runtime:ci-setup-templates",
-          "skill:cache-warm-oob",
-          "skill:ci-diagnose-drift",
-          "skill:ci-reproduce-failure",
-          "skill:ci-setup",
-          "skill:config-debug-substitution",
-          "skill:config-validate-native",
-          "skill:deploy-diagnose-drift",
-          "skill:deploy-retire-component",
-          "skill:docker-probe-internal",
-          "skill:process-diagnose-stall",
-          "skill:version-pin"
-        ],
-        "manifest-security": [
-          "runtime:security-bin",
-          "runtime:security-references",
-          "skill:ci-audit-triggers",
-          "skill:ci-harden-workflow",
-          "skill:code-audit",
-          "skill:docker-audit-firewall",
-          "skill:llm-audit-traversal",
-          "skill:mcp-audit",
-          "skill:security-harden-proxy",
-          "skill:security-refute-findings",
-          "skill:security-review-diff",
-          "skill:security-triage-findings"
-        ],
-        "manifest-spec-planning": [
-          "runtime:cddl-runtime",
-          "runtime:plan-store",
-          "runtime:planning-config",
-          "runtime:planning-prompts",
-          "runtime:planning-references",
-          "runtime:spec-review",
-          "skill:design-validate",
-          "skill:plan-manage",
-          "skill:premise-verify",
-          "skill:spec-audit-tasks",
-          "skill:spec-decide-tradeoffs",
-          "skill:spec-implement-loop",
-          "skill:spec-review"
-        ],
-        "manifest-workspace": [
-          "agent:compatibility-translator",
-          "agent:context-chronicler",
-          "agent:dependency-guardian",
-          "agent:devpanel-chaos-engineer",
-          "agent:devpanel-debugger",
-          "agent:devpanel-developer",
-          "agent:devpanel-performance-auditor",
-          "agent:devpanel-spec-guard",
-          "agent:devpanel-tester",
-          "agent:executor",
-          "agent:explore",
-          "agent:mech-executor",
-          "agent:scout",
-          "agent:security-executor",
-          "agent:verifier",
-          "guidance:workspace-orchestration",
-          "guidance:workspace-token-economy",
-          "hook:manifest-hooks",
-          "runtime:command-catalog",
-          "runtime:deploy-reconcile-scripts",
-          "runtime:env-check-scripts",
-          "runtime:help-scripts",
-          "runtime:hook-integration-scripts",
-          "runtime:learning-capture-scripts",
-          "runtime:parallel-agent-config",
-          "runtime:parallel-agent-prompts",
-          "runtime:parallel-agent-references",
-          "runtime:parallel-agent-scripts",
-          "runtime:pr-smoke-scripts",
-          "runtime:skill-evolve-scripts",
-          "skill:ai-hooks-integration",
-          "skill:automation-rework-breakeven",
-          "skill:config-audit",
-          "skill:deploy-reconcile",
-          "skill:env-check",
-          "skill:help",
-          "skill:learning-capture",
-          "skill:memory-compress",
-          "skill:metrics-report",
-          "skill:parallel-agent",
-          "skill:pass-cli",
-          "skill:pr-smoke",
-          "skill:prompt-optimize",
-          "skill:session-checkpoint",
-          "skill:skill-evolve",
-          "skill:test-isolate-ambient",
-          "skill:token-benchmark",
-          "skill:token-conserve"
-        ],
-        "stitch-design": [
-          "runtime:react-native-validator",
-          "runtime:react-validator",
-          "runtime:static-html-sources",
-          "runtime:stitch-build",
-          "runtime:stitch-build-lock",
-          "runtime:stitch-build-package",
-          "runtime:stitch-dist",
-          "skill:a11y-audit",
-          "skill:code-to-design",
-          "skill:design-md",
-          "skill:enhance-prompt",
-          "skill:extract-design-md",
-          "skill:extract-static-html",
-          "skill:generate-design",
-          "skill:manage-design-system",
-          "skill:performance-check",
-          "skill:react-components",
-          "skill:react-native",
-          "skill:react-vite-dashboard",
-          "skill:remotion",
-          "skill:shadcn-ui",
-          "skill:stitch-loop",
-          "skill:taste-design",
-          "skill:upload-to-stitch",
-          "skill:ux-review"
-        ]
-      },
-      "capabilities": {
-        "manifest-i-have-adhd": [
-          "executable:python3"
-        ],
-        "manifest-code-quality": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-docs": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-forge": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-ops": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-security": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-spec-planning": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-workspace": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3",
-          "mcp:context7"
-        ],
-        "stitch-design": [
-          "executable:bash",
-          "executable:git",
-          "executable:node",
-          "executable:python3"
-        ]
-      }
+      "state": "READY",
+      "verified": true,
+      "version": "fixture-1"
     },
     "cursor": {
-      "state": "READY",
-      "version": "fixture-1",
-      "verified": true,
+      "capabilities": {
+        "manifest-code-quality": [
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-docs": [
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-forge": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
+        "manifest-ops": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-security": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-spec-planning": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-workspace": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3",
+          "mcp:context7"
+        ],
+        "stitch-design": [
+          "executable:bash",
+          "executable:git",
+          "executable:node",
+          "executable:python3"
+        ]
+      },
+      "components": {
+        "manifest-code-quality": [
+          "runtime:code-audit-references",
+          "runtime:constitution-config",
+          "runtime:constitution-references",
+          "runtime:constitution-scripts",
+          "runtime:scaffold-templates",
+          "runtime:smoke-scripts",
+          "runtime:smoke-vendor",
+          "skill:ai-code-audit",
+          "skill:antipattern-detect",
+          "skill:api-optimize-bulk",
+          "skill:cli-audit-help",
+          "skill:code-audit-constitution",
+          "skill:data-design-ingestion",
+          "skill:data-validate-live",
+          "skill:data-wire-field",
+          "skill:false-green-check-audit",
+          "skill:go-refactor",
+          "skill:llm-invoke-stdin",
+          "skill:node-refactor",
+          "skill:project-scaffold",
+          "skill:project-verify",
+          "skill:python-refactor",
+          "skill:refactor",
+          "skill:shell-audit",
+          "skill:shell-audit-errexit",
+          "skill:shell-audit-pipefail",
+          "skill:shell-refactor",
+          "skill:smoke-manage",
+          "skill:terraform-refactor",
+          "skill:test-pin-bug",
+          "skill:test-vary-fixtures"
+        ],
+        "manifest-docs": [
+          "runtime:docs-lint",
+          "runtime:docs-references",
+          "skill:docs-all",
+          "skill:docs-generate-diagrams",
+          "skill:docs-improve",
+          "skill:docs-improve-readme"
+        ],
+        "manifest-forge": [
+          "runtime:forge-bin",
+          "runtime:forge-config",
+          "runtime:forge-python",
+          "runtime:forge-references",
+          "skill:branch-clean",
+          "skill:git-commit",
+          "skill:git-find-artifact",
+          "skill:issue-dev-auto",
+          "skill:issue-manage",
+          "skill:issue-prep-auto",
+          "skill:issue-prioritize",
+          "skill:issue-sync-commit",
+          "skill:issue-sync-pr",
+          "skill:issue-triage",
+          "skill:lifecycle-run",
+          "skill:pr-address-comments",
+          "skill:pr-clean-base",
+          "skill:pr-manage",
+          "skill:pr-merge-stacked",
+          "skill:pr-monitor",
+          "skill:pr-reset-reapply",
+          "skill:pr-review",
+          "skill:pr-triage-bots",
+          "skill:repo-clean"
+        ],
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
+        "manifest-ops": [
+          "hook:compose-commandments",
+          "hook:version-pin",
+          "runtime:ci-setup-templates",
+          "runtime:ops-bin",
+          "runtime:ops-config",
+          "runtime:ops-references",
+          "skill:cache-warm-oob",
+          "skill:ci-diagnose-drift",
+          "skill:ci-reproduce-failure",
+          "skill:ci-setup",
+          "skill:config-debug-substitution",
+          "skill:config-validate-native",
+          "skill:deploy-diagnose-drift",
+          "skill:deploy-retire-component",
+          "skill:docker-compose-commandments",
+          "skill:docker-probe-internal",
+          "skill:process-diagnose-stall",
+          "skill:version-pin"
+        ],
+        "manifest-security": [
+          "runtime:security-bin",
+          "runtime:security-references",
+          "skill:ci-audit-triggers",
+          "skill:ci-harden-workflow",
+          "skill:code-audit",
+          "skill:docker-audit-firewall",
+          "skill:llm-audit-traversal",
+          "skill:mcp-audit",
+          "skill:security-harden-proxy",
+          "skill:security-refute-findings",
+          "skill:security-review-diff",
+          "skill:security-triage-findings"
+        ],
+        "manifest-spec-planning": [
+          "runtime:cddl-runtime",
+          "runtime:plan-store",
+          "runtime:planning-config",
+          "runtime:planning-prompts",
+          "runtime:planning-references",
+          "runtime:spec-review",
+          "skill:design-validate",
+          "skill:plan-manage",
+          "skill:premise-verify",
+          "skill:spec-audit-tasks",
+          "skill:spec-decide-tradeoffs",
+          "skill:spec-implement-loop",
+          "skill:spec-review"
+        ],
+        "manifest-workspace": [
+          "agent:compatibility-translator",
+          "agent:context-chronicler",
+          "agent:dependency-guardian",
+          "agent:devpanel-chaos-engineer",
+          "agent:devpanel-debugger",
+          "agent:devpanel-developer",
+          "agent:devpanel-performance-auditor",
+          "agent:devpanel-spec-guard",
+          "agent:devpanel-tester",
+          "agent:executor",
+          "agent:explore",
+          "agent:mech-executor",
+          "agent:scout",
+          "agent:security-executor",
+          "agent:verifier",
+          "guidance:workspace-orchestration",
+          "guidance:workspace-token-economy",
+          "hook:manifest-hooks",
+          "runtime:command-catalog",
+          "runtime:deploy-reconcile-scripts",
+          "runtime:env-check-scripts",
+          "runtime:help-scripts",
+          "runtime:hook-integration-scripts",
+          "runtime:learning-capture-scripts",
+          "runtime:parallel-agent-config",
+          "runtime:parallel-agent-prompts",
+          "runtime:parallel-agent-references",
+          "runtime:parallel-agent-scripts",
+          "runtime:pr-smoke-scripts",
+          "runtime:skill-evolve-scripts",
+          "skill:ai-hooks-integration",
+          "skill:automation-rework-breakeven",
+          "skill:config-audit",
+          "skill:deploy-reconcile",
+          "skill:env-check",
+          "skill:help",
+          "skill:learning-capture",
+          "skill:memory-compress",
+          "skill:metrics-report",
+          "skill:parallel-agent",
+          "skill:pass-cli",
+          "skill:pr-smoke",
+          "skill:prompt-optimize",
+          "skill:session-checkpoint",
+          "skill:skill-evolve",
+          "skill:test-isolate-ambient",
+          "skill:token-benchmark",
+          "skill:token-conserve"
+        ],
+        "stitch-design": [
+          "agent:design-lens-reviewer",
+          "agent:skeptic-verifier",
+          "runtime:react-native-validator",
+          "runtime:react-validator",
+          "runtime:static-html-sources",
+          "runtime:stitch-build",
+          "runtime:stitch-build-lock",
+          "runtime:stitch-build-package",
+          "runtime:stitch-dist",
+          "skill:a11y-audit",
+          "skill:code-to-design",
+          "skill:design-loop",
+          "skill:design-md",
+          "skill:enhance-prompt",
+          "skill:extract-design-md",
+          "skill:extract-static-html",
+          "skill:generate-design",
+          "skill:loop-scaffold",
+          "skill:manage-design-system",
+          "skill:performance-check",
+          "skill:react-components",
+          "skill:react-native",
+          "skill:react-vite-dashboard",
+          "skill:remotion",
+          "skill:render-verify",
+          "skill:review-round",
+          "skill:screen-prompts",
+          "skill:shadcn-ui",
+          "skill:spec-amend",
+          "skill:stitch-loop",
+          "skill:taste-design",
+          "skill:upload-to-stitch",
+          "skill:ux-review"
+        ]
+      },
       "installed_plugin_ids": [
         "manifest-code-quality",
         "manifest-docs",
@@ -786,525 +1079,57 @@
         "stitch-design",
         "manifest-i-have-adhd"
       ],
-      "components": {
-        "manifest-i-have-adhd": [
-          "guidance:adhd-always-on-guidance",
-          "hook:adhd-session-start",
-          "runtime:adhd-hook-runtime",
-          "skill:i-have-adhd"
-        ],
-        "manifest-code-quality": [
-          "runtime:code-audit-references",
-          "runtime:constitution-config",
-          "runtime:constitution-references",
-          "runtime:constitution-scripts",
-          "runtime:scaffold-templates",
-          "runtime:smoke-scripts",
-          "runtime:smoke-vendor",
-          "skill:ai-code-audit",
-          "skill:antipattern-detect",
-          "skill:api-optimize-bulk",
-          "skill:cli-audit-help",
-          "skill:code-audit-constitution",
-          "skill:data-design-ingestion",
-          "skill:data-validate-live",
-          "skill:data-wire-field",
-          "skill:false-green-check-audit",
-          "skill:go-refactor",
-          "skill:llm-invoke-stdin",
-          "skill:node-refactor",
-          "skill:project-scaffold",
-          "skill:project-verify",
-          "skill:python-refactor",
-          "skill:shell-audit-errexit",
-          "skill:shell-audit-pipefail",
-          "skill:shell-refactor",
-          "skill:smoke-manage",
-          "skill:terraform-refactor",
-          "skill:test-pin-bug",
-          "skill:test-vary-fixtures"
-        ],
-        "manifest-docs": [
-          "runtime:docs-lint",
-          "runtime:docs-references",
-          "skill:docs-all",
-          "skill:docs-generate-diagrams",
-          "skill:docs-improve",
-          "skill:docs-improve-readme"
-        ],
-        "manifest-forge": [
-          "runtime:forge-bin",
-          "runtime:forge-config",
-          "runtime:forge-python",
-          "runtime:forge-references",
-          "skill:branch-clean",
-          "skill:git-commit",
-          "skill:git-find-artifact",
-          "skill:issue-dev-auto",
-          "skill:issue-prep-auto",
-          "skill:issue-prioritize",
-          "skill:issue-sync-commit",
-          "skill:issue-sync-pr",
-          "skill:issue-triage",
-          "skill:lifecycle-run",
-          "skill:pr-address-comments",
-          "skill:pr-clean-base",
-          "skill:pr-merge-stacked",
-          "skill:pr-monitor",
-          "skill:pr-reset-reapply",
-          "skill:pr-review",
-          "skill:pr-triage-bots",
-          "skill:repo-clean"
-        ],
-        "manifest-ops": [
-          "hook:version-pin",
-          "runtime:ops-bin",
-          "runtime:ops-config",
-          "runtime:ops-references",
-          "runtime:ci-setup-templates",
-          "skill:cache-warm-oob",
-          "skill:ci-diagnose-drift",
-          "skill:ci-reproduce-failure",
-          "skill:ci-setup",
-          "skill:config-debug-substitution",
-          "skill:config-validate-native",
-          "skill:deploy-diagnose-drift",
-          "skill:deploy-retire-component",
-          "skill:docker-probe-internal",
-          "skill:process-diagnose-stall",
-          "skill:version-pin"
-        ],
-        "manifest-security": [
-          "runtime:security-bin",
-          "runtime:security-references",
-          "skill:ci-audit-triggers",
-          "skill:ci-harden-workflow",
-          "skill:code-audit",
-          "skill:docker-audit-firewall",
-          "skill:llm-audit-traversal",
-          "skill:mcp-audit",
-          "skill:security-harden-proxy",
-          "skill:security-refute-findings",
-          "skill:security-review-diff",
-          "skill:security-triage-findings"
-        ],
-        "manifest-spec-planning": [
-          "runtime:cddl-runtime",
-          "runtime:plan-store",
-          "runtime:planning-config",
-          "runtime:planning-prompts",
-          "runtime:planning-references",
-          "runtime:spec-review",
-          "skill:design-validate",
-          "skill:plan-manage",
-          "skill:premise-verify",
-          "skill:spec-audit-tasks",
-          "skill:spec-decide-tradeoffs",
-          "skill:spec-implement-loop",
-          "skill:spec-review"
-        ],
-        "manifest-workspace": [
-          "agent:compatibility-translator",
-          "agent:context-chronicler",
-          "agent:dependency-guardian",
-          "agent:devpanel-chaos-engineer",
-          "agent:devpanel-debugger",
-          "agent:devpanel-developer",
-          "agent:devpanel-performance-auditor",
-          "agent:devpanel-spec-guard",
-          "agent:devpanel-tester",
-          "agent:executor",
-          "agent:explore",
-          "agent:mech-executor",
-          "agent:scout",
-          "agent:security-executor",
-          "agent:verifier",
-          "guidance:workspace-orchestration",
-          "guidance:workspace-token-economy",
-          "hook:manifest-hooks",
-          "runtime:command-catalog",
-          "runtime:deploy-reconcile-scripts",
-          "runtime:env-check-scripts",
-          "runtime:help-scripts",
-          "runtime:hook-integration-scripts",
-          "runtime:learning-capture-scripts",
-          "runtime:parallel-agent-config",
-          "runtime:parallel-agent-prompts",
-          "runtime:parallel-agent-references",
-          "runtime:parallel-agent-scripts",
-          "runtime:pr-smoke-scripts",
-          "runtime:skill-evolve-scripts",
-          "skill:ai-hooks-integration",
-          "skill:automation-rework-breakeven",
-          "skill:config-audit",
-          "skill:deploy-reconcile",
-          "skill:env-check",
-          "skill:help",
-          "skill:learning-capture",
-          "skill:memory-compress",
-          "skill:metrics-report",
-          "skill:parallel-agent",
-          "skill:pass-cli",
-          "skill:pr-smoke",
-          "skill:prompt-optimize",
-          "skill:session-checkpoint",
-          "skill:skill-evolve",
-          "skill:test-isolate-ambient",
-          "skill:token-benchmark",
-          "skill:token-conserve"
-        ],
-        "stitch-design": [
-          "runtime:react-native-validator",
-          "runtime:react-validator",
-          "runtime:static-html-sources",
-          "runtime:stitch-build",
-          "runtime:stitch-build-lock",
-          "runtime:stitch-build-package",
-          "runtime:stitch-dist",
-          "skill:a11y-audit",
-          "skill:code-to-design",
-          "skill:design-md",
-          "skill:enhance-prompt",
-          "skill:extract-design-md",
-          "skill:extract-static-html",
-          "skill:generate-design",
-          "skill:manage-design-system",
-          "skill:performance-check",
-          "skill:react-components",
-          "skill:react-native",
-          "skill:react-vite-dashboard",
-          "skill:remotion",
-          "skill:shadcn-ui",
-          "skill:stitch-loop",
-          "skill:taste-design",
-          "skill:upload-to-stitch",
-          "skill:ux-review"
-        ]
-      },
-      "capabilities": {
-        "manifest-i-have-adhd": [
-          "executable:python3"
-        ],
-        "manifest-code-quality": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-docs": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-forge": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-ops": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-security": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-spec-planning": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-workspace": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3",
-          "mcp:context7"
-        ],
-        "stitch-design": [
-          "executable:bash",
-          "executable:git",
-          "executable:node",
-          "executable:python3"
-        ]
-      }
-    },
-    "antigravity": {
-      "state": "BLOCKED(required ADHD always-on surfaces unsupported)",
-      "version": "fixture-1",
+      "state": "READY",
       "verified": true,
-      "installed_plugin_ids": [
-        "manifest-i-have-adhd",
-        "manifest-code-quality",
-        "manifest-docs",
-        "manifest-forge",
-        "manifest-ops",
-        "manifest-security",
-        "manifest-spec-planning",
-        "manifest-workspace",
-        "stitch-design"
-      ],
-      "components": {
-        "manifest-i-have-adhd": [
-          "guidance:adhd-always-on-guidance",
-          "hook:adhd-session-start",
-          "runtime:adhd-hook-runtime",
-          "skill:i-have-adhd"
-        ],
-        "manifest-code-quality": [
-          "runtime:code-audit-references",
-          "runtime:constitution-config",
-          "runtime:constitution-references",
-          "runtime:constitution-scripts",
-          "runtime:scaffold-templates",
-          "runtime:smoke-scripts",
-          "runtime:smoke-vendor",
-          "skill:ai-code-audit",
-          "skill:antipattern-detect",
-          "skill:api-optimize-bulk",
-          "skill:cli-audit-help",
-          "skill:code-audit-constitution",
-          "skill:data-design-ingestion",
-          "skill:data-validate-live",
-          "skill:data-wire-field",
-          "skill:false-green-check-audit",
-          "skill:go-refactor",
-          "skill:llm-invoke-stdin",
-          "skill:node-refactor",
-          "skill:project-scaffold",
-          "skill:project-verify",
-          "skill:python-refactor",
-          "skill:shell-audit-errexit",
-          "skill:shell-audit-pipefail",
-          "skill:shell-refactor",
-          "skill:smoke-manage",
-          "skill:terraform-refactor",
-          "skill:test-pin-bug",
-          "skill:test-vary-fixtures"
-        ],
-        "manifest-docs": [
-          "runtime:docs-lint",
-          "runtime:docs-references",
-          "skill:docs-all",
-          "skill:docs-generate-diagrams",
-          "skill:docs-improve",
-          "skill:docs-improve-readme"
-        ],
-        "manifest-forge": [
-          "runtime:forge-bin",
-          "runtime:forge-config",
-          "runtime:forge-python",
-          "runtime:forge-references",
-          "skill:branch-clean",
-          "skill:git-commit",
-          "skill:git-find-artifact",
-          "skill:issue-dev-auto",
-          "skill:issue-prep-auto",
-          "skill:issue-prioritize",
-          "skill:issue-sync-commit",
-          "skill:issue-sync-pr",
-          "skill:issue-triage",
-          "skill:lifecycle-run",
-          "skill:pr-address-comments",
-          "skill:pr-clean-base",
-          "skill:pr-merge-stacked",
-          "skill:pr-monitor",
-          "skill:pr-reset-reapply",
-          "skill:pr-review",
-          "skill:pr-triage-bots",
-          "skill:repo-clean"
-        ],
-        "manifest-ops": [
-          "hook:version-pin",
-          "runtime:ops-bin",
-          "runtime:ops-config",
-          "runtime:ops-references",
-          "runtime:ci-setup-templates",
-          "skill:cache-warm-oob",
-          "skill:ci-diagnose-drift",
-          "skill:ci-reproduce-failure",
-          "skill:ci-setup",
-          "skill:config-debug-substitution",
-          "skill:config-validate-native",
-          "skill:deploy-diagnose-drift",
-          "skill:deploy-retire-component",
-          "skill:docker-probe-internal",
-          "skill:process-diagnose-stall",
-          "skill:version-pin"
-        ],
-        "manifest-security": [
-          "runtime:security-bin",
-          "runtime:security-references",
-          "skill:ci-audit-triggers",
-          "skill:ci-harden-workflow",
-          "skill:code-audit",
-          "skill:docker-audit-firewall",
-          "skill:llm-audit-traversal",
-          "skill:mcp-audit",
-          "skill:security-harden-proxy",
-          "skill:security-refute-findings",
-          "skill:security-review-diff",
-          "skill:security-triage-findings"
-        ],
-        "manifest-spec-planning": [
-          "runtime:cddl-runtime",
-          "runtime:plan-store",
-          "runtime:planning-config",
-          "runtime:planning-prompts",
-          "runtime:planning-references",
-          "runtime:spec-review",
-          "skill:design-validate",
-          "skill:plan-manage",
-          "skill:premise-verify",
-          "skill:spec-audit-tasks",
-          "skill:spec-decide-tradeoffs",
-          "skill:spec-implement-loop",
-          "skill:spec-review"
-        ],
-        "manifest-workspace": [
-          "agent:compatibility-translator",
-          "agent:context-chronicler",
-          "agent:dependency-guardian",
-          "agent:devpanel-chaos-engineer",
-          "agent:devpanel-debugger",
-          "agent:devpanel-developer",
-          "agent:devpanel-performance-auditor",
-          "agent:devpanel-spec-guard",
-          "agent:devpanel-tester",
-          "agent:executor",
-          "agent:explore",
-          "agent:mech-executor",
-          "agent:scout",
-          "agent:security-executor",
-          "agent:verifier",
-          "guidance:workspace-orchestration",
-          "guidance:workspace-token-economy",
-          "hook:manifest-hooks",
-          "runtime:command-catalog",
-          "runtime:deploy-reconcile-scripts",
-          "runtime:env-check-scripts",
-          "runtime:help-scripts",
-          "runtime:hook-integration-scripts",
-          "runtime:learning-capture-scripts",
-          "runtime:parallel-agent-config",
-          "runtime:parallel-agent-prompts",
-          "runtime:parallel-agent-references",
-          "runtime:parallel-agent-scripts",
-          "runtime:pr-smoke-scripts",
-          "runtime:skill-evolve-scripts",
-          "skill:ai-hooks-integration",
-          "skill:automation-rework-breakeven",
-          "skill:config-audit",
-          "skill:deploy-reconcile",
-          "skill:env-check",
-          "skill:help",
-          "skill:learning-capture",
-          "skill:memory-compress",
-          "skill:metrics-report",
-          "skill:parallel-agent",
-          "skill:pass-cli",
-          "skill:pr-smoke",
-          "skill:prompt-optimize",
-          "skill:session-checkpoint",
-          "skill:skill-evolve",
-          "skill:test-isolate-ambient",
-          "skill:token-benchmark",
-          "skill:token-conserve"
-        ],
-        "stitch-design": [
-          "runtime:react-native-validator",
-          "runtime:react-validator",
-          "runtime:static-html-sources",
-          "runtime:stitch-build",
-          "runtime:stitch-build-lock",
-          "runtime:stitch-build-package",
-          "runtime:stitch-dist",
-          "skill:a11y-audit",
-          "skill:code-to-design",
-          "skill:design-md",
-          "skill:enhance-prompt",
-          "skill:extract-design-md",
-          "skill:extract-static-html",
-          "skill:generate-design",
-          "skill:manage-design-system",
-          "skill:performance-check",
-          "skill:react-components",
-          "skill:react-native",
-          "skill:react-vite-dashboard",
-          "skill:remotion",
-          "skill:shadcn-ui",
-          "skill:stitch-loop",
-          "skill:taste-design",
-          "skill:upload-to-stitch",
-          "skill:ux-review"
-        ]
-      },
-      "capabilities": {
-        "manifest-code-quality": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-docs": [
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-forge": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-ops": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-security": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-spec-planning": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3"
-        ],
-        "manifest-workspace": [
-          "executable:bash",
-          "executable:git",
-          "executable:python3",
-          "mcp:context7"
-        ],
-        "stitch-design": [
-          "executable:bash",
-          "executable:git",
-          "executable:node",
-          "executable:python3"
-        ],
-        "manifest-i-have-adhd": [
-          "executable:python3"
-        ]
-      }
+      "version": "fixture-1"
     },
     "devin": {
-      "state": "BLOCKED(required ADHD always-on surfaces unsupported)",
-      "version": "fixture-1",
-      "verified": true,
-      "installed_plugin_ids": [
-        "manifest-i-have-adhd",
-        "manifest-code-quality",
-        "manifest-docs",
-        "manifest-forge",
-        "manifest-ops",
-        "manifest-security",
-        "manifest-spec-planning",
-        "manifest-workspace",
-        "stitch-design"
-      ],
-      "components": {
-        "manifest-i-have-adhd": [
-          "guidance:adhd-always-on-guidance",
-          "hook:adhd-session-start",
-          "runtime:adhd-hook-runtime",
-          "skill:i-have-adhd"
+      "capabilities": {
+        "manifest-code-quality": [
+          "executable:git",
+          "executable:python3"
         ],
+        "manifest-docs": [
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-forge": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
+        "manifest-ops": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-security": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-spec-planning": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3"
+        ],
+        "manifest-workspace": [
+          "executable:bash",
+          "executable:git",
+          "executable:python3",
+          "mcp:context7"
+        ],
+        "stitch-design": [
+          "executable:bash",
+          "executable:git",
+          "executable:node",
+          "executable:python3"
+        ]
+      },
+      "components": {
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -1328,6 +1153,8 @@
           "skill:project-scaffold",
           "skill:project-verify",
           "skill:python-refactor",
+          "skill:refactor",
+          "skill:shell-audit",
           "skill:shell-audit-errexit",
           "skill:shell-audit-pipefail",
           "skill:shell-refactor",
@@ -1353,6 +1180,7 @@
           "skill:git-commit",
           "skill:git-find-artifact",
           "skill:issue-dev-auto",
+          "skill:issue-manage",
           "skill:issue-prep-auto",
           "skill:issue-prioritize",
           "skill:issue-sync-commit",
@@ -1361,6 +1189,7 @@
           "skill:lifecycle-run",
           "skill:pr-address-comments",
           "skill:pr-clean-base",
+          "skill:pr-manage",
           "skill:pr-merge-stacked",
           "skill:pr-monitor",
           "skill:pr-reset-reapply",
@@ -1368,12 +1197,19 @@
           "skill:pr-triage-bots",
           "skill:repo-clean"
         ],
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-ops": [
+          "hook:compose-commandments",
           "hook:version-pin",
+          "runtime:ci-setup-templates",
           "runtime:ops-bin",
           "runtime:ops-config",
           "runtime:ops-references",
-          "runtime:ci-setup-templates",
           "skill:cache-warm-oob",
           "skill:ci-diagnose-drift",
           "skill:ci-reproduce-failure",
@@ -1382,6 +1218,7 @@
           "skill:config-validate-native",
           "skill:deploy-diagnose-drift",
           "skill:deploy-retire-component",
+          "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
           "skill:version-pin"
@@ -1466,6 +1303,8 @@
           "skill:token-conserve"
         ],
         "stitch-design": [
+          "agent:design-lens-reviewer",
+          "agent:skeptic-verifier",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1475,24 +1314,46 @@
           "runtime:stitch-dist",
           "skill:a11y-audit",
           "skill:code-to-design",
+          "skill:design-loop",
           "skill:design-md",
           "skill:enhance-prompt",
           "skill:extract-design-md",
           "skill:extract-static-html",
           "skill:generate-design",
+          "skill:loop-scaffold",
           "skill:manage-design-system",
           "skill:performance-check",
           "skill:react-components",
           "skill:react-native",
           "skill:react-vite-dashboard",
           "skill:remotion",
+          "skill:render-verify",
+          "skill:review-round",
+          "skill:screen-prompts",
           "skill:shadcn-ui",
+          "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
       },
+      "installed_plugin_ids": [
+        "manifest-i-have-adhd",
+        "manifest-code-quality",
+        "manifest-docs",
+        "manifest-forge",
+        "manifest-ops",
+        "manifest-security",
+        "manifest-spec-planning",
+        "manifest-workspace",
+        "stitch-design"
+      ],
+      "state": "BLOCKED(required ADHD always-on surfaces unsupported)",
+      "verified": true,
+      "version": "fixture-1"
+    },
+    "gemini": {
       "capabilities": {
         "manifest-code-quality": [
           "executable:git",
@@ -1505,6 +1366,9 @@
         "manifest-forge": [
           "executable:bash",
           "executable:git",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
           "executable:python3"
         ],
         "manifest-ops": [
@@ -1533,11 +1397,231 @@
           "executable:git",
           "executable:node",
           "executable:python3"
+        ]
+      },
+      "components": {
+        "manifest-code-quality": [
+          "runtime:code-audit-references",
+          "runtime:constitution-config",
+          "runtime:constitution-references",
+          "runtime:constitution-scripts",
+          "runtime:scaffold-templates",
+          "runtime:smoke-scripts",
+          "runtime:smoke-vendor",
+          "skill:ai-code-audit",
+          "skill:antipattern-detect",
+          "skill:api-optimize-bulk",
+          "skill:cli-audit-help",
+          "skill:code-audit-constitution",
+          "skill:data-design-ingestion",
+          "skill:data-validate-live",
+          "skill:data-wire-field",
+          "skill:false-green-check-audit",
+          "skill:go-refactor",
+          "skill:llm-invoke-stdin",
+          "skill:node-refactor",
+          "skill:project-scaffold",
+          "skill:project-verify",
+          "skill:python-refactor",
+          "skill:refactor",
+          "skill:shell-audit",
+          "skill:shell-audit-errexit",
+          "skill:shell-audit-pipefail",
+          "skill:shell-refactor",
+          "skill:smoke-manage",
+          "skill:terraform-refactor",
+          "skill:test-pin-bug",
+          "skill:test-vary-fixtures"
+        ],
+        "manifest-docs": [
+          "runtime:docs-lint",
+          "runtime:docs-references",
+          "skill:docs-all",
+          "skill:docs-generate-diagrams",
+          "skill:docs-improve",
+          "skill:docs-improve-readme"
+        ],
+        "manifest-forge": [
+          "runtime:forge-bin",
+          "runtime:forge-config",
+          "runtime:forge-python",
+          "runtime:forge-references",
+          "skill:branch-clean",
+          "skill:git-commit",
+          "skill:git-find-artifact",
+          "skill:issue-dev-auto",
+          "skill:issue-manage",
+          "skill:issue-prep-auto",
+          "skill:issue-prioritize",
+          "skill:issue-sync-commit",
+          "skill:issue-sync-pr",
+          "skill:issue-triage",
+          "skill:lifecycle-run",
+          "skill:pr-address-comments",
+          "skill:pr-clean-base",
+          "skill:pr-manage",
+          "skill:pr-merge-stacked",
+          "skill:pr-monitor",
+          "skill:pr-reset-reapply",
+          "skill:pr-review",
+          "skill:pr-triage-bots",
+          "skill:repo-clean"
         ],
         "manifest-i-have-adhd": [
-          "executable:python3"
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
+        "manifest-ops": [
+          "hook:compose-commandments",
+          "hook:version-pin",
+          "runtime:ci-setup-templates",
+          "runtime:ops-bin",
+          "runtime:ops-config",
+          "runtime:ops-references",
+          "skill:cache-warm-oob",
+          "skill:ci-diagnose-drift",
+          "skill:ci-reproduce-failure",
+          "skill:ci-setup",
+          "skill:config-debug-substitution",
+          "skill:config-validate-native",
+          "skill:deploy-diagnose-drift",
+          "skill:deploy-retire-component",
+          "skill:docker-compose-commandments",
+          "skill:docker-probe-internal",
+          "skill:process-diagnose-stall",
+          "skill:version-pin"
+        ],
+        "manifest-security": [
+          "runtime:security-bin",
+          "runtime:security-references",
+          "skill:ci-audit-triggers",
+          "skill:ci-harden-workflow",
+          "skill:code-audit",
+          "skill:docker-audit-firewall",
+          "skill:llm-audit-traversal",
+          "skill:mcp-audit",
+          "skill:security-harden-proxy",
+          "skill:security-refute-findings",
+          "skill:security-review-diff",
+          "skill:security-triage-findings"
+        ],
+        "manifest-spec-planning": [
+          "runtime:cddl-runtime",
+          "runtime:plan-store",
+          "runtime:planning-config",
+          "runtime:planning-prompts",
+          "runtime:planning-references",
+          "runtime:spec-review",
+          "skill:design-validate",
+          "skill:plan-manage",
+          "skill:premise-verify",
+          "skill:spec-audit-tasks",
+          "skill:spec-decide-tradeoffs",
+          "skill:spec-implement-loop",
+          "skill:spec-review"
+        ],
+        "manifest-workspace": [
+          "agent:compatibility-translator",
+          "agent:context-chronicler",
+          "agent:dependency-guardian",
+          "agent:devpanel-chaos-engineer",
+          "agent:devpanel-debugger",
+          "agent:devpanel-developer",
+          "agent:devpanel-performance-auditor",
+          "agent:devpanel-spec-guard",
+          "agent:devpanel-tester",
+          "agent:executor",
+          "agent:explore",
+          "agent:mech-executor",
+          "agent:scout",
+          "agent:security-executor",
+          "agent:verifier",
+          "guidance:workspace-orchestration",
+          "guidance:workspace-token-economy",
+          "hook:manifest-hooks",
+          "runtime:command-catalog",
+          "runtime:deploy-reconcile-scripts",
+          "runtime:env-check-scripts",
+          "runtime:help-scripts",
+          "runtime:hook-integration-scripts",
+          "runtime:learning-capture-scripts",
+          "runtime:parallel-agent-config",
+          "runtime:parallel-agent-prompts",
+          "runtime:parallel-agent-references",
+          "runtime:parallel-agent-scripts",
+          "runtime:pr-smoke-scripts",
+          "runtime:skill-evolve-scripts",
+          "skill:ai-hooks-integration",
+          "skill:automation-rework-breakeven",
+          "skill:config-audit",
+          "skill:deploy-reconcile",
+          "skill:env-check",
+          "skill:help",
+          "skill:learning-capture",
+          "skill:memory-compress",
+          "skill:metrics-report",
+          "skill:parallel-agent",
+          "skill:pass-cli",
+          "skill:pr-smoke",
+          "skill:prompt-optimize",
+          "skill:session-checkpoint",
+          "skill:skill-evolve",
+          "skill:test-isolate-ambient",
+          "skill:token-benchmark",
+          "skill:token-conserve"
+        ],
+        "stitch-design": [
+          "agent:design-lens-reviewer",
+          "agent:skeptic-verifier",
+          "runtime:react-native-validator",
+          "runtime:react-validator",
+          "runtime:static-html-sources",
+          "runtime:stitch-build",
+          "runtime:stitch-build-lock",
+          "runtime:stitch-build-package",
+          "runtime:stitch-dist",
+          "skill:a11y-audit",
+          "skill:code-to-design",
+          "skill:design-loop",
+          "skill:design-md",
+          "skill:enhance-prompt",
+          "skill:extract-design-md",
+          "skill:extract-static-html",
+          "skill:generate-design",
+          "skill:loop-scaffold",
+          "skill:manage-design-system",
+          "skill:performance-check",
+          "skill:react-components",
+          "skill:react-native",
+          "skill:react-vite-dashboard",
+          "skill:remotion",
+          "skill:render-verify",
+          "skill:review-round",
+          "skill:screen-prompts",
+          "skill:shadcn-ui",
+          "skill:spec-amend",
+          "skill:stitch-loop",
+          "skill:taste-design",
+          "skill:upload-to-stitch",
+          "skill:ux-review"
         ]
-      }
+      },
+      "installed_plugin_ids": [
+        "manifest-code-quality",
+        "manifest-docs",
+        "manifest-forge",
+        "manifest-ops",
+        "manifest-security",
+        "manifest-spec-planning",
+        "manifest-workspace",
+        "stitch-design",
+        "manifest-i-have-adhd"
+      ],
+      "state": "READY",
+      "verified": true,
+      "version": "fixture-1"
     }
   }
 }

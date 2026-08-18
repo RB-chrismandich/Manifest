@@ -21,6 +21,8 @@ Matching installed plugin, component, and capability evidence is also required.
 | `manifest-code-quality:skill:project-scaffold` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-code-quality:skill:project-verify` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-code-quality:skill:python-refactor` | contract skill | READY | READY | READY | READY | READY | READY |
+| `manifest-code-quality:skill:refactor` | contract skill | READY | READY | READY | READY | READY | READY |
+| `manifest-code-quality:skill:shell-audit` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-code-quality:skill:shell-audit-errexit` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-code-quality:skill:shell-audit-pipefail` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-code-quality:skill:shell-refactor` | contract skill | READY | READY | READY | READY | READY | READY |
@@ -52,6 +54,7 @@ Matching installed plugin, component, and capability evidence is also required.
 | `manifest-forge:skill:git-commit` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:git-find-artifact` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:issue-dev-auto` | contract skill | READY | READY | READY | READY | READY | READY |
+| `manifest-forge:skill:issue-manage` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:issue-prep-auto` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:issue-prioritize` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:issue-sync-commit` | contract skill | READY | READY | READY | READY | READY | READY |
@@ -60,6 +63,7 @@ Matching installed plugin, component, and capability evidence is also required.
 | `manifest-forge:skill:lifecycle-run` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:pr-address-comments` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:pr-clean-base` | contract skill | READY | READY | READY | READY | READY | READY |
+| `manifest-forge:skill:pr-manage` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:pr-merge-stacked` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:pr-monitor` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:skill:pr-reset-reapply` | contract skill | READY | READY | READY | READY | READY | READY |
@@ -90,9 +94,11 @@ Matching installed plugin, component, and capability evidence is also required.
 | `manifest-ops:skill:config-validate-native` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:deploy-diagnose-drift` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:deploy-retire-component` | contract skill | READY | READY | READY | READY | READY | READY |
+| `manifest-ops:skill:docker-compose-commandments` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:docker-probe-internal` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:process-diagnose-stall` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:version-pin` | contract skill | READY | READY | READY | READY | READY | READY |
+| `manifest-ops:hook:compose-commandments` | contract hook | READY | DEGRADED(Codex exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.) | DEGRADED(Gemini exposes the on-demand docker-compose-commandments skill but cannot install this advisory plugin hook natively.) | READY | DEGRADED(Antigravity exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.) | DEGRADED(Devin exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.) |
 | `manifest-ops:hook:version-pin` | contract hook | READY | DEGRADED(Codex exposes the on-demand version-pin skill but has no native file-save hook surface.) | DEGRADED(Gemini exposes the on-demand version-pin skill but cannot install this advisory plugin hook natively.) | READY | DEGRADED(Antigravity exposes the on-demand version-pin skill but has no native file-save hook surface.) | DEGRADED(Devin exposes the on-demand version-pin skill but has no native file-save hook surface.) |
 | `manifest-ops:runtime:ci-setup-templates` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:runtime:ops-bin` | contract runtime | READY | READY | READY | READY | READY | READY |
@@ -205,22 +211,30 @@ Matching installed plugin, component, and capability evidence is also required.
 | `manifest-workspace:executable:bats` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `stitch-design:skill:a11y-audit` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:code-to-design` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:design-loop` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:design-md` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:enhance-prompt` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:extract-design-md` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:extract-static-html` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:generate-design` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:loop-scaffold` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:manage-design-system` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:performance-check` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:react-components` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:react-native` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:react-vite-dashboard` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:remotion` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:render-verify` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:review-round` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:screen-prompts` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:shadcn-ui` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:spec-amend` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:stitch-loop` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:taste-design` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:upload-to-stitch` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:ux-review` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:agent:design-lens-reviewer` | contract agent | READY | READY | READY | READY | READY | READY |
+| `stitch-design:agent:skeptic-verifier` | contract agent | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:react-native-validator` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:react-validator` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:static-html-sources` | contract runtime | READY | READY | READY | READY | READY | READY |

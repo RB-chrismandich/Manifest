@@ -13,7 +13,7 @@ import pytest
 _SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "plugins"
-    / "adversarial-design-loop"
+    / "stitch-design"
     / "skills"
     / "render-verify"
     / "scripts"

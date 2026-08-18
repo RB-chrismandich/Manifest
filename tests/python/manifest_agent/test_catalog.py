@@ -13,7 +13,10 @@ from manifest_agent.service_state import bundle_checksums
 def test_catalog_preserves_complete_marketplace_order() -> None:
     catalog = load_catalog(Path.cwd() / ".claude-plugin/marketplace.json")
     assert catalog[-1].name == "manifest-i-have-adhd"
-    assert {row.name for row in catalog} >= {"manifest-delegate", "manifest-docker"}
+    assert {row.name for row in catalog} >= {
+        "manifest-delegate",
+        "manifest-i-have-adhd",
+    }
 
 
 def test_catalog_rejects_duplicate_names(tmp_path: Path) -> None:

@@ -26,17 +26,12 @@ py() { python3 - "$@"; }
 import json, pathlib, sys
 root = pathlib.Path(".")
 missing = []
-docker_skills = []
 for pj in sorted(root.glob("plugins/*/.claude-plugin/plugin.json")):
     man = json.loads(pj.read_text())
     base = pj.parent.parent
     for rel in man.get("skills", []):
-        if man["name"] == "manifest-docker":
-            docker_skills.append(rel)
         if not (base / rel[2:] / "SKILL.md").is_file():
             missing.append(f"{man['name']}:{rel}")
-if not docker_skills:
-    missing.append("manifest-docker: no declared skills")
 print("MISSING=" + ",".join(missing) if missing else "MISSING=")
 sys.exit(1 if missing else 0)
 PY
@@ -59,29 +54,17 @@ for line in reg.splitlines():
     elif seen and line and not line.startswith(" "):
         seen = False
 manifests = set()
-docker_skills = set()
 for pj in pathlib.Path(".").glob("plugins/*/.claude-plugin/plugin.json"):
     manifest = json.loads(pj.read_text())
-    names = {rel.rsplit("/", 1)[-1] for rel in manifest.get("skills", [])}
-    if manifest["name"] == "manifest-docker":
-        docker_skills = names
-        continue
     for rel in manifest.get("skills", []):
         manifests.add(rel.rsplit("/", 1)[-1])
 marketplace = json.loads(pathlib.Path(".claude-plugin/marketplace.json").read_text())
 marketplace_names = {entry["name"] for entry in marketplace["plugins"]}
 only_reg = sorted(registry - manifests)
 only_man = sorted(manifests - registry)
-docker_in_registry = sorted(registry & docker_skills)
-if "manifest-docker" not in marketplace_names:
-    print("MISSING INDEPENDENT MARKETPLACE ADDON: manifest-docker")
-if not docker_skills:
-    print("MISSING INDEPENDENT ADDON SKILLS: manifest-docker")
 if only_reg: print("IN REGISTRY NOT MANIFESTS:", only_reg)
 if only_man: print("IN MANIFESTS NOT REGISTRY:", only_man)
-if docker_in_registry: print("INDEPENDENT ADDON IN POLICY REGISTRY:", docker_in_registry)
-sys.exit(1 if (only_reg or only_man or docker_in_registry or
-               "manifest-docker" not in marketplace_names or not docker_skills) else 0)
+sys.exit(1 if (only_reg or only_man) else 0)
 PY
     assert_success
 }
@@ -96,45 +79,26 @@ expected = int(re.search(r"^expected_total:\s*(\d+)", text, re.M).group(1))
 policy_expected = int(re.search(r"^policy_expected_total:\s*(\d+)", text, re.M).group(1))
 independent_expected = int(re.search(r"^independent_addon_expected_total:\s*(\d+)", text, re.M).group(1))
 seen, dupes, domain_total = {}, [], 0
-docker_skills = set()
 for pj in sorted(pathlib.Path(".").glob("plugins/manifest-*/.claude-plugin/plugin.json")) + [pathlib.Path("plugins/stitch-design/.claude-plugin/plugin.json")]:
     man = json.loads(pj.read_text())
-    if man["name"] == "manifest-docker":
-        docker_skills = {rel.rsplit("/", 1)[-1] for rel in man.get("skills", [])}
-        continue
     for rel in man.get("skills", []):
         name = rel.rsplit("/", 1)[-1]
         domain_total += 1
         if name in seen:
             dupes.append(f"{name} in {seen[name]} and {man['name']}")
         seen[name] = man["name"]
-addon_names = {
-    path.parent.name
-    for path in pathlib.Path("plugins/adversarial-design-loop/skills").glob("*/SKILL.md")
-}
-addon_total = len(addon_names)
-overlap = sorted(set(seen) & addon_names)
-independent_overlap = sorted((set(seen) | addon_names) & docker_skills)
 if dupes: print("DUPLICATED:", dupes)
-if overlap: print("DOMAIN/ADDON OVERLAP:", overlap)
-if not docker_skills: print("MISSING INDEPENDENT ADDON SKILLS: manifest-docker")
-if independent_overlap: print("INDEPENDENT ADDON OVERLAP:", independent_overlap)
 if domain_total != domain_expected:
     print(f"DOMAIN {domain_total} != domain_expected_total {domain_expected}")
-if addon_total != addon_expected:
-    print(f"ADDON {addon_total} != addon_expected_total {addon_expected}")
-if domain_total + addon_total != policy_expected:
-    print(f"POLICY TOTAL {domain_total + addon_total} != policy_expected_total {policy_expected}")
-if len(docker_skills) != independent_expected:
-    print(f"INDEPENDENT ADDON {len(docker_skills)} != independent_addon_expected_total {independent_expected}")
-if domain_total + addon_total + len(docker_skills) != expected:
-    print(f"CATALOG TOTAL {domain_total + addon_total + len(docker_skills)} != expected_total {expected}")
+if domain_total != policy_expected:
+    print(f"POLICY TOTAL {domain_total} != policy_expected_total {policy_expected}")
+if domain_total != expected:
+    print(f"CATALOG TOTAL {domain_total} != expected_total {expected}")
 sys.exit(1 if (
-    dupes or overlap or not docker_skills or independent_overlap or
-    domain_total != domain_expected or addon_total != addon_expected or
-    domain_total + addon_total != policy_expected or
-    len(docker_skills) != independent_expected or
-    domain_total + addon_total + len(docker_skills) != expected
+    dupes or
+    domain_total != domain_expected or
+    domain_total != policy_expected or
+    domain_total != expected
 ) else 0)
 PY
     assert_success
@@ -250,12 +214,6 @@ for line in text.splitlines():
 wrong = []
 for pj in sorted(pathlib.Path(".").glob("plugins/*/.claude-plugin/plugin.json")):
     man = json.loads(pj.read_text())
-    if man["name"] == "manifest-docker":
-        for rel in man.get("skills", []):
-            name = rel.rsplit("/", 1)[-1]
-            if name in registry:
-                wrong.append(f"{name}: independent manifest-docker skill is in registry")
-        continue
     for rel in man.get("skills", []):
         name = rel.rsplit("/", 1)[-1]
         want = registry.get(name)

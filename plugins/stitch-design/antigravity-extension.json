@@ -50,6 +50,20 @@
         "path": "runtime/dist",
         "reason": "gemini native manifest cannot encode runtime component 'stitch-dist' at 'runtime/dist'"
       }
+    ],
+    "generated": [
+      {
+        "component_id": "design-lens-reviewer",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/design-lens-reviewer.md"
+      },
+      {
+        "component_id": "skeptic-verifier",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/skeptic-verifier.md"
+      }
     ]
   },
   "name": "stitch-design",

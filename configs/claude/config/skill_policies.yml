@@ -9,20 +9,18 @@
 # A PR that adds or removes a skill MUST change the matching partition count and
 # catalog expected_total in the same commit, and give the new skill a bundle or
 # classify it as an independent marketplace addon.
-domain_expected_total: 111
-addon_expected_total: 6
+domain_expected_total: 122
+addon_expected_total: 0
 # Eight canonical domains plus the policy addon. This deliberately excludes
 # independent marketplace addons from the policy partition.
-policy_expected_total: 117
-independent_addon_expected_total: 1
+policy_expected_total: 122
+independent_addon_expected_total: 0
 # Marketplace addons are intentionally installable without selecting a domain
 # bundle, but still appear in the global catalog and reference-validation gate.
-independent_addons:
-  manifest-docker:
-    - docker-compose-commandments
+independent_addons: {}
 # The exact global mirror/catalog count, including independent marketplace
 # addons. Consumers that inspect every installed skill must use this field.
-expected_total: 118
+expected_total: 122
 
 # Codex loads skill names, descriptions, and paths into the initial model prompt,
 # capped at 2% of context (or 8,000 characters when context is unknown). Keep only
@@ -72,7 +70,7 @@ deployed_skills_manifest_trustworthy: false
 # authoritative instead, move the three CI skills to code-quality and update
 # T3.1 to 25/8. Nothing else depends on which way this went.
 bundles:
-  manifest-code-quality:  # 22 skills
+  manifest-code-quality:  # 24 skills
     - ai-code-audit
     - antipattern-detect
     - api-optimize-bulk
@@ -88,6 +86,8 @@ bundles:
     - project-scaffold
     - project-verify
     - python-refactor
+    - refactor
+    - shell-audit
     - shell-audit-errexit
     - shell-audit-pipefail
     - shell-refactor
@@ -109,11 +109,12 @@ bundles:
     - docs-improve
     - docs-improve-readme
 
-  manifest-forge:  # 18 skills
+  manifest-forge:  # 20 skills
     - branch-clean
     - git-commit
     - git-find-artifact
     - issue-dev-auto
+    - issue-manage
     - issue-prep-auto
     - issue-prioritize
     - issue-sync-commit
@@ -122,6 +123,7 @@ bundles:
     - lifecycle-run
     - pr-address-comments
     - pr-clean-base
+    - pr-manage
     - pr-merge-stacked
     - pr-monitor
     - pr-reset-reapply
@@ -130,7 +132,7 @@ bundles:
     - repo-clean
 
 
-  manifest-ops:  # 11 skills
+  manifest-ops:  # 12 skills
     - cache-warm-oob
     - ci-diagnose-drift
     - ci-reproduce-failure
@@ -139,6 +141,7 @@ bundles:
     - config-validate-native
     - deploy-diagnose-drift
     - deploy-retire-component
+    - docker-compose-commandments
     - docker-probe-internal
     - process-diagnose-stall
     - version-pin
@@ -184,36 +187,28 @@ bundles:
     - token-benchmark
     - token-conserve
 
-  stitch-design:  # 18 skills
+  stitch-design:  # 24 skills
     - a11y-audit
     - code-to-design
+    - design-loop
     - design-md
     - enhance-prompt
     - extract-design-md
     - extract-static-html
     - generate-design
+    - loop-scaffold
     - manage-design-system
     - performance-check
     - react-components
     - react-native
     - react-vite-dashboard
     - remotion
+    - render-verify
+    - review-round
+    - screen-prompts
     - shadcn-ui
+    - spec-amend
     - stitch-loop
     - taste-design
     - upload-to-stitch
     - ux-review
-
-  # Merged in from main (#674), not part of the 108 the cutover partitioned. Its
-  # own plugin, its own version line, and it auto-discovers its skills rather
-  # than listing them in a `skills[]` manifest — so the union gates above never
-  # see it and only the on-disk count does. Registered here because the count
-  # gate is the exogenous truth, and an unregistered skill is indistinguishable
-  # from one that went missing.
-  adversarial-design-loop:  # 6 skills
-    - design-loop
-    - loop-scaffold
-    - render-verify
-    - review-round
-    - screen-prompts
-    - spec-amend

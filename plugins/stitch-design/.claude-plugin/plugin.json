@@ -1,4 +1,8 @@
 {
+  "agents": [
+    "./agents/design-lens-reviewer.md",
+    "./agents/skeptic-verifier.md"
+  ],
   "author": {
     "name": "ReefBytes"
   },
@@ -53,6 +57,20 @@
         "path": "runtime/dist",
         "reason": "claude native manifest cannot encode runtime component 'stitch-dist' at 'runtime/dist'"
       }
+    ],
+    "native": [
+      {
+        "component_id": "design-lens-reviewer",
+        "component_type": "agents",
+        "mode": "native",
+        "path": "agents/design-lens-reviewer.md"
+      },
+      {
+        "component_id": "skeptic-verifier",
+        "component_type": "agents",
+        "mode": "native",
+        "path": "agents/skeptic-verifier.md"
+      }
     ]
   },
   "description": "Design generation, review, extraction, and implementation workflows.",
@@ -60,18 +78,24 @@
   "skills": [
     "./skills/a11y-audit",
     "./skills/code-to-design",
+    "./skills/design-loop",
     "./skills/design-md",
     "./skills/enhance-prompt",
     "./skills/extract-design-md",
     "./skills/extract-static-html",
     "./skills/generate-design",
+    "./skills/loop-scaffold",
     "./skills/manage-design-system",
     "./skills/performance-check",
     "./skills/react-components",
     "./skills/react-native",
     "./skills/react-vite-dashboard",
     "./skills/remotion",
+    "./skills/render-verify",
+    "./skills/review-round",
+    "./skills/screen-prompts",
     "./skills/shadcn-ui",
+    "./skills/spec-amend",
     "./skills/stitch-loop",
     "./skills/taste-design",
     "./skills/upload-to-stitch",

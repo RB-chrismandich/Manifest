@@ -1,21 +1,5 @@
 [
   {
-    "category": "design",
-    "description": "Spec-first UI design loop: colorless screen prompts, faithful render gates, multi-lens adversarial review with skeptic-verified blockers, upstream spec amendments.",
-    "homepage": "https://github.com/RB-chrismandich/Manifest",
-    "keywords": [
-      "design",
-      "ui",
-      "stitch",
-      "adversarial-review",
-      "design-system",
-      "render-verification"
-    ],
-    "name": "adversarial-design-loop",
-    "source": "./plugins/adversarial-design-loop",
-    "version": "0.1.0"
-  },
-  {
     "category": "productivity",
     "description": "Delegate tasks, second opinions, and reviews to Codex, Claude, or Antigravity backends with resumable follow-ups, background jobs, and an optional finish-time review gate.",
     "homepage": "https://github.com/RB-chrismandich/Manifest",
@@ -29,14 +13,6 @@
     ],
     "name": "manifest-delegate",
     "source": "./plugins/manifest-delegate",
-    "version": "0.1.0"
-  },
-  {
-    "category": "deployment",
-    "description": "The Ten Commandments of docker-compose (DC-001..DC-010): an advisory save-hook and an on-demand audit for image pinning, secrets, healthchecks, resource limits, network isolation, volumes, non-root, logging, DRY and graceful shutdown.",
-    "homepage": "https://github.com/ReefBytes-Owner/Manifest",
-    "name": "manifest-docker",
-    "source": "./plugins/manifest-docker",
     "version": "0.1.0"
   },
   {

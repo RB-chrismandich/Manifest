@@ -124,7 +124,7 @@ rules:
     # marketplace install of this plugin alone (which does not). A bare
     # `/version-pin` is an Unknown command post-cutover; the qualified name only
     # exists if manifest-ops is installed too.
-    delegate_hint: 'Resolve the pin with `~/.claude/scripts/version_pin.sh <file>` if you have the full Manifest install; otherwise pin the tag and digest by hand.'
+    delegate_hint: 'Resolve the pin with `/manifest-ops:version-pin <file>` if you have the manifest-ops bundle installed; otherwise pin the tag and digest by hand.'
 
   - id: DC-002
     commandment: Thou Shalt Keep Secrets Out of Version Control

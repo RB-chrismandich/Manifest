@@ -126,7 +126,6 @@ def _validated_seed_home() -> Path:
     }
     assert len(manifest_before) == 9
     assert "manifest-delegate@manifest" not in manifest_before
-    assert "manifest-docker@manifest" not in manifest_before
     upstream = next(
         row for row in before if row.get("pluginId") == "i-have-adhd@i-have-adhd"
     )
@@ -233,7 +232,7 @@ def test_native_nine_installed_two_missing_converges_and_is_idempotent(
         for row in after
         if row.get("pluginId", "").endswith("@manifest")
     }
-    assert {"manifest-delegate@manifest", "manifest-docker@manifest"} <= manifest_ids
+    assert "manifest-delegate@manifest" in manifest_ids
     assert converged_home.first_report["state"] == "READY"
     assert converged_home.second_report["state"] == "READY"
     assert converged_home.second_snapshot == converged_home.first_snapshot

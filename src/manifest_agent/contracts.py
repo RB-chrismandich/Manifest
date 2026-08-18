@@ -347,11 +347,7 @@ def load_domain_contracts(root: Path) -> tuple[BundleContract, ...]:
             errors.append(
                 f"duplicate domain contract {name!r}: {', '.join(map(str, paths))}"
             )
-        if name == "adversarial-design-loop":
-            errors.append(
-                "adversarial-design-loop is an optional addon, not a domain bundle"
-            )
-        elif name == "manifest-core":
+        if name == "manifest-core":
             errors.append("manifest-core is not a portable domain bundle")
         elif name not in DOMAIN_BUNDLES:
             errors.append(f"unexpected domain contract {name!r}")

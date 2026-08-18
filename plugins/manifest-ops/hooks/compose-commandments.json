@@ -1,0 +1,22 @@
+{
+  "_manifest": {
+    "id": "compose-commandments",
+    "mode": "advisory",
+    "owner": "manifest-ops"
+  },
+  "description": "Advisory audit of just-edited docker-compose files against DC-001..DC-010.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "${CLAUDE_PLUGIN_ROOT}/runtime/bin/compose_commandments_hook.py",
+            "timeout": 20,
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit|MultiEdit"
+      }
+    ]
+  }
+}

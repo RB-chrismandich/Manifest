@@ -265,17 +265,17 @@ def test_ops_contract_declares_runtime_and_explicit_hook_cells(
         "runtime/references",
         "skills/ci-setup/templates",
     }
-    assert len(contract.components.hooks) == 1
-    hook = contract.components.hooks[0]
-    assert hook.id == "version-pin"
-    assert hook.path == "hooks/version-pin.json"
-    assert hook.compatibility is not None
-    assert set(hook.compatibility) == set(HARNESSES)
-    assert hook.compatibility["claude"].mode == "native"
-    assert hook.compatibility["cursor"].mode == "generated"
-    for harness in {"codex", "gemini", "antigravity", "devin"}:
-        assert hook.compatibility[harness].mode == "degraded"
-        assert hook.compatibility[harness].reason
+    assert len(contract.components.hooks) == 2
+    hook_ids = {h.id for h in contract.components.hooks}
+    assert hook_ids == {"version-pin", "compose-commandments"}
+    for hook in contract.components.hooks:
+        assert hook.compatibility is not None
+        assert set(hook.compatibility) == set(HARNESSES)
+        assert hook.compatibility["claude"].mode == "native"
+        assert hook.compatibility["cursor"].mode == "generated"
+        for harness in {"codex", "gemini", "antigravity", "devin"}:
+            assert hook.compatibility[harness].mode == "degraded"
+            assert hook.compatibility[harness].reason
     assert contract.capabilities.executables[CapabilityTier.REQUIRED] == (
         "bash",
         "git",

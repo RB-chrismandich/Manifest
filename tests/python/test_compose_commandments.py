@@ -21,8 +21,8 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PLUGIN = REPO_ROOT / "plugins" / "manifest-docker"
-SCRIPTS = PLUGIN / "scripts"
+PLUGIN = REPO_ROOT / "plugins" / "manifest-ops"
+SCRIPTS = PLUGIN / "runtime" / "bin"
 CHECKER = SCRIPTS / "compose_check.py"
 TEMPLATE = (
     PLUGIN
@@ -31,7 +31,7 @@ TEMPLATE = (
     / "references"
     / "compose-template.yaml"
 )
-HOOK = PLUGIN / "hooks" / "compose_commandments_hook.py"
+HOOK = SCRIPTS / "compose_commandments_hook.py"
 
 sys.path.insert(0, str(SCRIPTS))
 

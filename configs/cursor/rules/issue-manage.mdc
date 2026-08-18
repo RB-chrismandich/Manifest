@@ -1,0 +1,15 @@
+---
+description: "Unified issue management manager. Dispatches to issue triage, prioritization, specification preparation, automated development, and git/PR synchronization."
+globs: ".claude/skills/issue-manage/**"
+alwaysApply: false
+---
+
+# issue-manage
+
+Unified issue management manager. Dispatches to issue triage, prioritization, specification preparation, automated development, and git/PR synchronization.
+
+<!-- Auto-generated from .claude/skills/issue-manage/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/issue-manage/SKILL.md` for the full skill definition.
+

@@ -1,0 +1,15 @@
+---
+description: "Unified shell script safety and control-flow auditor. Runs both pipefail command substitution and errexit control-flow audits across target scripts in one pass."
+globs: ".claude/skills/shell-audit/**"
+alwaysApply: false
+---
+
+# shell-audit
+
+Unified shell script safety and control-flow auditor. Runs both pipefail command substitution and errexit control-flow audits across target scripts in one pass.
+
+<!-- Auto-generated from .claude/skills/shell-audit/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/shell-audit/SKILL.md` for the full skill definition.
+
