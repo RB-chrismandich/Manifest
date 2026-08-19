@@ -3,45 +3,65 @@
 Gaps found while reviewing `2026-08-01-bootstrap-free-plugin-distribution-design.md`
 against the shipped `src/manifest_agent` coordinator on 2026-08-19.
 
-Review method: single reviewer, direct measurement against the repository at
-commit `ad1faee3`. Four delegated adversarial reviewers were dispatched and all
-four terminated on context exhaustion, so these findings have **not** had
-independent cross-verification. Every claim below cites what was measured.
+Review method: direct measurement against the repository at commit `ad1faee3`,
+followed by an independent verification round on 2026-08-19. That round refuted
+both halves of section 1 and the counts in sections 4 and 5; all three are
+corrected here and marked. An adversarial probe against the section 2 fix found
+a real bypass, fixed in commit `bd6cbeeb`. Every claim below cites what was
+measured.
 
-## 1. There is no update operation at any layer
+## 1. The update path exists but is unnamed and inconsistently sourced
+
+> **Corrected 2026-08-19** after independent verification refuted both halves of
+> the original finding, which claimed no update mechanism existed and that every
+> adapter installed from a local path. Both were wrong. The recommendation
+> survives in changed form.
 
 **What the spec says:** Section 7 defines the command surface as `install`,
 `migrate`, `reconcile`, `reconcile --apply` and `uninstall`. Section 11 requires
 that "native package managers own plugin download, update, caching, and
-removal."
+removal." Section 6 requires an immutable version or commit plus published
+checksums, and states that "mutable branch heads are not an installation
+identity."
 
-**The gap:** No adapter implements an update operation. A search for update or
-upgrade verbs across all six adapters in `src/manifest_agent/adapters/` returns
-nothing. There is no `update` command, and section 7 never defines one, so the
-completion criterion in section 11 cannot be met by the current architecture.
+**The gap:** No adapter defines an `update` or `upgrade` operation and no CLI
+verb by that name exists. But `_reconcile_desired` (`service.py:763-806`)
+repairs a DRIFTED or DEGRADED harness by calling `adapter.install(desired)`
+against the new `desired` release, and `_persist_reconcile`
+(`service.py:817-847`) then writes a receipt recording that new release version.
+`reconcile --apply` is therefore a working update path. It is a naming and
+documentation gap, not a missing capability.
 
-Native per-harness auto-update cannot close this either, and the design is
-already self-consistent in refusing it. Every adapter installs from a locally
-materialized path (`desired.bundle_path(contract.name)` in the claude, codex,
-gemini, cursor, antigravity and devin adapters), so no harness has a remote to
-poll. `adapters/gemini.py:120` states the position explicitly: "Install each
-verified bundle without enabling native auto-update", despite the Gemini CLI
-supporting `gemini extensions install <source> --auto-update`. Enabling it would
-contradict section 6: "Release resolution must use an immutable version or
-commit plus published checksums; mutable branch heads are not an installation
-identity." Six harnesses polling independently produce exactly the mixed bundle
-generations section 6 defines as drift.
+The second half of the original finding was also wrong. The cursor adapter does
+not install from a local path: `cursor.py:119-134` runs `cursor plugin
+marketplace add <repository_url> --git-ref <source_commit>`, where
+`repository_url` is `https://github.com/RB-chrismandich/Manifest`
+(`release.py:22,223`) and `source_commit` is a commit hash. That is a remote
+source pinned to an immutable ref — fully compliant with section 6, and the
+existing proof that remote installation is compatible with the release-identity
+rule. The other five adapters use `desired.bundle_path(...)`, a locally
+materialized path. The architecture is inconsistent across harnesses, and
+nothing in the design acknowledges or justifies the split.
 
-**Recommended spec change:** Add a normative `manifest update` verb to section 7
-that re-resolves one pinned release and re-converges every installed harness in
-a single transaction, reusing the section 8 lock, receipt and partial-
-convergence semantics. State in section 6 that native per-harness auto-update
-flags are forbidden, with the release-identity rule as the reason, so the
-current adapter behavior is documented policy rather than an apparent omission.
-Add the update path to the section 10 verification list and to the section 11
-completion criteria, replacing the claim that native managers own update.
+What remains true is the conclusion about native auto-update. Enabling a
+harness-native auto-update flag, such as `gemini extensions install
+--auto-update`, would let each harness track a moving source independently and
+produce the mixed bundle generations section 6 defines as drift.
+`adapters/gemini.py:120` already refuses it: "Install each verified bundle
+without enabling native auto-update." That refusal is correct but undocumented,
+so it reads as an omission.
 
-**Source:** Adapter search across `src/manifest_agent/adapters/`;
+**Recommended spec change:** Name the capability that already exists. Document
+`reconcile --apply` as the supported update path, or add an `update` verb as an
+explicit alias for re-resolving a pinned release and re-converging every
+harness. State in section 6 that native per-harness auto-update flags are
+forbidden and why, so the gemini adapter's behavior is policy rather than an
+apparent gap. Record why cursor sources from a pinned remote ref while the other
+five source from a materialized path, and either justify the split or converge
+it. Correct section 11, which currently claims native managers own update.
+
+**Source:** `src/manifest_agent/service.py:763-806,817-847`;
+`src/manifest_agent/adapters/cursor.py:119-134`; `src/manifest_agent/release.py:22,223`;
 `adapters/gemini.py:120`; design sections 6, 7 and 11.
 
 ## 2. Bundle coverage was opt-in, so an unregistered bundle reported clean
@@ -109,9 +129,14 @@ permanent exception to the parity contract."
 `~/.claude/settings.json` with `~/.claude/scripts/` commands:
 `block_cwd_delete.py`, `constitution_hook.py`, `deploy_stamp_check.sh`,
 `guidance_hint.py`, `lint_on_edit_hook.sh`, `subagent_model_default.py`, and
-`spec_review.sh --silent`. Only `version_pin_hook.sh` has completed the trip to
-a bundle, script and hook registration together. `spec_review.sh` is
-half-migrated: its script ships as a declared runtime component of
+`spec_review.sh --silent`. None of the seven is registered by any bundle.
+
+`version_pin_hook.sh` is the precedent for how a hook leaves that file, not one
+of the seven: it appears nowhere in `settings.runtime.json` and is registered
+purely through the bundle-native mechanism (`plugins/manifest-ops/hooks/
+version-pin.json`, using `${CLAUDE_PLUGIN_ROOT}`). `merge_settings_hooks` still
+carries machinery to strip its retired shared-home entry, which is the migration
+pattern the remaining seven need. `spec_review.sh` is half-migrated: its script ships as a declared runtime component of
 `manifest-spec-planning`, but that contract declares `hooks: []`, so nothing
 registers it. Two of the unmigrated hooks are safety controls
 (`block_cwd_delete.py`, `subagent_model_default.py`) and would fail silently.
@@ -144,9 +169,15 @@ issue tracks bootstrap retirement, the update verb, or hook re-homing, and the
 six stages carry no recorded status. Measured against the tree: Stage 1 and
 Stage 5 appear done, Stage 2 and Stage 3 are partial, and Stage 6 has not
 started (`bootstrap.sh` is 6,330 lines and remains the documented install path).
-Test isolation is a specific Stage 3 weakness: 8 of 65 coordinator test files
-isolate HOME, so most of the suite can pass on ambient state that Stage 6
-removes.
+Test isolation is a Stage 3 weakness, though a raw count states it badly. Of 65
+files under `tests/python/manifest_agent/`, 6 test files explicitly isolate HOME
+(7 matches including one non-test helper; a stricter pattern finds 5), while 56
+use `tmp_path`. Most of the suite therefore never touches HOME at all rather
+than depending on it, so "N files isolate HOME" is a poor proxy for coverage.
+The real question, and the one Stage 6 turns on, is narrower: which tests read
+HOME-derived paths, and are those isolated? No conftest changes this —
+`tests/python/conftest.py` exports one non-autouse fixture that no file in that
+directory uses, and there is no `manifest_agent/conftest.py`.
 
 **Recommended spec change:** Add a status column to the section 9 stage list,
 kept current, and open one tracking issue per remaining stage.
