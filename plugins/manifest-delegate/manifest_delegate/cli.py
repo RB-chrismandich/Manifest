@@ -240,7 +240,7 @@ def build_parser():
     """Build the top-level argparse parser and all delegate.py subcommands."""
     parser = transfer.ShortHelpParser(
         prog="delegate.py",
-        description="Delegate tasks/reviews to a backend registry (codex, claude, antigravity).",
+        description="Delegate tasks/reviews to a backend registry (codex, claude, antigravity, cursor, devin).",
         add_help=True,
     )
     parser.add_argument(

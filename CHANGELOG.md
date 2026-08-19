@@ -16,6 +16,33 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Delegation gains Cursor and Devin backends
+
+`plugins/manifest-delegate/config/backends.json` registers `cursor` (alias
+`cursor-agent`) and `devin`, so `/delegate` and `/delegate-setup` can dispatch
+to them like any other backend. No dispatcher code changed — FR-016's
+entry-only extension contract held — and each entry ships the prompting
+reference it names (`prompting-cursor.md`, `prompting-devin.md`).
+
+Both profiles were measured against the real CLIs rather than inferred from
+docs. Cursor runs `-p --output-format json`, reading the prompt from stdin and
+returning `result` + `session_id`, so resume works; it also refuses to start in
+an untrusted directory and cannot answer that prompt non-interactively, so the
+invocation carries `--trust` — which answers the trust gate only, leaving
+`--sandbox enabled` on in both modes and never using `--yolo`/`--force`. Devin
+runs `devin -p <prompt>` over the bounded argv transport with
+`--permission-mode auto --sandbox` (read-only) or `accept-edits` (write); its
+print mode emits no session id and leaves no entry in `devin list`, so `resume`
+is `null` and the dispatcher discloses that rather than faking a handle.
+
+Validating the entries also caught pre-existing contract drift: nothing checked
+`backends.json` against the `backend-registry.schema.json` it declares in
+`$schema`, so `response_capture` — implemented and shipped on the claude entry
+— had never been added to the contract. The schema now documents it, and a new
+test validates every shipped entry against it, alongside gates asserting that
+each `prompting_ref` resolves, each `services_key` is one bootstrap writes, and
+no entry declares a resume template without a way to capture the session id.
+
 ### New plugin: adversarial-design-loop, and the repo becomes a plugin marketplace
 
 `plugins/adversarial-design-loop/` codifies the Lumient One design-pass

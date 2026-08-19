@@ -216,7 +216,8 @@ def _ensure_root_model_policy_distribution(bare_help=False):
 _USAGE = """\
 usage: delegate.py [-h] [--json] COMMAND ...
 
-Delegate tasks/reviews to a backend registry (codex, claude, antigravity).
+Delegate tasks/reviews to a backend registry (codex, claude, antigravity,
+cursor, devin).
 
 commands:
   task              Delegate a task (--second-opinion, --write, --resume)

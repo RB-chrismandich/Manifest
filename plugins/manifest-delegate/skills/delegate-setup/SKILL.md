@@ -1,6 +1,6 @@
 ---
 name: delegate-setup
-description: Check backend readiness (Codex, Claude, Antigravity) via parallel probes; reports state and a fix per backend.
+description: Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin) via parallel probes; reports state and a fix per backend.
 ---
 
 # Delegate Setup
@@ -26,7 +26,13 @@ backend      state              version   fix
 codex        ready              1.x       —
 claude       not_authenticated  2.x       run: claude  (then /login)
 antigravity  disabled_workspace 1.1.8     enable in ~/.claude/config/services.yml (workspace layer outranks user enable)
+cursor       ready              2026.x    —
+devin        disabled_workspace 3000.x    enable in ~/.claude/config/services.yml (workspace layer outranks user enable)
 ```
+
+Devin ships **disabled** in `services.yml` (opt-in: `./bootstrap.sh
+--enable-devin`), so a `disabled_workspace` row for it is the default state,
+not a fault.
 
 States: `ready`, `not_installed`, `not_authenticated`, `disabled_workspace`,
 `disabled_user`, `retired`, `error`. The `fix` column is the exact remediation

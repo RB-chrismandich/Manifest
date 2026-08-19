@@ -109,6 +109,77 @@
       "prompting_ref": "skills/delegate/references/prompting-agy.md",
       "services_key": "antigravity",
       "transfer": null
+    },
+    {
+      "id": "cursor",
+      "aliases": ["cursor-agent"],
+      "display_name": "Cursor",
+      "binary": "cursor-agent",
+      "invoke": ["cursor-agent", "-p", "--output-format", "json", "--trust"],
+      "resume": ["cursor-agent", "-p", "--output-format", "json", "--trust", "--resume", "{session_ref}"],
+      "model_args": ["--model", "{model}"],
+      "tier_source": "model_tiers",
+      "default_tier": "flash",
+      "session_id_capture": {
+        "method": "json_field",
+        "field": "session_id"
+      },
+      "response_capture": {
+        "method": "json_field",
+        "field": "result"
+      },
+      "input": {
+        "transport": "stdin",
+        "max_payload_bytes": 10485760,
+        "max_context_bytes": null
+      },
+      "readiness": {
+        "version_cmd": ["cursor-agent", "--version"],
+        "auth_probe_cmd": ["cursor-agent", "status"],
+        "install_fix": "curl https://cursor.com/install -fsS | bash",
+        "login_fix": "cursor-agent login (or export CURSOR_API_KEY)",
+        "retired_check": null
+      },
+      "sandbox": {
+        "read_only_args": ["--sandbox", "enabled", "--mode", "plan"],
+        "write_args": ["--sandbox", "enabled"]
+      },
+      "prompting_ref": "skills/delegate/references/prompting-cursor.md",
+      "services_key": "cursor",
+      "transfer": null
+    },
+    {
+      "id": "devin",
+      "aliases": [],
+      "display_name": "Devin",
+      "binary": "devin",
+      "invoke": ["devin", "-p", "{prompt}"],
+      "resume": null,
+      "model_args": ["--model", "{model}"],
+      "tier_source": "model_tiers",
+      "default_tier": "auto",
+      "session_id_capture": {
+        "method": "none"
+      },
+      "input": {
+        "transport": "argv",
+        "max_payload_bytes": 65536,
+        "max_context_bytes": null
+      },
+      "readiness": {
+        "version_cmd": ["devin", "--version"],
+        "auth_probe_cmd": ["devin", "auth", "status"],
+        "install_fix": "brew install --cask devin-cli (or: curl -fsSL https://cli.devin.ai/install.sh | bash)",
+        "login_fix": "devin auth login",
+        "retired_check": null
+      },
+      "sandbox": {
+        "read_only_args": ["--permission-mode", "auto", "--sandbox"],
+        "write_args": ["--permission-mode", "accept-edits", "--sandbox"]
+      },
+      "prompting_ref": "skills/delegate/references/prompting-devin.md",
+      "services_key": "devin",
+      "transfer": null
     }
   ]
 }

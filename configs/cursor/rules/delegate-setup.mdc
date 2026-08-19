@@ -1,12 +1,12 @@
 ---
-description: "Check backend readiness (Codex, Claude, Antigravity) via parallel probes; reports state and a fix per backend."
+description: "Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin) via parallel probes; reports state and a fix per backend."
 globs: ".claude/skills/delegate-setup/**"
 alwaysApply: false
 ---
 
 # delegate-setup
 
-Check backend readiness (Codex, Claude, Antigravity) via parallel probes; reports state and a fix per backend.
+Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin) via parallel probes; reports state and a fix per backend.
 
 <!-- Auto-generated from .claude/skills/delegate-setup/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
