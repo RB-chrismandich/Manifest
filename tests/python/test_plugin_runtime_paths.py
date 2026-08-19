@@ -198,3 +198,59 @@ def test_declared_ungoverned_bundle_is_accepted(tmp_path) -> None:
     report = checker.scan(tmp_path)
 
     assert not [v for v in report.violations if v.kind == "ungoverned-bundle"]
+
+
+def test_legacy_path_in_undeclared_bundle_file_is_caught(tmp_path) -> None:
+    """A shipped file at an undeclared path must still be scanned.
+
+    The gate used to enumerate only declared components and SKILL.md, but the
+    whole bundle directory is what gets installed. A helper dropped at an
+    undeclared path therefore shipped and ran while reporting no violations.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-forge"
+    (bundle / "lib").mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-forge, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "lib" / "helper.sh").write_text(
+        "#!/usr/bin/env bash\nsource ~/.claude/scripts/git_ops.sh\n", encoding="utf-8"
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert [v for v in report.violations if v.kind == "forbidden-runtime-path"], (
+        "undeclared bundle file was not scanned for legacy shared-home paths"
+    )
+
+
+def test_undeclared_files_skip_dependency_conformance_checks(tmp_path) -> None:
+    """Undeclared files are swept for legacy paths only.
+
+    Dependency declarations are a contract-conformance concern, so running them
+    over bundle tests and helper scripts would report undeclared imports for
+    files that were never contract surfaces.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-forge"
+    (bundle / "tests").mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-forge, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "tests" / "test_thing.py").write_text(
+        "import some_third_party_package\n", encoding="utf-8"
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert not [
+        v for v in report.violations if v.kind == "undeclared-python-dependency"
+    ]

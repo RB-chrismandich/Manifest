@@ -77,6 +77,20 @@ NATIVE_PATH_ALLOWLIST: dict[tuple[str, str, str], frozenset[str]] = {
     ("manifest-workspace", "hooks", "claude"): frozenset({"~/.claude/settings.json"}),
 }
 
+# Bundle-relative files whose forbidden-looking text is illustrative rather than
+# a runtime dependency.  Keyed by repository-relative path so an exemption can
+# never widen to a whole directory by accident.
+ILLUSTRATIVE_FILE_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        # A worked example report that uses bootstrap.sh as its sample subject.
+        # The skill never invokes it.
+        "plugins/manifest-code-quality/skills/shell-refactor/references/output-format.md",
+    }
+)
+
+# Directories inside a bundle that ship but are not authored here.
+_UNSCANNED_DIRS = frozenset({"vendor", "dist", "node_modules", "__pycache__", ".git"})
+
 _TEXT_SUFFIXES = {".md", ".json", ".py", ".sh", ".mjs", ".js", ".yml", ".yaml"}
 _SHELL_BUILTINS = frozenset(
     {
@@ -242,9 +256,10 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     return tuple(records)
 
 
-def _component_paths(
+def _component_paths_declared(
     bundle_root: Path, document: dict[str, Any]
 ) -> Iterable[tuple[Path, str, str | None]]:
+    """Yield only SKILL.md files and explicitly declared component paths."""
     components = document.get("components", {})
     skills = components.get("skills", {})
     skills_root = bundle_root / str(skills.get("root", "skills"))
@@ -270,8 +285,41 @@ def _component_paths(
                 )
 
 
+def _component_paths(
+    bundle_root: Path, document: dict[str, Any]
+) -> Iterable[tuple[Path, str, str | None]]:
+    """Yield every text file the bundle ships, declared or not.
+
+    Declared components and ``SKILL.md`` are not the shipping boundary: the whole
+    bundle directory is installed, so a file at an undeclared path runs just as
+    readily. Scanning only declarations let such a file carry a legacy
+    shared-home reference while this gate reported no violations.
+    """
+    declared: set[Path] = set()
+    for path, kind, component_id in _component_paths_declared(bundle_root, document):
+        declared.add(path)
+        yield path, kind, component_id
+    for candidate in sorted(bundle_root.rglob("*")):
+        if not candidate.is_file() or candidate.suffix not in _TEXT_SUFFIXES:
+            continue
+        if candidate in declared:
+            continue
+        if _UNSCANNED_DIRS & set(candidate.relative_to(bundle_root).parts):
+            continue
+        yield candidate, "undeclared", None
+
+
 def _line_number(text: str, start: int) -> int:
     return text.count("\n", 0, start) + 1
+
+
+def _illustrative(path: Path) -> bool:
+    """True when a file's forbidden-looking text is a worked example, not a call."""
+    try:
+        relative = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return False
+    return relative in ILLUSTRATIVE_FILE_ALLOWLIST
 
 
 def _allowed_native_path(bundle: str, kind: str, text: str) -> bool:
@@ -298,7 +346,9 @@ def _path_violations(bundle: str, kind: str, path: Path, text: str) -> list[Viol
             if position < 0:
                 break
             matched = text[position : position + len(pattern)]
-            if not _allowed_native_path(bundle, kind, matched):
+            if not _allowed_native_path(bundle, kind, matched) and not _illustrative(
+                path
+            ):
                 violations.append(
                     Violation(
                         path,
@@ -658,6 +708,13 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                 )
                 continue
             violations.extend(_path_violations(bundle, kind, path, text))
+            # Undeclared files are swept only for forbidden runtime paths. The
+            # dependency checks below are contract-conformance checks and are
+            # meaningful only for what the contract actually declares; running
+            # them over every shipped file would report undeclared imports for
+            # bundle tests and helper scripts that were never contract surfaces.
+            if kind == "undeclared":
+                continue
             if path.suffix == ".py":
                 violations.extend(
                     _python_import_violations(
