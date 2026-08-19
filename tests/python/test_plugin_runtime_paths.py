@@ -254,3 +254,33 @@ def test_undeclared_files_skip_dependency_conformance_checks(tmp_path) -> None:
     assert not [
         v for v in report.violations if v.kind == "undeclared-python-dependency"
     ]
+
+
+def test_home_variable_spelling_is_caught(tmp_path) -> None:
+    """`$HOME/.claude/...` must be caught, not just the tilde spelling.
+
+    Pattern matching is literal substring, so the tilde forms do not cover the
+    `$HOME` and `${HOME}` spellings. An adversarial probe walked straight
+    through the gate with `source "$HOME/.claude/scripts/git_ops.sh"`.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-forge"
+    (bundle / "lib").mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-forge, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "lib" / "obf.sh").write_text(
+        '#!/usr/bin/env bash\nsource "$HOME/.claude/scripts/git_ops.sh"\n'
+        'cat "${HOME}/.claude/config/labels.yml"\n',
+        encoding="utf-8",
+    )
+
+    report = checker.scan(tmp_path)
+
+    values = {v.value for v in report.violations}
+    assert any("scripts" in value for value in values)
+    assert any("config" in value for value in values)

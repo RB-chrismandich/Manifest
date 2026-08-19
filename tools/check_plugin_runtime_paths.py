@@ -56,6 +56,13 @@ FORBIDDEN_RUNTIME_PATTERNS = (
     "bootstrap/",
     "~/.claude/scripts",
     "~/.claude/config",
+    # $HOME spellings of the same two trees. Matching is literal substring, so
+    # the tilde forms above do not cover these and an adversarial probe walked
+    # straight through with `source "$HOME/.claude/scripts/git_ops.sh"`.
+    "$home/.claude/scripts",
+    "$home/.claude/config",
+    "${home}/.claude/scripts",
+    "${home}/.claude/config",
     "configs/claude/scripts",
     "configs/claude/config",
     "configs/claude/prompts",
