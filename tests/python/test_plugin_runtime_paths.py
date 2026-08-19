@@ -169,3 +169,32 @@ def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(
     assert not any(
         violation.path.name == "runner.sh" for violation in report.violations
     )
+
+
+def test_unregistered_bundle_is_flagged_not_silently_skipped(tmp_path) -> None:
+    """A bundle outside PORTABLE_BUNDLES must fail, never report clean.
+
+    Coverage used to be opt-in: enumeration walked a hardcoded tuple, so a
+    directory added under plugins/ was scanned by nothing and the gate returned
+    an empty violation list regardless of its contents.
+    """
+    checker = _checker_module()
+    (tmp_path / "plugins" / "manifest-unregistered").mkdir(parents=True)
+
+    report = checker.scan(tmp_path)
+
+    kinds = {violation.kind for violation in report.violations}
+    assert "ungoverned-bundle" in kinds
+    assert any(
+        violation.value == "manifest-unregistered" for violation in report.violations
+    )
+
+
+def test_declared_ungoverned_bundle_is_accepted(tmp_path) -> None:
+    """An exclusion recorded in UNGOVERNED_BUNDLES is declared, so it passes."""
+    checker = _checker_module()
+    (tmp_path / "plugins" / "manifest-delegate").mkdir(parents=True)
+
+    report = checker.scan(tmp_path)
+
+    assert not [v for v in report.violations if v.kind == "ungoverned-bundle"]

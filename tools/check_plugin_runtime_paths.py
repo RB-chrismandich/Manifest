@@ -33,6 +33,24 @@ DOMAIN_BUNDLES = (
     "manifest-workspace",
     "stitch-design",
 )
+ADDON_BUNDLES = ("manifest-i-have-adhd",)
+PORTABLE_BUNDLES = (*DOMAIN_BUNDLES, *ADDON_BUNDLES)
+
+# Bundles deliberately outside the portable-contract system.  Empty by design:
+# an entry here means the bundle ships to Claude only, is installed by no
+# harness adapter, and is scanned by no gate, so each one needs a recorded
+# reason and an owner.  Prefer giving the bundle a contract over adding it here.
+UNGOVERNED_BUNDLES: dict[str, str] = {
+    # Ships in the marketplace and installs under Claude Code, but has no
+    # manifest-capabilities.yml and no generated Gemini/Antigravity views, so
+    # no harness adapter can install it and delegation is Claude-only in
+    # practice.  Recorded here so the gap is declared rather than invisible.
+    # Removing this entry is the fix tracked by issue #784 (delegation setup
+    # for Cursor and Devin): give the bundle a portable contract and add it to
+    # ADDON_BUNDLES.
+    "manifest-delegate": "no portable contract; Claude-only (issue #784)",
+}
+
 FORBIDDEN_RUNTIME_PATTERNS = (
     "bootstrap.sh",
     "bootstrap/",
@@ -564,10 +582,41 @@ def _shell_command_violations(
     return violations
 
 
+def _ungoverned_bundles(repo_root: Path) -> tuple[Violation, ...]:
+    """Flag any ``plugins/`` directory outside the portable-contract system.
+
+    Coverage is opt-out, not opt-in.  A bundle added to ``plugins/`` without a
+    portable contract is enumerated by no adapter and scanned by no gate, so it
+    reports clean no matter what it contains -- the false green that section 10
+    of the bootstrap-free distribution design forbids.
+    """
+    plugins = repo_root / "plugins"
+    if not plugins.is_dir():
+        return ()
+    found: list[Violation] = []
+    for entry in sorted(plugins.iterdir()):
+        if not entry.is_dir() or entry.name.startswith("."):
+            continue
+        if entry.name in PORTABLE_BUNDLES or entry.name in UNGOVERNED_BUNDLES:
+            continue
+        found.append(
+            Violation(
+                entry,
+                1,
+                "ungoverned-bundle",
+                entry.name,
+                f"{entry.name} is under plugins/ but appears in neither "
+                "DOMAIN_BUNDLES nor ADDON_BUNDLES, so no harness adapter "
+                "installs it and no runtime-path gate scans it",
+            )
+        )
+    return tuple(found)
+
+
 def scan(repo_root: Path = ROOT) -> ScanReport:
     """Return all deterministic bundle-runtime violations under ``repo_root``."""
     repo_root = repo_root.resolve()
-    violations: list[Violation] = []
+    violations: list[Violation] = list(_ungoverned_bundles(repo_root))
     for bundle, contract_path, document in _contract_files(repo_root):
         if "_error" in document:
             violations.append(
