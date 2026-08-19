@@ -73,6 +73,8 @@
     "./skills/project-scaffold",
     "./skills/project-verify",
     "./skills/python-refactor",
+    "./skills/refactor",
+    "./skills/shell-audit",
     "./skills/shell-audit-errexit",
     "./skills/shell-audit-pipefail",
     "./skills/shell-refactor",

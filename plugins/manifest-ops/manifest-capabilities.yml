@@ -27,6 +27,23 @@ components:
         devin:
           mode: degraded
           reason: Devin exposes the on-demand version-pin skill but has no native file-save hook surface.
+    - id: compose-commandments
+      path: hooks/compose-commandments.json
+      compatibility:
+        claude: {mode: native}
+        codex:
+          mode: degraded
+          reason: Codex exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.
+        gemini:
+          mode: degraded
+          reason: Gemini exposes the on-demand docker-compose-commandments skill but cannot install this advisory plugin hook natively.
+        cursor: {mode: generated}
+        antigravity:
+          mode: degraded
+          reason: Antigravity exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.
+        devin:
+          mode: degraded
+          reason: Devin exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.
   runtime:
     - {id: ops-bin, path: runtime/bin}
     - {id: ops-config, path: runtime/config}

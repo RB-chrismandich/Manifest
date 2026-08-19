@@ -1,12 +1,12 @@
 ---
-description: "Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the adversarial-design-loop sibling skills end to end."
+description: "Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the design loop sibling skills end to end."
 globs: ".claude/skills/design-loop/**"
 alwaysApply: false
 ---
 
 # design-loop
 
-Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the adversarial-design-loop sibling skills end to end.
+Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the design loop sibling skills end to end.
 
 <!-- Auto-generated from .claude/skills/design-loop/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

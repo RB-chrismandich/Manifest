@@ -8,7 +8,9 @@ components:
   skills:
     root: skills
     include: ["*/SKILL.md"]
-  agents: []
+  agents:
+    - {id: design-lens-reviewer, path: agents/design-lens-reviewer.md}
+    - {id: skeptic-verifier, path: agents/skeptic-verifier.md}
   hooks: []
   runtime:
     - {id: stitch-dist, path: runtime/dist}

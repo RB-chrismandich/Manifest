@@ -2,6 +2,13 @@
   "compatibility": {
     "degraded": [
       {
+        "component_id": "compose-commandments",
+        "component_type": "hooks",
+        "mode": "degraded",
+        "path": "hooks/compose-commandments.json",
+        "reason": "Gemini exposes the on-demand docker-compose-commandments skill but cannot install this advisory plugin hook natively."
+      },
+      {
         "component_id": "version-pin",
         "component_type": "hooks",
         "mode": "degraded",

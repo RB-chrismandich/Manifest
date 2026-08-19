@@ -6,6 +6,18 @@
       "compatibility": {
         "imported": [
           {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/skeptic-verifier.md"
+          },
+          {
             "component_id": "react-native-validator",
             "component_type": "runtime",
             "mode": "imported",
@@ -50,6 +62,16 @@
         ]
       },
       "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
         "runtime": [
           {
             "id": "react-native-validator",
@@ -85,18 +107,24 @@
       "skills": [
         "skills/a11y-audit",
         "skills/code-to-design",
+        "skills/design-loop",
         "skills/design-md",
         "skills/enhance-prompt",
         "skills/extract-design-md",
         "skills/extract-static-html",
         "skills/generate-design",
+        "skills/loop-scaffold",
         "skills/manage-design-system",
         "skills/performance-check",
         "skills/react-components",
         "skills/react-native",
         "skills/react-vite-dashboard",
         "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
         "skills/shadcn-ui",
+        "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
         "skills/upload-to-stitch",
@@ -106,6 +134,18 @@
     "codex": {
       "compatibility": {
         "native": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/skeptic-verifier.md"
+          },
           {
             "component_id": "react-native-validator",
             "component_type": "runtime",
@@ -151,6 +191,16 @@
         ]
       },
       "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
         "runtime": [
           {
             "id": "react-native-validator",
@@ -186,18 +236,24 @@
       "skills": [
         "skills/a11y-audit",
         "skills/code-to-design",
+        "skills/design-loop",
         "skills/design-md",
         "skills/enhance-prompt",
         "skills/extract-design-md",
         "skills/extract-static-html",
         "skills/generate-design",
+        "skills/loop-scaffold",
         "skills/manage-design-system",
         "skills/performance-check",
         "skills/react-components",
         "skills/react-native",
         "skills/react-vite-dashboard",
         "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
         "skills/shadcn-ui",
+        "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
         "skills/upload-to-stitch",
@@ -207,6 +263,18 @@
     "cursor": {
       "compatibility": {
         "generated": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/skeptic-verifier.md"
+          },
           {
             "component_id": "react-native-validator",
             "component_type": "runtime",
@@ -252,6 +320,16 @@
         ]
       },
       "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
         "runtime": [
           {
             "id": "react-native-validator",
@@ -287,18 +365,24 @@
       "skills": [
         "skills/a11y-audit",
         "skills/code-to-design",
+        "skills/design-loop",
         "skills/design-md",
         "skills/enhance-prompt",
         "skills/extract-design-md",
         "skills/extract-static-html",
         "skills/generate-design",
+        "skills/loop-scaffold",
         "skills/manage-design-system",
         "skills/performance-check",
         "skills/react-components",
         "skills/react-native",
         "skills/react-vite-dashboard",
         "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
         "skills/shadcn-ui",
+        "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
         "skills/upload-to-stitch",
@@ -308,6 +392,18 @@
     "devin": {
       "compatibility": {
         "native": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/skeptic-verifier.md"
+          },
           {
             "component_id": "react-native-validator",
             "component_type": "runtime",
@@ -353,6 +449,16 @@
         ]
       },
       "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
         "runtime": [
           {
             "id": "react-native-validator",
@@ -388,18 +494,24 @@
       "skills": [
         "skills/a11y-audit",
         "skills/code-to-design",
+        "skills/design-loop",
         "skills/design-md",
         "skills/enhance-prompt",
         "skills/extract-design-md",
         "skills/extract-static-html",
         "skills/generate-design",
+        "skills/loop-scaffold",
         "skills/manage-design-system",
         "skills/performance-check",
         "skills/react-components",
         "skills/react-native",
         "skills/react-vite-dashboard",
         "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
         "skills/shadcn-ui",
+        "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
         "skills/upload-to-stitch",
@@ -413,18 +525,24 @@
   "skills": [
     "skills/a11y-audit",
     "skills/code-to-design",
+    "skills/design-loop",
     "skills/design-md",
     "skills/enhance-prompt",
     "skills/extract-design-md",
     "skills/extract-static-html",
     "skills/generate-design",
+    "skills/loop-scaffold",
     "skills/manage-design-system",
     "skills/performance-check",
     "skills/react-components",
     "skills/react-native",
     "skills/react-vite-dashboard",
     "skills/remotion",
+    "skills/render-verify",
+    "skills/review-round",
+    "skills/screen-prompts",
     "skills/shadcn-ui",
+    "skills/spec-amend",
     "skills/stitch-loop",
     "skills/taste-design",
     "skills/upload-to-stitch",

@@ -181,7 +181,7 @@ def test_generator_emits_release_command_catalog(
     catalog_path = tmp_path / "manifest-workspace/skills/help/catalog/commands.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 
-    assert len(catalog["commands"]) == 108
+    assert len(catalog["commands"]) == 119
     assert any(
         command["qualified_name"] == "manifest-workspace:parallel-agent"
         for command in catalog["commands"]
@@ -321,7 +321,9 @@ def test_check_detects_tampered_generated_addon_entry(
     marketplace_path = fixture_root / ".claude-plugin/marketplace.json"
     marketplace = json.loads(marketplace_path.read_text())
     addon = next(
-        entry for entry in marketplace["plugins"] if entry["name"] == "manifest-docker"
+        entry
+        for entry in marketplace["plugins"]
+        if entry["name"] == "manifest-delegate"
     )
     addon["description"] = "tampered generated addon metadata"
     marketplace_path.write_text(json.dumps(marketplace, indent=2) + "\n")

@@ -163,6 +163,7 @@ _COMPONENT_DEGRADATION_IMPORTS = {
     ("manifest-workspace", "parallel-agent-scripts"): frozenset(
         {"anthropic", "google", "rich"}
     ),
+    ("manifest-ops", "ops-bin"): frozenset({"yaml"}),
 }
 _COMPONENT_NODE_DEPENDENCIES = {
     # This is a generated-project template, not a dependency of Manifest's

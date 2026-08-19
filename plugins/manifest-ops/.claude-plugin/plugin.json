@@ -35,6 +35,12 @@
     ],
     "native": [
       {
+        "component_id": "compose-commandments",
+        "component_type": "hooks",
+        "mode": "native",
+        "path": "hooks/compose-commandments.json"
+      },
+      {
         "component_id": "version-pin",
         "component_type": "hooks",
         "mode": "native",
@@ -44,6 +50,7 @@
   },
   "description": "CI, deployment, configuration, container, and runtime operations workflows.",
   "hooks": [
+    "./hooks/compose-commandments.json",
     "./hooks/version-pin.json"
   ],
   "name": "manifest-ops",
@@ -56,6 +63,7 @@
     "./skills/config-validate-native",
     "./skills/deploy-diagnose-drift",
     "./skills/deploy-retire-component",
+    "./skills/docker-compose-commandments",
     "./skills/docker-probe-internal",
     "./skills/process-diagnose-stall",
     "./skills/version-pin"

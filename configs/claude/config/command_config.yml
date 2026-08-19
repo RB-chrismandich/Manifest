@@ -861,6 +861,19 @@ tool_policies:
   shell-audit-errexit:
     subagents: never
     subagent_rationale: Single-script/sourced-chain audit of coupled control-flow hazards; sequential.
+  shell-audit:
+    subagents: never
+    subagent_rationale: Router; forwards one target to the pipefail and errexit engines, which each fan out on their own.
+  refactor:
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
+  pr-manage:
+    subagents: never
+    subagent_rationale: Router; resolves intent then hands off to exactly one PR skill, which owns its own dispatch.
+  issue-manage:
+    subagents: never
+    subagent_rationale: Router; resolves intent then hands off to exactly one issue skill, which owns its own dispatch.
   skill-evolve:
     subagents: never
     subagent_rationale: Thin wrapper invoking one promote script (handles its own batching) and opens a PR.

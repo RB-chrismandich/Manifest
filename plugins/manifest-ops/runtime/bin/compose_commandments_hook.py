@@ -23,8 +23,8 @@ from pathlib import Path
 # has broken repo naming gates before.
 sys.dont_write_bytecode = True
 
-PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-CHECKER = PLUGIN_ROOT / "scripts" / "compose_check.py"
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent.parent
+CHECKER = PLUGIN_ROOT / "runtime" / "bin" / "compose_check.py"
 TIMEOUT_SECONDS = 20
 # The hook audits the whole file on every edit. Real stacks run ~5 findings per
 # service, so an uncapped report on a large compose file would bury the edit the
@@ -45,7 +45,7 @@ def edited_path(payload: dict) -> str:
 
 def is_recognised(path: Path) -> bool:
     """True when the filename is one the rule registry claims."""
-    sys.path.insert(0, str(PLUGIN_ROOT / "scripts"))
+    sys.path.insert(0, str(PLUGIN_ROOT / "runtime" / "bin"))
     from compose_check import is_compose_file, load_config
 
     return is_compose_file(path, load_config())
