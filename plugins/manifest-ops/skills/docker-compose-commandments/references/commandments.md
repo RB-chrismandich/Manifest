@@ -23,10 +23,10 @@ digest is what makes the pull reproducible; the tag stays for readability.
 
 **Delegation.** This checker only *detects* DC-001. Resolving the concrete
 version and digest belongs to Manifest's version-pinning tool
-(`~/.claude/scripts/version_pin.sh`), which already handles compose files
-alongside `requirements.txt` and Dockerfiles. Two tools resolving pins
-independently is how their semantics drift apart. That script is part of the
-full Manifest install; on a standalone install of this plugin, pin by hand.
+(`${CLAUDE_PLUGIN_ROOT}/runtime/bin/version_pin.sh`), which already handles
+compose files alongside `requirements.txt` and Dockerfiles. Two tools resolving
+pins independently is how their semantics drift apart. That script ships inside
+this bundle, so it is available wherever this plugin is installed.
 
 ---
 

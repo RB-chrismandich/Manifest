@@ -19,7 +19,13 @@ def _checker_module():
     return module
 
 
-def test_runtime_path_gate_accepts_checked_in_domain_bundles() -> None:
+def test_runtime_path_gate_accepts_checked_in_portable_bundles() -> None:
+    """Every portable bundle is scanned, addons included.
+
+    Addon bundles ship with generated native views just as domain bundles do,
+    so scanning only the domain set left an addon exempt from the
+    ungoverned-bundle flag yet passed through no scan at all.
+    """
     checker = _checker_module()
     root = Path(__file__).resolve().parents[2]
 
@@ -35,6 +41,7 @@ def test_runtime_path_gate_accepts_checked_in_domain_bundles() -> None:
         "manifest-spec-planning",
         "manifest-workspace",
         "stitch-design",
+        "manifest-i-have-adhd",
     )
 
 
@@ -168,4 +175,148 @@ def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(
 
     assert not any(
         violation.path.name == "runner.sh" for violation in report.violations
+    )
+
+
+def test_unregistered_bundle_is_flagged_not_silently_skipped(tmp_path) -> None:
+    """A bundle outside PORTABLE_BUNDLES must fail, never report clean.
+
+    Coverage used to be opt-in: enumeration walked a hardcoded tuple, so a
+    directory added under plugins/ was scanned by nothing and the gate returned
+    an empty violation list regardless of its contents.
+    """
+    checker = _checker_module()
+    (tmp_path / "plugins" / "manifest-unregistered").mkdir(parents=True)
+
+    report = checker.scan(tmp_path)
+
+    kinds = {violation.kind for violation in report.violations}
+    assert "ungoverned-bundle" in kinds
+    assert any(
+        violation.value == "manifest-unregistered" for violation in report.violations
+    )
+
+
+def test_declared_ungoverned_bundle_is_accepted(tmp_path) -> None:
+    """An exclusion recorded in UNGOVERNED_BUNDLES is declared, so it passes."""
+    checker = _checker_module()
+    (tmp_path / "plugins" / "manifest-delegate").mkdir(parents=True)
+
+    report = checker.scan(tmp_path)
+
+    assert not [v for v in report.violations if v.kind == "ungoverned-bundle"]
+
+
+def test_legacy_path_in_undeclared_bundle_file_is_caught(tmp_path) -> None:
+    """A shipped file at an undeclared path must still be scanned.
+
+    The gate used to enumerate only declared components and SKILL.md, but the
+    whole bundle directory is what gets installed. A helper dropped at an
+    undeclared path therefore shipped and ran while reporting no violations.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-forge"
+    (bundle / "lib").mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-forge, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "lib" / "helper.sh").write_text(
+        "#!/usr/bin/env bash\nsource ~/.claude/scripts/git_ops.sh\n", encoding="utf-8"
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert [v for v in report.violations if v.kind == "forbidden-runtime-path"], (
+        "undeclared bundle file was not scanned for legacy shared-home paths"
+    )
+
+
+def test_undeclared_files_skip_dependency_conformance_checks(tmp_path) -> None:
+    """Undeclared files are swept for legacy paths only.
+
+    Dependency declarations are a contract-conformance concern, so running them
+    over bundle tests and helper scripts would report undeclared imports for
+    files that were never contract surfaces.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-forge"
+    (bundle / "tests").mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-forge, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "tests" / "test_thing.py").write_text(
+        "import some_third_party_package\n", encoding="utf-8"
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert not [
+        v for v in report.violations if v.kind == "undeclared-python-dependency"
+    ]
+
+
+def test_home_variable_spelling_is_caught(tmp_path) -> None:
+    """`$HOME/.claude/...` must be caught, not just the tilde spelling.
+
+    Pattern matching is literal substring, so the tilde forms do not cover the
+    `$HOME` and `${HOME}` spellings. An adversarial probe walked straight
+    through the gate with `source "$HOME/.claude/scripts/git_ops.sh"`.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-forge"
+    (bundle / "lib").mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-forge, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "lib" / "obf.sh").write_text(
+        '#!/usr/bin/env bash\nsource "$HOME/.claude/scripts/git_ops.sh"\n'
+        'cat "${HOME}/.claude/config/labels.yml"\n',
+        encoding="utf-8",
+    )
+
+    report = checker.scan(tmp_path)
+
+    values = {v.value for v in report.violations}
+    assert any("scripts" in value for value in values)
+    assert any("config" in value for value in values)
+
+
+def test_addon_bundle_files_are_scanned_not_merely_exempted(tmp_path) -> None:
+    """An addon must be scanned, not just skipped by the ungoverned-bundle flag.
+
+    Listing a bundle in ADDON_BUNDLES silences the ungoverned flag for it. If
+    the contract loop still walked only DOMAIN_BUNDLES, that silence would be
+    the whole story: the bundle would ship its files to every harness while no
+    scan ever read them.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-i-have-adhd"
+    bundle.mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-i-have-adhd, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "leak.sh").write_text(
+        "#!/usr/bin/env bash\nsource ~/.claude/scripts/git_ops.sh\n", encoding="utf-8"
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert [v for v in report.violations if v.kind == "forbidden-runtime-path"], (
+        "addon bundle was exempted from the ungoverned flag but never scanned"
     )

@@ -33,11 +33,36 @@ DOMAIN_BUNDLES = (
     "manifest-workspace",
     "stitch-design",
 )
+ADDON_BUNDLES = ("manifest-i-have-adhd",)
+PORTABLE_BUNDLES = (*DOMAIN_BUNDLES, *ADDON_BUNDLES)
+
+# Bundles deliberately outside the portable-contract system.  Empty by design:
+# an entry here means the bundle ships to Claude only, is installed by no
+# harness adapter, and is scanned by no gate, so each one needs a recorded
+# reason and an owner.  Prefer giving the bundle a contract over adding it here.
+UNGOVERNED_BUNDLES: dict[str, str] = {
+    # Ships in the marketplace and installs under Claude Code, but has no
+    # manifest-capabilities.yml and no generated Gemini/Antigravity views, so
+    # no harness adapter can install it and delegation is Claude-only in
+    # practice.  Recorded here so the gap is declared rather than invisible.
+    # Removing this entry is the fix tracked by issue #784 (delegation setup
+    # for Cursor and Devin): give the bundle a portable contract and add it to
+    # ADDON_BUNDLES.
+    "manifest-delegate": "no portable contract; Claude-only (issue #784)",
+}
+
 FORBIDDEN_RUNTIME_PATTERNS = (
     "bootstrap.sh",
     "bootstrap/",
     "~/.claude/scripts",
     "~/.claude/config",
+    # $HOME spellings of the same two trees. Matching is literal substring, so
+    # the tilde forms above do not cover these and an adversarial probe walked
+    # straight through with `source "$HOME/.claude/scripts/git_ops.sh"`.
+    "$home/.claude/scripts",
+    "$home/.claude/config",
+    "${home}/.claude/scripts",
+    "${home}/.claude/config",
     "configs/claude/scripts",
     "configs/claude/config",
     "configs/claude/prompts",
@@ -58,6 +83,20 @@ FORBIDDEN_RUNTIME_PATTERNS = (
 NATIVE_PATH_ALLOWLIST: dict[tuple[str, str, str], frozenset[str]] = {
     ("manifest-workspace", "hooks", "claude"): frozenset({"~/.claude/settings.json"}),
 }
+
+# Bundle-relative files whose forbidden-looking text is illustrative rather than
+# a runtime dependency.  Keyed by repository-relative path so an exemption can
+# never widen to a whole directory by accident.
+ILLUSTRATIVE_FILE_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        # A worked example report that uses bootstrap.sh as its sample subject.
+        # The skill never invokes it.
+        "plugins/manifest-code-quality/skills/shell-refactor/references/output-format.md",
+    }
+)
+
+# Directories inside a bundle that ship but are not authored here.
+_UNSCANNED_DIRS = frozenset({"vendor", "dist", "node_modules", "__pycache__", ".git"})
 
 _TEXT_SUFFIXES = {".md", ".json", ".py", ".sh", ".mjs", ".js", ".yml", ".yaml"}
 _SHELL_BUILTINS = frozenset(
@@ -202,14 +241,20 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     if not plugins.exists():
         return ()
     records = []
-    for bundle in DOMAIN_BUNDLES:
+    # PORTABLE_BUNDLES, not DOMAIN_BUNDLES: addon bundles ship too, with
+    # generated native views, so their files reach installed harnesses exactly
+    # like a domain bundle's. Iterating only the domain set left an addon
+    # exempted from the ungoverned-bundle flag yet passed through no scan at
+    # all -- the same declared-but-unenforced false green this gate exists to
+    # prevent.
+    for bundle in PORTABLE_BUNDLES:
         contract_path = plugins / bundle / "manifest-capabilities.yml"
         if not contract_path.is_file():
             records.append(
                 (
                     bundle,
                     contract_path,
-                    {"_error": "required domain contract is missing"},
+                    {"_error": "required portable contract is missing"},
                 )
             )
             continue
@@ -224,9 +269,10 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     return tuple(records)
 
 
-def _component_paths(
+def _component_paths_declared(
     bundle_root: Path, document: dict[str, Any]
 ) -> Iterable[tuple[Path, str, str | None]]:
+    """Yield only SKILL.md files and explicitly declared component paths."""
     components = document.get("components", {})
     skills = components.get("skills", {})
     skills_root = bundle_root / str(skills.get("root", "skills"))
@@ -252,8 +298,41 @@ def _component_paths(
                 )
 
 
+def _component_paths(
+    bundle_root: Path, document: dict[str, Any]
+) -> Iterable[tuple[Path, str, str | None]]:
+    """Yield every text file the bundle ships, declared or not.
+
+    Declared components and ``SKILL.md`` are not the shipping boundary: the whole
+    bundle directory is installed, so a file at an undeclared path runs just as
+    readily. Scanning only declarations let such a file carry a legacy
+    shared-home reference while this gate reported no violations.
+    """
+    declared: set[Path] = set()
+    for path, kind, component_id in _component_paths_declared(bundle_root, document):
+        declared.add(path)
+        yield path, kind, component_id
+    for candidate in sorted(bundle_root.rglob("*")):
+        if not candidate.is_file() or candidate.suffix not in _TEXT_SUFFIXES:
+            continue
+        if candidate in declared:
+            continue
+        if _UNSCANNED_DIRS & set(candidate.relative_to(bundle_root).parts):
+            continue
+        yield candidate, "undeclared", None
+
+
 def _line_number(text: str, start: int) -> int:
     return text.count("\n", 0, start) + 1
+
+
+def _illustrative(path: Path) -> bool:
+    """True when a file's forbidden-looking text is a worked example, not a call."""
+    try:
+        relative = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return False
+    return relative in ILLUSTRATIVE_FILE_ALLOWLIST
 
 
 def _allowed_native_path(bundle: str, kind: str, text: str) -> bool:
@@ -280,7 +359,9 @@ def _path_violations(bundle: str, kind: str, path: Path, text: str) -> list[Viol
             if position < 0:
                 break
             matched = text[position : position + len(pattern)]
-            if not _allowed_native_path(bundle, kind, matched):
+            if not _allowed_native_path(bundle, kind, matched) and not _illustrative(
+                path
+            ):
                 violations.append(
                     Violation(
                         path,
@@ -564,10 +645,41 @@ def _shell_command_violations(
     return violations
 
 
+def _ungoverned_bundles(repo_root: Path) -> tuple[Violation, ...]:
+    """Flag any ``plugins/`` directory outside the portable-contract system.
+
+    Coverage is opt-out, not opt-in.  A bundle added to ``plugins/`` without a
+    portable contract is enumerated by no adapter and scanned by no gate, so it
+    reports clean no matter what it contains -- the false green that section 10
+    of the bootstrap-free distribution design forbids.
+    """
+    plugins = repo_root / "plugins"
+    if not plugins.is_dir():
+        return ()
+    found: list[Violation] = []
+    for entry in sorted(plugins.iterdir()):
+        if not entry.is_dir() or entry.name.startswith("."):
+            continue
+        if entry.name in PORTABLE_BUNDLES or entry.name in UNGOVERNED_BUNDLES:
+            continue
+        found.append(
+            Violation(
+                entry,
+                1,
+                "ungoverned-bundle",
+                entry.name,
+                f"{entry.name} is under plugins/ but appears in neither "
+                "DOMAIN_BUNDLES nor ADDON_BUNDLES, so no harness adapter "
+                "installs it and no runtime-path gate scans it",
+            )
+        )
+    return tuple(found)
+
+
 def scan(repo_root: Path = ROOT) -> ScanReport:
     """Return all deterministic bundle-runtime violations under ``repo_root``."""
     repo_root = repo_root.resolve()
-    violations: list[Violation] = []
+    violations: list[Violation] = list(_ungoverned_bundles(repo_root))
     for bundle, contract_path, document in _contract_files(repo_root):
         if "_error" in document:
             violations.append(
@@ -609,6 +721,13 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                 )
                 continue
             violations.extend(_path_violations(bundle, kind, path, text))
+            # Undeclared files are swept only for forbidden runtime paths. The
+            # dependency checks below are contract-conformance checks and are
+            # meaningful only for what the contract actually declares; running
+            # them over every shipped file would report undeclared imports for
+            # bundle tests and helper scripts that were never contract surfaces.
+            if kind == "undeclared":
+                continue
             if path.suffix == ".py":
                 violations.extend(
                     _python_import_violations(
