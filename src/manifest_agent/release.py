@@ -117,7 +117,15 @@ def _digest_checkout_entry(
     if gitlink_commit is not None:
         digest.update(b"g")
         digest.update(gitlink_commit.encode("ascii"))
-        if path.is_dir():
+        # Recurse only into a submodule that is genuinely initialized. An
+        # uninitialized gitlink leaves an empty directory that is not its own
+        # repository, so `git -C <dir> ls-files` resolves to the PARENT repo
+        # and returns this very gitlink back as "./" -- which lands here again
+        # for the same path, forever. Measured on this repository: an empty
+        # tests/test_helper/bats-assert yields `160000 <sha> 0 ./`, and the
+        # digest recursed until RecursionError. Any clone made without
+        # --recurse-submodules reproduces it, CI images included.
+        if path.is_dir() and (path / ".git").exists():
             digest.update(bytes.fromhex(deterministic_tree_sha256(path)))
         return
     try:

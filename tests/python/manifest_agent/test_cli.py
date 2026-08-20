@@ -17,7 +17,7 @@ def test_cli_lists_exact_control_plane_commands():
     assert result.exit_code == 0
     assert all(
         name in result.output
-        for name in ("install", "migrate", "reconcile", "uninstall")
+        for name in ("install", "migrate", "reconcile", "update", "uninstall")
     )
     assert "parallel-agent" not in result.output
 
@@ -25,7 +25,7 @@ def test_cli_lists_exact_control_plane_commands():
 def test_lifecycle_commands_expose_exact_common_options():
     runner = CliRunner()
 
-    for command in ("install", "migrate", "reconcile", "uninstall"):
+    for command in ("install", "migrate", "reconcile", "update", "uninstall"):
         result = runner.invoke(cli_module.cli, [command, "--help"])
         assert result.exit_code == 0
         assert all(
@@ -202,3 +202,26 @@ def test_skill_run_missing_provider_is_a_stable_usage_error(tmp_path, monkeypatc
     assert result.exit_code == 2
     assert "provider launch failed before execution" in result.output
     assert "Traceback" not in result.output
+
+
+def test_update_is_an_alias_for_the_reconcile_repair_path(monkeypatch):
+    """`update` must apply, not merely inspect.
+
+    The capability already existed as `reconcile --apply`; the alias exists so
+    upgrading is discoverable without knowing that a command named for drift
+    inspection is also the upgrade path. If it ever stopped passing apply=True
+    it would silently become a no-op that reports success.
+    """
+    seen = {}
+
+    class FakeService:
+        def reconcile(self, apply=False):
+            seen["apply"] = apply
+            return ServiceReport("reconcile", ResultState.READY, {})
+
+    monkeypatch.setattr(cli_module, "_service", lambda **options: FakeService())
+
+    result = CliRunner().invoke(cli_module.cli, ["update"])
+
+    assert result.exit_code == 0
+    assert seen["apply"] is True

@@ -64,6 +64,12 @@ it. Correct section 11, which currently claims native managers own update.
 `src/manifest_agent/adapters/cursor.py:119-134`; `src/manifest_agent/release.py:22,223`;
 `adapters/gemini.py:120`; design sections 6, 7 and 11.
 
+**Resolved 2026-08-19 (issue #786).** `manifest update` added as a named alias
+for the reconcile repair path (`cli.py`), design section 7 documents it and
+forbids harness-native auto-update flags with the release-identity rule as the
+stated reason, and section 11's claim that native managers own update is
+corrected. The cursor-versus-others sourcing split is recorded but left as-is.
+
 ## 2. Bundle coverage was opt-in, so an unregistered bundle reported clean
 
 **What the spec says:** Section 10 requires "a repository gate forbidding
@@ -161,6 +167,12 @@ bootstrap deploy stamp and has no meaning once bootstrap is gone.
 `plugins/manifest-spec-planning/manifest-capabilities.yml`;
 `tools/render_plugin_capability_matrix.py:264-270`.
 
+**Partly resolved 2026-08-19 (issue #787).** Design Stage 3 now states that hook
+migrations are gated on a live parity run and that only a credential-holding
+maintainer can start one; Stage 6 records that `deploy_stamp_check.sh` is retired
+rather than re-homed, and names the negative test that gates the stage. The seven
+migrations themselves remain blocked on that evidence.
+
 ## 5. Stage status is unrecorded and untracked
 
 **The gap:** Work began 2026-08-01 and the most recent coordinator commit is the
@@ -184,3 +196,9 @@ kept current, and open one tracking issue per remaining stage.
 
 **Source:** `git log src/manifest_agent/`; `gh issue list`; HOME-isolation search
 across `tests/python/manifest_agent/`.
+
+**Resolved 2026-08-19 (issues #788, #794).** Session-scoped HOME isolation landed
+in PR #796, and the cache pin now falls back to the scratch home when the real
+one is unusable. The coordinator suite passes 522/522 against a nonexistent HOME,
+up from 13 failures. The two long-standing failures were not HOME-related at all:
+they were the gitlink RecursionError, fixed under #794.

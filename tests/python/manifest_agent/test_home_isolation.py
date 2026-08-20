@@ -35,10 +35,36 @@ def test_shared_build_caches_are_not_redirected_into_the_temp_home() -> None:
     449 extra entries per session.
     """
     home = Path(os.environ["HOME"]).resolve()
+    # The fixture falls back to the scratch home when the real one is unusable
+    # (HOME unset or absent). That fallback is deliberate and must not be read
+    # as a regression, so the sharing contract only binds when there is a real
+    # home to share with.
+    real_home_usable = os.environ.get("MANIFEST_TEST_CACHES_SHARED") == "1"
     for name in ("XDG_CACHE_HOME", "UV_CACHE_DIR", "PIP_CACHE_DIR"):
         value = os.environ.get(name)
         assert value, f"{name} should be pinned by the isolation fixture"
+        if not real_home_usable:
+            continue
         assert not Path(value).resolve().is_relative_to(home), (
             f"{name}={value} points inside the temp home, so caches are rebuilt "
             "every session"
         )
+
+
+def test_pinned_cache_dirs_are_usable() -> None:
+    """A cache pin must never point somewhere unwritable.
+
+    Pinning the caches to the real ``$HOME/.cache`` is a speed optimisation, so
+    it must not be able to fail a run. With HOME unset or absent the pin used to
+    resolve to a path ``uv run`` could not create, and three subprocess-spawning
+    tests failed with "Read-only file system" -- a test-harness defect wearing
+    the costume of a product bug.
+    """
+    for name in ("XDG_CACHE_HOME", "UV_CACHE_DIR", "PIP_CACHE_DIR"):
+        value = os.environ.get(name)
+        assert value, f"{name} should be pinned by the isolation fixture"
+        target = Path(value)
+        probe = target / ".manifest-write-probe"
+        target.mkdir(parents=True, exist_ok=True)
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()

@@ -123,6 +123,54 @@ def test_local_checkout_digest_encodes_uninitialized_gitlinks(tmp_path):
     assert len(deterministic_tree_sha256(repo)) == 64
 
 
+def test_uninitialized_gitlink_with_an_empty_directory_does_not_recurse(tmp_path):
+    """The gitlink directory exists but is empty -- what a plain clone leaves.
+
+    The sibling test above registers a gitlink whose directory was never
+    created, so `path.is_dir()` is False and the digest never descends. A clone
+    made without --recurse-submodules is different: git materializes the path as
+    an empty directory. That directory is not its own repository, so
+    `git -C <dir> ls-files` resolves to the PARENT repo and hands back this very
+    gitlink as "./", which re-enters the same path until RecursionError.
+    """
+    repo = _local_checkout(tmp_path)
+    commit = _git(repo, "rev-parse", "HEAD")
+    (repo / "vendor").mkdir(parents=True, exist_ok=True)
+    (repo / "vendor" / "dependency").mkdir()
+    _git(
+        repo,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{commit},vendor/dependency",
+    )
+
+    assert len(deterministic_tree_sha256(repo)) == 64
+
+
+def test_initialized_gitlink_still_contributes_its_tree(tmp_path):
+    """A real nested checkout must still move the parent digest when it changes."""
+    repo = _local_checkout(tmp_path)
+    commit = _git(repo, "rev-parse", "HEAD")
+    nested = repo / "vendor" / "dependency"
+    nested.mkdir(parents=True)
+    _git(nested, "init", "-q")
+    (nested / "inner.txt").write_text("one\n", encoding="utf-8")
+    _git(nested, "add", "inner.txt")
+    _git(
+        repo,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{commit},vendor/dependency",
+    )
+
+    before = deterministic_tree_sha256(repo)
+    (nested / "inner.txt").write_text("two\n", encoding="utf-8")
+
+    assert deterministic_tree_sha256(repo) != before
+
+
 def test_local_checkout_requires_clean_generated_views(tmp_path):
     repo = _local_checkout(tmp_path)
     (repo / "tools" / "generate_plugin_views.py").write_text(
