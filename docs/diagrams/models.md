@@ -2,6 +2,8 @@
 
 > Which model a run gets, and how stale pins are detected.
 
+**Last Updated**: 2026-08-20
+
 ## Model Selection & Credit Fallback
 
 Automatic model tier selection and graceful fallback when quota/credits are exhausted.

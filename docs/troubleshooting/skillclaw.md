@@ -2,6 +2,8 @@
 
 > Capture, ingest, and evolve failures.
 
+**Last Updated**: 2026-08-20
+
 ## SkillClaw Issues
 
 SkillClaw is opt-in and disabled by default. These issues only apply when

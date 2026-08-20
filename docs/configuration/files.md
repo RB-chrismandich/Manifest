@@ -2,6 +2,8 @@
 
 > Which file wins, and which env vars override it.
 
+**Last Updated**: 2026-08-20
+
 ## Configuration Files
 
 All configuration files are located in `~/.claude/config/`:

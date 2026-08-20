@@ -2,6 +2,8 @@
 
 > How skills are processed and how agent output is scored into a verdict.
 
+**Last Updated**: 2026-08-20
+
 ## Skill Processing Architecture
 
 How slash commands (skills) are processed from user input to execution with parallel agent integration.

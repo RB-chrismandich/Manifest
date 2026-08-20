@@ -12,6 +12,7 @@
 
 | Page | Answers |
 |------|---------|
+| [Available Commands](commands/overview.md) | What is the command surface at a glance? |
 | [Built-in Commands](commands/builtin.md) | What ships, and how do labels and issue hooks work? |
 | [Authoring a Command](commands/authoring.md) | What is a command made of, and what patterns exist? |
 | [State-Machine Commands](commands/state-machines.md) | How do phased commands and parallel-agent steps work? |

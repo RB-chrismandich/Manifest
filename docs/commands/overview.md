@@ -2,6 +2,8 @@
 
 > The command surface at a glance.
 
+**Last Updated**: 2026-08-20
+
 ## Available Commands
 
 > **Find any command:** run `/help [query]` in-session for searchable, categorized
@@ -36,4 +38,4 @@
 
 ---
 
-[← Manifest README](../COMMANDS.md)
+[← Commands Guide](../COMMANDS.md)

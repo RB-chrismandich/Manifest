@@ -2,6 +2,8 @@
 
 > Where everything lives in this repository.
 
+**Last Updated**: 2026-08-20
+
 ## Project Structure
 
 ```text

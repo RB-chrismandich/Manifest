@@ -2,6 +2,8 @@
 
 > How to run the bats and pytest suites.
 
+**Last Updated**: 2026-08-20
+
 ## Testing
 
 ```bash

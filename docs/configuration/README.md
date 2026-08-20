@@ -2,10 +2,13 @@
 
 > Every setting Manifest reads, grouped by the file it lives in.
 
+**Last Updated**: 2026-08-20
+
 **Prerequisites**: Manifest installed via `bootstrap.sh` or manually.
 
 | Page | Answers |
 |------|---------|
+| [Quickstart](quickstart.md) | What are the few settings most people change first? |
 | [Files, Precedence & Environment](files.md) | Which config file wins, and which env var overrides it? |
 | [Service Configuration](services.md) | How are per-service toggles, SkillClaw, and plugin reconciliation set? |
 | [Command Configuration](commands.md) | Where do thresholds, tool policies, and CLI flags come from? |

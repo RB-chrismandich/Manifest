@@ -2,6 +2,8 @@
 
 > The allowed domain prefixes and what each one covers.
 
+**Last Updated**: 2026-08-20
+
 ## Domain Vocabulary
 
 The first token(s) of every skill name must appear in this list. The conformance test

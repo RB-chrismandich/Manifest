@@ -2,6 +2,8 @@
 
 > Reading paths through the docs set.
 
+**Last Updated**: 2026-08-20
+
 ## How to Navigate
 
 ### By Task

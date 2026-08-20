@@ -2,6 +2,8 @@
 
 > Pins, tiers, and fallback order.
 
+**Last Updated**: 2026-08-20
+
 ## Model Selection
 
 ### Model Tiers

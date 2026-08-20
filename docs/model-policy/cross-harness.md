@@ -2,6 +2,8 @@
 
 > How model tiers map across Claude, Cursor, Codex, and Antigravity.
 
+**Last Updated**: 2026-08-20
+
 ## Cross-Harness Skill Model Policy
 
 Skills may declare portable, ordered tiers without embedding provider model IDs:

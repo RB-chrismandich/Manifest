@@ -2,6 +2,8 @@
 
 > Invoking skills and commands after your first successful run.
 
+**Last Updated**: 2026-08-20
+
 ## Using Commands
 
 Manifest integrates with Claude Code through slash commands.

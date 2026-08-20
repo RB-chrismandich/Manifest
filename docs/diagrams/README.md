@@ -2,6 +2,8 @@
 
 > Mermaid diagrams of the Manifest orchestration framework, one subject per page.
 
+**Last Updated**: 2026-08-20
+
 Twenty diagrams, grouped by what they explain. Each page holds at most four.
 
 | Page | Answers |

@@ -2,6 +2,8 @@
 
 > Tier 1 and Tier 2 rules, weights, and verdicts.
 
+**Last Updated**: 2026-08-20
+
 ## Validation Criteria
 
 **File**: `~/.claude/config/validation_criteria.yml`

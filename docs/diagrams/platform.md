@@ -2,6 +2,8 @@
 
 > Git platform detection and the bootstrap installation sequence.
 
+**Last Updated**: 2026-08-20
+
 ## Git Platform Detection & Operations
 
 Platform-agnostic Git operations flow with automatic platform detection and routing to appropriate CLI tools.

@@ -2,6 +2,8 @@
 
 > Per-service toggles, SkillClaw, and native plugin reconciliation.
 
+**Last Updated**: 2026-08-20
+
 ## Service Configuration
 
 **File**: `~/.claude/config/services.yml`

@@ -2,6 +2,8 @@
 
 > Config layering, service state, and the label registry.
 
+**Last Updated**: 2026-08-20
+
 ## Configuration Layer
 
 How YAML configuration files control behavior, thresholds, and service toggles.

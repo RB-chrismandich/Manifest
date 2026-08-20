@@ -2,6 +2,8 @@
 
 > Which pages to read depending on who you are.
 
+**Last Updated**: 2026-08-20
+
 ## Documentation by Audience
 
 ### For New Users

@@ -2,6 +2,8 @@
 
 > Dated record of documentation coverage and updates.
 
+**Last Updated**: 2026-08-20
+
 ## Documentation Health
 
 **Current Score**: 90/100

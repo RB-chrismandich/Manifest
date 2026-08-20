@@ -2,6 +2,8 @@
 
 > The few settings worth changing before you go further.
 
+**Last Updated**: 2026-08-20
+
 ## Configuration Basics
 
 ### Enable/Disable Services
@@ -71,7 +73,7 @@ Choose models based on task complexity:
 Verified 2026-07-29 by a live one-shot call per pin, **except** the Gemini and
 Codex columns: the `gemini` CLI is ineligible on a free-tier account (migrate to
 Antigravity) and the `codex` CLI is logged out, so neither could be confirmed.
-See [CONFIGURATION.md](CONFIGURATION.md#model-tiers) for per-provider status.
+See [Model Tiers](../configuration/models.md#model-tiers) for per-provider status.
 
 Devin is absent from this table on purpose: its catalog is login-gated, so nothing
 is pinned. `--devin-model` defaults to `auto` (no `--model` flag) and otherwise

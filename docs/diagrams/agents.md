@@ -2,6 +2,8 @@
 
 > Module graph, backend selection, and the execution flow of a parallel run.
 
+**Last Updated**: 2026-08-20
+
 ## agents/ Package Module Dependency Graph
 
 Import dependency graph of the `agents/` package (PR #260). Arrows point from depended-upon

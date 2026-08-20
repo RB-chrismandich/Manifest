@@ -2,6 +2,8 @@
 
 > Settings that do not take effect, and plugin convergence.
 
+**Last Updated**: 2026-08-20
+
 ## Configuration Issues
 
 ### services.yml Not Found

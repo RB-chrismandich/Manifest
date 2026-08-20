@@ -59,8 +59,8 @@ a checklist. Priority order when several are missing:
 |----------|------------------------|
 | `docs/README.md` | Without a hub, sub-pages are unreachable |
 | `docs/GETTING_STARTED.md` | First-run path, verified end to end |
-| `docs/CONFIGURATION.md` | Every option, actual defaults |
-| `docs/TROUBLESHOOTING.md` | Real error strings users will paste |
+| `docs/configuration/` | Every option, actual defaults |
+| `docs/troubleshooting/` | Real error strings users will paste |
 | `docs/ARCHITECTURE.md` | Why, for the person changing it |
 
 New pages start at the minimum viable shape: title, one-line purpose, content.

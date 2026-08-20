@@ -2,6 +2,8 @@
 
 > SkillClaw ingest/evolve and the critic-driven development loop.
 
+**Last Updated**: 2026-08-20
+
 ## SkillClaw Passive Ingest & Evolve Pipeline
 
 How existing Claude Code session transcripts are passively read, scrubbed for secrets,
@@ -35,7 +37,7 @@ flowchart LR
     GIT_BRANCH["git switch -c\nskillclaw/evolve-N-SHA"]:::process
     PR["git_ops.sh pr-create\n(needs-review + follow-up labels)"]:::process
 
-    retired skill supply[".apm/skills/\n(committed library)"]:::output
+    SKILL_LIBRARY[".apm/skills/\n(committed library)"]:::output
 
     TRANSCRIPTS --> INGEST
     INGEST --> SCRUB
@@ -46,7 +48,7 @@ flowchart LR
     CLASSIFY -->|rejected| EVOLVED_LIB
     PROMOTE --> GIT_BRANCH
     GIT_BRANCH --> PR
-    PR --> retired skill supply
+    PR --> SKILL_LIBRARY
 ```
 
 **Pipeline Stages**:

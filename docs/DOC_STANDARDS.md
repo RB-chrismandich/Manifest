@@ -2,6 +2,8 @@
 
 > Diataxis types, line caps, and the linter that enforces them.
 
+**Last Updated**: 2026-08-20
+
 ## Documentation Standards
 
 All documentation in this repository follows these conventions:

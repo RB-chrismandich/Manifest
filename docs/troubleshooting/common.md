@@ -2,6 +2,8 @@
 
 > The failures new users hit most often.
 
+**Last Updated**: 2026-08-20
+
 ## Troubleshooting
 
 **Bootstrap fails with "Permission denied":**
@@ -57,4 +59,4 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 
 ---
 
-[← Manifest README](README.md)
+[← Troubleshooting](README.md)

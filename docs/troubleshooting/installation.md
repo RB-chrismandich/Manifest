@@ -2,6 +2,8 @@
 
 > Bootstrap, CLI installs, and PATH failures.
 
+**Last Updated**: 2026-08-20
+
 ## Installation Issues
 
 ### Bootstrap Fails with "Permission denied"

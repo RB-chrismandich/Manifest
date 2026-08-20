@@ -2,6 +2,8 @@
 
 > Shipped commands, label management, and the issue-linking hooks.
 
+**Last Updated**: 2026-08-20
+
 ## Built-in Commands
 
 Manifest ships with 80+ skills and 1 CLI tool; the table below is a curated

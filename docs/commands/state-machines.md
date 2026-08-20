@@ -2,6 +2,8 @@
 
 > Phased commands, the deployment pipeline, and parallel-agent integration.
 
+**Last Updated**: 2026-08-20
+
 ## Building State Machine Commands
 
 **Pattern Documentation**: See [Command State Machine Pattern](../templates/patterns/command-state-machine.md)

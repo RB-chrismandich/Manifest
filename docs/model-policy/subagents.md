@@ -2,6 +2,8 @@
 
 > Why sub-agents are pinned, how it is enforced, and the measured compliance.
 
+**Last Updated**: 2026-08-20
+
 ## 1. Sub-agents default to Sonnet
 
 **Rule.** Pin an explicit model on every dispatch. Sonnet unless the task needs

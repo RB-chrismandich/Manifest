@@ -2,6 +2,8 @@
 
 > How to move one lever at a time, and what is not yet measured.
 
+**Last Updated**: 2026-08-20
+
 ## 4. Changing a lever: one at a time
 
 Batched changes produce an unattributable delta, which defeats the reason the

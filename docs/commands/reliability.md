@@ -2,6 +2,8 @@
 
 > Failure paths, recovery, and how to test a command before shipping it.
 
+**Last Updated**: 2026-08-20
+
 ## Error Handling
 
 ### Basic Error Handling

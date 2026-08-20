@@ -2,6 +2,8 @@
 
 > Commands that show what is actually wrong, and where to escalate.
 
+**Last Updated**: 2026-08-20
+
 ## Diagnostic Commands
 
 ### Quick System Health Check

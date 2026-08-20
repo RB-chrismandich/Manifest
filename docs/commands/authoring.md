@@ -2,6 +2,8 @@
 
 > What a command is, how it is structured, and the common patterns.
 
+**Last Updated**: 2026-08-20
+
 ## What Are Commands
 
 Commands are markdown files that define reusable workflows for Claude Code. They enable:

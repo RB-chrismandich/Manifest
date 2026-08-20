@@ -2,6 +2,8 @@
 
 > Agents that hang, fail, or return nothing.
 
+**Last Updated**: 2026-08-20
+
 ## Agent Execution Issues
 
 ### Agent Status: "missing"

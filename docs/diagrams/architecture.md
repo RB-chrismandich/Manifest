@@ -2,6 +2,8 @@
 
 > How the deployed tree and the parallel-agent orchestrator are laid out.
 
+**Last Updated**: 2026-08-20
+
 ## Application Architecture
 
 High-level overview of the complete system showing major components and their relationships.
@@ -57,8 +59,8 @@ flowchart TB
         SKILLCLAW_SCRUB["skillclaw_scrub.py\n(secret redaction)"]:::process
         SKILLCLAW_EVOLVE["skillclaw_evolve.py\n(map-reduce via claude -p)"]:::process
         SKILLCLAW_PROMOTE["skillclaw_promote.sh\n(classify → reject-dir → PR)"]:::process
-        retired skill supply[".apm/skills/\n(committed library)"]:::config
-        SKILLCLAW_INGEST --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> retired skill supply
+        SKILL_LIBRARY[".apm/skills/\n(committed library)"]:::config
+        SKILLCLAW_INGEST --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> SKILL_LIBRARY
     end
 
     USER --> BOOTSTRAP

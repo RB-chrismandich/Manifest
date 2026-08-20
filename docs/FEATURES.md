@@ -2,6 +2,8 @@
 
 > What Manifest does, feature by feature.
 
+**Last Updated**: 2026-08-20
+
 ## Features
 
 - **Parallel Agent Orchestration**: Run 2-5 AI agents simultaneously

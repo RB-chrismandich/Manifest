@@ -2,6 +2,8 @@
 
 > Supported platforms, CLIs, and versions.
 
+**Last Updated**: 2026-08-20
+
 ## Requirements
 
 **For bootstrap.sh (automated setup):**
@@ -46,4 +48,4 @@
 
 ---
 
-[← Manifest README](../GETTING_STARTED.md)
+[← Getting Started](../GETTING_STARTED.md)

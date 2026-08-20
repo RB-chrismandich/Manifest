@@ -2,6 +2,8 @@
 
 > Tracker architecture, the sync hooks, and the autonomous developer loop.
 
+**Last Updated**: 2026-08-20
+
 ## Issue Management Architecture
 
 Shows the two issue management commands and how they interact with different platforms.

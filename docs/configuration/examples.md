@@ -2,6 +2,8 @@
 
 > Complete configurations for common setups.
 
+**Last Updated**: 2026-08-20
+
 ## Examples
 
 ### Example 1: Lightweight Security Scan

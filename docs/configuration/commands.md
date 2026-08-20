@@ -2,6 +2,8 @@
 
 > Thresholds, tool policies, agent commands, and CLI flags.
 
+**Last Updated**: 2026-08-20
+
 ## Command Configuration
 
 **File**: `~/.claude/config/command_config.yml`

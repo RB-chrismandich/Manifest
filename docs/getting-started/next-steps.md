@@ -2,6 +2,8 @@
 
 > Where to go once the basics work.
 
+**Last Updated**: 2026-08-20
+
 ## Next Steps
 
 ### For Regular Use

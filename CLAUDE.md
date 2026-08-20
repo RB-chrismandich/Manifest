@@ -173,7 +173,7 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 **Labels**: managed centrally in `configs/claude/config/labels.yml` (12 active
 labels incl. the auto-dev lifecycle set), synced across GitHub, GitLab and
 Linear by `label_sync.sh`; the full registry table lives in
-[docs/COMMANDS.md](docs/COMMANDS.md#label-management).
+[docs/commands/builtin.md](docs/commands/builtin.md#label-management).
 
 ```bash
 configs/claude/scripts/label_sync.sh             # sync to current platform

@@ -2,6 +2,8 @@
 
 > Why sessions start on Opus and why individual turns are not downgraded.
 
+**Last Updated**: 2026-08-20
+
 ## 2. Sessions start on Opus (1M context); there is no tier above it
 
 **Rule.** Opus is the default start model and, since the Fable tier was retired

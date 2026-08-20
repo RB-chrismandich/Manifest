@@ -2,6 +2,8 @@
 
 > The commands from this tutorial, in one table.
 
+**Last Updated**: 2026-08-20
+
 ## Quick Reference
 
 ```bash

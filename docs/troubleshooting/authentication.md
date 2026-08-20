@@ -2,6 +2,8 @@
 
 > Login, token, and credential failures per provider.
 
+**Last Updated**: 2026-08-20
+
 ## Authentication Issues
 
 > **API keys are optional.** The Claude/Gemini agents select an execution backend

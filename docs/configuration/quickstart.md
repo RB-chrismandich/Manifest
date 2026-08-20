@@ -2,6 +2,8 @@
 
 > The settings most people change first.
 
+**Last Updated**: 2026-08-20
+
 ## Configuration
 
 ### Enable/Disable Services
@@ -53,4 +55,4 @@ variables, and advanced options
 
 ---
 
-[← Manifest README](README.md)
+[← Configuration](README.md)

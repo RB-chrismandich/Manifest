@@ -2,6 +2,8 @@
 
 > Conventions, FAQ, contributing, and the complete command template.
 
+**Last Updated**: 2026-08-20
+
 ## Best Practices
 
 ### 1. Clear Documentation
