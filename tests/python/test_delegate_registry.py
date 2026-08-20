@@ -10,6 +10,7 @@ Run with: uv run --project configs/claude pytest tests/python/test_delegate_regi
 """
 
 import json
+import re
 
 import pytest
 from _delegate_inproc import SCRIPT_PATH, _valid_backend, delegate
@@ -203,3 +204,175 @@ class TestShippedClaudeSandbox:
             assert settings.get("sandbox", {}).get("enabled") is True, (
                 f"claude {mode} mode --settings does not enable the sandbox"
             )
+
+
+def _shipped_registry():
+    from _delegate_inproc import REPO_ROOT
+
+    return json.loads(
+        (REPO_ROOT / "plugins/manifest-delegate/config/backends.json").read_text()
+    )["backends"]
+
+
+def _shipped(backend_id):
+    return next(b for b in _shipped_registry() if b["id"] == backend_id)
+
+
+class TestShippedRegistryContract:
+    """Gates every SHIPPED entry, so a backend added later inherits them.
+
+    FR-016 says adding a backend is entry-only; these are the promises an
+    entry has to keep for that to be true — the guidance file it points at
+    must exist, and its services toggle must be a key services.yml actually
+    writes (otherwise readiness silently treats it as enabled-by-absence).
+    """
+
+    def test_every_backend_prompting_ref_exists(self):
+        from _delegate_inproc import REPO_ROOT
+
+        plugin = REPO_ROOT / "plugins/manifest-delegate"
+        missing = [
+            (b["id"], b["prompting_ref"])
+            for b in _shipped_registry()
+            if not (plugin / b["prompting_ref"]).is_file()
+        ]
+        assert not missing, f"prompting_ref targets do not exist: {missing}"
+
+    def test_every_services_key_is_written_by_bootstrap(self):
+        from _delegate_inproc import REPO_ROOT
+
+        body = (REPO_ROOT / "bootstrap/lib/config.sh").read_text()
+        start = body.index("write_services_config()")
+        section = body[start : body.index("\n}", start)]
+        written = set(re.findall(r"^  (\w[\w-]*):\s*$", section, re.M))
+        unknown = sorted({b["services_key"] for b in _shipped_registry()} - written)
+        assert not unknown, f"services_key not written to services.yml: {unknown}"
+
+    def test_no_backend_can_resume_without_capturing_a_session_id(self):
+        """A resume template is useless — and misleading — unless the entry
+        also declares how {session_ref} is captured."""
+        broken = [
+            b["id"]
+            for b in _shipped_registry()
+            if b.get("resume")
+            and (b.get("session_id_capture") or {}).get("method") in (None, "none")
+        ]
+        assert not broken, f"resume declared with no session capture: {broken}"
+
+
+class TestShippedCursorSandbox:
+    """Measured 2026-08-19 against cursor-agent 2026.08.04: `-p
+    --output-format json` emits {"result", "session_id"} and reads the prompt
+    from stdin; `--mode plan` is read-only and `--resume <id>` restores
+    context. The gate here is the sandbox, which must survive `--write`."""
+
+    def test_sandbox_stays_enabled_in_both_modes(self):
+        cursor = _shipped("cursor")
+        for write in (False, True):
+            argv = delegate.backend.build_invoke_argv(cursor, write, "flash", {})
+            mode = "write" if write else "read-only"
+            assert "--sandbox" in argv, f"cursor {mode} mode is missing --sandbox"
+            assert argv[argv.index("--sandbox") + 1] == "enabled", (
+                f"cursor {mode} mode does not enable the sandbox"
+            )
+
+    def test_read_only_mode_pins_plan_and_write_mode_drops_only_that(self):
+        cursor = _shipped("cursor")
+        read_only = delegate.backend.build_invoke_argv(cursor, False, "flash", {})
+        assert read_only[read_only.index("--mode") + 1] == "plan"
+        assert "--mode" not in delegate.backend.build_invoke_argv(
+            cursor, True, "flash", {}
+        )
+
+    def test_workspace_trust_is_answered_without_force_flags(self):
+        """cursor-agent refuses to run in an untrusted directory and, being
+        non-interactive, cannot answer the prompt (measured: exit 1, "Workspace
+        Trust Required"). `--trust` answers only that gate; the run stays
+        sandboxed and read-only. The force flags that DO drop permissions
+        (`--yolo`, `--force`, `-f`) must never appear."""
+        cursor = _shipped("cursor")
+        for write in (False, True):
+            argv = delegate.backend.build_invoke_argv(cursor, write, "flash", {})
+            mode = "write" if write else "read-only"
+            assert "--trust" in argv, f"cursor {mode} mode cannot pass the trust gate"
+            forbidden = {"--yolo", "--force", "-f", "--auto-review"}
+            assert not forbidden & set(argv), f"cursor {mode} mode uses a force flag"
+        resume = delegate.backend.build_resume_argv(cursor, "SID", False, "flash", {})
+        assert "--trust" in resume, "cursor resume cannot pass the trust gate"
+
+    def test_session_id_and_result_are_read_from_the_cli_json(self):
+        cursor = _shipped("cursor")
+        assert cursor["session_id_capture"] == {
+            "method": "json_field",
+            "field": "session_id",
+        }
+        assert cursor["response_capture"] == {
+            "method": "json_field",
+            "field": "result",
+        }
+
+
+class TestShippedDevinProfile:
+    """Devin is login-gated, so its profile is deliberately conservative:
+    no resume handle is observable in print mode, and `devin models list`
+    cannot be enumerated to pin tiers (parallel_agent.yml records the same
+    finding), so the factory tier is `auto`."""
+
+    def test_resume_is_disclosed_as_unsupported_not_faked(self):
+        devin = _shipped("devin")
+        assert devin["resume"] is None
+        assert devin["session_id_capture"]["method"] == "none"
+
+    def test_default_tier_auto_drops_the_model_flag(self):
+        devin = _shipped("devin")
+        tier = delegate.backend.resolve_model_tier(devin, {}, None)
+        argv = delegate.backend.build_invoke_argv(devin, False, tier, {"prompt": "p"})
+        assert "--model" not in argv, argv
+
+    def test_permission_mode_is_read_only_by_default_and_sandboxed_in_both(self):
+        devin = _shipped("devin")
+        read_only = delegate.backend.build_invoke_argv(
+            devin, False, "auto", {"prompt": "p"}
+        )
+        write = delegate.backend.build_invoke_argv(devin, True, "auto", {"prompt": "p"})
+        assert read_only[read_only.index("--permission-mode") + 1] == "auto"
+        assert write[write.index("--permission-mode") + 1] == "accept-edits"
+        for mode, argv in (("read-only", read_only), ("write", write)):
+            assert "--sandbox" in argv, f"devin {mode} mode is missing --sandbox"
+
+    def test_bounded_argv_transport_rejects_oversize_prompts(self):
+        devin = _shipped("devin")
+        assert devin["input"]["transport"] == "argv"
+        cap = devin["input"]["max_payload_bytes"]
+        assert cap == 65536
+        err = delegate.backend.check_payload_limits(devin, b"x" * (cap + 1))
+        assert err and str(cap) in err
+
+
+class TestShippedRegistryMatchesContract:
+    """The registry file declares `$schema`, but nothing validated against it
+    until now — which is how `response_capture` reached the shipped claude
+    entry (and the dispatcher's extract_response_text) without ever being
+    added to the contract. This gate closes that loop: contract drift fails
+    here instead of being discovered when a backend is added."""
+
+    def test_every_shipped_entry_validates_against_the_contract(self):
+        import jsonschema
+        from _delegate_inproc import REPO_ROOT
+
+        schema = json.loads(
+            (
+                REPO_ROOT
+                / "specs/675-multi-agent-delegation/contracts"
+                / "backend-registry.schema.json"
+            ).read_text()
+        )
+        validator = jsonschema.Draft202012Validator(schema)
+        failures = [
+            f"{entry['id']}: {list(err.absolute_path)} {err.message}"
+            for entry in _shipped_registry()
+            for err in validator.iter_errors(entry)
+        ]
+        assert not failures, "registry entries violate the contract: " + "; ".join(
+            failures
+        )

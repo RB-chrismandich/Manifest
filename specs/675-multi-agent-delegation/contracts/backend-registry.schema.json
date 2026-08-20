@@ -55,6 +55,16 @@
         "pattern": { "type": "string", "description": "Regex with one capture group for output_scan" }
       }
     },
+    "response_capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "description": "How the assistant text is recovered when the backend wraps it in a structured stdout envelope (claude/cursor `--output-format json` put the fenced result envelope inside a JSON-escaped field, where the fence scanner cannot see it). Absent => stdout is scanned as-is",
+      "properties": {
+        "method": { "enum": ["json_field"] },
+        "field": { "type": "string", "description": "Top-level field holding the assistant text (e.g. result)" }
+      }
+    },
     "input": {
       "type": "object",
       "additionalProperties": false,

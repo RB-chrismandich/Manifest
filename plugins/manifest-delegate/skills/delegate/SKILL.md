@@ -1,13 +1,14 @@
 ---
 name: delegate
-description: Delegate a task to another agent CLI (Codex, Claude, Antigravity) for a second opinion or follow-up; background, status, cancel, resume.
+description: Delegate a task to another agent CLI (Codex, Claude, Antigravity, Cursor, Devin) for a second opinion or follow-up; background, status, cancel, resume.
 ---
 
 # Delegate
 
 Dispatches work to a backend registered in
 `plugins/manifest-delegate/config/backends.json` (currently `codex`,
-`claude`, `antigravity`/`agy`) through `scripts/delegate.py`. This skill is
+`claude`, `antigravity`/`agy`, `cursor`, `devin`) through
+`scripts/delegate.py`. This skill is
 the human-facing entry point; it never talks to a backend CLI directly.
 
 ## Verbs
@@ -47,7 +48,8 @@ per-invocation, not sticky across resumes.
 
 Load the matching `references/prompting-<backend>.md` for the resolved
 backend (`prompting-codex.md`, `prompting-claude.md`,
-`prompting-agy.md`) — each covers that backend's cold-start assumptions,
+`prompting-agy.md`, `prompting-cursor.md`, `prompting-devin.md`) — each
+covers that backend's cold-start assumptions,
 sandbox framing, and tier conventions. Do this before writing the prompt
 text; `delegate.py` itself only injects the envelope contract (FR-007,
 research.md D10), not backend-specific prompting guidance.
