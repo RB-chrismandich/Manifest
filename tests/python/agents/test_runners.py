@@ -341,7 +341,7 @@ class TestBaseAgent:
             confirm_callback=confirm,
         )
         peer = PeerAgent(
-            "peer", "advanced", 0.05, _make_limiter(), _make_config(tmp_path)
+            "peer", "advanced", 1, _make_limiter(), _make_config(tmp_path)
         )
 
         async def run_both():
