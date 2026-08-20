@@ -17,6 +17,7 @@ concurrency:
 jobs:
   lint:
     name: Lint & Validate
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -37,11 +38,17 @@ jobs:
 
       # --- ShellCheck ---
 
-      # Distro package = effectively pinned per runner image; record the
-      # version in the log so behavior changes are traceable (specs/003 FR-014).
+      # Installed from the same pinned wheel .pre-commit-config.yaml uses
+      # (shellcheck-py v0.11.0.1), NOT the distro package. Two reasons:
+      # apt-get reaches archive.ubuntu.com with no timeout, and a stalled
+      # mirror hung this step for the full 6h job default twice on
+      # 2026-08-19 (#791); and the distro build was shellcheck 0.9.0, two
+      # minor versions behind the repo's own pin, so CI and local pre-commit
+      # could disagree about what passes. Matches the `pip install
+      # yamllint==...` pattern below. Version still logged (specs/003 FR-014).
       - name: Install shellcheck
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck
+          pip install shellcheck-py==0.11.0.1
           shellcheck --version
 
       # -S warning: fail on real warnings/errors, not cosmetic info/style notes
@@ -186,6 +193,7 @@ jobs:
 
   test:
     name: Test
+    timeout-minutes: 30
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -301,6 +309,7 @@ jobs:
 
   validate:
     name: Validate Structure
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
