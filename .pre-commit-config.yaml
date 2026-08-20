@@ -265,17 +265,24 @@ repos:
       # Cursor rules/mcp.json/agents drift — local mirror of the CI "Cursor
       # rules up-to-date" gate (spec 2026-07-11 cursor-feature-parity WS-6),
       # so drift is caught before a PR rather than only in CI. --dry-run never
-      # mutates and always exits 0 itself, so drift is detected by scanning
-      # its own report lines rather than its exit code.
+      # mutates, and reports drift on stdout rather than via its exit code --
+      # so drift is found by scanning its report lines. It CAN still exit
+      # non-zero (e.g. a stale .apm/skills mirror), and stderr must be merged
+      # and the status checked, or that failure reads as a green pass.
       - id: check-cursor-rules-drift
         name: Check Cursor rules/mcp.json/agents drift (dry-run)
         entry: >-
           bash -c '
-          out=$(configs/claude/scripts/generate_cursor_rules.sh --dry-run);
+          if ! out=$(configs/claude/scripts/generate_cursor_rules.sh --dry-run 2>&1); then
+          echo "$out";
+          echo "FAIL: generate_cursor_rules.sh exited non-zero (see above).";
+          exit 1;
+          fi;
           echo "$out";
           if echo "$out" | grep -qE "\[DRY-RUN\]|would remove:"; then
           echo "FAIL: Cursor rules/mcp.json/agents are out of sync with source.";
-          echo "Run configs/claude/scripts/generate_cursor_rules.sh and commit the result.";
+          echo "If skills were just pulled, run configs/claude/scripts/generate_skill_mirror.sh first.";
+          echo "Then run configs/claude/scripts/generate_cursor_rules.sh and commit the result.";
           exit 1;
           fi'
         language: system

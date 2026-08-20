@@ -26,6 +26,7 @@ for arg in "$@"; do
 done
 
 log() { if $VERBOSE; then echo "[INFO] $*"; fi; }
+err() { echo "generate_cursor_rules: $*" >&2; }
 
 created=0
 updated=0
@@ -207,6 +208,17 @@ for rule_file in "$RULES_DIR"/*.mdc; do
         orchestration | commands-index) continue ;;
     esac
     if [[ ! -d "$SKILLS_DIR/$rule_name" ]]; then
+        # A rule absent from the mirror but present under plugins/ means the
+        # MIRROR is stale, not that the skill was retired. .apm/skills is a
+        # gitignored build artifact (CI regenerates it before every consumer),
+        # so a developer who pulled new skills without rebuilding it would
+        # otherwise see live rules silently deleted -- and the pre-commit
+        # remediation advice tells them to commit that. Refuse instead.
+        if compgen -G "$REPO_ROOT/plugins/*/skills/$rule_name/SKILL.md" > /dev/null 2>&1; then
+            err "stale skill mirror: '$rule_name' exists under plugins/ but not in $SKILLS_DIR."
+            err "Run configs/claude/scripts/generate_skill_mirror.sh, then re-run this script."
+            exit 1
+        fi
         if $DRY_RUN; then
             echo "[DRY-RUN] would remove: $rule_file"
         else
