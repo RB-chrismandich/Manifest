@@ -567,6 +567,6 @@ fi
 
 ## Further Reading
 
-- [docs/COMMANDS.md](../../docs/COMMANDS.md) - Building Custom Commands
+- [docs/COMMANDS.md](../../COMMANDS.md) - Building Custom Commands
 - [templates/commands/](../commands/) - Example commands
 - [cookedbooks git-commit.md](https://github.com/ReefBytes/cookedbooks) - Reference implementation

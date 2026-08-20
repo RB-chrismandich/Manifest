@@ -397,8 +397,8 @@ To add a new skill, follow the Claude Code skill instructions above.
 - [CLAUDE.md](CLAUDE.md) - Claude Code-specific project instructions
 - [docs/README.md](docs/README.md) - Documentation hub
 - [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
-- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
+- [docs/configuration/README.md](docs/configuration/README.md) - Complete configuration reference
+- [docs/diagrams/README.md](docs/diagrams/README.md) - Visual system documentation
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 
 ## Workflow Reminders (Codex / Antigravity standing-line fallback)

@@ -475,7 +475,7 @@ jobs:
 
 - [trace-api](./trace-api.md) - API topology tracing
 - [trace-database](./trace-database.md) - Database access pattern tracing
-- [ARCHITECTURE_DIAGRAMS.md](../../docs/ARCHITECTURE_DIAGRAMS.md) - Visual architecture documentation
+- [docs/diagrams/README.md](../../diagrams/README.md) - Visual architecture documentation
 
 ---
 

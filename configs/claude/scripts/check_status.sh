@@ -635,7 +635,7 @@ if [[ $working_agents -ge 1 ]]; then
 fi
 
 echo -e "${BOLD}Documentation:${NC}"
-echo -e "  Troubleshooting: docs/TROUBLESHOOTING.md"
-echo -e "  Configuration:   docs/CONFIGURATION.md"
+echo -e "  Troubleshooting: docs/troubleshooting/README.md"
+echo -e "  Configuration:   docs/configuration/README.md"
 echo -e "  Getting Started: docs/GETTING_STARTED.md"
 echo ""

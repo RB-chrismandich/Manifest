@@ -6,7 +6,7 @@
 
 **Last Updated**: 2026-07-12
 **Audience**: Manifest users who run agents through emdash
-**Related**: [Getting Started](GETTING_STARTED.md) · [Troubleshooting](TROUBLESHOOTING.md)
+**Related**: [Getting Started](GETTING_STARTED.md) · [Troubleshooting](troubleshooting/README.md)
 
 ---
 

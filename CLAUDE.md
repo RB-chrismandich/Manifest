@@ -226,7 +226,7 @@ approaches), review stale plans, or archive/abandon completed work.
 
 - [README.md](README.md) - Project overview and quick start
 - [docs/README.md](docs/README.md) - Documentation hub: it indexes GETTING_STARTED,
-  CONFIGURATION, ARCHITECTURE_DIAGRAMS and TROUBLESHOOTING
+  CONFIGURATION, diagrams/ and TROUBLESHOOTING
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
 - [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) - Per-language coding standards and enforcement layers
