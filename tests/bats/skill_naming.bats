@@ -12,17 +12,39 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/.apm/skills"
 NAMING_DOC="$REPO_ROOT/docs/SKILL-NAMING.md"
+NAMING_DOC_DIR="$REPO_ROOT/docs/skill-naming"
+
+# A doc path is an API here. The domain vocabulary moved to its own page when
+# SKILL-NAMING.md was split to fit the docs concision caps, and the gate kept
+# reading only the hub: the vocabulary came back empty and every skill looked
+# like a violation, with no character of content lost. So the gate reads the
+# whole subject tree — the hub plus every sub-page it fans out to — and a block
+# may live in any of them. Moving one again is a no-op for this gate.
+naming_doc_files() {
+    local f
+    printf '%s\n' "$NAMING_DOC"
+    for f in "$NAMING_DOC_DIR"/*.md; do
+        [ -f "$f" ] && printf '%s\n' "$f"
+    done
+}
 
 # Extract one-token-per-line list from a fenced block between
-# "<!-- skill-naming:<section> -->" and "<!-- /skill-naming:<section> -->".
+# "<!-- skill-naming:<section> -->" and "<!-- /skill-naming:<section> -->",
+# wherever among the naming docs that block currently lives.
 extract_block() {
-    local section="$1"
+    local section="$1" f
+    local -a docs=()
+    while IFS= read -r f; do
+        [ -n "$f" ] && docs+=("$f")
+    done <<< "$(naming_doc_files)"
+
     awk -v start="<!-- skill-naming:${section} -->" \
         -v end="<!-- /skill-naming:${section} -->" '
+        FNR == 1    {inside=0}
         $0 == start {inside=1; next}
         $0 == end   {inside=0}
         inside && $0 !~ /^```/ && NF {print $1}
-    ' "$NAMING_DOC"
+    ' "${docs[@]}"
 }
 
 # Emit the skill directories under $1 (one trailing-slash path per line). Only
@@ -76,6 +98,24 @@ naming_violations() {
     exceptions=$(extract_block exceptions)
     [ -n "$domains" ]
     [ -n "$exceptions" ]
+}
+
+@test "every skill-naming marker block lives in a file the gate reads" {
+    local readable stray="" hit file
+    readable="$(naming_doc_files)"
+
+    while IFS= read -r hit; do
+        [ -n "$hit" ] || continue
+        file="${hit%%:*}"
+        printf '%s\n' "$readable" | grep -qxF "$file" || stray+="$file"$'\n'
+    done <<< "$(grep -rl -- '<!-- skill-naming:' "$REPO_ROOT/docs" || true)"
+
+    if [ -n "$stray" ]; then
+        echo "skill-naming marker blocks in files this gate does not parse:" >&2
+        printf '%s' "$stray" >&2
+        echo "Move them under docs/skill-naming/, or extend naming_doc_files()." >&2
+        return 1
+    fi
 }
 
 @test "every skill name conforms to <purpose>-<verb>[-<qualifier>] or is excepted" {

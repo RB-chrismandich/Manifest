@@ -59,7 +59,7 @@ platform's markdown. A broken diagram is worse than no diagram: it renders as a
 wall of error text.
 
 ```bash
-python3 ../../runtime/docs_lint.py docs/diagrams docs/ARCHITECTURE_DIAGRAMS.md
+python3 ../../runtime/docs_lint.py docs/diagrams
 ```
 
 ## Report

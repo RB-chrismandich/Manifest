@@ -120,6 +120,6 @@ The log records counts, names, timings, and URLs only — never session content
 ## Related Documents
 
 - [Commands Guide](COMMANDS.md) - Full command reference including `/skill-evolve`
-- [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) - SkillClaw capture & evolve pipeline diagram
+- [Architecture Diagrams](diagrams/README.md) - SkillClaw capture & evolve pipeline diagram
 - [Getting Started](GETTING_STARTED.md) - First-time Manifest setup
 - [README.md](../README.md) - Project overview and SkillClaw feature summary

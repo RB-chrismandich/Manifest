@@ -447,7 +447,7 @@ EOF
     assert_output --partial "State Directories:"
     assert_output --partial "Overall Status:"
     assert_output --partial "Documentation:"
-    assert_output --partial "docs/TROUBLESHOOTING.md"
+    assert_output --partial "docs/troubleshooting/README.md"
 }
 
 @test "quick test hint shown only when at least one agent is available" {

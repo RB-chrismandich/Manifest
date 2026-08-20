@@ -486,8 +486,8 @@ A: Yes, if `.claude/settings.local.json` is in version control.
 
 ## Related Documentation
 
-- [Configuration Guide](../../docs/CONFIGURATION.md) - All configuration options
-- [Commands Guide](../../docs/COMMANDS.md) - Building custom commands
+- [Configuration Guide](../../configuration/README.md) - All configuration options
+- [Commands Guide](../../COMMANDS.md) - Building custom commands
 - [Security Best Practices](../../docs/SECURITY.md) - (Coming soon)
 
 ---

@@ -212,7 +212,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 > **Status**: these templates are a design sketch — no code currently loads a
 > `validation_overrides.yml` file (see issue #325). For working per-command
 > customization use the `command_overrides` section of
-> `validation_criteria.yml` (documented in docs/CONFIGURATION.md). The
+> `validation_criteria.yml` (documented in docs/configuration/validation.md). The
 > templates below catalog the checks worth adopting if/when the loader is
 > implemented.
 
@@ -367,7 +367,7 @@ To add a new template:
 ## Related Documentation
 
 - [Main Documentation](../README.md)
-- [Configuration Guide](../CONFIGURATION.md)
+- [Configuration Guide](../configuration/README.md)
 - [Skills Documentation](../../.apm/skills/)
 - [Validation Criteria](../../configs/claude/config/validation_criteria.yml)
 - [Parallel Agent Guide](../../configs/claude/CLAUDE.md)

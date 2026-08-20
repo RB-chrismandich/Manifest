@@ -58,6 +58,16 @@ classify:
   - {glob: "**/docs/README.md", type: hub}
   - {glob: "docs/README.md", type: hub}
   - {glob: "**/index.md", type: hub}
+  # Split directories: the hub is a hub, its children keep the parent's type.
+  - {glob: "**/docs/diagrams/README.md", type: hub}
+  - {glob: "**/docs/configuration/README.md", type: hub}
+  - {glob: "**/docs/troubleshooting/README.md", type: hub}
+  - {glob: "**/docs/diagrams/**/*.md", type: diagram}
+  - {glob: "**/docs/configuration/**/*.md", type: reference}
+  - {glob: "**/docs/troubleshooting/**/*.md", type: howto}
+  - {glob: "**/docs/commands/**/*.md", type: reference}
+  - {glob: "**/docs/getting-started/**/*.md", type: tutorial}
+  - {glob: "**/docs/model-policy/**/*.md", type: explanation}
   - {glob: "**/*DIAGRAM*.md", type: diagram}
   - {glob: "**/*ARCHITECTURE*.md", type: explanation}
   - {glob: "**/GETTING_STARTED.md", type: tutorial}

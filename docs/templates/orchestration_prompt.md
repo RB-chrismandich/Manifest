@@ -236,5 +236,5 @@ echo "Test orchestration with a simple cross-component change"
 ## References
 
 - [Claude Code Documentation](https://docs.anthropic.com/claude/docs)
-- [Parallel Agent Orchestration Guide](../.claude/CLAUDE.md)
-- [Validation Criteria](../.claude/config/validation_criteria.yml)
+- [Parallel Agent Orchestration Guide](../../configs/claude/CLAUDE.md)
+- [Validation Criteria](../../configs/claude/config/validation_criteria.yml)

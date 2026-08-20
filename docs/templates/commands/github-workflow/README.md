@@ -622,10 +622,10 @@ jobs:
 
 ## Related Documentation
 
-- [Command State Machine Pattern](../command-state-machine.md) - Error recovery, validation patterns
+- [Command State Machine Pattern](../../patterns/command-state-machine.md) - Error recovery, validation patterns
 - [Full Deployment Pipeline Example](../full-deployment-pipeline.md) - Multi-phase command example
-- [COMMANDS.md](../../docs/COMMANDS.md) - General command documentation
-- [Parallel Agent Guide](../../.claude/CLAUDE.md) - Parallel agent orchestration
+- [COMMANDS.md](../../../COMMANDS.md) - General command documentation
+- [Parallel Agent Guide](../../../../configs/claude/CLAUDE.md) - Parallel agent orchestration
 
 ---
 

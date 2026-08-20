@@ -43,7 +43,7 @@ guessing — a confident wrong default costs more than a gap.
 - **Key features**: 5-10 one-line bullets, or drop the section.
 - **Requirements**: versions and external services only.
 - **Configuration**: the 5 options most people change. The full table lives in
-  `docs/CONFIGURATION.md`.
+  `docs/configuration/`.
 - **Everything else**: a link.
 
 Sections a README does not need: an exhaustive option table, a full directory
@@ -56,9 +56,9 @@ under-written. Move whole sections out:
 
 | Overgrown section | Moves to |
 |-------------------|----------|
-| Full config table | `docs/CONFIGURATION.md` |
+| Full config table | `docs/configuration/files.md` |
 | Install variants, first-run walkthrough | `docs/GETTING_STARTED.md` |
-| Error/fix table | `docs/TROUBLESHOOTING.md` |
+| Error/fix table | `docs/troubleshooting/` |
 | Directory tree, design rationale | `docs/ARCHITECTURE.md` |
 
 Leave a one-line pointer where the section was. Create the target doc if it

@@ -48,7 +48,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
    - Inventory: `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/**/*.md`.
    - Validate required docs and create/update where needed:
      `README.md`, `AGENTS.md`, `docs/README.md`, `docs/GETTING_STARTED.md`,
-     `docs/CONFIGURATION.md`, `docs/ARCHITECTURE.md`, `docs/TROUBLESHOOTING.md`,
+     `docs/configuration/`, `docs/diagrams/`, `docs/troubleshooting/`,
      `CONTRIBUTING.md`, `CHANGELOG.md`.
    - Apply structure/content/format/link checks and fix issues:
      headings, TOC for long docs, "Last Updated", related-doc references,

@@ -131,7 +131,7 @@ Do not implement this. The same reasoning rejects per-turn routing of
 > is the class x model matrix (see [Verifying a landed lever](#verifying-a-landed-lever));
 > at the change point it still showed 283 `subagent` requests on Opus 5, so
 > treat the saving below as projected until a post-change interval reads clean.
-> Policy: [docs/MODEL-POLICY.md](../MODEL-POLICY.md#1-sub-agents-default-to-sonnet).
+> Policy: [docs/model-policy/subagents.md](../model-policy/subagents.md).
 
 Subagents carry their **own context and own cache**, so routing them changes
 nothing about the main loop's prefix. This is the only class where a model
@@ -183,7 +183,7 @@ rather than a routing one.
 > long-horizon work, and a skill that wants it **asks the user to switch**
 > rather than assuming. Encoded as `session_model` in `command_config.yml`,
 > gated by `tests/bats/subagent_policy.bats` (T9). Policy:
-> [docs/MODEL-POLICY.md](../MODEL-POLICY.md#2-sessions-start-on-opus-fable-is-asked-for-never-assumed).
+> [docs/model-policy/sessions.md](../model-policy/sessions.md).
 > The options as originally costed are preserved below.
 
 The largest single uncosted item, and the one thing here that is **not** a code

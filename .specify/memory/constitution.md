@@ -111,7 +111,7 @@ Templates / docs requiring updates:
     ownership/idempotence gates (Principle V) for any feature touching deployment
   - CLAUDE.md / configs/claude/CLAUDE.md ⚠ drift-correction guidance still names
     `./bootstrap.sh --reconfigure`; update when a migrated domain exists
-  - docs/CONFIGURATION.md, docs/GETTING_STARTED.md ⚠ same
+  - docs/configuration/, docs/GETTING_STARTED.md ⚠ same
 Follow-up TODOs: Principle VII takes effect for any published package; until one is
   published it constrains nothing and is dormant by design.
 -->
