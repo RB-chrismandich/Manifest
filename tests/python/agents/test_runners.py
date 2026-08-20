@@ -311,6 +311,19 @@ class TestBaseAgent:
         assert len(result["model_attempts"]) == 2
 
     def test_interactive_confirmation_does_not_block_peer_agent(self, tmp_path):
+        """A blocking confirm callback must not stall a peer agent's loop.
+
+        Guarded by ORDER, not a deadline: the peer finishes while confirm
+        still sleeps, and blocking the loop reverses that causally, so jitter
+        cannot eat the margin. A deadline cannot express it -- too tight and
+        jitter fails it (the earlier 50ms form flaked ~5%), too loose and the
+        peer completes either way, passing on a regression. PEER_WORK outlasts
+        the ~10ms trip to confirm and runs inside CONFIRM_BLOCK.
+        """
+        PEER_WORK = 0.2
+        CONFIRM_BLOCK = 0.5
+        timeline = {}
+
         class RateLimitedAgent(BaseAgent):
             async def _execute_impl(self, prompt, mode):
                 del prompt, mode
@@ -322,17 +335,19 @@ class TestBaseAgent:
         class PeerAgent(BaseAgent):
             async def _execute_impl(self, prompt, mode):
                 del prompt, mode
-                await asyncio.sleep(0.02)
+                await asyncio.sleep(PEER_WORK)
+                timeline["peer_done"] = time.monotonic()
                 return {"status": "complete", "output": "peer-ok"}
 
         def confirm(_message):
-            time.sleep(0.15)
+            time.sleep(CONFIRM_BLOCK)
+            timeline["confirm_returned"] = time.monotonic()
             return False
 
         rate_limited = RateLimitedAgent(
             "codex",
             "advanced",
-            1,
+            5,
             _make_limiter(),
             _make_config(tmp_path),
             model_chain=("advanced", "flash"),
@@ -340,9 +355,7 @@ class TestBaseAgent:
             interactive=True,
             confirm_callback=confirm,
         )
-        peer = PeerAgent(
-            "peer", "advanced", 0.05, _make_limiter(), _make_config(tmp_path)
-        )
+        peer = PeerAgent("peer", "advanced", 5, _make_limiter(), _make_config(tmp_path))
 
         async def run_both():
             return await asyncio.gather(
@@ -353,6 +366,10 @@ class TestBaseAgent:
 
         assert first["fallback_reason"] == FailureClass.RATE_LIMIT.value
         assert second["status"] == "complete"
+        assert timeline["peer_done"] < timeline["confirm_returned"], (
+            "peer finished only after the confirm callback returned — the "
+            "callback ran on the event loop instead of asyncio.to_thread"
+        )
 
     def test_execute_sdk_failure_uses_status_without_exposing_message(self, tmp_path):
         secret_message = "raw provider failure sk-secret-do-not-retain"
