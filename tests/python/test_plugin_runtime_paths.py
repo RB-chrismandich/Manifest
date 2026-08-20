@@ -19,7 +19,13 @@ def _checker_module():
     return module
 
 
-def test_runtime_path_gate_accepts_checked_in_domain_bundles() -> None:
+def test_runtime_path_gate_accepts_checked_in_portable_bundles() -> None:
+    """Every portable bundle is scanned, addons included.
+
+    Addon bundles ship with generated native views just as domain bundles do,
+    so scanning only the domain set left an addon exempt from the
+    ungoverned-bundle flag yet passed through no scan at all.
+    """
     checker = _checker_module()
     root = Path(__file__).resolve().parents[2]
 
@@ -35,6 +41,7 @@ def test_runtime_path_gate_accepts_checked_in_domain_bundles() -> None:
         "manifest-spec-planning",
         "manifest-workspace",
         "stitch-design",
+        "manifest-i-have-adhd",
     )
 
 
@@ -284,3 +291,32 @@ def test_home_variable_spelling_is_caught(tmp_path) -> None:
     values = {v.value for v in report.violations}
     assert any("scripts" in value for value in values)
     assert any("config" in value for value in values)
+
+
+def test_addon_bundle_files_are_scanned_not_merely_exempted(tmp_path) -> None:
+    """An addon must be scanned, not just skipped by the ungoverned-bundle flag.
+
+    Listing a bundle in ADDON_BUNDLES silences the ungoverned flag for it. If
+    the contract loop still walked only DOMAIN_BUNDLES, that silence would be
+    the whole story: the bundle would ship its files to every harness while no
+    scan ever read them.
+    """
+    checker = _checker_module()
+    bundle = tmp_path / "plugins" / "manifest-i-have-adhd"
+    bundle.mkdir(parents=True)
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\n"
+        "bundle: {name: manifest-i-have-adhd, version: 0.0.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], "
+        "runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+    (bundle / "leak.sh").write_text(
+        "#!/usr/bin/env bash\nsource ~/.claude/scripts/git_ops.sh\n", encoding="utf-8"
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert [v for v in report.violations if v.kind == "forbidden-runtime-path"], (
+        "addon bundle was exempted from the ungoverned flag but never scanned"
+    )

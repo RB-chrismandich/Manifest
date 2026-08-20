@@ -241,14 +241,20 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     if not plugins.exists():
         return ()
     records = []
-    for bundle in DOMAIN_BUNDLES:
+    # PORTABLE_BUNDLES, not DOMAIN_BUNDLES: addon bundles ship too, with
+    # generated native views, so their files reach installed harnesses exactly
+    # like a domain bundle's. Iterating only the domain set left an addon
+    # exempted from the ungoverned-bundle flag yet passed through no scan at
+    # all -- the same declared-but-unenforced false green this gate exists to
+    # prevent.
+    for bundle in PORTABLE_BUNDLES:
         contract_path = plugins / bundle / "manifest-capabilities.yml"
         if not contract_path.is_file():
             records.append(
                 (
                     bundle,
                     contract_path,
-                    {"_error": "required domain contract is missing"},
+                    {"_error": "required portable contract is missing"},
                 )
             )
             continue
