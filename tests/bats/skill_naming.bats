@@ -3,8 +3,8 @@
 #
 # Every skill in .apm/skills/ must be named <purpose>-<verb>[-<qualifier>]:
 # lowercase a-z0-9 tokens, 2-4 tokens, first token(s) drawn from the domain
-# vocabulary in docs/SKILL-NAMING.md — unless listed in that doc's exception
-# block. Frontmatter name: must always equal the directory name.
+# vocabulary in docs/skill-naming/vocabulary.md — unless listed in the exception
+# block in docs/SKILL-NAMING.md. Frontmatter name: must always equal the directory name.
 #
 # If this test fails on a new skill: rename it per docs/SKILL-NAMING.md, or (rare)
 # add a domain token / exception there WITH rationale in the same PR.
@@ -12,17 +12,18 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/.apm/skills"
 NAMING_DOC="$REPO_ROOT/docs/SKILL-NAMING.md"
+VOCABULARY_DOC="$REPO_ROOT/docs/skill-naming/vocabulary.md"
 
 # Extract one-token-per-line list from a fenced block between
 # "<!-- skill-naming:<section> -->" and "<!-- /skill-naming:<section> -->".
 extract_block() {
-    local section="$1"
+    local section="$1" file="${2:-$NAMING_DOC}"
     awk -v start="<!-- skill-naming:${section} -->" \
         -v end="<!-- /skill-naming:${section} -->" '
         $0 == start {inside=1; next}
         $0 == end   {inside=0}
         inside && $0 !~ /^```/ && NF {print $1}
-    ' "$NAMING_DOC"
+    ' "$file"
 }
 
 # Emit the skill directories under $1 (one trailing-slash path per line). Only
@@ -71,8 +72,9 @@ naming_violations() {
 
 @test "naming doc provides non-empty domain and exception blocks" {
     [ -f "$NAMING_DOC" ]
+    [ -f "$VOCABULARY_DOC" ]
     local domains exceptions
-    domains=$(extract_block domains)
+    domains=$(extract_block domains "$VOCABULARY_DOC")
     exceptions=$(extract_block exceptions)
     [ -n "$domains" ]
     [ -n "$exceptions" ]
@@ -80,7 +82,7 @@ naming_violations() {
 
 @test "every skill name conforms to <purpose>-<verb>[-<qualifier>] or is excepted" {
     local domains exceptions violations
-    domains=$(extract_block domains)
+    domains=$(extract_block domains "$VOCABULARY_DOC")
     exceptions=$(extract_block exceptions)
 
     violations="$(naming_violations "$SKILLS_DIR" "$domains" "$exceptions")"
@@ -105,7 +107,7 @@ naming_violations() {
     mkdir -p "$tmp/zzznope-verb"
     printf 'name: zzznope-verb\n' > "$tmp/zzznope-verb/SKILL.md"
 
-    domains=$(extract_block domains)
+    domains=$(extract_block domains "$VOCABULARY_DOC")
     exceptions=$(extract_block exceptions)
     local output
     output="$(naming_violations "$tmp" "$domains" "$exceptions")"
