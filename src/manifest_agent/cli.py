@@ -130,6 +130,26 @@ def reconcile(context: click.Context, apply: bool, **options: Any) -> None:
 @cli.command()
 @_lifecycle_options
 @click.pass_context
+def update(context: click.Context, **options: Any) -> None:
+    """Update every installed harness to the selected release.
+
+    A named alias for the repair path of `reconcile`, which already re-installs
+    each harness against the newly selected release and records that version in
+    the receipt. The capability existed but nothing was called "update", so the
+    only way to upgrade was a flag on a command named for drift inspection.
+
+    Harness-native auto-update stays off deliberately: six harnesses polling
+    their own sources independently would land on different releases, which is
+    the mixed-generation drift the release-identity rule exists to prevent. One
+    coordinator-driven pass keeps every harness on a single pinned release.
+    """
+    service = _service(**options)
+    _emit(context, service.reconcile(apply=True), options["as_json"])
+
+
+@cli.command()
+@_lifecycle_options
+@click.pass_context
 def uninstall(context: click.Context, **options: Any) -> None:
     """Remove coordinator-owned Manifest installation state."""
     service = _service(**options)

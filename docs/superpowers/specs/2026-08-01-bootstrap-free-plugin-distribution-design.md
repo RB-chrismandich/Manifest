@@ -238,6 +238,7 @@ uvx --from manifest-agent manifest install
 uvx --from manifest-agent manifest migrate
 uvx --from manifest-agent manifest reconcile
 uvx --from manifest-agent manifest reconcile --apply
+uvx --from manifest-agent manifest update
 uvx --from manifest-agent manifest uninstall
 ```
 
@@ -245,6 +246,18 @@ uvx --from manifest-agent manifest uninstall
 - `migrate` performs the one-writer handoff from a bootstrap-managed machine.
 - `reconcile` is read-only and reports drift.
 - `reconcile --apply` repairs Manifest-owned drift.
+- `update` re-resolves the selected release and re-converges every installed
+  harness in one pass. It is a named alias for the `reconcile --apply` path
+  rather than a second mechanism: that path already re-installs each harness
+  against the newly selected release and records the new version in the
+  receipt. The alias exists because upgrading through a command named for drift
+  inspection is not discoverable.
+
+  Harness-native auto-update flags are **forbidden**, and adapters must not
+  enable them. Six harnesses polling their own sources independently would
+  settle on different releases, which is exactly the mixed bundle generation
+  this document calls drift; a single coordinator-driven pass is what keeps one
+  pinned release across all of them.
 - `uninstall` removes only Manifest-owned plugins and configuration entries.
 
 The coordinator will write an XDG-compliant receipt containing the selected
@@ -308,6 +321,17 @@ contracts.
 Implement and test all six adapters against isolated home directories. No
 harness is accepted as a permanent exception to the parity contract.
 
+**Hook migrations are gated on live capability evidence.** Moving a hook from
+bootstrap's `settings.json` registration into a bundle contract cannot be
+completed at a desk: `tools/render_plugin_capability_matrix.py --check` refuses
+to claim a capability with no inspection evidence behind it, emitting
+`BLOCKED(components evidence missing …)` for every harness the contract claims a
+working mode for. That evidence comes from `.github/workflows/plugin-parity-live.yml`,
+which requires licensed harness credentials. Each hook therefore needs a live
+parity run before its contract change can merge, and only a maintainer holding
+those credentials can start one. Sequence the remaining hooks accordingly rather
+than treating them as ordinary code changes.
+
 ### Stage 4: Shadow verification
 
 Install native plugins into isolated homes, verify their capabilities, and
@@ -333,6 +357,18 @@ After all live harness probes pass, remove `bootstrap.sh`, `bootstrap/`, home
 deployment functions, service toggles, symlink hubs, and obsolete ownership and
 drift machinery. Keep historical documentation and a standalone recovery
 artifact that does not execute retired bootstrap code.
+
+Two details that are easy to get wrong:
+
+- `deploy_stamp_check.sh` is **retired, not re-homed**. It validates the
+  bootstrap deploy stamp, so it has nothing to check once bootstrap is gone;
+  moving it into a bundle would ship a permanently vacuous check. Remove its
+  registration as part of this stage rather than earlier, since it still serves
+  a purpose while bootstrap remains the install path.
+- The gating check for this stage is a **negative** test: bundle functionality
+  must work with `~/.claude/{scripts,config,prompts}` renamed away, on Claude
+  plus at least one non-Claude harness. Nothing else demonstrates that the
+  symlink hubs are safe to delete.
 
 ## 10. Verification
 
@@ -366,7 +402,9 @@ The migration is complete when:
 - all nine bundles provide equivalent applicable capabilities across Claude,
   Codex, Gemini, Cursor, Antigravity, and Devin;
 - installed bundles work offline without bootstrap, `uvx`, or a shared runtime;
-- native package managers own plugin download, update, caching, and removal;
+- native package managers own plugin download, caching, and removal, while
+  `manifest update` owns cross-harness release convergence (a native
+  auto-update per harness cannot, since each would move independently);
 - `manifest reconcile` detects effective capability and release drift;
 - no runtime path depends on `~/.claude` as shared infrastructure; and
 - the repository no longer needs bootstrap for installation, updates, repair,
