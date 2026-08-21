@@ -86,7 +86,9 @@ def _thread_id_from_jsonl(raw):
     non-object lines are skipped rather than treated as an error.
     """
     for line in raw.splitlines():
-        if (not line or line[0] != '{') and (not line.strip() or line.lstrip()[:1] != '{'):
+        if (not line or line[0] != "{") and (
+            not line.strip() or line.lstrip()[:1] != "{"
+        ):
             continue
         try:
             obj = json.loads(line)
