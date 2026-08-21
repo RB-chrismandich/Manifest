@@ -236,9 +236,10 @@ def _iter_transcript_entries(transcript_path):
     one line at a time so a very long session cannot exhaust memory."""
     with open(transcript_path, encoding="utf-8") as fh:
         for line in fh:
-            if not line or line[0] != '{':
-                if not line.strip() or line.lstrip()[:1] != '{':
-                    continue
+            if (not line or line[0] != "{") and (
+                not line.strip() or line.lstrip()[:1] != "{"
+            ):
+                continue
             try:
                 yield json.loads(line)
             except json.JSONDecodeError:
