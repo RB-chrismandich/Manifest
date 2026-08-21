@@ -116,9 +116,9 @@ def extract_session_ref(entry, raw_output):
         event_name = cap.get("event")
         field = cap.get("field")
         for line in raw_output.splitlines():
-            line = line.strip()
-            if not line:
-                continue
+            if not line or line[0] != '{':
+                if not line.strip() or line.lstrip()[:1] != '{':
+                    continue
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError:
