@@ -75,8 +75,12 @@ def _load_module(path: Path):
         "issue_support.sh",
         "lifecycle.sh",
         "linear_ops.sh",
+        "loop_lock.sh",
+        "merge_decision.sh",
+        "pr_merge_loop.sh",
         "pr_review.sh",
         "tracker_ops.sh",
+        "verification_gate.sh",
     ],
 )
 def test_forge_runtime_is_packaged_and_executable(
@@ -501,6 +505,7 @@ def test_forge_contract_lists_all_runtime_directories(forge_bundle: Path) -> Non
     }
     assert set(contract.capabilities.executables["optional"]) == {
         "curl",
+        "flock",
         "gh",
         "glab",
         "gtimeout",

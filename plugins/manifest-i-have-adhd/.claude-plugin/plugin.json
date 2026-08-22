@@ -2,39 +2,41 @@
   "author": {
     "name": "ReefBytes"
   },
-  "compatibility": {
-    "degraded": [
-      {
-        "component_id": "adhd-always-on-guidance",
-        "component_type": "guidance",
-        "mode": "degraded",
-        "path": "guidance/always-on.md",
-        "reason": "claude native manifest cannot encode guidance component 'adhd-always-on-guidance' at 'guidance/always-on.md'"
-      },
-      {
-        "component_id": "adhd-hook-runtime",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "hooks/always_on.py",
-        "reason": "claude native manifest cannot encode runtime component 'adhd-hook-runtime' at 'hooks/always_on.py'"
-      }
-    ],
-    "native": [
-      {
-        "component_id": "adhd-session-start",
-        "component_type": "hooks",
-        "mode": "native",
-        "path": "hooks/hooks.json"
-      }
-    ]
-  },
   "description": "Pinned ADHD-friendly always-on response guidance with fail-open diagnostics.",
   "hooks": [
     "./hooks/hooks.json"
   ],
+  "metadata": {
+    "compatibility": {
+      "degraded": [
+        {
+          "component_id": "adhd-always-on-guidance",
+          "component_type": "guidance",
+          "mode": "degraded",
+          "path": "guidance/always-on.md",
+          "reason": "claude native manifest cannot encode guidance component 'adhd-always-on-guidance' at 'guidance/always-on.md'"
+        },
+        {
+          "component_id": "adhd-hook-runtime",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "hooks/always_on.py",
+          "reason": "claude native manifest cannot encode runtime component 'adhd-hook-runtime' at 'hooks/always_on.py'"
+        }
+      ],
+      "native": [
+        {
+          "component_id": "adhd-session-start",
+          "component_type": "hooks",
+          "mode": "native",
+          "path": "hooks/hooks.json"
+        }
+      ]
+    }
+  },
   "name": "manifest-i-have-adhd",
   "skills": [
     "./skills/i-have-adhd"
   ],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

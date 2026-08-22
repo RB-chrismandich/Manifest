@@ -633,21 +633,30 @@ class TestSyncFixturesCompression:
 
 class TestSyncFixturesScrubsPii:
     """#552 follow-up: --sync-fixtures must not leak the contributor's real
-    home path/username or raw ANSI escapes into tracked repo fixtures."""
+    home path/username or raw ANSI escapes into tracked repo fixtures.
+
+    These tests scrub through .claude/CLAUDE.md rather than
+    .claude/settings.json. settings.json is a supported place for API keys
+    (its `env` mapping), which _scrub_fixture_pii() never redacted, so a
+    later fix (see test_sync_fixtures_secrets.py) stopped sync_fixtures()
+    from copying it at all — the allowlist is now derived from
+    MANIFEST_SYSTEM_PROMPT_PATHS, which only names CLAUDE.md/GEMINI.md.
+    _scrub_fixture_pii() itself is unchanged and still runs over every file
+    the allowlist does cover, so these guarantees are re-pointed at
+    CLAUDE.md, not weakened.
+    """
 
     def test_strips_ansi_escape_codes(self, tmp_path):
         from tests.token_benchmark.harness import sync_fixtures
 
         src = tmp_path / "home"
         (src / ".claude").mkdir(parents=True)
-        (src / ".claude" / "settings.json").write_text(
-            '{"model": "claude-fable-5\x1b[1m"}'
-        )
+        (src / ".claude" / "CLAUDE.md").write_text("model: claude-fable-5\x1b[1m")
 
         dst = tmp_path / "fixtures"
         sync_fixtures(source_home=src, fixtures_dir=dst)
 
-        synced = (dst / ".claude" / "settings.json").read_text()
+        synced = (dst / ".claude" / "CLAUDE.md").read_text()
         assert "\x1b" not in synced
         assert "claude-fable-5" in synced
 
@@ -656,28 +665,14 @@ class TestSyncFixturesScrubsPii:
 
         src = tmp_path / "home" / "reallocaluser"
         (src / ".claude").mkdir(parents=True)
-        (src / ".claude" / "settings.json").write_text(
-            json.dumps(
-                {
-                    "hooks": {
-                        "PostToolUse": [
-                            {
-                                "hooks": [
-                                    {
-                                        "command": f"{src}/.claude/scripts/issue_support_hook.sh"
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                }
-            )
+        (src / ".claude" / "CLAUDE.md").write_text(
+            f"Scripts live under {src}/.claude/scripts/issue_support_hook.sh"
         )
 
         dst = tmp_path / "fixtures"
         sync_fixtures(source_home=src, fixtures_dir=dst)
 
-        synced = (dst / ".claude" / "settings.json").read_text()
+        synced = (dst / ".claude" / "CLAUDE.md").read_text()
         assert str(src) not in synced
         assert "reallocaluser" not in synced
         assert "/Users/developer" in synced
@@ -687,11 +682,11 @@ class TestSyncFixturesScrubsPii:
 
         src = tmp_path / "home"
         (src / ".claude").mkdir(parents=True)
-        content = '{"model": "claude-sonnet-5"}'
-        (src / ".claude" / "settings.json").write_text(content)
+        content = "# CLAUDE.md\n\nUse claude-sonnet-5 for this task.\n"
+        (src / ".claude" / "CLAUDE.md").write_text(content)
 
         dst = tmp_path / "fixtures"
         sync_fixtures(source_home=src, fixtures_dir=dst)
 
-        synced = (dst / ".claude" / "settings.json").read_text()
+        synced = (dst / ".claude" / "CLAUDE.md").read_text()
         assert synced == content

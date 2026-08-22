@@ -127,8 +127,29 @@ PY
 
 @test "manifests carry no marketplace-only or forbidden keys" {
     # `strict` and `category` belong to the marketplace ENTRY; the validator
-    # warns on them in plugin.json. `$schema`'s declared URL 404s. `dependencies`
-    # buys installation but not resolution, so it ships absent, not empty.
+    # warns on them in plugin.json. `$schema`'s declared URL 404s.
+    #
+    # `dependencies` ships absent, not empty -- but NOT for the reason this
+    # comment used to give. It claimed the key "buys installation but not
+    # resolution", generalising to skills a result that only ever concerned
+    # FILE access. Corrected 2026-08-20 by live two-plugin probe (spec
+    # 2026-08-19-marketplace-restructure-design.md, R1b / Phase 0 item 5):
+    # installing only `probe-a`, which declares `probe-b`, took the
+    # model-facing listing from 208 -> 210 skills -- `probe-b`'s skill loaded
+    # in the same enumeration pass as directly-installed plugins. A declared
+    # dependency DOES make the dependency's skill resolve.
+    #
+    # What stays true is narrower: `${CLAUDE_PLUGIN_ROOT}` resolves only to
+    # the loading plugin, so a dependency's SCRIPTS stay unreachable. Cross-
+    # bundle skill invocation is solved by declaring a dependency; cross-
+    # bundle file reference is not, and still needs vendoring.
+    #
+    # The key is forbidden today because nothing can yet represent or emit it
+    # (schemas/manifest-capabilities.schema.json, models.py, and
+    # plugin_view_renderers.py all lack the field), and because uninstalling
+    # the dependent does not cascade-remove the auto-installed dependency.
+    # Lift this gate only together with that work -- not on the strength of
+    # the superseded no-resolution claim.
     run py <<'PY'
 import json, pathlib, sys
 bad = []

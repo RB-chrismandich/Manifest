@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-workspace
-  version: 0.2.0
+  version: 0.3.0
   description: Workspace configuration, environment, session, and learning workflows.
   category: productivity
 components:
@@ -25,24 +25,6 @@ components:
     - {id: devpanel-spec-guard, path: agents/devpanel/spec-guard.md}
     - {id: devpanel-tester, path: agents/devpanel/tester.md}
   hooks:
-    - id: manifest-hooks
-      path: hooks/manifest-hooks.json
-      compatibility:
-        claude: {mode: generated}
-        codex:
-          mode: degraded
-          reason: >-
-            The advisory manifest-hooks catalog is not a Codex lifecycle hook
-            registration. Codex lifecycle support is declared per event below.
-        gemini:
-          mode: degraded
-          reason: >-
-            Gemini extensions cannot install the bundle's advisory manifest-hooks
-            catalog as native BeforeTool hooks; use ai-hooks-integration for
-            explicit installation.
-        cursor: {mode: generated}
-        antigravity: {mode: degraded, reason: Antigravity has no native lifecycle hook surface.}
-        devin: {mode: degraded, reason: Devin has no native lifecycle hook surface.}
     - id: codex-session-start
       path: hooks/codex-lifecycle-events.json
       compatibility:

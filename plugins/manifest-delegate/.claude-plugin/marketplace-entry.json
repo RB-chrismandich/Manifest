@@ -12,5 +12,5 @@
   ],
   "name": "manifest-delegate",
   "source": "./plugins/manifest-delegate",
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

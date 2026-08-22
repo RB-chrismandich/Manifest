@@ -23,13 +23,6 @@
         "reason": "This component records the Codex Stop surface only."
       },
       {
-        "component_id": "manifest-hooks",
-        "component_type": "hooks",
-        "mode": "degraded",
-        "path": "hooks/manifest-hooks.json",
-        "reason": "Gemini extensions cannot install the bundle's advisory manifest-hooks catalog as native BeforeTool hooks; use ai-hooks-integration for explicit installation."
-      },
-      {
         "component_id": "command-catalog",
         "component_type": "runtime",
         "mode": "degraded",
@@ -224,5 +217,5 @@
     "guidance/token-economy.md"
   ],
   "name": "manifest-workspace",
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

@@ -1,9 +1,4 @@
 {
-  "_manifest": {
-    "id": "compose-commandments",
-    "mode": "advisory",
-    "owner": "manifest-ops"
-  },
   "description": "Advisory audit of just-edited docker-compose files against DC-001..DC-010.",
   "hooks": {
     "PostToolUse": [

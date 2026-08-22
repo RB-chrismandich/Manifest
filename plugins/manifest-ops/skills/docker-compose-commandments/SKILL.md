@@ -10,8 +10,8 @@ absence shows up as a 3am incident: an image that silently changed, a password
 in git history, a container that ate the host's memory, a database on the same
 network as the public web tier.
 
-The checker is `scripts/compose_check.py`; the rules are data in
-`config/compose_commandments.yml`. A PostToolUse hook runs it automatically on
+The checker is `runtime/bin/compose_check.py`; the rules are data in
+`runtime/config/compose_commandments.yml`. A PostToolUse hook runs it automatically on
 every compose file you edit and prints findings to stderr — it never blocks.
 
 ## The commandments
@@ -39,17 +39,17 @@ Rationale, failure mode, and the exact remedy for each: `references/commandments
 
    ```bash
    # One file
-   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" docker-compose.yaml
+   python3 "$CLAUDE_PLUGIN_ROOT/runtime/bin/compose_check.py" docker-compose.yaml
 
    # Every compose file in a tree
-   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" .
+   python3 "$CLAUDE_PLUGIN_ROOT/runtime/bin/compose_check.py" .
 
    # One rule only, or machine-readable output
-   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --rule DC-002 --rule DC-005
-   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --json
+   python3 "$CLAUDE_PLUGIN_ROOT/runtime/bin/compose_check.py" . --rule DC-002 --rule DC-005
+   python3 "$CLAUDE_PLUGIN_ROOT/runtime/bin/compose_check.py" . --json
 
    # CI gate: non-zero when anything is found
-   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --strict
+   python3 "$CLAUDE_PLUGIN_ROOT/runtime/bin/compose_check.py" . --strict
    ```
 
 2. **Read each finding as `file:line  DC-NNN severity [service] message`.** The

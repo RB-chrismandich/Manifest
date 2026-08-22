@@ -15,11 +15,17 @@ This is the first step in creating a design system from a markdown file.
 > output token limit.
 
 ```bash
-python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
+STITCH_API_KEY=<API_KEY> python3 \
+  "${CLAUDE_PLUGIN_ROOT}/skills/upload-to-stitch/scripts/upload_to_stitch.py" \
   --project-id <PROJECT_ID> \
-  --file-path /path/to/DESIGN.md \
-  --api-key <API_KEY>
+  --file-path /path/to/DESIGN.md
 ```
+
+The script reads the key from the `STITCH_API_KEY` environment variable; there
+is no `--api-key` flag. It ships with the sibling `stitch-design:upload-to-stitch`
+skill, not
+this one, so the path is anchored on `${CLAUDE_PLUGIN_ROOT}` rather than written
+relative to a working directory the caller may not be in.
 
 ---
 

@@ -70,6 +70,18 @@ jobs:
       - name: Check bats assertions (Bash 3.2 silent pass)
         run: tests/lint/check_bats_assertions.sh
 
+      # Proves the STAGED/committed tree is self-contained: extracts
+      # `git archive $(git write-tree)` and runs the vendored runtime from a
+      # third directory, so a file present only in a dev working tree fails
+      # here instead of at a user's install. Hermetic, offline, ~8s.
+      - name: Check fresh-checkout self-containment
+        run: tests/lint/check_fresh_checkout.sh
+
+      # Bundle-local reference gate: a skill or runtime script must not cite a
+      # path absent from its own bundle (bundles install independently).
+      - name: Check bundle-local references
+        run: uv run python tools/check_bundle_link_references.py
+
       # --- yamllint ---
 
       # Pinned to match .pre-commit-config.yaml (specs/003 FR-014).

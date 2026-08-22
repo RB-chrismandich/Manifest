@@ -227,10 +227,38 @@ def test_version_pin_rejects_malformed_json_without_traceback(
 def test_version_pin_hook_is_owned_advisory_and_fail_open(
     ops_bundle: Path, tmp_path: Path
 ) -> None:
+    # The hook JSON used to carry a custom top-level "_manifest": {id, mode, owner}
+    # block. Codex rejects unknown top-level keys in a plugin hook catalog ("unknown
+    # field `_manifest`, expected `description` or `hooks`"), which made both
+    # manifest-ops hooks unparsable — and therefore dead — under Codex despite the
+    # repo declaring `codex: {mode: native}`. The block was removed for cross-harness
+    # portability; hook_catalog itself no longer carries any of it.
+    #
+    # id and owner are still available, structurally (schema-validated, not just
+    # trusted text) from the portable contract: the hook's id and its containing
+    # bundle's name.
     hook_catalog = json.loads(
         (ops_bundle / "hooks/version-pin.json").read_text(encoding="utf-8")
     )
-    metadata = hook_catalog["_manifest"]
+    assert "_manifest" not in hook_catalog
+    contract = load_contract(ops_bundle / "manifest-capabilities.yml")
+    assert contract.name == "manifest-ops"  # owner
+    hook_component = next(
+        component
+        for component in contract.components.hooks
+        if component.path == "hooks/version-pin.json"
+    )
+    assert hook_component.id == "version-pin"
+
+    # "mode": "advisory" has no surviving structured home: the contract schema's only
+    # per-hook "mode" field is harness install status (native/generated/degraded/...),
+    # a different concept from blocking-vs-advisory runtime behavior, and nothing else
+    # in the bundle declares it machine-readably (it survives only as prose, e.g.
+    # skills/version-pin/SKILL.md and this script's own comments). That declarative
+    # label is a genuine loss. What we CAN still verify for real, by actually running
+    # the hook under a forced-failure resolver, is the behavioral guarantee the label
+    # stood for: this hook never blocks the edit and never rewrites the file, even when
+    # the underlying pinning check itself fails.
     requirements = tmp_path / "requirements.txt"
     requirements.write_text("requests\n", encoding="utf-8")
     env = _isolated_env(tmp_path)
@@ -244,11 +272,6 @@ def test_version_pin_hook_is_owned_advisory_and_fail_open(
         input_text=payload,
     )
 
-    assert metadata == {
-        "id": "version-pin",
-        "mode": "advisory",
-        "owner": "manifest-ops",
-    }
     assert result.returncode == 0
     assert requirements.read_text(encoding="utf-8") == "requests\n"
 
@@ -312,7 +335,10 @@ def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> N
     generic = json.loads((ops_bundle / "plugin.json").read_text(encoding="utf-8"))
 
     records = {
-        "claude": claude["compatibility"]["native"],
+        # Claude's native plugin.json nests compatibility evidence under
+        # `metadata` (the documented free-form field); other harnesses keep
+        # it at the top level.
+        "claude": claude["metadata"]["compatibility"]["native"],
         "gemini": gemini["compatibility"]["degraded"],
     }
     for harness in ("codex", "cursor", "antigravity", "devin"):

@@ -1,9 +1,4 @@
 {
-  "_manifest": {
-    "id": "version-pin",
-    "mode": "advisory",
-    "owner": "manifest-ops"
-  },
   "description": "Warn after edits to dependency files without rewriting them.",
   "hooks": {
     "PostToolUse": [

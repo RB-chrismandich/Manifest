@@ -97,6 +97,17 @@ assert_mirrored() {
         "tests/lint/check_bats_assertions.sh"
 }
 
+# Fresh-checkout self-containment (tests/lint/check_fresh_checkout.sh) is
+# CI-owned: the gate itself lives under tests/lint/, outside any bundle, so
+# mirroring its invocation into run_pr_regression.sh would itself be a
+# bundle-local-reference violation (a pr-smoke skill citing a monorepo-only
+# tests/ path).
+
+# Bundle-local reference gate (tools/check_bundle_link_references.py) is
+# CI-owned: it needs uv/Python, which
+# test_pr_smoke_has_no_project_runtime_dependency forbids in the released
+# pr-smoke runtime.
+
 # YAML linting is CI-owned: requiring yamllint would add a tool dependency to
 # the portable pr-smoke plugin solely to mirror a project-config validation.
 
