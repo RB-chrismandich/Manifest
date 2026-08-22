@@ -151,6 +151,11 @@ jobs:
           uv run python tools/generate_plugin_views.py --check
           uv run python tools/vendor_bundle_dependencies.py --check
           uv run python tools/check_plugin_runtime_paths.py --json
+          # Agent-frontmatter gate: a bare `agent: name` silently resolves to
+          # general-purpose once skills are plugin-scoped, so it must be
+          # namespaced `plugin:agent`. Wired here rather than left as an
+          # opt-in utility -- a checker nothing runs closes nothing.
+          uv run python tools/check_agent_frontmatter.py
           uv run python tools/render_capability_inventory.py --check
           uv run python tools/render_plugin_capability_matrix.py --check \
             --inspection tests/fixtures/plugin_capability_inspection.json

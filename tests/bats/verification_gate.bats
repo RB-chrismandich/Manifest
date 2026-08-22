@@ -107,3 +107,35 @@ EOF
     VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
     echo "$output" | python3 -c 'import json,sys;assert json.load(sys.stdin)["reviewer_error"] is True'
 }
+
+# --- redaction is a security control: its failure must fail the gate ---------
+# Codex + Cursor both filed this as HIGH. The old code ran
+# `audit_log.sh redact "$(cat "$packet")"` -- one ARGV element, so a
+# multi-megabyte diff exceeded ARG_MAX and exec failed -- then swallowed the
+# failure with `|| true` and handed the ORIGINAL unredacted packet to the
+# reviewer. These run against a COPY of the script so the sibling
+# `audit_log.sh` it resolves via SCRIPT_DIR can be replaced with a failing one.
+
+_isolated_gate() { # $1 = audit_log.sh body
+    cp "$SCRIPT" "$TMP/verification_gate.sh"
+    printf '%s\n' '#!/usr/bin/env bash' "$1" > "$TMP/audit_log.sh"
+    printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$TMP/git_ops.sh"
+    printf '%s\n' '#!/usr/bin/env bash' "touch '$TMP/REVIEWER_RAN'" 'echo "{\"tier1\":{\"passed\":true},\"consensus_score\":0.9,\"verdict\":\"APPROVED\"}"' > "$TMP/seam.sh"
+    chmod +x "$TMP"/*.sh
+}
+
+@test "review: redaction failure blocks and never invokes the reviewer" {
+    _isolated_gate 'exit 1'
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$TMP/verification_gate.sh" review 123
+    [ "$status" -eq 0 ]
+    [ ! -f "$TMP/REVIEWER_RAN" ]
+    echo "$output" | python3 -c 'import json,sys;d=json.loads([l for l in sys.stdin if l.startswith("{")][-1]);assert d["reviewer_error"] is True;assert d["verdict"]=="BLOCKED"'
+}
+
+@test "review: working redaction still reaches the reviewer" {
+    _isolated_gate '[ "$1" = redact ] && exec cat
+exit 0'
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$TMP/verification_gate.sh" review 123
+    [ "$status" -eq 0 ]
+    [ -f "$TMP/REVIEWER_RAN" ]
+}

@@ -133,7 +133,9 @@ _PATH_TOKEN_RE = re.compile(
     r"("
     r"(?:\.\./)*"
     r"(?:\.\.|\.|\$\{CLAUDE_PLUGIN_ROOT\}|\$CLAUDE_PLUGIN_ROOT|[A-Za-z0-9_-]+)"
-    r"(?:/[A-Za-z0-9_-]+)*"
+    # `..` allowed as an INTERIOR segment too, or an escaping citation is
+    # never even tokenised and the containment check above never sees it.
+    r"(?:/(?:\.\.|[A-Za-z0-9_-]+))*"
     r"/[A-Za-z0-9_.-]+\.(?:" + _PATH_EXTENSIONS + r")"
     r")"
     r"(?![A-Za-z0-9_]|\.[A-Za-z0-9_])"
@@ -307,9 +309,12 @@ def _resolve_path_citation(
     """
     anchored = _bundle_anchor_target(token, bundle_dir)
     if anchored is not None:
-        # Bundle-anchored by construction: it can only ever name a path
-        # inside this bundle, so absence is now confirmable rather than an
-        # "exists elsewhere?" question with no signal either way.
+        # Plugin-root anchoring does NOT imply containment:
+        # `${CLAUDE_PLUGIN_ROOT}/../other-bundle/x.md` is anchored and still
+        # escapes, so it must be classified outside-bundle, not local.
+        if not _within(anchored, bundle_dir):
+            return _OUTSIDE_BUNDLE, anchored.resolve()
+        # Contained: absence is confirmable, not an "exists elsewhere?" guess.
         if anchored.is_file():
             return _BUNDLE_LOCAL, None
         return _BUNDLE_LOCAL_MISSING, anchored

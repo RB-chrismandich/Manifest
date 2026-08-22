@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import subprocess
 import tarfile
 from pathlib import Path
@@ -16,6 +17,21 @@ from manifest_agent.contracts import DOMAIN_BUNDLES
 from tools.build_manifest_release import ReleaseBuildError, build_release
 
 _BASE_URL = "https://downloads.example.invalid/manifest"
+
+# The 8 domain bundles move in lockstep, so their version changes on every
+# release. Hardcoding it here made three tests fail the moment 0.2.0 -> 0.3.0
+# landed -- and fail ONLY in CI, because a local run still had the bumps
+# uncommitted while these tests build from committed git state. Derive it.
+_MISMATCH_VERSION = "9.9.9"  # deliberately unequal to any real lockstep value
+
+
+def _lockstep_version(repo_root: Path) -> str:
+    text = (repo_root / "plugins/manifest-docs/manifest-capabilities.yml").read_text(
+        encoding="utf-8"
+    )
+    match = re.search(r"^\s*version:\s*(\S+)", text, re.MULTILINE)
+    assert match, "manifest-docs contract declares no bundle version"
+    return match.group(1).strip().strip("\"'")
 
 
 @pytest.fixture
@@ -88,7 +104,8 @@ def test_builds_exact_deterministic_eight_bundle_release(
     first = build_release(source, tmp_path / "first", _BASE_URL)
     second = build_release(source, tmp_path / "second", _BASE_URL)
 
-    assert first.archive.name == "manifest-plugins-0.2.0.tar.gz"
+    version = _lockstep_version(repo_root)
+    assert first.archive.name == f"manifest-plugins-{version}.tar.gz"
     assert first.archive.read_bytes() == second.archive.read_bytes()
     assert first.metadata.read_bytes() == second.metadata.read_bytes()
 
@@ -103,7 +120,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
         "schema_version",
         "version",
     }
-    assert metadata["version"] == "0.2.0"
+    assert metadata["version"] == version
     assert (
         metadata["commit"]
         == subprocess.run(
@@ -114,7 +131,8 @@ def test_builds_exact_deterministic_eight_bundle_release(
         ).stdout.strip()
     )
     assert metadata["archive_url"] == (
-        "https://downloads.example.invalid/manifest/0.2.0/manifest-plugins-0.2.0.tar.gz"
+        f"https://downloads.example.invalid/manifest/{version}/"
+        f"manifest-plugins-{version}.tar.gz"
     )
     assert (
         metadata["archive_sha256"]
@@ -152,11 +170,11 @@ def test_builds_exact_deterministic_eight_bundle_release(
             path == forbidden or path.startswith(f"{forbidden}/") for path in files
         )
     for name in DOMAIN_BUNDLES:
-        assert metadata["bundles"][name]["version"] == "0.2.0"
+        assert metadata["bundles"][name]["version"] == version
         assert metadata["bundles"][name]["contract_schema_version"] == 1
         assert metadata["bundles"][name]["sha256"] == _bundle_digest(name, files)
 
-    prefix = "manifest-plugins-0.2.0/"
+    prefix = f"manifest-plugins-{version}/"
     marketplace_contents = b""
     with tarfile.open(first.archive, mode="r:gz") as bundle:
         members = bundle.getmembers()
@@ -246,7 +264,9 @@ def test_release_reads_immutable_head_blobs_after_inventory(
     metadata = json.loads(release.metadata.read_text(encoding="utf-8"))
     assert metadata["files"][relative]["sha256"] == hashlib.sha256(expected).hexdigest()
     with tarfile.open(release.archive, mode="r:gz") as bundle:
-        member = bundle.getmember(f"manifest-plugins-0.2.0/{relative}")
+        member = bundle.getmember(
+            f"manifest-plugins-{_lockstep_version(repo_root)}/{relative}"
+        )
         payload = bundle.extractfile(member)
         assert payload is not None
         assert payload.read() == expected
@@ -273,7 +293,9 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     contract = bundle / "manifest-capabilities.yml"
     contract.write_text(
         contract.read_text(encoding="utf-8").replace(
-            "version: 0.2.0", "version: 0.3.0", 1
+            f"version: {_lockstep_version(repo_root)}",
+            f"version: {_MISMATCH_VERSION}",
+            1,
         ),
         encoding="utf-8",
     )
@@ -285,7 +307,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     ):
         path = bundle / relative
         document = json.loads(path.read_text(encoding="utf-8"))
-        document["version"] = "0.3.0"
+        document["version"] = _MISMATCH_VERSION
         path.write_text(
             json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
@@ -293,7 +315,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
     next(entry for entry in marketplace["plugins"] if entry["name"] == "manifest-docs")[
         "version"
-    ] = "0.3.0"
+    ] = _MISMATCH_VERSION
     marketplace_path.write_text(
         json.dumps(marketplace, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )

@@ -47,13 +47,17 @@ LABEL="loop-active"
 
 usage() {
     cat << 'USAGE'
-Usage: loop_lock.sh <acquire|release|is-held> <pr>
+Usage: loop_lock.sh <acquire|renew|holds|release|is-held> <pr>
 
   acquire <pr>   Take the per-PR lock.
                    0  acquired
                    1  CONTENDED — held by another run (or lost the race)
                    2  DEGRADED — the lease could not be attempted at all
                       (backend rejected the add); not evidence of contention
+  renew <pr>     Refresh our lease so a long tick cannot outlive it.
+                   0 renewed  1 lost/not ours  2 DEGRADED (unattemptable)
+  holds <pr>     Exit 0 only if we STILL hold a live lease. Gate every
+                 irreversible action on this, not on the earlier acquire.
   release <pr>   Release (idempotent). Exit 0.
   is-held <pr>   Exit 0 if currently held (and not stale), else 1.
 USAGE
@@ -69,6 +73,17 @@ lease_owner_token() {
 # Dynamic label name = "${LABEL}:<epoch>:<owner>" so multiple leases can coexist
 # (GitHub labels have no value field; this is how an owner token gets attached
 # to the cross-host-visible primitive at all).
+# Deletes a lease label from the repository label catalog. Best-effort: the
+# caller has already detached it, and a delete failure (no permission, API
+# error, someone else got there first) must never turn a successful release or
+# a stale-lease reclaim into a failure.
+delete_lease_label() {
+    local name="$1"
+    [[ -n "$name" ]] || return 0
+    "${SCRIPT_DIR}/git_ops.sh" label-delete "$name" --yes > /dev/null 2>&1 || true
+    return 0
+}
+
 label_op() {
     local op="$1" pr="$2" owner="${3:-}"
     if [[ -n "${LOOP_LOCK_LABEL_CMD:-}" ]]; then
@@ -78,7 +93,12 @@ label_op() {
     case "$op" in
         has)
             local labels line newest_epoch="" newest_owner="" epoch tok
-            labels="$("${SCRIPT_DIR}/git_ops.sh" issue-view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 1
+            # FAIL-CLOSED FIX: a failed lookup and an empty label set used to
+            # return the SAME status, so a transient API error read as "no
+            # lease" and acquisition proceeded -- two runners could then both
+            # enter the operator copy's real admin-merge path. Distinguish
+            # them: 2 = could not read (DEGRADED), 1 = read fine, no lease.
+            labels="$("${SCRIPT_DIR}/git_ops.sh" issue-view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 2
             while IFS= read -r line; do
                 [[ "$line" == "${LABEL}:"* ]] || continue
                 epoch="${line#"${LABEL}:"}"
@@ -130,6 +150,13 @@ label_op() {
             while IFS= read -r line; do
                 [[ "$line" == "${LABEL}:"*":${owner}" ]] || continue
                 "${SCRIPT_DIR}/git_ops.sh" issue-edit "$pr" --remove-label "$line" > /dev/null 2>&1
+                # Detaching is not enough: the lease name is unique per
+                # acquisition (epoch+owner), so a repo that only ever detaches
+                # accumulates one dead label per poll until the label catalog
+                # is unusable. Delete the label we ourselves created.
+                # Best-effort by design -- releasing the lock matters more than
+                # tidying it, so a failed delete must not fail the release.
+                delete_lease_label "$line"
             done <<< "$labels"
             return 0
             ;;
@@ -137,9 +164,14 @@ label_op() {
 }
 
 # Prints "<age>\t<owner>" of the active (non-stale) lease, if any; exit 1 if none.
+# Exit: 0 = a live lease is on record (prints "<age>\t<owner>")
+#       1 = read succeeded, no live lease (free, or only a stale one)
+#       2 = lease state could not be READ at all -- callers must fail closed,
+#           never treat this as "free" (see the has) branch above).
 active_lease() {
-    local pr="$1" out age owner
-    out="$(label_op has "$pr" "")" || return 1
+    local pr="$1" out age owner rc=0
+    out="$(label_op has "$pr" "")" || rc=$?
+    ((rc == 0)) || return "$rc"
     age="${out%%$'\t'*}"
     owner="${out#*$'\t'}"
     [[ "$age" =~ ^[0-9]+$ ]] || age=0
@@ -148,6 +180,73 @@ active_lease() {
 }
 
 held_active() { active_lease "$1" > /dev/null; }
+
+# Detaches and deletes every EXPIRED lease label on a PR. Called on the
+# reclaim path only: a live lease is never touched. Best-effort throughout --
+# cleanup must not turn an otherwise-valid acquire into a failure.
+purge_stale_leases() {
+    local pr="$1" labels line epoch now age
+    # Reads the full label set directly from the backend, which the
+    # LOOP_LOCK_LABEL_CMD seam does not model (it exposes only has/add/remove
+    # and returns the winning lease, not the whole set). Skip under a seam
+    # rather than issue real backend calls from a test: this is a real-backend
+    # -only cleanup path, and saying so beats pretending it is covered.
+    [[ -z "${LOOP_LOCK_LABEL_CMD:-}" ]] || return 0
+    labels="$("${SCRIPT_DIR}/git_ops.sh" issue-view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 0
+    now="$(date +%s)"
+    while IFS= read -r line; do
+        [[ "$line" == "${LABEL}:"* ]] || continue
+        epoch="${line#"${LABEL}:"}"
+        epoch="${epoch%%:*}"
+        [[ "$epoch" =~ ^[0-9]+$ ]] || continue
+        age=$(((now - epoch) / 60))
+        ((age > STALE_MIN)) || continue
+        "${SCRIPT_DIR}/git_ops.sh" issue-edit "$pr" --remove-label "$line" > /dev/null 2>&1 || true
+        delete_lease_label "$line"
+    done <<< "$labels"
+    return 0
+}
+
+# Refreshes our lease so a long-running tick cannot outlive it (#8). The age
+# of a lease is encoded in its label name, so "renewing" means adding a label
+# with a fresh epoch for the same owner and dropping the older one. Callers
+# must invoke this before any irreversible step whose preceding work may have
+# run longer than STALE_MIN -- the verification gate alone is allowed 600s.
+# Exit 0 only if we still own a live lease afterwards.
+cmd_renew() {
+    local pr="${1:?pr required}" owner held owner_now
+    owner="$(cat "${LOCK_DIR}/${pr}.owner" 2> /dev/null)" || return 1
+    [[ -n "$owner" ]] || return 1
+    # Add the fresh epoch FIRST, so there is never a window with no lease
+    # on record for us at all.
+    label_op add "$pr" "$owner" || {
+        err "#${pr} lease renewal could not be attempted (degraded)"
+        return 2
+    }
+    sleep "${LOOP_LOCK_SETTLE_SEC:-0.25}"
+    local rc=0
+    held="$(active_lease "$pr")" || rc=$?
+    ((rc == 0)) || {
+        err "#${pr} lease lost during renewal (rc=${rc})"
+        return 1
+    }
+    owner_now="${held#*$'\t'}"
+    [[ "$owner_now" == "$owner" ]] || {
+        err "#${pr} lease taken over during renewal (owner=${owner_now})"
+        return 1
+    }
+    return 0
+}
+
+# True only if we STILL hold a live lease. Callers must gate every
+# irreversible action on this, not on the acquire that happened minutes ago.
+cmd_holds() {
+    local pr="${1:?pr required}" owner held rc=0
+    owner="$(cat "${LOCK_DIR}/${pr}.owner" 2> /dev/null)" || return 1
+    held="$(active_lease "$pr")" || rc=$?
+    ((rc == 0)) || return 1
+    [[ "${held#*$'\t'}" == "$owner" ]]
+}
 
 cmd_acquire() {
     local pr="${1:?pr required}" owner held owner_now
@@ -161,10 +260,24 @@ cmd_acquire() {
             return 1
         }
     fi
-    if held_active "$pr"; then
-        err "#${pr} already locked"
-        return 1
-    fi
+    local probe_rc=0
+    active_lease "$pr" > /dev/null || probe_rc=$?
+    case "$probe_rc" in
+        0)
+            err "#${pr} already locked"
+            return 1
+            ;;
+        2)
+            # FAIL CLOSED. We could not read the lease state, so we cannot know
+            # whether someone else holds it. Proceeding would let a transient
+            # API blip become a concurrent acquisition.
+            err "#${pr} lease state unreadable — refusing to acquire (degraded, NOT evidence the lock is free)"
+            return 2
+            ;;
+    esac
+    # Reclaiming a stale lease: detach and delete the dead label so a crashed
+    # runner does not leave its lease name in the repo catalog forever.
+    purge_stale_leases "$pr"
     owner="$(lease_owner_token)"
     # FIX (CDDL QA-critic finding): a failed add must fail the acquire, not be
     # swallowed — silently continuing here would report the lease as taken (exit
@@ -239,6 +352,11 @@ main() {
             exit 0
             ;;
         is-held) cmd_is_held "$@" && exit 0 || exit 1 ;;
+        renew)
+            cmd_renew "$@"
+            exit $?
+            ;;
+        holds) cmd_holds "$@" && exit 0 || exit 1 ;;
         *)
             err "unknown subcommand: ${sub:-<none>}"
             usage >&2

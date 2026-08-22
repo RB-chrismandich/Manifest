@@ -96,9 +96,26 @@ cmd_review() {
     } > "$packet" 2> /dev/null || true
 
     # Redact before the packet leaves the process.
+    #
+    # Two defects fixed here (2026-08-22, Codex + Cursor both HIGH):
+    #  1. `redact "$(cat "$packet")"` passed the whole packet as one ARGV
+    #     element. A multi-megabyte PR diff exceeds ARG_MAX, exec fails, and
+    #     nothing is redacted. Feed it on stdin instead -- no size ceiling.
+    #  2. The trailing `|| true` then let execution continue with the ORIGINAL
+    #     unredacted packet, which was handed straight to the configured
+    #     reviewer. Any secret in that raw diff left the process. Redaction is
+    #     a security control, so its failure must fail the gate, not be
+    #     swallowed: fall through to reviewer_error/BLOCKED instead.
     if [[ -x "${SCRIPT_DIR}/audit_log.sh" ]]; then
-        "${SCRIPT_DIR}/audit_log.sh" redact "$(cat "$packet")" > "${packet}.r" 2> /dev/null &&
-            mv "${packet}.r" "$packet" || true
+        if "${SCRIPT_DIR}/audit_log.sh" redact < "$packet" > "${packet}.r" 2> /dev/null &&
+            [[ -s "${packet}.r" || ! -s "$packet" ]]; then
+            mv "${packet}.r" "$packet"
+        else
+            rm -f "${packet}.r"
+            err "redaction failed — refusing to send an unredacted review packet"
+            printf '%s\n' '{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0,"verdict":"BLOCKED"}'
+            return 0
+        fi
     fi
 
     local raw rc=0

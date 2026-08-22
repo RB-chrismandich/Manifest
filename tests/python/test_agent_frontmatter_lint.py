@@ -28,6 +28,7 @@ def _write_skill(tmp_path: Path, bundle: str, name: str, frontmatter: str) -> Pa
 
 
 def test_no_agent_field_is_not_a_violation(tmp_path: Path) -> None:
+    """A skill that declares no `agent:` at all is untouched by the gate."""
     checker = _checker_module()
     _write_skill(tmp_path, "manifest-docs", "demo", "name: demo\ndescription: demo")
 
@@ -56,6 +57,7 @@ def test_bare_agent_name_is_a_violation(tmp_path: Path) -> None:
 
 
 def test_fully_qualified_agent_name_passes(tmp_path: Path) -> None:
+    """`plugin:agent` is the namespaced form the gate exists to permit."""
     checker = _checker_module()
     path = _write_skill(
         tmp_path,
@@ -72,6 +74,7 @@ def test_fully_qualified_agent_name_passes(tmp_path: Path) -> None:
 
 
 def test_double_colon_agent_name_is_rejected(tmp_path: Path) -> None:
+    """`a::b` is not a valid namespace and must not be mistaken for one."""
     checker = _checker_module()
     _write_skill(
         tmp_path,
@@ -87,6 +90,7 @@ def test_double_colon_agent_name_is_rejected(tmp_path: Path) -> None:
 
 
 def test_non_string_agent_value_is_rejected(tmp_path: Path) -> None:
+    """A non-string `agent:` (list, mapping, number) is rejected, not coerced."""
     checker = _checker_module()
     _write_skill(
         tmp_path,
@@ -100,18 +104,26 @@ def test_non_string_agent_value_is_rejected(tmp_path: Path) -> None:
     assert len(report.violations) == 1
 
 
-def test_repository_skills_declare_no_agent_field_today(tmp_path: Path) -> None:
-    """The gate is preventative: zero skills use `agent:` at this writing."""
+def test_repository_skills_use_no_bare_agent_names(tmp_path: Path) -> None:
+    """The live invariant the CI gate enforces: no skill may declare a BARE
+    `agent:` value.
+
+    Deliberately does NOT assert `agent_field_users == ()`. An earlier revision
+    did, which made the suite fail the moment any skill adopted a correctly
+    namespaced `plugin:agent` value -- i.e. it blocked the very usage the gate
+    exists to permit, and would have been "fixed" by deleting the assertion
+    rather than by reading it.
+    """
     checker = _checker_module()
     root = Path(__file__).resolve().parents[2]
 
     report = checker.scan(root)
 
     assert report.violations == ()
-    assert report.agent_field_users == ()
 
 
 def test_main_exits_nonzero_on_violation(tmp_path: Path, capsys) -> None:
+    """The CLI entry point fails the build, so CI can gate on it."""
     checker = _checker_module()
     _write_skill(
         tmp_path,
@@ -128,6 +140,7 @@ def test_main_exits_nonzero_on_violation(tmp_path: Path, capsys) -> None:
 
 
 def test_report_mode_exits_zero_even_with_violations(tmp_path: Path, capsys) -> None:
+    """Report mode surfaces findings without failing, for inventory runs."""
     checker = _checker_module()
     _write_skill(
         tmp_path,

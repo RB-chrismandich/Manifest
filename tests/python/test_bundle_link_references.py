@@ -395,5 +395,50 @@ def test_gate_would_have_failed_before_the_relative_path_was_correct(
     )
 
 
+def test_flags_plugin_root_citation_that_escapes_into_a_sibling_bundle(
+    tmp_path: Path,
+) -> None:
+    """`${CLAUDE_PLUGIN_ROOT}/../other/x.md` is plugin-root-anchored and still
+    leaves the bundle. An earlier revision returned BUNDLE_LOCAL for any
+    plugin-root target that existed on disk, so the gate passed exactly the
+    cross-bundle dependency it exists to reject."""
+    checker = _checker_module()
+    _write_bundle(
+        tmp_path,
+        "manifest-ops",
+        "escaper",
+        "---\nname: escaper\ndescription: demo\n---\n"
+        "See `${CLAUDE_PLUGIN_ROOT}/../manifest-docs/shared.md`.\n",
+    )
+    sibling = tmp_path / "plugins" / "manifest-docs"
+    sibling.mkdir(parents=True)
+    (sibling / "shared.md").write_text("# shared\n", encoding="utf-8")
+
+    report = checker.scan(tmp_path)
+
+    assert [v.kind for v in report.violations] == ["cross-bundle-path"]
+
+
+def test_does_not_flag_plugin_root_citation_that_stays_inside_the_bundle(
+    tmp_path: Path,
+) -> None:
+    """The containment test must not break ordinary plugin-root citations."""
+    checker = _checker_module()
+    skill_dir = _write_bundle(
+        tmp_path,
+        "manifest-ops",
+        "wellbehaved",
+        "---\nname: wellbehaved\ndescription: demo\n---\n"
+        "Run `${CLAUDE_PLUGIN_ROOT}/runtime/bin/tool.py`.\n",
+    )
+    bundle_root = skill_dir.parents[1]
+    (bundle_root / "runtime/bin").mkdir(parents=True)
+    (bundle_root / "runtime/bin/tool.py").write_text("pass\n", encoding="utf-8")
+
+    report = checker.scan(tmp_path)
+
+    assert report.violations == ()
+
+
 # Real-repo regression (the known true positives stay caught, the documented
 # non-defects stay unflagged) lives in test_bundle_link_references_real_repo.py.

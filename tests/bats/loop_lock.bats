@@ -183,3 +183,81 @@ EOF
     [ "$b_rc" -eq 0 ] && wins=$((wins + 1))
     [ "$wins" -eq 1 ] # never both, never neither
 }
+
+# --- fail-closed on an UNREADABLE lease (Codex P1, 2026-08-22) --------------
+# `label_op has` used to return 1 both when the read succeeded with no lease
+# AND when the lookup itself failed, so a transient API error read as "free"
+# and two runners could acquire concurrently -- in the operator copy that
+# leads into a real `gh pr merge --admin`. 2 now means "could not read".
+
+@test "acquire: unreadable lease state fails CLOSED (exit 2), never acquires" {
+    cat > "$TMP/unreadable-seam.sh" << 'EOF'
+#!/usr/bin/env bash
+[ "$1" = has ] && exit 2   # lookup itself failed
+exit 0
+EOF
+    chmod +x "$TMP/unreadable-seam.sh"
+    LOOP_LOCK_LABEL_CMD="$TMP/unreadable-seam.sh" run "$SCRIPT" acquire 71
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"unreadable"* ]]
+}
+
+@test "acquire: a clean 'no lease' read (exit 1) still acquires normally" {
+    # Regression guard for the fix above: only status 2 may fail closed. If
+    # this ever fails, the fail-closed branch has swallowed the happy path.
+    run "$SCRIPT" acquire 72
+    [ "$status" -eq 0 ]
+}
+
+# --- holds / renew (Codex P1 #8: a long tick must not outlive its lease) ----
+
+@test "holds: true while we own a live lease, false after release" {
+    run "$SCRIPT" acquire 73
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" holds 73
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" release 73
+    run "$SCRIPT" holds 73
+    [ "$status" -ne 0 ]
+}
+
+@test "holds: false when someone else owns the lease" {
+    run "$SCRIPT" acquire 74
+    [ "$status" -eq 0 ]
+    rm -f "$LOOP_LOCK_DIR/74.owner"          # we no longer know the owner
+    printf 'someone-else' > "$LOOP_LOCK_DIR/74.owner"
+    run "$SCRIPT" holds 74
+    [ "$status" -ne 0 ]
+}
+
+@test "renew: refreshes our lease and we still hold it afterwards" {
+    run "$SCRIPT" acquire 75
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" renew 75
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" holds 75
+    [ "$status" -eq 0 ]
+}
+
+@test "renew: DEGRADED (exit 2) when the backend rejects the refresh add" {
+    run "$SCRIPT" acquire 76
+    [ "$status" -eq 0 ]
+    cat > "$TMP/reject-add-seam.sh" << 'EOF'
+#!/usr/bin/env bash
+d="${SEAM_STATE:?}"; op="$1"; pr="$2"
+case "$op" in
+  add) exit 1 ;;
+  has) pd="$d/$pr"; shopt -s nullglob; for f in "$pd"/*; do
+         printf '0\t%s\n' "$(basename "$f")"; exit 0; done; exit 1 ;;
+  *) exit 0 ;;
+esac
+EOF
+    chmod +x "$TMP/reject-add-seam.sh"
+    LOOP_LOCK_LABEL_CMD="$TMP/reject-add-seam.sh" run "$SCRIPT" renew 76
+    [ "$status" -eq 2 ]
+}
+
+@test "renew: fails when we never held the lease" {
+    run "$SCRIPT" renew 77
+    [ "$status" -eq 1 ]
+}

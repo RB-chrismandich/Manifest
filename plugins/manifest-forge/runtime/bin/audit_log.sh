@@ -3,7 +3,7 @@
 #
 # Subcommands:
 #   append <json>   Redact known secret patterns and append record; exit 0 (fail-open)
-#   redact <text>   Emit redacted version of text on stdout; exit 0
+#   redact [text]   Emit redacted text on stdout; reads stdin if no arg
 #
 # Env: AUDIT_LOG_FILE (generic target, preferred — lets other features, e.g.
 #      CDDL, write their own per-tool audit files through this writer) or
@@ -21,7 +21,10 @@ AUDIT_FILE="${AUDIT_LOG_FILE:-${AUTO_ISSUE_DEV_AUDIT_FILE:-${FORGE_STATE_DIR}/au
 
 REDACT_PY='
 import sys, re
-text = sys.argv[1] if len(sys.argv) > 1 else ""
+# Read from stdin when no argument is given. Passing a whole review packet as
+# an ARGV element blows past ARG_MAX on a multi-megabyte diff -- exec fails,
+# nothing is redacted, and the caller may then ship the RAW text onward.
+text = sys.argv[1] if len(sys.argv) > 1 else sys.stdin.read()
 PATTERNS = [
     (r"(ghp|gho|github_pat)_[A-Za-z0-9_]{20,}", "<REDACTED:github-token>"),
     (r"sk-ant-[A-Za-z0-9_-]{20,}",              "<REDACTED:anthropic-key>"),
@@ -39,7 +42,8 @@ usage() {
 Usage: audit_log.sh <subcommand> [args]
 
   append <json>   Redact and append one record to the audit log; exit 0 (fail-open)
-  redact <text>   Emit redacted version of text on stdout; exit 0
+  redact [text]   Emit redacted text on stdout; reads stdin if no arg
+                  (use stdin for anything large -- ARGV has a size ceiling)
 
 Env: AUDIT_LOG_FILE (preferred) or AUTO_ISSUE_DEV_AUDIT_FILE (legacy).
      Default: $XDG_STATE_HOME/manifest/forge/audit.jsonl
@@ -47,7 +51,15 @@ USAGE
 }
 
 cmd_redact() {
-    python3 -c "${REDACT_PY}" "${1:-}"
+    # Only forward an ARGV element when one was actually supplied. Passing
+    # "${1:-}" unconditionally handed python an empty argv[1], which the
+    # script then preferred over stdin -- so piped input silently redacted
+    # to nothing.
+    if (($# > 0)); then
+        python3 -c "${REDACT_PY}" "$1"
+    else
+        python3 -c "${REDACT_PY}"
+    fi
 }
 
 cmd_append() {

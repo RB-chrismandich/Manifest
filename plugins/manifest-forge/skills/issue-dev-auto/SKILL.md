@@ -12,14 +12,16 @@ this skill with fresh context for the next issue.
 
 1. **Automated merge is unavailable in this plugin distribution — the develop
    step stops at PR-open, full stop.** Two adversarial CDDL review rounds found
-   the merge machinery unsound: the concurrency lock (`../../runtime/bin/loop_lock.sh`)
-   is known-inert in production (GitHub's `--add-label` only attaches
-   pre-provisioned labels; `labels.yml` provisions only the static
-   `loop-active`, never the dynamic `loop-active:<epoch>:<token>` lease the
-   lock actually requests — a passing test used a seam that accepted arbitrary
-   label names, a false green), plus six further open findings (no global
-   merge serialization, no `--match-head-commit`, the sink not re-checking
-   `reviewDecision`, and more). `../../runtime/bin/pr_merge_loop.sh merge` therefore
+   the merge machinery unsound. The lock's original defect — GitHub's
+   `--add-label` only attaches pre-provisioned labels, so the dynamic
+   `loop-active:<epoch>:<token>` lease could never attach — **is fixed**:
+   `../../runtime/bin/loop_lock.sh` now creates the lease label with
+   `label-create --force` immediately before attaching it. Do not read a
+   failed acquire as that old false-green; a genuine acquisition failure is
+   now reported as such. The hard gate stands on the remaining findings, which
+   are unrelated to label provisioning: no global merge serialization, no
+   `--match-head-commit`, the sink not re-checking `reviewDecision`, and more.
+   `../../runtime/bin/pr_merge_loop.sh merge` therefore
    **hard-refuses unconditionally** (exit 78) in this bundle — `PR_MERGE_LOOP_APPLY=1`
    does **not** re-enable it; the gate is not an env toggle. The rest of the
    pipeline is unaffected and still runs: signal-gathering, the merge decision

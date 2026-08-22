@@ -280,7 +280,7 @@ ALLOWED_BASE_BRANCH="${PR_MERGE_LOOP_ALLOWED_BASE:-main}"
 # here ever grants an ambiguous "probably fine".
 sink_reverify() {
     local pr="${1:?pr required}" expected_sha="${2:-}"
-    local author allowed base head buckets hold uh
+    local author allowed base head buckets hold uh rd
 
     author="$(gh_op author "$pr")" || {
         err "#$pr: author lookup failed — fail closed"
@@ -333,6 +333,20 @@ sink_reverify() {
     }
     [[ "$hold" == "false" ]] || {
         err "#$pr: hold label present — fail closed"
+        return 1
+    }
+
+    # Re-read reviewDecision at the sink. cmd_signals reads it at DECISION
+    # time, but a human can hit "Request changes" between the decision and the
+    # merge -- every other sink check re-reads live state, and this one was
+    # simply missing, so a CHANGES_REQUESTED landing in that window did not
+    # stop an admin merge. (Cursor security review, HIGH, 2026-08-22.)
+    rd="$(gh_op reviewdecision "$pr")" || {
+        err "#$pr: reviewDecision lookup failed — fail closed"
+        return 1
+    }
+    [[ "$rd" != "CHANGES_REQUESTED" ]] || {
+        err "#$pr: reviewDecision is CHANGES_REQUESTED — fail closed"
         return 1
     }
 
