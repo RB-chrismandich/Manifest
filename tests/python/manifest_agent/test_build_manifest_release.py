@@ -88,7 +88,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
     first = build_release(source, tmp_path / "first", _BASE_URL)
     second = build_release(source, tmp_path / "second", _BASE_URL)
 
-    assert first.archive.name == "manifest-plugins-0.2.0.tar.gz"
+    assert first.archive.name == "manifest-plugins-0.3.0.tar.gz"
     assert first.archive.read_bytes() == second.archive.read_bytes()
     assert first.metadata.read_bytes() == second.metadata.read_bytes()
 
@@ -103,7 +103,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
         "schema_version",
         "version",
     }
-    assert metadata["version"] == "0.2.0"
+    assert metadata["version"] == "0.3.0"
     assert (
         metadata["commit"]
         == subprocess.run(
@@ -114,7 +114,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
         ).stdout.strip()
     )
     assert metadata["archive_url"] == (
-        "https://downloads.example.invalid/manifest/0.2.0/manifest-plugins-0.2.0.tar.gz"
+        "https://downloads.example.invalid/manifest/0.3.0/manifest-plugins-0.3.0.tar.gz"
     )
     assert (
         metadata["archive_sha256"]
@@ -152,11 +152,11 @@ def test_builds_exact_deterministic_eight_bundle_release(
             path == forbidden or path.startswith(f"{forbidden}/") for path in files
         )
     for name in DOMAIN_BUNDLES:
-        assert metadata["bundles"][name]["version"] == "0.2.0"
+        assert metadata["bundles"][name]["version"] == "0.3.0"
         assert metadata["bundles"][name]["contract_schema_version"] == 1
         assert metadata["bundles"][name]["sha256"] == _bundle_digest(name, files)
 
-    prefix = "manifest-plugins-0.2.0/"
+    prefix = "manifest-plugins-0.3.0/"
     marketplace_contents = b""
     with tarfile.open(first.archive, mode="r:gz") as bundle:
         members = bundle.getmembers()
@@ -246,7 +246,7 @@ def test_release_reads_immutable_head_blobs_after_inventory(
     metadata = json.loads(release.metadata.read_text(encoding="utf-8"))
     assert metadata["files"][relative]["sha256"] == hashlib.sha256(expected).hexdigest()
     with tarfile.open(release.archive, mode="r:gz") as bundle:
-        member = bundle.getmember(f"manifest-plugins-0.2.0/{relative}")
+        member = bundle.getmember(f"manifest-plugins-0.3.0/{relative}")
         payload = bundle.extractfile(member)
         assert payload is not None
         assert payload.read() == expected
@@ -273,7 +273,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     contract = bundle / "manifest-capabilities.yml"
     contract.write_text(
         contract.read_text(encoding="utf-8").replace(
-            "version: 0.2.0", "version: 0.3.0", 1
+            "version: 0.3.0", "version: 0.4.0", 1
         ),
         encoding="utf-8",
     )
@@ -285,7 +285,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     ):
         path = bundle / relative
         document = json.loads(path.read_text(encoding="utf-8"))
-        document["version"] = "0.3.0"
+        document["version"] = "0.4.0"
         path.write_text(
             json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
@@ -293,7 +293,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
     next(entry for entry in marketplace["plugins"] if entry["name"] == "manifest-docs")[
         "version"
-    ] = "0.3.0"
+    ] = "0.4.0"
     marketplace_path.write_text(
         json.dumps(marketplace, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
