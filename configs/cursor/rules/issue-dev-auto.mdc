@@ -1,12 +1,12 @@
 ---
-description: "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; an opt-in gated loop may also merge cleared PRs (dry-run by default). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto."
+description: "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; a PR-monitoring loop tracks merge-readiness (merge is hard-gated here). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto."
 globs: ".claude/skills/issue-dev-auto/**"
 alwaysApply: false
 ---
 
 # issue-dev-auto
 
-Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; an opt-in gated loop may also merge cleared PRs (dry-run by default). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto.
+Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; a PR-monitoring loop tracks merge-readiness (merge is hard-gated here). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto.
 
 <!-- Auto-generated from .claude/skills/issue-dev-auto/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

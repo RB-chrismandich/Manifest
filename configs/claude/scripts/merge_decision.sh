@@ -20,7 +20,7 @@ usage() {
 Usage: merge_decision.sh decide [<signals-json>]
 
   decide   Map a signals JSON (arg or stdin) to {action, reason, label}.
-           action ∈ merge|revise|wait|update-branch|hand-human|halt
+           action ∈ merge|revise|wait|run-gate|update-branch|hand-human|halt
            Always exits 0; malformed input fails closed (hand-human).
 USAGE
 }
