@@ -108,11 +108,17 @@ without touching claude/gemini's API path — and without requiring `uv` to be i
 3. If yes:
 
 ```bash
-# --sync-fixtures modifies tests/token_benchmark/fixtures/ in the working
-# tree, so include it — otherwise the committed fixtures drift stale.
-git add docs/TOKEN_BENCHMARK.md tests/token_benchmark/results/ tests/token_benchmark/fixtures/
+git add docs/TOKEN_BENCHMARK.md tests/token_benchmark/results/
 git commit -m "chore: update token benchmark results $(date +%Y-%m-%d)"
 ```
+
+`tests/token_benchmark/fixtures/` is a **committed, publicly-readable** tree.
+Do not stage or commit `--sync-fixtures` output as part of this routine step.
+`sync_fixtures()` only ever writes the two files the benchmark actually reads
+(`.claude/CLAUDE.md`, `.gemini/GEMINI.md`) — it never copies
+`~/.claude/settings.json`, which can carry API keys under its `env` mapping.
+If a fixture refresh is genuinely needed, review the diff and commit it as
+its own deliberate change, separately from routine result updates.
 
 ## Expected runtime
 

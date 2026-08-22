@@ -146,11 +146,14 @@ def _add_record(
 
 
 def _add_compatibility(
-    view: dict[str, Any], records: dict[str, list[dict[str, str]]]
+    view: dict[str, Any],
+    records: dict[str, list[dict[str, str]]],
+    *,
+    under_metadata: bool = False,
 ) -> None:
     if not records:
         return
-    view["compatibility"] = {
+    compatibility = {
         mode: sorted(
             mode_records,
             key=lambda record: (
@@ -162,6 +165,14 @@ def _add_compatibility(
         for mode, mode_records in sorted(records.items())
         if mode_records
     }
+    if under_metadata:
+        # Claude Code's plugin.json schema has no top-level `compatibility`
+        # field; `claude plugin validate --strict` warns on unrecognized
+        # fields. `metadata` is the documented free-form field, so nest the
+        # compatibility evidence there instead of at the top level.
+        view.setdefault("metadata", {})["compatibility"] = compatibility
+    else:
+        view["compatibility"] = compatibility
 
 
 def claude_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
@@ -195,7 +206,7 @@ def claude_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
                 _add_record(records, fallback["mode"], fallback)
         if exposed:
             view[component_type] = [f"./{component.path}" for component in exposed]
-    _add_compatibility(view, records)
+    _add_compatibility(view, records, under_metadata=True)
     return view
 
 

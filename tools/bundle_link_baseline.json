@@ -1,0 +1,391 @@
+{
+  "version": 1,
+  "_comment": "Recorded bundle-local-reference violations as of Phase 0 (docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md). The gate blocks on any violation NOT in this list -- fixing one lowers the ceiling automatically; it is never edited to hide a fix. Regenerate with: uv run python tools/check_bundle_link_references.py --update-baseline. An entry may be added by hand only with the reason in the commit message.",
+  "violations": [
+    {
+      "path": "plugins/manifest-code-quality/skills/ai-code-audit/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/antipattern-detect/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/antipattern-detect/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/antipattern-detect/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/code-constitution.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/CODING_STANDARDS.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/node.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/CODING_STANDARDS.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/CODING_STANDARDS.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/fixtures/mock_config.yml"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_array_expansion.sh"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_array_expansion.sh"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_bats_assertions.sh"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_bats_assertions.sh"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/constitution/shell.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_bats_assertions.sh"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/code-audit/references/antipatterns.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/go-refactor/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/node-refactor/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/project-scaffold/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/__init__.py"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/python-refactor/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/refactor/SKILL.md",
+      "kind": "home-tree-path",
+      "value": "~/.claude/references/sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/shell-refactor/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-code-quality/skills/terraform-refactor/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-delegate/skills/delegate/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "configs/claude/references/harness-routing.md"
+    },
+    {
+      "path": "plugins/manifest-delegate/skills/delegate/references/prompting-devin.md",
+      "kind": "cross-bundle-path",
+      "value": "configs/claude/config/parallel_agent.yml"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-all/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/COMMANDS.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-all/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-generate-diagrams/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/diagrams/README.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve-readme/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/GETTING_STARTED.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve-readme/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/configuration/files.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/COMMANDS.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/COMMANDS.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/GETTING_STARTED.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/README.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/README.md"
+    },
+    {
+      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/GETTING_STARTED.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/README.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-dev-auto/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/MODEL-POLICY.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-prioritize/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-prioritize/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-sync-commit/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-sync-pr/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-sync-pr/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-triage/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/issue-triage/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/lifecycle-run/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/MODEL-POLICY.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/pr-review/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/pr-review/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/pr-triage-bots/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/pr-triage-bots/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/repo-clean/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-forge/skills/repo-clean/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-security/skills/ci-audit-triggers/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-security/skills/code-audit/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/manifest-security/skills/security-refute-findings/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-security/skills/security-triage-findings/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/learning-capture/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/learning-capture/scripts/learning_capture.py",
+      "kind": "cross-bundle-path",
+      "value": "docs/KNOWLEDGE_BASE.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/pr-smoke/scripts/run_pr_regression.sh",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_array_expansion.sh"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/pr-smoke/scripts/run_pr_regression.sh",
+      "kind": "cross-bundle-path",
+      "value": "tests/lint/check_bats_assertions.sh"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/prompt-optimize/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/CODING_STANDARDS.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/prompt-optimize/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/CODING_STANDARDS.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/TOKEN_BENCHMARK.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/TOKEN_BENCHMARK.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/TOKEN_BENCHMARK.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "docs/TOKEN_BENCHMARK.md"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/token_benchmark/benchmarks.py"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/token_benchmark/harness.py"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/token_benchmark/harness.py"
+    },
+    {
+      "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
+      "kind": "cross-bundle-path",
+      "value": "tests/token_benchmark/harness.py"
+    },
+    {
+      "path": "plugins/stitch-design/skills/a11y-audit/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/stitch-design/skills/a11y-audit/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/stitch-design/skills/review-round/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/stitch-design/skills/review-round/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    },
+    {
+      "path": "plugins/stitch-design/skills/ux-review/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "command_config.yml"
+    },
+    {
+      "path": "plugins/stitch-design/skills/ux-review/SKILL.md",
+      "kind": "missing-bundled-reference",
+      "value": "sub-agent-dispatch.md"
+    }
+  ]
+}

@@ -77,10 +77,21 @@ def _configure_component_fixture(fixture_root: Path) -> None:
     )
 
 
+def _compatibility_records(view: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    # Claude's native plugin.json nests compatibility evidence under the
+    # documented `metadata` field (no top-level `compatibility` field is
+    # recognized by `claude plugin validate --strict`); other harnesses keep
+    # it at the top level.
+    metadata = view.get("metadata")
+    if isinstance(metadata, dict) and "compatibility" in metadata:
+        return metadata["compatibility"]
+    return view.get("compatibility", {})
+
+
 def _native_component_keys(view: dict[str, Any]) -> set[tuple[str, str]]:
     keys = {
         (record["component_type"], record["component_id"])
-        for records in view.get("compatibility", {}).values()
+        for records in _compatibility_records(view).values()
         for record in records
     }
     for kind, (component_id, relative_path) in COMPONENT_FIXTURES.items():
@@ -102,7 +113,7 @@ def _assert_native_views(views: dict[str, dict[str, Any]]) -> None:
         assert expected <= _native_component_keys(view), harness
         runtime = next(
             record
-            for record in view["compatibility"]["degraded"]
+            for record in _compatibility_records(view)["degraded"]
             if record["component_type"] == "runtime"
         )
         assert runtime["reason"] == f"{harness} fixture runtime"

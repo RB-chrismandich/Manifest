@@ -1,6 +1,6 @@
 ---
 name: issue-dev-auto
-description: "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; an opt-in gated loop may also merge cleared PRs (dry-run by default). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto."
+description: "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; a PR-monitoring loop tracks merge-readiness (merge is hard-gated here). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto."
 ---
 
 # Autonomous Issue Developer
@@ -10,14 +10,29 @@ this skill with fresh context for the next issue.
 
 ## Critical Rules
 
-1. **Merge only through the verified gate (supersedes the former "never merge" rule).**
-   The develop step still stops at PR-open. A PR is merged to main *only* by the
-   PR-monitoring loop below, and only when every clear condition holds (CI green, no
-   actionable human comment, `/manifest-forge:pr-review`=merge, `/manifest-code-quality:project-verify` pass, #360
-   gate Tier-1 pass, and
-   consensus ≥ 0.80) — a tested decision (`merge_decision.sh`), never a judgment call. Merges
-   are **opt-in** (`PR_MERGE_LOOP_APPLY=1`); the default is dry-run. Anything short of fully
-   clear → the PR goes to a human, never a partial/forced merge.
+1. **Automated merge is unavailable in this plugin distribution — the develop
+   step stops at PR-open, full stop.** Two adversarial CDDL review rounds found
+   the merge machinery unsound. The lock's original defect — GitHub's
+   `--add-label` only attaches pre-provisioned labels, so the dynamic
+   `loop-active:<epoch>:<token>` lease could never attach — **is fixed**:
+   `../../runtime/bin/loop_lock.sh` now creates the lease label with
+   `label-create --force` immediately before attaching it. Do not read a
+   failed acquire as that old false-green; a genuine acquisition failure is
+   now reported as such. The hard gate stands on the remaining findings, which
+   are unrelated to label provisioning: no global merge serialization, no
+   `--match-head-commit`, the sink not re-checking `reviewDecision`, and more.
+   `../../runtime/bin/pr_merge_loop.sh merge` therefore
+   **hard-refuses unconditionally** (exit 78) in this bundle — `PR_MERGE_LOOP_APPLY=1`
+   does **not** re-enable it; the gate is not an env toggle. The rest of the
+   pipeline is unaffected and still runs: signal-gathering, the merge decision
+   logic (`../../runtime/bin/merge_decision.sh`), and PR-tracking/reporting all work
+   normally and still require every clear condition (CI green, no actionable
+   human comment, `/manifest-forge:pr-review`=merge, `/manifest-code-quality:project-verify`
+   pass, #360 gate Tier-1 pass, consensus ≥ 0.80) before a PR is even
+   *reported* as merge-ready — a human performs the actual merge. See
+   the Manifest marketplace-restructure design spec (§4, in the Manifest source repository — not shipped in this bundle)
+   Phase 1 item 1.3 for the full finding and the separate safety spec this is
+   pending on.
 2. **Never touch issues lacking the `auto-dev` label.** Selection is opt-in.
 3. **One issue per invocation.** Do not loop inside this skill.
 4. **On failure, open a DRAFT PR** (no `Closes` keyword) so a human can inspect
@@ -68,18 +83,49 @@ retired 2026-08-17 (rationale in `docs/MODEL-POLICY.md`).
 
 ## PR Monitoring & Merge Loop (extends, does not replace, the develop flow — FR-016)
 
-After the develop→PR step, the same loop tends the open **managed** PRs (automation-authored;
-see `config/automation_authors.yml`). This is self-paced and bounded, and it uses the
-deterministic primitives so the irreversible step is never a judgment call:
+**Automated merge is unavailable in this plugin distribution.** See Critical Rule 1 and
+the Manifest marketplace-restructure design spec (§4 Phase 1 item 1.3, in the Manifest
+source repository — not shipped in this bundle) for the full finding (inert concurrency
+lock, a false-green test, six further open findings) and the separate safety spec it is
+pending on. The decision logic below is **not removed and still runs** — only
+`pr_merge_loop.sh merge` (and any `tick` path that would reach it) hard-refuses,
+unconditionally, regardless of `PR_MERGE_LOOP_APPLY`.
 
-1. **List managed PRs.** `pr_merge_loop.sh list-managed --json` (humans are skipped — FR-013).
-2. **Per PR, compute signals + decide.** `pr_merge_loop.sh signals <pr> --json | merge_decision.sh decide`
+Everything below is scoped to **this bundle's vendored runtime**
+(`../../runtime/bin/*`) only. The Manifest source repository (not shipped in
+this bundle) separately maintains its own bootstrap-deployed copy of this same
+loop, outside `plugins/`, for the coordinator's own self-hosted use — that
+copy is independently maintained, is currently **regressed to fully inert
+`tick`/`run`** (it received the same lock-ownership hardening described in
+step 2 below, but not the compensating DEGRADED-proceed fix, because unlike
+this bundle its `cmd_merge` is not hard-gated and cannot safely proceed
+without a working lock), and none of the DEGRADED/CONTENDED exit-code
+behavior this section documents applies to it. See the marketplace-restructure
+design spec's §4 1.3 "third CDDL developer-reviewer finding" correction for
+the accurate account — it is not "unaffected" or "unchanged," it is a known,
+deliberate, fail-closed regression pending the same safety spec.
+
+After the develop→PR step, the same loop tends the open **managed** PRs (automation-authored;
+see `../../runtime/config/automation_authors.json`). This is self-paced and bounded, and it uses the
+deterministic primitives so the (currently gated) irreversible step is never a judgment call:
+
+1. **List managed PRs.** `../../runtime/bin/pr_merge_loop.sh list-managed --json` (humans are skipped — FR-013).
+2. **Per PR, compute signals + decide.**
+   `../../runtime/bin/pr_merge_loop.sh signals <pr> --json | ../../runtime/bin/merge_decision.sh decide`
    returns `{action}` — one of `merge | revise | wait | update-branch | hand-human | halt`.
-   Take the lock first: `loop_lock.sh acquire <pr>` (skip if held), release in all paths.
+   Take the lock first: `../../runtime/bin/loop_lock.sh acquire <pr>`. Its exit code is not a
+   plain success/fail — `1` means CONTENDED (a live lease held by someone else, a lost race,
+   or same-host `flock` contention) and still skips the PR this pass; `2` means DEGRADED (the
+   lease could not even be attempted — the backend rejects the unprovisioned dynamic
+   `loop-active:<epoch>:<token>` label, per `labels.yml`) and is
+   **not** evidence of contention, so `cmd_tick` proceeds without the cross-host lock rather
+   than skipping (merge is hard-gated elsewhere, so nothing irreversible depends on this lock
+   — its only remaining job is avoiding duplicated run-gate work). Release in all paths
+   regardless of which code was returned (release is idempotent).
 3. **Act on the action:**
    - `revise` → run one cycle: `/manifest-forge:pr-address-comments`, then `/manifest-code-quality:project-verify`,
      then `/manifest-forge:pr-review`
-     (fan independent reviews out in parallel — FR-015); push; `pr_merge_loop.sh address-cycle <pr>`
+     (fan independent reviews out in parallel — FR-015); push; `../../runtime/bin/pr_merge_loop.sh address-cycle <pr>`
      records the revision. After **3** cycles without clearing, the decision returns
      `hand-human` → label `needs-human`, move on (FR-005/006).
    - `wait` → checks/mergeability still settling; end this PR's turn and re-check next run
@@ -87,20 +133,23 @@ deterministic primitives so the irreversible step is never a judgment call:
    - `update-branch` → one `gh pr update-branch`; re-read; `DIRTY`/conflict → `needs-human`.
    - `hand-human` → apply the decision's `label` (`needs-human` or `ready-to-merge`) and skip.
    - `halt` → main CI went red after a merge: **stop the whole loop**, flag for a human (FR-012a).
-   - `merge` → reachable only after the #360 verification gate passes (Tier-1) and consensus
-     is high. `pr_merge_loop.sh tick <pr>` runs the gate, re-decides, and on `merge` does the
-     admin pre-flight + `gh pr merge --squash --admin --delete-branch`, then `post-merge-check`.
-     Honour `PR_MERGE_LOOP_APPLY` — default dry-run; set `=1` to perform real merges. Fail-closed
-     exits (no admin / `enforce_admins` / `required_signatures`) route to `ready-to-merge` + human.
-4. **Loop control.** Run one bounded pass with `pr_merge_loop.sh run` (set
-   `PR_MERGE_LOOP_APPLY=1` for real merges; default dry-run). It self-paces, enforces a
-   hard 10-minute ceiling, serializes merges via `loop_lock` (one in flight; monitoring
-   interleaves — FR-014), resets the empty-run counter on work / increments on idle passes,
-   and **stops after 5 consecutive empty runs** (FR-018/018a). It exits non-zero (11) if a
-   merge reddens `main` (halt) so `/loop` surfaces the failure. `/loop /issue-dev-auto`
+   - `merge` → the decision layer still reaches this verdict once the #360 verification
+     gate passes (Tier-1) and consensus is high — `../../runtime/bin/pr_merge_loop.sh tick <pr>`
+     runs the gate and re-decides normally. But the sink, `cmd_merge`, hard-refuses
+     unconditionally in this bundle (exit 78) before touching admin pre-flight or
+     `gh pr merge` at all — see the section intro above. `PR_MERGE_LOOP_APPLY` has **no
+     effect** on this; a PR that reaches `merge` is reported (`needs-human`) for a
+     human to merge manually, never merged by the loop itself.
+4. **Loop control.** Run one bounded pass with `../../runtime/bin/pr_merge_loop.sh run`. It
+   self-paces, enforces a hard 10-minute ceiling, acquires `loop_lock` per PR (one in
+   flight; monitoring interleaves — FR-014, though the cross-host mutual-exclusion property
+   this is meant to provide is not actually enforced in production — see step 2's DEGRADED
+   case), resets the empty-run counter on work / increments on idle passes,
+   and **stops after 5 consecutive empty runs** (FR-018/018a). Every PR that clears to
+   `merge` surfaces for a human rather than being merged. `/loop /issue-dev-auto`
    remains the outer re-invoker that gives each pass fresh context.
 
-Every action appends a redacted `audit_log.sh` record (FR-021/022).
+Every action appends a redacted `../../runtime/bin/audit_log.sh` record (FR-021/022).
 
 ## Notes
 
@@ -108,6 +157,20 @@ Every action appends a redacted `audit_log.sh` record (FR-021/022).
   `next-issue`; you never see them.
 - This skill writes code (allowed tools include Edit/Write); keep diffs scoped to
   the selected issue.
-- The merge gate's safety logic is unit-tested offline (`tests/bats/merge_decision.bats`,
-  `verification_gate.bats`, `loop_lock.bats`, `pr_merge_loop.bats`) — the irreversible merge
-  is a tested decision, not prose.
+- The merge decision logic is unit-tested offline (`tests/bats/merge_decision.bats`,
+  `verification_gate.bats`, `pr_merge_loop.bats`) — it is a tested decision, not prose,
+  even though the sink it used to feed is currently hard-gated (see above).
+  `pr_merge_loop.bats` also carries dedicated coverage of the vendored copy's gate
+  (`vendored: ...` tests) and, since 2026-08-20, dedicated `vendored REGRESSION: ...`
+  tests proving `tick` both (a) still dispatches real work when the cross-host lease
+  cannot be attempted (DEGRADED — proceeds) and (b) still declines when a lease is
+  genuinely held by someone else (CONTENDED — blocks); see step 2 above for the
+  exit-code contract. `loop_lock.bats` targets this same vendored `loop_lock.sh`
+  and, per the finding above, several of its pre-fix tests are `skip`-marked (not
+  left failing) against the faithful fake label backend, with the reason recorded
+  inline — expected, not a regression to silence. `pr_merge_loop.bats`'s own lock
+  stub used to accept any label name unconditionally too — the same false-green
+  shape, not propagated from `loop_lock.bats` until 2026-08-20 — which is why the
+  fail-closed `loop_lock.sh` fix silently made `tick`/`run` dead-on-arrival for a
+  time without any test noticing; see the spec's §4 1.3 "Correction, 2026-08-20"
+  block for the full account.

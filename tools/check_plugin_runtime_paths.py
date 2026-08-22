@@ -176,6 +176,7 @@ _POSIX_UTILITIES = frozenset(
         "rm",
         "rmdir",
         "sed",
+        "sleep",
         "sort",
         "tail",
         "tee",

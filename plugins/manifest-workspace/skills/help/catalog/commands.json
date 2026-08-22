@@ -717,7 +717,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; an opt-in gated loop may also merge cleared PRs (dry-run by default). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto.",
+      "description": "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; a PR-monitoring loop tracks merge-readiness (merge is hard-gated here). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto.",
       "name": "issue-dev-auto",
       "qualified_name": "manifest-forge:issue-dev-auto"
     },

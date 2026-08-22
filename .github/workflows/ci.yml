@@ -70,6 +70,13 @@ jobs:
       - name: Check bats assertions (Bash 3.2 silent pass)
         run: tests/lint/check_bats_assertions.sh
 
+      # Proves the STAGED/committed tree is self-contained: extracts
+      # `git archive $(git write-tree)` and runs the vendored runtime from a
+      # third directory, so a file present only in a dev working tree fails
+      # here instead of at a user's install. Hermetic, offline, ~8s.
+      - name: Check fresh-checkout self-containment
+        run: tests/lint/check_fresh_checkout.sh
+
       # --- yamllint ---
 
       # Pinned to match .pre-commit-config.yaml (specs/003 FR-014).
@@ -131,12 +138,24 @@ jobs:
       - name: Install uv
         run: pip install uv
 
+      # Bundle-local reference gate: a skill or runtime script must not cite a
+      # path absent from its own bundle (bundles install independently).
+      # Must stay BELOW `Install uv` -- it was briefly placed above it, where
+      # `uv run` exits 127 (command not found) before the gate ever runs.
+      - name: Check bundle-local references
+        run: uv run python tools/check_bundle_link_references.py
+
       - name: Verify bootstrap-free plugin release projections
         run: |
           set -euo pipefail
           uv run python tools/generate_plugin_views.py --check
           uv run python tools/vendor_bundle_dependencies.py --check
           uv run python tools/check_plugin_runtime_paths.py --json
+          # Agent-frontmatter gate: a bare `agent: name` silently resolves to
+          # general-purpose once skills are plugin-scoped, so it must be
+          # namespaced `plugin:agent`. Wired here rather than left as an
+          # opt-in utility -- a checker nothing runs closes nothing.
+          uv run python tools/check_agent_frontmatter.py
           uv run python tools/render_capability_inventory.py --check
           uv run python tools/render_plugin_capability_matrix.py --check \
             --inspection tests/fixtures/plugin_capability_inspection.json

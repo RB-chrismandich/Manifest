@@ -65,7 +65,6 @@ python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
 > SSL_CERT_FILE=$(python3 -c "import certifi; print(certifi.where())") python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
 >   --project-id <PROJECT_ID> \
 >   --file-path <PATH_TO_FILE> \
->   --api-key <API_KEY> \
 >   [--api-url <STITCH_API_URL>] \
 >   [--title <SCREEN_TITLE>] \
 >   [--generated-by <GENERATED_BY>]
@@ -87,7 +86,7 @@ The script auto-detects MIME type from the file extension.
 
 - `--project-id`: **Required**. The Stitch project ID.
 - `--file-path`: **Required**. Path to the local file to upload.
-- `--api-key`: **Required**. API key for Stitch authorization.
-- `--api-url`: Optional. Base URL of the Stitch API. Defaults to `https://stitch.googleapis.com`.
+- `STITCH_API_KEY` (environment variable): **Required**. API key for Stitch authorization. The script reads this from the environment; there is no `--api-key` flag.
+- `--api-url`: Optional. Base URL of the Stitch API. Defaults to `https://stitch.googleapis.com` (or `STITCH_API_URL`).
 - `--title`: Optional. Title for the uploaded screen.
 - `--generated-by`: Optional. Specify how the uploaded file was generated (e.g., 'stitch::extract-static-html' skill, 'Claude Code', 'Codex', 'Gemini' etc.).

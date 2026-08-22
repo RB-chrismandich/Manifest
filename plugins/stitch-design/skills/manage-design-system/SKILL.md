@@ -64,12 +64,14 @@ design system in Stitch.
    - **Option A (Recommended - Uploader Script)**: Use the modified `stitch-design:upload-to-stitch` Python script which natively handles `.md` files. It base64-encodes the markdown file in-process and sends it to the `/v1/projects/{projectId}/screens:batchCreate` endpoint, bypassing output token limits.
 
      ```bash
-     python3 ../upload-to-stitch/scripts/upload_to_stitch.py \
+     STITCH_API_KEY=<API_KEY> python3 ../upload-to-stitch/scripts/upload_to_stitch.py \
        --project-id <PROJECT_ID> \
        --file-path /path/to/DESIGN.md \
-       --api-key <API_KEY> \
        --generated-by <GENERATED_BY>
      ```
+
+     The script requires the `STITCH_API_KEY` environment variable (there is no
+     `--api-key` flag) — see `stitch-design:upload-to-stitch` for how to source it.
 
      Set `<GENERATED_BY>` to identify the skill or tool that produced the
      `DESIGN.md`. Use the calling skill name when invoked from another skill

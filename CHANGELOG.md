@@ -16,6 +16,23 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Retired capabilities
+
+- `manifest-workspace`: `workspace-context-budget-reminder` — the advisory
+  `hooks/manifest-hooks.json` catalog invented a `context-budget` event with
+  no Claude Code or Codex hook surface, no command handler, and no executable
+  `session-checkpoint` hook script (`configs/claude/prompts/context_monitor.md`
+  states outright that no automatic trigger exists); it never fired. Deleted
+  rather than rewritten to the real schema — reinstating it is a separate
+  spec. See `docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`
+  §4 Phase 1 item 1.3.
+- `manifest-workspace`: `workspace-learning-advisory` — the same catalog
+  invented a `task-completed` event routed to `learning-capture`. Claude Code
+  requires `{"hooks": {"<PostToolUse|Stop|SessionStart|…>": [...]}}`; the flat
+  list here never loaded there, and Codex independently rejected it at parse
+  time ("invalid type: map, expected a sequence"). Deleted alongside
+  `workspace-context-budget-reminder`; reinstating it is a separate spec.
+
 ### Delegation gains Cursor and Devin backends
 
 `plugins/manifest-delegate/config/backends.json` registers `cursor` (alias

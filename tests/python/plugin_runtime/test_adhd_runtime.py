@@ -39,7 +39,7 @@ def test_stdout_is_canonical_and_never_reflects_payload(monkeypatch, capsys) -> 
 def test_diagnostic_contains_only_allowlisted_value_free_fields(tmp_path: Path) -> None:
     runtime = _runtime(Path.cwd())
     diagnostic = runtime.HookDiagnostic(
-        "manifest-i-have-adhd", "0.1.0", "native", "invalid-json"
+        "manifest-i-have-adhd", "0.1.1", "native", "invalid-json"
     )
     runtime.record_hook_failure(tmp_path, diagnostic)
     rows = json.loads((tmp_path / "diagnostics/manifest-i-have-adhd.json").read_text())
@@ -51,8 +51,8 @@ def test_diagnostic_rejects_untrusted_identity() -> None:
     for values in (
         ("other", "0.1.0", "native", "invalid-json"),
         ("manifest-i-have-adhd", "9.9.9", "native", "invalid-json"),
-        ("manifest-i-have-adhd", "0.1.0", "payload-value", "invalid-json"),
-        ("manifest-i-have-adhd", "0.1.0", "native", "secret-error"),
+        ("manifest-i-have-adhd", "0.1.1", "payload-value", "invalid-json"),
+        ("manifest-i-have-adhd", "0.1.1", "native", "secret-error"),
     ):
         with pytest.raises(ValueError):
             runtime.HookDiagnostic(*values)
@@ -88,7 +88,7 @@ def test_corrupt_legacy_secret_and_oversized_diagnostics_are_dropped(
     runtime.record_hook_failure(
         tmp_path,
         runtime.HookDiagnostic(
-            "manifest-i-have-adhd", "0.1.0", "native", "invalid-event"
+            "manifest-i-have-adhd", "0.1.1", "native", "invalid-event"
         ),
     )
 
@@ -98,7 +98,7 @@ def test_corrupt_legacy_secret_and_oversized_diagnostics_are_dropped(
             "harness": "native",
             "plugin": "manifest-i-have-adhd",
             "reason": "invalid-event",
-            "version": "0.1.0",
+            "version": "0.1.1",
         }
     ]
     assert "secret" not in path.read_text(encoding="utf-8")

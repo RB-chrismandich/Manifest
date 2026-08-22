@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-forge
-  version: 0.2.0
+  version: 0.3.0
   description: Git forge, issue tracking, pull request, and release lifecycle workflows.
   category: version-control
 components:
@@ -24,7 +24,7 @@ capabilities:
   executables:
     required: [bash, git, python3]
     default: []
-    optional: [curl, gh, glab, gtimeout, jq, timeout]
+    optional: [curl, flock, gh, glab, gtimeout, jq, timeout]
 compatibility:
   claude: {mode: native}
   codex: {mode: native}

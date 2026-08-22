@@ -194,10 +194,17 @@ def test_generated_security_views_represent_runtime_for_every_harness(
     )
     generic = json.loads((security_bundle / "plugin.json").read_text(encoding="utf-8"))
 
-    for view in (claude, gemini):
+    # Claude's native plugin.json nests compatibility evidence under
+    # `metadata` (the documented free-form field); Gemini keeps it at the
+    # top level.
+    compatibility_by_view = {
+        "claude": claude["metadata"]["compatibility"],
+        "gemini": gemini["compatibility"],
+    }
+    for compatibility in compatibility_by_view.values():
         ids = {
             record["component_id"]
-            for records in view["compatibility"].values()
+            for records in compatibility.values()
             for record in records
             if record["component_type"] == "runtime"
         }

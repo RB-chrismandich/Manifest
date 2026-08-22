@@ -2,53 +2,55 @@
   "author": {
     "name": "ReefBytes"
   },
-  "compatibility": {
-    "degraded": [
-      {
-        "component_id": "cddl-runtime",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/cddl",
-        "reason": "claude native manifest cannot encode runtime component 'cddl-runtime' at 'runtime/cddl'"
-      },
-      {
-        "component_id": "plan-store",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/plan_store.py",
-        "reason": "claude native manifest cannot encode runtime component 'plan-store' at 'runtime/plan_store.py'"
-      },
-      {
-        "component_id": "planning-config",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/config",
-        "reason": "claude native manifest cannot encode runtime component 'planning-config' at 'runtime/config'"
-      },
-      {
-        "component_id": "planning-prompts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/prompts",
-        "reason": "claude native manifest cannot encode runtime component 'planning-prompts' at 'runtime/prompts'"
-      },
-      {
-        "component_id": "planning-references",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/references",
-        "reason": "claude native manifest cannot encode runtime component 'planning-references' at 'runtime/references'"
-      },
-      {
-        "component_id": "spec-review",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/spec_review.sh",
-        "reason": "claude native manifest cannot encode runtime component 'spec-review' at 'runtime/spec_review.sh'"
-      }
-    ]
-  },
   "description": "Specification, planning, trade-off, and implementation-loop workflows.",
+  "metadata": {
+    "compatibility": {
+      "degraded": [
+        {
+          "component_id": "cddl-runtime",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/cddl",
+          "reason": "claude native manifest cannot encode runtime component 'cddl-runtime' at 'runtime/cddl'"
+        },
+        {
+          "component_id": "plan-store",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/plan_store.py",
+          "reason": "claude native manifest cannot encode runtime component 'plan-store' at 'runtime/plan_store.py'"
+        },
+        {
+          "component_id": "planning-config",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/config",
+          "reason": "claude native manifest cannot encode runtime component 'planning-config' at 'runtime/config'"
+        },
+        {
+          "component_id": "planning-prompts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/prompts",
+          "reason": "claude native manifest cannot encode runtime component 'planning-prompts' at 'runtime/prompts'"
+        },
+        {
+          "component_id": "planning-references",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/references",
+          "reason": "claude native manifest cannot encode runtime component 'planning-references' at 'runtime/references'"
+        },
+        {
+          "component_id": "spec-review",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/spec_review.sh",
+          "reason": "claude native manifest cannot encode runtime component 'spec-review' at 'runtime/spec_review.sh'"
+        }
+      ]
+    }
+  },
   "name": "manifest-spec-planning",
   "skills": [
     "./skills/design-validate",
@@ -59,5 +61,5 @@
     "./skills/spec-implement-loop",
     "./skills/spec-review"
   ],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

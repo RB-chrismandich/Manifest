@@ -33,6 +33,7 @@
 #   release-create        Create a release
 #   release-list          List releases
 #   label-create          Create label
+#   label-delete          Delete label
 #   label-list            List labels
 #   label-sync            Sync labels from registry to platform
 
@@ -102,6 +103,7 @@ Subcommands:
   release-create     Create a release
   release-list       List releases
   label-create       Create label
+  label-delete       Delete label
   label-list         List labels
   label-sync         Sync labels from registry
 USAGE
@@ -240,6 +242,9 @@ case "${platform}" in
                 ;;
             label-create)
                 gh label create "$@"
+                ;;
+            label-delete)
+                gh label delete "$@"
                 ;;
             label-list)
                 gh label list "$@"
@@ -524,6 +529,9 @@ case "${platform}" in
                 ;;
             label-create)
                 glab label create "$@"
+                ;;
+            label-delete)
+                glab label delete "$@"
                 ;;
             label-list)
                 glab label list "$@"

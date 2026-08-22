@@ -282,30 +282,55 @@ def test_pr_smoke_has_no_project_runtime_dependency(
     assert "Verdict: PASS" in result.stdout
 
 
-def test_workspace_gemini_hook_contract_matches_generated_degradation(
+_RETIRED_MANIFEST_HOOKS_CAPABILITY_IDS = (
+    "workspace-context-budget-reminder",
+    "workspace-learning-advisory",
+)
+
+
+def test_manifest_hooks_catalog_is_neither_declared_nor_emitted(
     repo_root: Path, workspace_bundle: Path, tmp_path: Path
 ) -> None:
+    """Spec 2026-08-19-marketplace-restructure-design.md Phase 1 item 1.3.
+
+    The advisory ``manifest-hooks.json`` catalog invented Claude/Codex hook
+    events (``context-budget``, ``task-completed``) that never had a command
+    handler and never fired. It was deleted rather than rewritten to the real
+    schema. This asserts the deletion stuck at every layer: the contract no
+    longer declares the component, the file is gone from disk, no generated
+    harness view emits it, and the changelog carries a tombstone for both
+    retired capability ids.
+    """
     contracts = {
         contract.name: contract
         for contract in load_domain_contracts(repo_root / "plugins")
     }
-    hook = contracts["manifest-workspace"].components.hooks[0]
-    assert hook.path == "hooks/manifest-hooks.json"
-    assert hook.compatibility is not None
-    declared = hook.compatibility["gemini"]
-    assert declared.mode == "degraded"
-    assert declared.reason
+    workspace = contracts["manifest-workspace"]
+    hook_ids = {hook.id for hook in workspace.components.hooks}
+    hook_paths = {hook.path for hook in workspace.components.hooks}
+    assert "manifest-hooks" not in hook_ids
+    assert "hooks/manifest-hooks.json" not in hook_paths
+
+    assert not (workspace_bundle / "hooks/manifest-hooks.json").exists()
+
     render_views(repo_root, output_root=tmp_path, check=False)
-    view = json.loads(
-        (tmp_path / "manifest-workspace/gemini-extension.json").read_text()
-    )
-    record = next(
-        item
-        for item in view["compatibility"]["degraded"]
-        if item["component_id"] == "manifest-hooks"
-    )
-    assert record["path"] == hook.path
-    assert record["reason"] == declared.reason
+    rendered_root = tmp_path / "manifest-workspace"
+    rendered_files = [
+        path
+        for path in rendered_root.rglob("*")
+        if path.is_file() and path.suffix in {".json", ".md", ".yaml"}
+    ]
+    assert rendered_files
+    for path in rendered_files:
+        text = path.read_text(encoding="utf-8")
+        assert "manifest-hooks" not in text, f"{path} still emits manifest-hooks"
+
+    changelog = (repo_root / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "### Retired capabilities" in changelog
+    for capability_id in _RETIRED_MANIFEST_HOOKS_CAPABILITY_IDS:
+        assert capability_id in changelog, (
+            f"CHANGELOG.md is missing a tombstone line for {capability_id!r}"
+        )
 
 
 def test_codex_lifecycle_metadata_names_exact_native_events(

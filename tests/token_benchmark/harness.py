@@ -492,10 +492,16 @@ def _scrub_fixture_pii(text: str, home: Path) -> str:
     from text before it lands in a tracked repo fixture (#552 follow-up).
 
     Fixtures under tests/token_benchmark/fixtures/ are committed and read by
-    anyone who clones the repo, so a live ~/.claude/settings.json or CLAUDE.md
-    synced via --sync-fixtures must not leak the operator's absolute home
-    directory path, OS username, or raw ANSI/SGR escape sequences captured
-    from their terminal.
+    anyone who clones the repo, so a live CLAUDE.md or GEMINI.md synced via
+    --sync-fixtures must not leak the operator's absolute home directory
+    path, OS username, or raw ANSI/SGR escape sequences captured from their
+    terminal.
+
+    This scrubber intentionally does NOT redact secrets (e.g. API keys) — it
+    only handles PII in the two files sync_fixtures() ever copies. The real
+    secret-leak defense is sync_fixtures() never copying settings.json (or
+    any other file with an `env` mapping) into the fixture tree at all; see
+    its docstring.
     """
     text = _ANSI_ESCAPE_RE.sub("", text)
     home_str = str(home)
@@ -507,6 +513,50 @@ def _scrub_fixture_pii(text: str, home: Path) -> str:
     return text
 
 
+def _fixture_allowlist() -> list[str]:
+    """Repo-relative paths sync_fixtures() may copy into the committed
+    fixtures tree.
+
+    Security (fixture tree is committed, read by anyone who clones the repo):
+    only the files the benchmark actually reads at run time are ever synced.
+    This set is derived from
+    tests.token_benchmark.benchmarks.MANIFEST_SYSTEM_PROMPT_PATHS — the same
+    mapping _read_system_prompt() uses — so the allowlist can never drift
+    from what the harness consumes. ~/.claude/settings.json is deliberately
+    excluded: nothing in this harness reads it, and it is a supported place
+    for API keys under its `env` mapping, which _scrub_fixture_pii() does not
+    redact. Do not add settings.json (or any other file) to this allowlist
+    without also adding redaction for any value a user could plausibly put a
+    secret in.
+    """
+    from tests.token_benchmark.benchmarks import MANIFEST_SYSTEM_PROMPT_PATHS
+
+    # Preserve MANIFEST_SYSTEM_PROMPT_PATHS insertion order; drop the `None`
+    # entry (antigravity has no system-prompt injection) and de-dupe.
+    return list(dict.fromkeys(p for p in MANIFEST_SYSTEM_PROMPT_PATHS.values() if p))
+
+
+def _write_compressed_fixture(fixtures_dir: Path, compression: int | None) -> None:
+    """Write fixtures/../fixtures-compressed/.claude/CLAUDE.md truncated to
+    the first `compression`% of lines. No-op when compression is None."""
+    if compression is None:
+        return
+    claude_src = fixtures_dir / ".claude" / "CLAUDE.md"
+    if not claude_src.exists():
+        print(
+            f"  skip compression: {claude_src} not found (run without --compression first to sync)"
+        )
+        return
+    all_lines = claude_src.read_text().splitlines()
+    keep = max(1, len(all_lines) * compression // 100)
+    compressed_dst = (
+        fixtures_dir.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+    )
+    compressed_dst.parent.mkdir(parents=True, exist_ok=True)
+    compressed_dst.write_text("\n".join(all_lines[:keep]))
+    print(f"  compressed fixture: {keep}/{len(all_lines)} lines → {compressed_dst}")
+
+
 def sync_fixtures(
     source_home: Path | None = None,
     fixtures_dir: Path | None = None,
@@ -516,16 +566,20 @@ def sync_fixtures(
 
     If compression is given (e.g. 50), also write a compressed fixture at
     fixtures/../fixtures-compressed/ containing the first compression% of lines
-    from CLAUDE.md.
+    from CLAUDE.md (see _write_compressed_fixture).
 
     Copied content is scrubbed (see _scrub_fixture_pii) so a --sync-fixtures
     run never reintroduces a contributor's real home path/username or stray
     ANSI escape codes into the tracked fixtures (#552).
+
+    Which files get copied at all is governed by _fixture_allowlist() — see
+    its docstring for the security rationale (settings.json is deliberately
+    never synced).
     """
     src = source_home or Path.home()
     dst = fixtures_dir or FIXTURES_DIR
 
-    for rel in (".claude/CLAUDE.md", ".claude/settings.json", ".gemini/GEMINI.md"):
+    for rel in _fixture_allowlist():
         source = src / rel
         dest = dst / rel
         if source.exists():
@@ -539,24 +593,12 @@ def sync_fixtures(
     # Antigravity has no system prompt injection (MANIFEST_SYSTEM_PROMPT_PATHS["antigravity"] = None)
     # so its IDE installation does not need to be snapshotted; the empty dir marker suffices.
     print("  skip .antigravity/ (no system prompt injection configured)")
+    print(
+        "  skip .claude/settings.json (not read by the benchmark; never "
+        "synced by design — see sync_fixtures() docstring)"
+    )
 
-    if compression is not None:
-        claude_src = dst / ".claude" / "CLAUDE.md"
-        if claude_src.exists():
-            all_lines = claude_src.read_text().splitlines()
-            keep = max(1, len(all_lines) * compression // 100)
-            compressed_dst = (
-                dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
-            )
-            compressed_dst.parent.mkdir(parents=True, exist_ok=True)
-            compressed_dst.write_text("\n".join(all_lines[:keep]))
-            print(
-                f"  compressed fixture: {keep}/{len(all_lines)} lines → {compressed_dst}"
-            )
-        else:
-            print(
-                f"  skip compression: {claude_src} not found (run without --compression first to sync)"
-            )
+    _write_compressed_fixture(dst, compression)
 
 
 def missing_api_sdks(providers: list[str]) -> list[str]:

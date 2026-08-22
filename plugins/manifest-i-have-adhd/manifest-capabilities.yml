@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-i-have-adhd
-  version: 0.1.0
+  version: 0.1.1
   description: Pinned ADHD-friendly always-on response guidance with fail-open diagnostics.
   category: productivity
 components:

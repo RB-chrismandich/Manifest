@@ -10,56 +10,56 @@
       "description": "Code analysis, refactoring, verification, and test-quality workflows.",
       "name": "manifest-code-quality",
       "source": "./plugins/manifest-code-quality",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "documentation",
       "description": "Documentation improvement, diagram generation, and doc-set orchestration.",
       "name": "manifest-docs",
       "source": "./plugins/manifest-docs",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "version-control",
       "description": "Git forge, issue tracking, pull request, and release lifecycle workflows.",
       "name": "manifest-forge",
       "source": "./plugins/manifest-forge",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "deployment",
       "description": "CI, deployment, configuration, container, and runtime operations workflows.",
       "name": "manifest-ops",
       "source": "./plugins/manifest-ops",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "security",
       "description": "Security review, threat analysis, hardening, and finding-triage workflows.",
       "name": "manifest-security",
       "source": "./plugins/manifest-security",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "project-management",
       "description": "Specification, planning, trade-off, and implementation-loop workflows.",
       "name": "manifest-spec-planning",
       "source": "./plugins/manifest-spec-planning",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "productivity",
       "description": "Workspace configuration, environment, session, and learning workflows.",
       "name": "manifest-workspace",
       "source": "./plugins/manifest-workspace",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "design",
       "description": "Design generation, review, extraction, and implementation workflows.",
       "name": "stitch-design",
       "source": "./plugins/stitch-design",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "category": "productivity",
@@ -75,7 +75,7 @@
       ],
       "name": "manifest-delegate",
       "source": "./plugins/manifest-delegate",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "category": "productivity",
@@ -89,7 +89,7 @@
       ],
       "name": "manifest-i-have-adhd",
       "source": "./plugins/manifest-i-have-adhd",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }

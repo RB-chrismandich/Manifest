@@ -19,233 +19,224 @@
   "author": {
     "name": "ReefBytes"
   },
-  "compatibility": {
-    "degraded": [
-      {
-        "component_id": "workspace-orchestration",
-        "component_type": "guidance",
-        "mode": "degraded",
-        "path": "guidance/orchestration.md",
-        "reason": "claude native manifest cannot encode guidance component 'workspace-orchestration' at 'guidance/orchestration.md'"
-      },
-      {
-        "component_id": "workspace-token-economy",
-        "component_type": "guidance",
-        "mode": "degraded",
-        "path": "guidance/token-economy.md",
-        "reason": "claude native manifest cannot encode guidance component 'workspace-token-economy' at 'guidance/token-economy.md'"
-      },
-      {
-        "component_id": "codex-permission-request",
-        "component_type": "hooks",
-        "mode": "not_applicable",
-        "path": "hooks/codex-lifecycle-events.json",
-        "reason": "This component records the Codex PermissionRequest surface only."
-      },
-      {
-        "component_id": "codex-session-start",
-        "component_type": "hooks",
-        "mode": "not_applicable",
-        "path": "hooks/codex-lifecycle-events.json",
-        "reason": "This component records the Codex SessionStart surface only."
-      },
-      {
-        "component_id": "codex-stop",
-        "component_type": "hooks",
-        "mode": "not_applicable",
-        "path": "hooks/codex-lifecycle-events.json",
-        "reason": "This component records the Codex Stop surface only."
-      },
-      {
-        "component_id": "command-catalog",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/help/catalog/commands.json",
-        "reason": "claude native manifest cannot encode runtime component 'command-catalog' at 'skills/help/catalog/commands.json'"
-      },
-      {
-        "component_id": "deploy-reconcile-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/deploy-reconcile/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'deploy-reconcile-scripts' at 'skills/deploy-reconcile/scripts'"
-      },
-      {
-        "component_id": "env-check-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/env-check/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'env-check-scripts' at 'skills/env-check/scripts'"
-      },
-      {
-        "component_id": "help-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/help/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'help-scripts' at 'skills/help/scripts'"
-      },
-      {
-        "component_id": "hook-integration-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/ai-hooks-integration/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'hook-integration-scripts' at 'skills/ai-hooks-integration/scripts'"
-      },
-      {
-        "component_id": "learning-capture-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/learning-capture/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'learning-capture-scripts' at 'skills/learning-capture/scripts'"
-      },
-      {
-        "component_id": "parallel-agent-config",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/config",
-        "reason": "claude native manifest cannot encode runtime component 'parallel-agent-config' at 'skills/parallel-agent/config'"
-      },
-      {
-        "component_id": "parallel-agent-prompts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/prompts",
-        "reason": "claude native manifest cannot encode runtime component 'parallel-agent-prompts' at 'skills/parallel-agent/prompts'"
-      },
-      {
-        "component_id": "parallel-agent-references",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/references",
-        "reason": "claude native manifest cannot encode runtime component 'parallel-agent-references' at 'skills/parallel-agent/references'"
-      },
-      {
-        "component_id": "parallel-agent-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'parallel-agent-scripts' at 'skills/parallel-agent/scripts'"
-      },
-      {
-        "component_id": "pr-smoke-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/pr-smoke/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'pr-smoke-scripts' at 'skills/pr-smoke/scripts'"
-      },
-      {
-        "component_id": "skill-evolve-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/skill-evolve/scripts",
-        "reason": "claude native manifest cannot encode runtime component 'skill-evolve-scripts' at 'skills/skill-evolve/scripts'"
-      }
-    ],
-    "generated": [
-      {
-        "component_id": "manifest-hooks",
-        "component_type": "hooks",
-        "mode": "generated",
-        "path": "hooks/manifest-hooks.json"
-      }
-    ],
-    "native": [
-      {
-        "component_id": "compatibility-translator",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/compatibility-translator.md"
-      },
-      {
-        "component_id": "context-chronicler",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/context-chronicler.md"
-      },
-      {
-        "component_id": "dependency-guardian",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/dependency-guardian.md"
-      },
-      {
-        "component_id": "devpanel-chaos-engineer",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/devpanel/chaos-engineer.md"
-      },
-      {
-        "component_id": "devpanel-debugger",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/devpanel/debugger.md"
-      },
-      {
-        "component_id": "devpanel-developer",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/devpanel/developer.md"
-      },
-      {
-        "component_id": "devpanel-performance-auditor",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/devpanel/performance-auditor.md"
-      },
-      {
-        "component_id": "devpanel-spec-guard",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/devpanel/spec-guard.md"
-      },
-      {
-        "component_id": "devpanel-tester",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/devpanel/tester.md"
-      },
-      {
-        "component_id": "executor",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/executor.md"
-      },
-      {
-        "component_id": "explore",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/Explore.md"
-      },
-      {
-        "component_id": "mech-executor",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/mech-executor.md"
-      },
-      {
-        "component_id": "scout",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/scout.md"
-      },
-      {
-        "component_id": "security-executor",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/security-executor.md"
-      },
-      {
-        "component_id": "verifier",
-        "component_type": "agents",
-        "mode": "native",
-        "path": "agents/orchestration/verifier.md"
-      }
-    ]
-  },
   "description": "Workspace configuration, environment, session, and learning workflows.",
-  "hooks": [
-    "./hooks/manifest-hooks.json"
-  ],
+  "metadata": {
+    "compatibility": {
+      "degraded": [
+        {
+          "component_id": "workspace-orchestration",
+          "component_type": "guidance",
+          "mode": "degraded",
+          "path": "guidance/orchestration.md",
+          "reason": "claude native manifest cannot encode guidance component 'workspace-orchestration' at 'guidance/orchestration.md'"
+        },
+        {
+          "component_id": "workspace-token-economy",
+          "component_type": "guidance",
+          "mode": "degraded",
+          "path": "guidance/token-economy.md",
+          "reason": "claude native manifest cannot encode guidance component 'workspace-token-economy' at 'guidance/token-economy.md'"
+        },
+        {
+          "component_id": "codex-permission-request",
+          "component_type": "hooks",
+          "mode": "not_applicable",
+          "path": "hooks/codex-lifecycle-events.json",
+          "reason": "This component records the Codex PermissionRequest surface only."
+        },
+        {
+          "component_id": "codex-session-start",
+          "component_type": "hooks",
+          "mode": "not_applicable",
+          "path": "hooks/codex-lifecycle-events.json",
+          "reason": "This component records the Codex SessionStart surface only."
+        },
+        {
+          "component_id": "codex-stop",
+          "component_type": "hooks",
+          "mode": "not_applicable",
+          "path": "hooks/codex-lifecycle-events.json",
+          "reason": "This component records the Codex Stop surface only."
+        },
+        {
+          "component_id": "command-catalog",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/help/catalog/commands.json",
+          "reason": "claude native manifest cannot encode runtime component 'command-catalog' at 'skills/help/catalog/commands.json'"
+        },
+        {
+          "component_id": "deploy-reconcile-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/deploy-reconcile/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'deploy-reconcile-scripts' at 'skills/deploy-reconcile/scripts'"
+        },
+        {
+          "component_id": "env-check-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/env-check/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'env-check-scripts' at 'skills/env-check/scripts'"
+        },
+        {
+          "component_id": "help-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/help/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'help-scripts' at 'skills/help/scripts'"
+        },
+        {
+          "component_id": "hook-integration-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/ai-hooks-integration/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'hook-integration-scripts' at 'skills/ai-hooks-integration/scripts'"
+        },
+        {
+          "component_id": "learning-capture-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/learning-capture/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'learning-capture-scripts' at 'skills/learning-capture/scripts'"
+        },
+        {
+          "component_id": "parallel-agent-config",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/parallel-agent/config",
+          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-config' at 'skills/parallel-agent/config'"
+        },
+        {
+          "component_id": "parallel-agent-prompts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/parallel-agent/prompts",
+          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-prompts' at 'skills/parallel-agent/prompts'"
+        },
+        {
+          "component_id": "parallel-agent-references",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/parallel-agent/references",
+          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-references' at 'skills/parallel-agent/references'"
+        },
+        {
+          "component_id": "parallel-agent-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/parallel-agent/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-scripts' at 'skills/parallel-agent/scripts'"
+        },
+        {
+          "component_id": "pr-smoke-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/pr-smoke/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'pr-smoke-scripts' at 'skills/pr-smoke/scripts'"
+        },
+        {
+          "component_id": "skill-evolve-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/skill-evolve/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'skill-evolve-scripts' at 'skills/skill-evolve/scripts'"
+        }
+      ],
+      "native": [
+        {
+          "component_id": "compatibility-translator",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/compatibility-translator.md"
+        },
+        {
+          "component_id": "context-chronicler",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/context-chronicler.md"
+        },
+        {
+          "component_id": "dependency-guardian",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/dependency-guardian.md"
+        },
+        {
+          "component_id": "devpanel-chaos-engineer",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/devpanel/chaos-engineer.md"
+        },
+        {
+          "component_id": "devpanel-debugger",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/devpanel/debugger.md"
+        },
+        {
+          "component_id": "devpanel-developer",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/devpanel/developer.md"
+        },
+        {
+          "component_id": "devpanel-performance-auditor",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/devpanel/performance-auditor.md"
+        },
+        {
+          "component_id": "devpanel-spec-guard",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/devpanel/spec-guard.md"
+        },
+        {
+          "component_id": "devpanel-tester",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/devpanel/tester.md"
+        },
+        {
+          "component_id": "executor",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/executor.md"
+        },
+        {
+          "component_id": "explore",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/Explore.md"
+        },
+        {
+          "component_id": "mech-executor",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/mech-executor.md"
+        },
+        {
+          "component_id": "scout",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/scout.md"
+        },
+        {
+          "component_id": "security-executor",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/security-executor.md"
+        },
+        {
+          "component_id": "verifier",
+          "component_type": "agents",
+          "mode": "native",
+          "path": "agents/orchestration/verifier.md"
+        }
+      ]
+    }
+  },
   "name": "manifest-workspace",
   "skills": [
     "./skills/ai-hooks-integration",
@@ -267,5 +258,5 @@
     "./skills/token-benchmark",
     "./skills/token-conserve"
   ],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

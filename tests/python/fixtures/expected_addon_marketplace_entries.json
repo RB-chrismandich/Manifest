@@ -13,7 +13,7 @@
     ],
     "name": "manifest-delegate",
     "source": "./plugins/manifest-delegate",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   {
     "category": "productivity",
@@ -27,6 +27,6 @@
     ],
     "name": "manifest-i-have-adhd",
     "source": "./plugins/manifest-i-have-adhd",
-    "version": "0.1.0"
+    "version": "0.1.1"
   }
 ]

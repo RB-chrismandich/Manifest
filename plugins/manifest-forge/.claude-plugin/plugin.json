@@ -2,39 +2,41 @@
   "author": {
     "name": "ReefBytes"
   },
-  "compatibility": {
-    "degraded": [
-      {
-        "component_id": "forge-bin",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/bin",
-        "reason": "claude native manifest cannot encode runtime component 'forge-bin' at 'runtime/bin'"
-      },
-      {
-        "component_id": "forge-config",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/config",
-        "reason": "claude native manifest cannot encode runtime component 'forge-config' at 'runtime/config'"
-      },
-      {
-        "component_id": "forge-python",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/python",
-        "reason": "claude native manifest cannot encode runtime component 'forge-python' at 'runtime/python'"
-      },
-      {
-        "component_id": "forge-references",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "runtime/references",
-        "reason": "claude native manifest cannot encode runtime component 'forge-references' at 'runtime/references'"
-      }
-    ]
-  },
   "description": "Git forge, issue tracking, pull request, and release lifecycle workflows.",
+  "metadata": {
+    "compatibility": {
+      "degraded": [
+        {
+          "component_id": "forge-bin",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/bin",
+          "reason": "claude native manifest cannot encode runtime component 'forge-bin' at 'runtime/bin'"
+        },
+        {
+          "component_id": "forge-config",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/config",
+          "reason": "claude native manifest cannot encode runtime component 'forge-config' at 'runtime/config'"
+        },
+        {
+          "component_id": "forge-python",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/python",
+          "reason": "claude native manifest cannot encode runtime component 'forge-python' at 'runtime/python'"
+        },
+        {
+          "component_id": "forge-references",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/references",
+          "reason": "claude native manifest cannot encode runtime component 'forge-references' at 'runtime/references'"
+        }
+      ]
+    }
+  },
   "name": "manifest-forge",
   "skills": [
     "./skills/branch-clean",
@@ -58,5 +60,5 @@
     "./skills/pr-triage-bots",
     "./skills/repo-clean"
   ],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }
