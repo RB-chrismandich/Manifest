@@ -77,11 +77,6 @@ jobs:
       - name: Check fresh-checkout self-containment
         run: tests/lint/check_fresh_checkout.sh
 
-      # Bundle-local reference gate: a skill or runtime script must not cite a
-      # path absent from its own bundle (bundles install independently).
-      - name: Check bundle-local references
-        run: uv run python tools/check_bundle_link_references.py
-
       # --- yamllint ---
 
       # Pinned to match .pre-commit-config.yaml (specs/003 FR-014).
@@ -142,6 +137,13 @@ jobs:
       # --- manifest-runtime uv gates (spec manifest-uv-cli, task 10) ---
       - name: Install uv
         run: pip install uv
+
+      # Bundle-local reference gate: a skill or runtime script must not cite a
+      # path absent from its own bundle (bundles install independently).
+      # Must stay BELOW `Install uv` -- it was briefly placed above it, where
+      # `uv run` exits 127 (command not found) before the gate ever runs.
+      - name: Check bundle-local references
+        run: uv run python tools/check_bundle_link_references.py
 
       - name: Verify bootstrap-free plugin release projections
         run: |
