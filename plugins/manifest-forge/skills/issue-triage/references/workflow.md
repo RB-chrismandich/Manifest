@@ -29,6 +29,12 @@ Before running these examples, change into the directory containing this
 reference file and establish the installed Forge runtime root:
 
 ```bash
+# Capture the TARGET repository root FIRST. Everything below runs from the
+# installed plugin directory, which is not a git repository — resolving paths
+# after the cd would make every repo-relative reference look deleted.
+TRIAGE_REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
+export TRIAGE_REPO_ROOT
+
 REFERENCE_DIR=$(CDPATH='' cd -- . && pwd -P)
 FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$REFERENCE_DIR/../../../runtime" && pwd -P)
 ```
@@ -212,11 +218,22 @@ PRIORITY_LABEL_MAP = {
 }
 
 def priority_from_labels(labels):
-    label_set = {l.lower() for l in labels}
-    for label in label_set:
-        for key, val in PRIORITY_LABEL_MAP.items():
-            if key in label:
-                return val
+    # Compare the WHOLE label, never a substring and never a token slice:
+    # "follow-up" contains "low", and splitting "non-critical" on the dash
+    # yields "critical". Both would silently promote an ordinary label into a
+    # priority. Only the conventional scope prefix is stripped first
+    # ("priority/high" -> "high"); anything else must match a map key exactly,
+    # falling through to 0 (None) — the honest default this map documents.
+    for label in {l.lower().strip() for l in labels}:
+        # Longest prefix first: GitLab's scoped form is "priority::high", and
+        # stripping "priority:" would leave ":high", which matches nothing.
+        for prefix in ("priority::", "priority:", "priority/",
+                       "pri::", "pri:", "pri/", "p/"):
+            if label.startswith(prefix):
+                label = label[len(prefix):].strip()
+                break
+        if label in PRIORITY_LABEL_MAP:
+            return PRIORITY_LABEL_MAP[label]
     return 0
 
 # Canonical status labels (tracker_providers.json status_map / tracker_ops.sh
@@ -500,7 +517,7 @@ STALE_FILE="$TEMP_DIR/stale.json"
 detect_stale() {
     local issues_file="$1"
 
-    python3 - "$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD" << 'PYEOF'
+    python3 - "$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD" "$TRIAGE_REPO_ROOT" << 'PYEOF'
 import json
 import sys
 import os
@@ -513,6 +530,11 @@ with open(sys.argv[1]) as f:
 staleness_days = int(sys.argv[2])
 file_missing_threshold = float(sys.argv[3])
 current_time = datetime.now(timezone.utc)
+
+# Path references in issue bodies are repo-relative. Resolve them against the
+# TARGET repository root captured before the workflow changed directories --
+# never against CWD, which by this point is the installed plugin directory.
+REPO_ROOT = sys.argv[4] if len(sys.argv) > 4 else os.getcwd()
 
 stale_issues = []
 
@@ -533,20 +555,37 @@ for issue in issues:
         import re
         file_paths = re.findall(r'`([^`]+\.(py|js|ts|go|sh|java|rb|md|yml|yaml|json|toml))`', description)
 
-        if file_paths:
-            missing_count = 0
-            total_count = len(file_paths)
+        # Only strings that look like PATHS are evidence of a deleted file.
+        # Issue bodies routinely name bare files in prose (`migration.py`,
+        # `constitution_hook.py`); a basename can never resolve from the
+        # triage CWD, so counting it as missing manufactures a 66-100%
+        # "deleted" ratio for an issue whose files are all present. Require a
+        # directory separator, and resolve relative paths against the repo
+        # root rather than wherever this happens to be invoked from.
+        # A path-shaped string is evidence either way. A BARE name is evidence
+        # only when it actually resolves at the repo root: dropping resolvable
+        # bare names would shrink the denominator and inflate the ratio
+        # (README.md + package.json + src/removed.py becomes 1/1, not 1/3).
+        # Unresolvable bare names stay excluded -- those are prose mentions.
+        candidates = []
+        for file_path, _ in file_paths:
+            expanded_path = os.path.expanduser(file_path)
+            if not os.path.isabs(expanded_path):
+                expanded_path = os.path.join(REPO_ROOT, expanded_path)
+            if "/" in file_path or os.path.exists(expanded_path):
+                candidates.append(expanded_path)
 
-            for file_path, _ in file_paths:
-                # Expand ~ to home directory
-                expanded_path = os.path.expanduser(file_path)
+        if candidates:
+            missing_count = 0
+            total_count = len(candidates)
+
+            for expanded_path in candidates:
                 if not os.path.exists(expanded_path):
                     missing_count += 1
 
-            if total_count > 0:
-                missing_ratio = missing_count / total_count
-                if missing_ratio > file_missing_threshold:
-                    stale_reasons.append(f"{missing_count}/{total_count} referenced files deleted ({int(missing_ratio*100)}%)")
+            missing_ratio = missing_count / total_count
+            if missing_ratio > file_missing_threshold:
+                stale_reasons.append(f"{missing_count}/{total_count} referenced files deleted ({int(missing_ratio*100)}%)")
 
     # Check for "planned" label - NEVER auto-close if present
     has_planned_label = 'planned' in [label.lower() for label in issue.get('labels', [])]
