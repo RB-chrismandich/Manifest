@@ -90,3 +90,10 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-10-24 - JSON Parsing Heuristics Consensus
+
+**Learning:** The removal of the `_parse_kv` JSON parsing heuristic (e.g. checking `first_char in '{['`) is currently
+under architectural discussion, as other components like `manifest-delegate` actively depend on it.
+**Action:** Do not remove the `_parse_kv` fast-path heuristic in `skillclaw/audit.py` without explicit architectural
+consensus or a resolved duplicate policy.
