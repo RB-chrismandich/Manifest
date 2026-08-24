@@ -212,11 +212,19 @@ PRIORITY_LABEL_MAP = {
 }
 
 def priority_from_labels(labels):
-    label_set = {l.lower() for l in labels}
-    for label in label_set:
-        for key, val in PRIORITY_LABEL_MAP.items():
-            if key in label:
-                return val
+    # Compare the WHOLE label, never a substring and never a token slice:
+    # "follow-up" contains "low", and splitting "non-critical" on the dash
+    # yields "critical". Both would silently promote an ordinary label into a
+    # priority. Only the conventional scope prefix is stripped first
+    # ("priority/high" -> "high"); anything else must match a map key exactly,
+    # falling through to 0 (None) — the honest default this map documents.
+    for label in {l.lower().strip() for l in labels}:
+        for prefix in ("priority/", "priority:", "pri/", "pri:", "p/"):
+            if label.startswith(prefix):
+                label = label[len(prefix):].strip()
+                break
+        if label in PRIORITY_LABEL_MAP:
+            return PRIORITY_LABEL_MAP[label]
     return 0
 
 # Canonical status labels (tracker_providers.json status_map / tracker_ops.sh
@@ -514,6 +522,17 @@ staleness_days = int(sys.argv[2])
 file_missing_threshold = float(sys.argv[3])
 current_time = datetime.now(timezone.utc)
 
+# Path references in issue bodies are repo-relative; resolve them against the
+# repo root, not the triage CWD (which may be any subdirectory or worktree).
+import subprocess
+try:
+    REPO_ROOT = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() or os.getcwd()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    REPO_ROOT = os.getcwd()
+
 stale_issues = []
 
 for issue in issues:
@@ -533,20 +552,29 @@ for issue in issues:
         import re
         file_paths = re.findall(r'`([^`]+\.(py|js|ts|go|sh|java|rb|md|yml|yaml|json|toml))`', description)
 
-        if file_paths:
-            missing_count = 0
-            total_count = len(file_paths)
+        # Only strings that look like PATHS are evidence of a deleted file.
+        # Issue bodies routinely name bare files in prose (`migration.py`,
+        # `constitution_hook.py`); a basename can never resolve from the
+        # triage CWD, so counting it as missing manufactures a 66-100%
+        # "deleted" ratio for an issue whose files are all present. Require a
+        # directory separator, and resolve relative paths against the repo
+        # root rather than wherever this happens to be invoked from.
+        candidates = [fp for fp, _ in file_paths if "/" in fp]
 
-            for file_path, _ in file_paths:
-                # Expand ~ to home directory
+        if candidates:
+            missing_count = 0
+            total_count = len(candidates)
+
+            for file_path in candidates:
                 expanded_path = os.path.expanduser(file_path)
+                if not os.path.isabs(expanded_path):
+                    expanded_path = os.path.join(REPO_ROOT, expanded_path)
                 if not os.path.exists(expanded_path):
                     missing_count += 1
 
-            if total_count > 0:
-                missing_ratio = missing_count / total_count
-                if missing_ratio > file_missing_threshold:
-                    stale_reasons.append(f"{missing_count}/{total_count} referenced files deleted ({int(missing_ratio*100)}%)")
+            missing_ratio = missing_count / total_count
+            if missing_ratio > file_missing_threshold:
+                stale_reasons.append(f"{missing_count}/{total_count} referenced files deleted ({int(missing_ratio*100)}%)")
 
     # Check for "planned" label - NEVER auto-close if present
     has_planned_label = 'planned' in [label.lower() for label in issue.get('labels', [])]
