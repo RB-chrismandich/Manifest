@@ -29,6 +29,12 @@ Before running these examples, change into the directory containing this
 reference file and establish the installed Forge runtime root:
 
 ```bash
+# Capture the TARGET repository root FIRST. Everything below runs from the
+# installed plugin directory, which is not a git repository — resolving paths
+# after the cd would make every repo-relative reference look deleted.
+TRIAGE_REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
+export TRIAGE_REPO_ROOT
+
 REFERENCE_DIR=$(CDPATH='' cd -- . && pwd -P)
 FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$REFERENCE_DIR/../../../runtime" && pwd -P)
 ```
@@ -219,7 +225,10 @@ def priority_from_labels(labels):
     # ("priority/high" -> "high"); anything else must match a map key exactly,
     # falling through to 0 (None) — the honest default this map documents.
     for label in {l.lower().strip() for l in labels}:
-        for prefix in ("priority/", "priority:", "pri/", "pri:", "p/"):
+        # Longest prefix first: GitLab's scoped form is "priority::high", and
+        # stripping "priority:" would leave ":high", which matches nothing.
+        for prefix in ("priority::", "priority:", "priority/",
+                       "pri::", "pri:", "pri/", "p/"):
             if label.startswith(prefix):
                 label = label[len(prefix):].strip()
                 break
@@ -508,7 +517,7 @@ STALE_FILE="$TEMP_DIR/stale.json"
 detect_stale() {
     local issues_file="$1"
 
-    python3 - "$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD" << 'PYEOF'
+    python3 - "$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD" "$TRIAGE_REPO_ROOT" << 'PYEOF'
 import json
 import sys
 import os
@@ -522,16 +531,10 @@ staleness_days = int(sys.argv[2])
 file_missing_threshold = float(sys.argv[3])
 current_time = datetime.now(timezone.utc)
 
-# Path references in issue bodies are repo-relative; resolve them against the
-# repo root, not the triage CWD (which may be any subdirectory or worktree).
-import subprocess
-try:
-    REPO_ROOT = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip() or os.getcwd()
-except (subprocess.CalledProcessError, FileNotFoundError):
-    REPO_ROOT = os.getcwd()
+# Path references in issue bodies are repo-relative. Resolve them against the
+# TARGET repository root captured before the workflow changed directories --
+# never against CWD, which by this point is the installed plugin directory.
+REPO_ROOT = sys.argv[4] if len(sys.argv) > 4 else os.getcwd()
 
 stale_issues = []
 
@@ -559,16 +562,24 @@ for issue in issues:
         # "deleted" ratio for an issue whose files are all present. Require a
         # directory separator, and resolve relative paths against the repo
         # root rather than wherever this happens to be invoked from.
-        candidates = [fp for fp, _ in file_paths if "/" in fp]
+        # A path-shaped string is evidence either way. A BARE name is evidence
+        # only when it actually resolves at the repo root: dropping resolvable
+        # bare names would shrink the denominator and inflate the ratio
+        # (README.md + package.json + src/removed.py becomes 1/1, not 1/3).
+        # Unresolvable bare names stay excluded -- those are prose mentions.
+        candidates = []
+        for file_path, _ in file_paths:
+            expanded_path = os.path.expanduser(file_path)
+            if not os.path.isabs(expanded_path):
+                expanded_path = os.path.join(REPO_ROOT, expanded_path)
+            if "/" in file_path or os.path.exists(expanded_path):
+                candidates.append(expanded_path)
 
         if candidates:
             missing_count = 0
             total_count = len(candidates)
 
-            for file_path in candidates:
-                expanded_path = os.path.expanduser(file_path)
-                if not os.path.isabs(expanded_path):
-                    expanded_path = os.path.join(REPO_ROOT, expanded_path)
+            for expanded_path in candidates:
                 if not os.path.exists(expanded_path):
                     missing_count += 1
 
