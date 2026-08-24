@@ -90,3 +90,8 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2025-06-25 - PR Duplicate Detection
+
+**Learning:** When a PR is rejected as a byte-identical duplicate of an existing open PR, re-submitting the exact same change ignores the state of the repository and pollutes version control. The agent must acknowledge the rejection, record the learning, and stop work.
+**Action:** When a PR is closed as a duplicate, do not re-submit the identical diff. Acknowledge the comment and terminate the task gracefully without making further code changes.
