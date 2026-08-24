@@ -436,6 +436,51 @@ EOF
     [ -f "$RULES_DIR/alpha.mdc" ]   # dry-run must not delete
 }
 
+@test "stale mirror: rule still backed by plugins/ aborts instead of being pruned" {
+    # .apm/skills (== SKILLS_DIR) is a gitignored build artifact regenerated
+    # from plugins/*/skills/*. A rule missing from the mirror but still backed
+    # by a plugin source means the MIRROR is stale, not that the skill was
+    # retired -- pruning it would delete a live rule, and the pre-commit
+    # remediation advice would have the user commit that deletion.
+    make_skill alpha "Alpha"
+    make_skill ghost "Ghost"
+    "$GEN"
+    [ -f "$RULES_DIR/ghost.mdc" ]
+
+    # Skill vanishes from the mirror but its plugin source remains.
+    rm -rf "$SKILLS_DIR/ghost"
+    mkdir -p "$SANDBOX/plugins/fixture-bundle/skills/ghost"
+    cat > "$SANDBOX/plugins/fixture-bundle/skills/ghost/SKILL.md" << 'EOF'
+---
+name: ghost
+description: Ghost
+---
+EOF
+
+    run "$GEN"
+    assert_failure
+    assert_output --partial "stale skill mirror"
+    assert_output --partial "generate_skill_mirror.sh"
+    refute_output --partial "would remove"
+    [ -f "$RULES_DIR/ghost.mdc" ]   # the live rule must survive
+    [ -f "$RULES_DIR/alpha.mdc" ]
+}
+
+@test "stale-mirror guard does not mask a genuine orphan (no plugin source)" {
+    # Same shape as above, but with NO plugins/ backing: this is a real
+    # retirement and must still prune, or the guard would disable pruning.
+    make_skill alpha "Alpha"
+    make_skill beta "Beta"
+    "$GEN"
+    rm -rf "$SKILLS_DIR/beta"
+    mkdir -p "$SANDBOX/plugins/fixture-bundle/skills/unrelated"
+
+    run "$GEN"
+    assert_success
+    assert_output --partial "1 removed"
+    [ ! -e "$RULES_DIR/beta.mdc" ]
+}
+
 @test "orchestration.mdc and commands-index.mdc are never pruned as orphans" {
     # Neither has a matching configs/claude/skills/<name>/ dir (by design —
     # they are hand/generator-maintained singletons, not one-per-skill), so
