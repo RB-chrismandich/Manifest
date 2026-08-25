@@ -24,6 +24,7 @@ from tests.python.manifest_agent._codex_adapter_test_support import (
     installed_json,
     marketplace_add_json,
     marketplace_json,
+    mcp_list_json,
     plugin_add_json,
     plugin_remove_json,
 )
@@ -85,6 +86,7 @@ def test_codex_local_release_omits_ref_and_installs_canonical_plugins(
             ],
             marketplace,
             command(stdout=installed_json(desired)),
+            command(stdout=mcp_list_json()),
         ]
     )
     adapter = CodexAdapter(
@@ -108,7 +110,10 @@ def test_codex_local_release_omits_ref_and_installs_canonical_plugins(
         ["codex", "plugin", "add", f"{name}@manifest", "--json"]
         for name in DOMAIN_BUNDLES
     ]
-    assert runner.log[-1] == ["codex", "plugin", "list", "--json"]
+    # inspect() ends by observing what Codex serves, so it does not re-add a
+    # registered MCP server (test_codex_mcp_inventory.py).
+    assert runner.log[-2] == ["codex", "plugin", "list", "--json"]
+    assert runner.log[-1] == ["codex", "mcp", "list", "--json"]
     assert result.capabilities["manifest-workspace:skill:help"] == "verified"
     assert result.capabilities["manifest-workspace:mcp:context7"] == "verified"
 
@@ -153,6 +158,7 @@ def test_codex_already_present_requires_selected_version_inspection(
             command(stdout=installed_json(desired)),
             marketplace,
             command(stdout=installed_json(desired)),
+            command(stdout=mcp_list_json()),
         ]
     )
 
@@ -246,6 +252,7 @@ def test_codex_repairs_stale_plugin_only_after_private_backup(
                 )
             ),
             command(stdout=installed_json(desired)),
+            command(stdout=mcp_list_json()),
         ]
     )
     adapter = CodexAdapter(
@@ -303,6 +310,7 @@ def test_codex_repairs_same_version_runtime_content_drift(
                 )
             ),
             command(stdout=installed_json(desired)),
+            command(stdout=mcp_list_json()),
         ]
     )
     adapter = CodexAdapter(
@@ -418,6 +426,7 @@ def test_codex_inspect_reports_disabled_marketplace_addon_as_drift(
                 )
             ),
             command(stdout=json.dumps({"installed": rows})),
+            command(stdout=mcp_list_json()),
         ]
     )
 

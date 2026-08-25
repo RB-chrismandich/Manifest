@@ -28,6 +28,7 @@ from tests.python.manifest_agent._codex_adapter_test_support import (
     installed_json,
     marketplace_add_json,
     marketplace_json,
+    mcp_list_json,
     plugin_add_json,
 )
 from tests.python.manifest_agent._codex_adapter_test_support import (
@@ -68,6 +69,7 @@ def test_codex_published_release_pins_git_marketplace_ref(
             marketplace,
             command(stdout=published.source_commit),
             command(stdout=installed_json(published)),
+            command(stdout=mcp_list_json()),
         ]
     )
 

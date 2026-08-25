@@ -394,6 +394,9 @@ def _assert_pre_install_inspection(
         "codex": [
             ("plugin", "marketplace", "list", "--json"),
             ("plugin", "list", "--json"),
+            # Observing served MCP servers is part of inspect; see
+            # test_codex_mcp_inventory.py.
+            ("mcp", "list", "--json"),
         ],
         "gemini": [
             ("extensions", "list", "--output-format", "json"),

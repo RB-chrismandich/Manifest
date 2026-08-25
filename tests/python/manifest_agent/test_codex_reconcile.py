@@ -27,6 +27,7 @@ from tests.python.manifest_agent._codex_adapter_test_support import (
     command,
     installed_json,
     marketplace_json,
+    mcp_list_json,
 )
 from tests.python.manifest_agent._codex_adapter_test_support import (
     desired as desired,
@@ -114,6 +115,7 @@ def test_codex_prepared_reconcile_accepts_exact_target_without_mutation(
             command(stdout=target),
             command(stdout=marketplace_json(str(tmp_path), tmp_path)),
             command(stdout=target),
+            command(stdout=mcp_list_json()),
         ]
     )
 

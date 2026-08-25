@@ -19,6 +19,7 @@ from manifest_agent.adapters.base import (
 from manifest_agent.adapters.codex_catalog import (
     catalog_owned_entries,
     component_evidence,
+    component_evidence_failures,
     desired_target_identity,
     installed_manifest_ids,
     validate_desired,
@@ -35,6 +36,7 @@ from manifest_agent.adapters.codex_marketplace import (
     marketplace_state_from_row,
     with_retirement_phase,
 )
+from manifest_agent.adapters.codex_mcp_inventory import read_codex_mcp_inventory
 from manifest_agent.adapters.codex_native import (
     marketplace_row,
     plugin_rows,
@@ -92,16 +94,23 @@ class CodexAdapter(
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
-        native_mcp_inventory: NativeMcpInventory = (),
+        native_mcp_inventory: NativeMcpInventory | None = None,
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._native_mcp_inventory_injected = native_mcp_inventory is not None
         self._native_mcp_inventory = normalize_native_mcp_inventory(
-            native_mcp_inventory
+            () if native_mcp_inventory is None else native_mcp_inventory
         )
         self._last_marketplace_identity: AdapterMarketplaceState | None = None
         self._marketplace_observed = False
+
+    def _native_mcp_inventory_for_apply(self) -> NativeMcpInventory | None:
+        """Prefer live Codex state unless a caller explicitly injected inventory."""
+        if self._native_mcp_inventory_injected:
+            return self._native_mcp_inventory
+        return None
 
     def detect(self) -> Detection:
         """Report the Codex executable and native version, including absence."""
@@ -138,8 +147,17 @@ class CodexAdapter(
         if parse_error is not None:
             return blocked(parse_error)
         plugins = verify_rows(desired, rows)
-        evidence = component_evidence(desired, rows, self._which)
-        components = verify_declared_components(self.name, desired, evidence)
+        observation = read_codex_mcp_inventory(self.runner, self._env)
+        served = (
+            observation.inventory if isinstance(observation.inventory, Mapping) else {}
+        )
+        evidence = component_evidence(desired, rows, self._which, served_mcp=served)
+        components = verify_declared_components(
+            self.name,
+            desired,
+            evidence,
+            component_evidence_failures(desired, observation),
+        )
         return combine_results(marketplace, plugins, components)
 
     def install(self, desired: DesiredState) -> HarnessResult:
