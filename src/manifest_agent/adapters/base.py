@@ -24,6 +24,7 @@ from manifest_agent.adapters.capability_lifecycle import (
 from manifest_agent.adapters.capability_lifecycle import (
     normalize_native_mcp_inventory as normalize_native_mcp_inventory,
 )
+from manifest_agent.adapters.component_presence import component_is_installed
 from manifest_agent.contracts import CompatibilityStatus, Component
 from manifest_agent.models import (
     AdapterMutationHandle,
@@ -254,7 +255,7 @@ def _add_installed_file_evidence(
                 )
     for kind, attribute in _COMPONENT_GROUPS:
         for component in getattr(contract.components, attribute):
-            if (root / component.path).is_file():
+            if component_is_installed(root / component.path):
                 evidence.add(
                     normalize_component_identity(contract.name, kind, component.id)
                 )

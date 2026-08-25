@@ -186,6 +186,11 @@ def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) ->
     }
     if result.state is ResultState.BLOCKED:
         assert result.errors
-        assert removed.state is ResultState.BLOCKED
-    else:
-        assert removed.state is ResultState.READY
+    # The receipt above is hand-built, so it carries no `codex-catalog` ownership
+    # entry; only a real install writes one. Uninstall must therefore refuse it
+    # in every case, and say why. This branch went unexercised while directory-
+    # valued components could never be evidenced and install was permanently
+    # BLOCKED — see tests/python/manifest_agent/test_component_presence.py. The
+    # authenticated uninstall path is covered by test_codex_uninstall.py.
+    assert removed.state is ResultState.BLOCKED
+    assert any("ownership proof" in error for error in removed.errors)
