@@ -140,10 +140,6 @@ def test_parse_transcript_returns_none_when_no_turns(tmp_path):
 
 
 def test_parse_transcript_skips_plaintext_noise_line(tmp_path):
-    # A plain-text noise line that does NOT start with "{" is skipped by the
-    # fast-path prefix check (line[0] != "{" and line.lstrip()[:1] != "{")
-    # before json.loads is ever attempted. Raw-write so the leading char is
-    # non-JSON (the _write_jsonl helper would only emit compact JSON).
     f = tmp_path / "sess-noise.jsonl"
     f.write_text(
         "this is not json at all\n"
@@ -163,10 +159,6 @@ def test_parse_transcript_skips_plaintext_noise_line(tmp_path):
 
 
 def test_parse_transcript_keeps_whitespace_padded_json(tmp_path):
-    # A valid JSON line with leading whitespace must STILL be parsed: line[0]
-    # ("{") fails the first check, but the line.lstrip()[:1] fallback keeps it
-    # instead of dropping it to the json.loads exception path. Raw-write to
-    # preserve the leading whitespace.
     f = tmp_path / "sess-pad.jsonl"
     padded = "   " + json.dumps(
         {
