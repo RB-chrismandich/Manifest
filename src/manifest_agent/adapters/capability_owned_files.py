@@ -115,7 +115,7 @@ class OwnedFileObservationMixin:
             if not stat.S_ISREG(metadata.st_mode):
                 raise ValueError(f"owned path is not a regular file: {path}")
             digest = hashlib.sha256()
-            for chunk in iter(lambda: os.read(descriptor, 64 * 1024), b""):
+            while chunk := os.read(descriptor, 64 * 1024):
                 digest.update(chunk)
             return {
                 "path": str(path),
@@ -339,7 +339,7 @@ class OwnedFileMutationMixin:
         metadata = os.fstat(descriptor)
         digest = hashlib.sha256()
         os.lseek(descriptor, 0, os.SEEK_SET)
-        for chunk in iter(lambda: os.read(descriptor, 64 * 1024), b""):
+        while chunk := os.read(descriptor, 64 * 1024):
             digest.update(chunk)
         return {
             "path": str(path),

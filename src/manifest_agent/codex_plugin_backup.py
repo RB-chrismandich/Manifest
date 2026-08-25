@@ -517,7 +517,7 @@ def plugin_tree_sha256(path: Path) -> str:
         elif child.is_file():
             digest.update(b"f")
             with child.open("rb") as stream:
-                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                while chunk := stream.read(1024 * 1024):
                     digest.update(chunk)
         else:
             raise CodexPluginBackupError("installed plugin tree has an unsafe entry")
@@ -695,7 +695,7 @@ def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     try:
         with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            while chunk := stream.read(1024 * 1024):
                 digest.update(chunk)
     except OSError as error:
         raise CodexPluginBackupError("unable to read plugin backup") from error
@@ -705,7 +705,7 @@ def _sha256_file(path: Path) -> str:
 def _sha256_descriptor(descriptor: int) -> str:
     digest = hashlib.sha256()
     os.lseek(descriptor, 0, os.SEEK_SET)
-    for chunk in iter(lambda: os.read(descriptor, 1024 * 1024), b""):
+    while chunk := os.read(descriptor, 1024 * 1024):
         digest.update(chunk)
     return digest.hexdigest()
 
