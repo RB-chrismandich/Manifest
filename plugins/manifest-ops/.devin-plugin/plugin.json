@@ -1,0 +1,354 @@
+{
+  "description": "CI, deployment, configuration, container, and runtime operations workflows.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "Antigravity exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface."
+          },
+          {
+            "component_id": "version-pin",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/version-pin.json",
+            "reason": "Antigravity exposes the on-demand version-pin skill but has no native file-save hook surface."
+          }
+        ],
+        "imported": [
+          {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "component_id": "ops-bin",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "ops-config",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "ops-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "id": "ops-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "ops-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "ops-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/cache-warm-oob",
+        "skills/ci-diagnose-drift",
+        "skills/ci-reproduce-failure",
+        "skills/ci-setup",
+        "skills/config-debug-substitution",
+        "skills/config-validate-native",
+        "skills/deploy-diagnose-drift",
+        "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
+        "skills/docker-probe-internal",
+        "skills/process-diagnose-stall",
+        "skills/version-pin"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "Codex exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface."
+          },
+          {
+            "component_id": "version-pin",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/version-pin.json",
+            "reason": "Codex exposes the on-demand version-pin skill but has no native file-save hook surface."
+          }
+        ],
+        "native": [
+          {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "component_id": "ops-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "ops-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "ops-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "id": "ops-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "ops-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "ops-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/cache-warm-oob",
+        "skills/ci-diagnose-drift",
+        "skills/ci-reproduce-failure",
+        "skills/ci-setup",
+        "skills/config-debug-substitution",
+        "skills/config-validate-native",
+        "skills/deploy-diagnose-drift",
+        "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
+        "skills/docker-probe-internal",
+        "skills/process-diagnose-stall",
+        "skills/version-pin"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "generated",
+            "path": "hooks/compose-commandments.json"
+          },
+          {
+            "component_id": "version-pin",
+            "component_type": "hooks",
+            "mode": "generated",
+            "path": "hooks/version-pin.json"
+          },
+          {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "component_id": "ops-bin",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "ops-config",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "ops-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "hooks": [
+          {
+            "id": "compose-commandments",
+            "path": "hooks/compose-commandments.json"
+          },
+          {
+            "id": "version-pin",
+            "path": "hooks/version-pin.json"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "id": "ops-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "ops-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "ops-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/cache-warm-oob",
+        "skills/ci-diagnose-drift",
+        "skills/ci-reproduce-failure",
+        "skills/ci-setup",
+        "skills/config-debug-substitution",
+        "skills/config-validate-native",
+        "skills/deploy-diagnose-drift",
+        "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
+        "skills/docker-probe-internal",
+        "skills/process-diagnose-stall",
+        "skills/version-pin"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "Devin exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface."
+          },
+          {
+            "component_id": "version-pin",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/version-pin.json",
+            "reason": "Devin exposes the on-demand version-pin skill but has no native file-save hook surface."
+          }
+        ],
+        "native": [
+          {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "component_id": "ops-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "ops-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "ops-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "id": "ops-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "ops-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "ops-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/cache-warm-oob",
+        "skills/ci-diagnose-drift",
+        "skills/ci-reproduce-failure",
+        "skills/ci-setup",
+        "skills/config-debug-substitution",
+        "skills/config-validate-native",
+        "skills/deploy-diagnose-drift",
+        "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
+        "skills/docker-probe-internal",
+        "skills/process-diagnose-stall",
+        "skills/version-pin"
+      ]
+    }
+  },
+  "name": "manifest-ops",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/cache-warm-oob",
+    "skills/ci-diagnose-drift",
+    "skills/ci-reproduce-failure",
+    "skills/ci-setup",
+    "skills/config-debug-substitution",
+    "skills/config-validate-native",
+    "skills/deploy-diagnose-drift",
+    "skills/deploy-retire-component",
+    "skills/docker-compose-commandments",
+    "skills/docker-probe-internal",
+    "skills/process-diagnose-stall",
+    "skills/version-pin"
+  ],
+  "version": "0.3.0"
+}

@@ -207,6 +207,7 @@ def _validate_generated_views(
             ".claude-plugin/plugin.json",
             "gemini-extension.json",
             "plugin.json",
+            ".devin-plugin/plugin.json",
         ):
             path = bundle / relative
             try:

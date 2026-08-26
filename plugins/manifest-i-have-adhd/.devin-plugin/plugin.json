@@ -1,0 +1,205 @@
+{
+  "description": "Pinned ADHD-friendly always-on response guidance with fail-open diagnostics.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "adhd-always-on-guidance",
+            "component_type": "guidance",
+            "mode": "imported",
+            "path": "guidance/always-on.md"
+          },
+          {
+            "component_id": "adhd-session-start",
+            "component_type": "hooks",
+            "mode": "imported",
+            "path": "hooks/hooks.json"
+          },
+          {
+            "component_id": "adhd-hook-runtime",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "components": {
+        "guidance": [
+          {
+            "id": "adhd-always-on-guidance",
+            "path": "guidance/always-on.md"
+          }
+        ],
+        "hooks": [
+          {
+            "id": "adhd-session-start",
+            "path": "hooks/hooks.json"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "adhd-hook-runtime",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/i-have-adhd"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "adhd-always-on-guidance",
+            "component_type": "guidance",
+            "mode": "native",
+            "path": "guidance/always-on.md"
+          },
+          {
+            "component_id": "adhd-session-start",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/hooks.json"
+          },
+          {
+            "component_id": "adhd-hook-runtime",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "components": {
+        "guidance": [
+          {
+            "id": "adhd-always-on-guidance",
+            "path": "guidance/always-on.md"
+          }
+        ],
+        "hooks": [
+          {
+            "id": "adhd-session-start",
+            "path": "hooks/hooks.json"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "adhd-hook-runtime",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/i-have-adhd"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "adhd-always-on-guidance",
+            "component_type": "guidance",
+            "mode": "generated",
+            "path": "guidance/always-on.md"
+          },
+          {
+            "component_id": "adhd-session-start",
+            "component_type": "hooks",
+            "mode": "generated",
+            "path": "hooks/hooks.json"
+          },
+          {
+            "component_id": "adhd-hook-runtime",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "components": {
+        "guidance": [
+          {
+            "id": "adhd-always-on-guidance",
+            "path": "guidance/always-on.md"
+          }
+        ],
+        "hooks": [
+          {
+            "id": "adhd-session-start",
+            "path": "hooks/hooks.json"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "adhd-hook-runtime",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/i-have-adhd"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "adhd-always-on-guidance",
+            "component_type": "guidance",
+            "mode": "generated",
+            "path": "guidance/always-on.md"
+          },
+          {
+            "component_id": "adhd-session-start",
+            "component_type": "hooks",
+            "mode": "generated",
+            "path": "hooks/hooks.json"
+          },
+          {
+            "component_id": "adhd-hook-runtime",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "components": {
+        "guidance": [
+          {
+            "id": "adhd-always-on-guidance",
+            "path": "guidance/always-on.md"
+          }
+        ],
+        "hooks": [
+          {
+            "id": "adhd-session-start",
+            "path": "hooks/hooks.json"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "adhd-hook-runtime",
+            "path": "hooks/always_on.py"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/i-have-adhd"
+      ]
+    }
+  },
+  "name": "manifest-i-have-adhd",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/i-have-adhd"
+  ],
+  "version": "0.1.1"
+}

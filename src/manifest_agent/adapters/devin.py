@@ -134,12 +134,14 @@ class DevinAdapter(CapabilityAdapterMixin):
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
-        prepared_rule, rule_error = _prepare_adhd_rule(
-            desired, self._adhd_rule_path(), self._env
-        )
-        if rule_error is not None:
-            return rule_error
-        assert prepared_rule is not None
+        prepared_rule: OwnedEntry | None = None
+        if _adhd_bundle_shipped(desired):
+            prepared_rule, rule_error = _prepare_adhd_rule(
+                desired, self._adhd_rule_path(), self._env
+            )
+            if rule_error is not None:
+                return rule_error
+            assert prepared_rule is not None
         failures: list[HarnessResult] = []
         already_present: list[HarnessResult] = []
         for contract in desired.all_contracts:
@@ -161,14 +163,18 @@ class DevinAdapter(CapabilityAdapterMixin):
                 (already_present if _already_present(command) else failures).append(
                     result
                 )
-        rule = _apply_adhd_rule(self, prepared_rule)
+        rule = (
+            (_apply_adhd_rule(self, prepared_rule),)
+            if prepared_rule is not None
+            else ()
+        )
         capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
         if set(inspected.installed_plugin_ids) != {
             contract.name for contract in desired.all_contracts
         }:
             failures.extend(already_present)
-        return combine_results(*failures, rule, capabilities, inspected)
+        return combine_results(*failures, *rule, capabilities, inspected)
 
     def _native_reconcile_inventory(
         self,
@@ -385,6 +391,25 @@ def _component_evidence(
                         for item in components
                     )
     return evidence
+
+
+def _adhd_bundle_shipped(desired: DesiredState) -> bool:
+    """Return whether this release carries the optional ADHD bundle at all.
+
+    manifest-i-have-adhd is an ADDON, not a domain bundle (contracts.py), so a
+    release may legitimately omit it -- release 0.3.0 ships the eight domain
+    bundles alone. install() nevertheless prepared its global rule
+    unconditionally and returned on failure BEFORE its install loop, so one
+    absent addon directory blocked all eight required bundles and left Devin
+    with zero plugins installed.
+
+    Keyed on the bundle DIRECTORY, not on contract membership: an absent bundle
+    is "not shipped", while a bundle whose directory exists without a usable
+    rule is corrupt and must still block. _prepare_adhd_rule keeps rejecting a
+    missing or symlinked source in that case, so a tampered addon cannot install
+    silently.
+    """
+    return desired.bundle_path(_ADHD_BUNDLE).is_dir()
 
 
 def _prepare_adhd_rule(

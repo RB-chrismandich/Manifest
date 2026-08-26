@@ -9,7 +9,10 @@ from manifest_agent.models import DesiredState
 def _generic_view_errors(desired: DesiredState) -> list[str]:
     errors: list[str] = []
     for contract in desired.all_contracts:
-        path = desired.bundle_path(contract.name) / "plugin.json"
+        # The document `devin plugins install` reads. Checking the bundle-root
+        # copy instead let the adapter pass while the native CLI rejected the
+        # same directory for a missing manifest.
+        path = desired.bundle_path(contract.name) / ".devin-plugin/plugin.json"
         try:
             document = json.loads(path.read_text(encoding="utf-8"))
         except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
