@@ -90,3 +90,6 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+## 2024-08-26 - Bash is Actively Maintained
+**Learning:** The instruction to deprecate Bash (`*.sh`) in favor of Python (`*.py`) for prompt optimization was rejected because this repository explicitly maintains Bash as a primary script language alongside Python (e.g., `docs/CODING_STANDARDS.md` lists Bash as 'Active — primary').
+**Action:** Reverted local changes and will ensure future skill modifications preserve existing language conventions rather than assuming Python dominance.
