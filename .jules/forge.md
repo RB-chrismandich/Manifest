@@ -90,3 +90,12 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-10-24 - Handling Duplicate Architectural PRs
+
+**Learning:** When a PR is rejected because it is superseded by a broader active architectural refactor
+(like #832 replacing multiple instances of brittle fast-paths and cleaning up tests), applying a strict
+subset of those changes as a separate PR creates churn and duplicate effort.
+**Action:** When a PR is closed as subsumed or obsolete, acknowledge the active architectural direction,
+log any newly discovered broader scope context in `.jules/forge.md` to avoid future duplication, and
+safely terminate execution without re-opening a duplicate PR.
