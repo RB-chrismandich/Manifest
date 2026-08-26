@@ -34,9 +34,36 @@ def redact_text(value: str) -> str:
     return redacted
 
 
+_CREDENTIAL_WORD = (
+    r"(?:authorization|credential|password|private[_-]?key|secret|token|"
+    r"api[_-]?key|access[_-]?key)"
+)
+# A credential word names a credential FIELD only when it opens or closes the
+# key. Matching it mid-identifier rejected `workspace-token-economy` -- a
+# declared guidance component_id in manifest-workspace -- which redacted that
+# capability key and made write_receipt_atomic refuse EVERY receipt, so
+# `manifest install` converged no harness at all (observed against release
+# 0.3.0, 2026-08-25). Field names put the word at an edge (`api_token`,
+# `db.password`, `secret_value`); compound identifiers carry it in the middle.
+#
+# The narrowing is bounded, not a removal: values are still scanned by
+# contains_credential_material, and a key like `user-password-hash` now passes
+# the KEY check only -- its value does not.
+_CREDENTIAL_KEY = re.compile(
+    rf"^{_CREDENTIAL_WORD}(?:$|[._-])|(?:^|[._-]){_CREDENTIAL_WORD}$",
+    re.I,
+)
+
+
 def contains_credential_material(value: str) -> bool:
     """Return whether reportable text contains a recognized credential form."""
     return redact_text(value) != value
+
+
+def names_credential_field(key: str) -> bool:
+    """Return whether a mapping key names a credential field rather than merely
+    containing a credential word inside a longer identifier."""
+    return bool(_CREDENTIAL_KEY.search(key))
 
 
 class CommandRunner:

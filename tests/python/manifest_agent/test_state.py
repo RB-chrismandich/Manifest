@@ -356,3 +356,90 @@ def test_legacy_codex_receipt_error_names_its_remediation(tmp_path):
     assert len(errors) == 1
     assert "predates Codex receipt authentication" in errors[0]
     assert "manifest install" in errors[0]
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        # The observed blocker: a declared guidance component_id in
+        # manifest-workspace. Rejecting it redacted the capability key and made
+        # every receipt unwritable, so `manifest install` converged no harness.
+        "manifest-workspace:guidance:workspace-token-economy",
+        "manifest-workspace:skill:token-conserve",
+        "manifest-workspace:skill:token-benchmark",
+        "plugins.install",
+    ],
+)
+def test_receipt_accepts_credential_words_inside_component_ids(tmp_path, key):
+    harness = replace(
+        SAMPLE_RECEIPT.harnesses["claude"], capabilities={key: "verified"}
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
+    path = tmp_path / "installation.json"
+
+    write_receipt_atomic(path, receipt)
+
+    assert read_receipt(path) == receipt
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "api_token",
+        "access-token",
+        "db.password",
+        "secret_value",
+        "token",
+        "private_key",
+        "access_key",
+        "authorization",
+    ],
+)
+def test_receipt_still_rejects_credential_field_names(tmp_path, key):
+    harness = replace(
+        SAMPLE_RECEIPT.harnesses["claude"], capabilities={key: "redacted"}
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
+
+    with pytest.raises(StateError, match="credential material"):
+        write_receipt_atomic(tmp_path / "installation.json", receipt)
+
+
+def test_unverified_harness_may_record_ownership_evidence(tmp_path):
+    """Without this, capability_ownership_errors and the unverified-capability
+    rule are mutually unsatisfiable: a harness that created a capability and
+    then failed something unrelated could satisfy neither, so no receipt could
+    be written for ANY harness."""
+    from manifest_agent.ownership import OWNED_STATUS
+
+    entry = owned_capability_entry(
+        "mcp", "context7", key_path=tmp_path / "ownership.key"
+    )
+    unverified = replace(
+        SAMPLE_RECEIPT.harnesses["claude"],
+        verified=False,
+        errors=("native command exited 1; stderr: consent banner",),
+        capabilities={"mcp:context7": OWNED_STATUS, "skill:docs-all": "blocked"},
+        owned_entries=(entry,),
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": unverified})
+    path = tmp_path / "installation.json"
+
+    write_receipt_atomic(path, receipt)
+
+    restored = read_receipt(path)
+    assert restored.harnesses["claude"].verified is False
+    assert restored.harnesses["claude"].capabilities["mcp:context7"] == OWNED_STATUS
+
+
+def test_unverified_harness_still_rejects_plain_success_values(tmp_path):
+    unverified = replace(
+        SAMPLE_RECEIPT.harnesses["claude"],
+        verified=False,
+        errors=("native command exited 1",),
+        capabilities={"skill:docs-all": "verified"},
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": unverified})
+
+    with pytest.raises(StateError, match="non-success capabilities"):
+        write_receipt_atomic(tmp_path / "installation.json", receipt)

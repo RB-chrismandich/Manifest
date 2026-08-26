@@ -14,6 +14,7 @@ from typing import Any
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
 from manifest_agent.ownership import (
+    OWNED_STATUS,
     authenticate_codex_receipt,
     capability_ownership_errors,
     codex_catalog_ownership,
@@ -21,13 +22,11 @@ from manifest_agent.ownership import (
     owned_file_ownership,
 )
 from manifest_agent.paths import xdg_paths
-from manifest_agent.process import contains_credential_material
-
-_CREDENTIAL_KEY = re.compile(
-    r"(?:^|[._-])(?:authorization|credential|password|private[_-]?key|secret|token|"
-    r"api[_-]?key|access[_-]?key)(?:$|[._-])",
-    re.I,
+from manifest_agent.process import (
+    contains_credential_material,
+    names_credential_field,
 )
+
 _FULL_COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 _RETIREMENT_PHASES = frozenset({"prepared", "cleanup-complete"})
@@ -292,7 +291,7 @@ def _write_private_json_atomic(path: Path, document: dict[str, Any]) -> None:
 
 
 def _assert_secret_free(value: Any, *, key: str | None = None) -> None:
-    if key is not None and _CREDENTIAL_KEY.search(key):
+    if key is not None and names_credential_field(key):
         raise StateError("receipt contains credential material")
     if isinstance(value, dict):
         for child_key, child_value in value.items():
@@ -304,6 +303,27 @@ def _assert_secret_free(value: Any, *, key: str | None = None) -> None:
             _assert_secret_free(child)
     elif isinstance(value, str) and contains_credential_material(value):
         raise StateError("receipt contains credential material")
+
+
+def _permitted_on_unverified(value: str) -> bool:
+    """Return whether an unverified harness may carry this capability value.
+
+    Non-success values, plus ownership evidence. Without the ownership case this
+    rule and capability_ownership_errors are mutually unsatisfiable for a
+    harness that CREATED a capability and then failed something unrelated:
+    ownership.py requires the owned entry's status to read `installed-by-manifest`,
+    while this rule permits only non-success values, so no value satisfies both
+    and the receipt cannot be written at all. Observed for Gemini against release
+    0.3.0 -- its MCP add succeeded, its extension install hit the consent banner.
+
+    Ownership evidence is a record of a mutation, not a success claim, so it is
+    not a contradiction of the unverified verdict: `verified` remains False and
+    the explicit error is still required above. The alternative -- dropping the
+    entry -- would leave the created server orphaned, with uninstall unable to
+    clean up what the receipt no longer admits to creating.
+    """
+    normalized = value.strip().lower()
+    return normalized in _NON_SUCCESS_CAPABILITY_VALUES or normalized == OWNED_STATUS
 
 
 def _validate_receipt(
@@ -331,7 +351,7 @@ def _validate_receipt(
         if not harness.verified and not harness.errors:
             raise StateError("an unverified harness must record an explicit error")
         if not harness.verified and any(
-            value.strip().lower() not in _NON_SUCCESS_CAPABILITY_VALUES
+            not _permitted_on_unverified(value)
             for value in harness.capabilities.values()
         ):
             raise StateError(
