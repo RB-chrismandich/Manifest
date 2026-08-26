@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import shutil
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -18,8 +17,12 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
-from manifest_agent.ownership import advance_owned_file_entry, ownership_key_path
-from manifest_agent.process import redact_text
+from manifest_agent.ownership import (
+    OWNED_STATUS,
+    advance_owned_file_entry,
+    ownership_key_path,
+)
+from manifest_agent.process import names_credential_field, redact_text
 from manifest_agent.state import write_receipt_atomic
 
 STATE_PRIORITY = {
@@ -39,11 +42,6 @@ NON_SUCCESS = {
     "unavailable",
     "unsupported",
 }
-_CREDENTIAL_KEY = re.compile(
-    r"(?:^|[._-])(?:authorization|credential|password|private[_-]?key|secret|token|"
-    r"api[_-]?key|access[_-]?key)(?:$|[._-])",
-    re.I,
-)
 
 
 @dataclass(frozen=True)
@@ -110,7 +108,7 @@ def diagnostic(exception: Exception) -> str:
 def _safe_result(result: HarnessResult) -> HarnessResult:
     capabilities = {}
     for index, (key, value) in enumerate(result.capabilities.items()):
-        safe_key = f"[REDACTED-{index}]" if _CREDENTIAL_KEY.search(key) else key
+        safe_key = f"[REDACTED-{index}]" if names_credential_field(key) else key
         capabilities[redact_text(safe_key)] = redact_text(value)
     return replace(
         result,
@@ -209,6 +207,27 @@ def build_receipt(
     )
 
 
+def _downgraded_status(key: str, value: str, result: HarnessResult) -> str:
+    """Restate a capability at the harness verdict without erasing ownership.
+
+    A non-verified harness has its successful capability values replaced by the
+    harness state, so a harness that genuinely CREATED a capability and then
+    failed something unrelated used to land `installed-by-manifest` -> `blocked`
+    while its OwnedEntry survived. capability_ownership_errors then reported
+    "receipt lacks Manifest-created capability evidence", and the receipt could
+    not be written at all -- observed for Gemini against release 0.3.0, whose MCP
+    add succeeded before its extension install hit the consent banner.
+
+    Ownership evidence is a record of a mutation Manifest performed, not a
+    success claim, so it survives the downgrade. Dropping it instead would
+    orphan the created server: uninstall could never clean up what the receipt
+    no longer admits to creating.
+    """
+    if value == OWNED_STATUS or value.lower() in NON_SUCCESS:
+        return value
+    return result.state.value.lower()
+
+
 def _harness_receipt(
     adapter: HarnessAdapter | None,
     detection: Detection | None,
@@ -220,7 +239,7 @@ def _harness_receipt(
     errors = () if verified else result.errors or (f"{result.state.value} result",)
     if not verified:
         capabilities = {
-            key: value if value.lower() in NON_SUCCESS else result.state.value.lower()
+            key: _downgraded_status(key, value, result)
             for key, value in capabilities.items()
         }
     plugin_ids = result.installed_plugin_ids or (

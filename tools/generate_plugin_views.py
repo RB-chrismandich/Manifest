@@ -250,12 +250,19 @@ def _bundle_expected_views(
     _validate_component_assets(bundle_path, contract)
     skills = _discover_skills(bundle_path, contract)
     policies = _skill_policies(bundle_path, contract)
+    generic = _json(_generic_view(contract, skills, policies))
     expected = {
         target / ".claude-plugin" / "plugin.json": _json(
             _claude_view(contract, skills)
         ),
         target / "gemini-extension.json": _json(_gemini_view(contract, policies)),
-        target / "plugin.json": _json(_generic_view(contract, skills, policies)),
+        target / "plugin.json": generic,
+        # Same generic document, second location: `devin plugins install` reads
+        # .devin-plugin/plugin.json and nothing else, so a bundle carrying only
+        # the root copy is rejected with "invalid manifest: could not read
+        # manifest at .../.devin-plugin/plugin.json". Devin accepts this exact
+        # document verbatim -- the gap was never the schema, only the path.
+        target / ".devin-plugin" / "plugin.json": generic,
         target / "antigravity-extension.json": _json(
             _antigravity_view(contract, policies)
         ),

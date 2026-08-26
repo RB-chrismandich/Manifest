@@ -217,7 +217,7 @@ def _install_http_mcp(
         owned_entry = owned_capability_entry("mcp", definition.name, env=context.env)
     except OwnershipError as error:
         return context.failure(context.harness, tier, str(error), identity)
-    result = context.run(
+    result, command = context.run(
         context.harness,
         context.runner,
         command_builder(definition.name, definition.url),
@@ -225,10 +225,33 @@ def _install_http_mcp(
         identity,
         context.env,
         success="installed-by-manifest",
-    )[0]
+    )
     if result.state is not ResultState.READY:
+        if command is not None and _already_registered(command):
+            return context.success(context.harness, identity, "verified")
         return result
     return replace(result, owned_entries=(owned_entry,))
+
+
+def _already_registered(command: CommandResult) -> bool:
+    """Return whether a native MCP add refused because the server is present.
+
+    Reached only for harnesses whose live inventory is not observed:
+    merged_native_mcp_inventory reads live state for Codex alone, so every other
+    harness arrives here with an EMPTY observation and re-adds a server it
+    already has. Claude then exits 1 with "already exists in user config", the
+    capability lands as `failed`, and write_receipt_atomic refuses the receipt --
+    blocking install on exactly the machines bootstrap has already configured
+    (Context7 is the one server Manifest ships registered).
+
+    Deliberately returns a VERIFIED capability and no owned entry at the call
+    site: Manifest did not create this server, and claiming ownership would let
+    uninstall delete a server the user or bootstrap registered.
+    """
+    diagnostic = f"{command.stdout}\n{command.stderr}".lower()
+    return "already" in diagnostic and any(
+        word in diagnostic for word in ("added", "exists", "installed", "present")
+    )
 
 
 def _inventory_definition(inventory, name):

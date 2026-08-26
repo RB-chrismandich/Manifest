@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -57,49 +58,56 @@ def command(
     return CommandResult(("fixture",), returncode, stdout, stderr)
 
 
+def _bundle_contract(name: str) -> BundleContract:
+    return BundleContract(
+        name,
+        "0.2.0",
+        "fixture",
+        "fixture",
+        Components("skills", ("*/SKILL.md",), (), (), (), ()),
+        Capabilities(
+            dict.fromkeys(CapabilityTier, ()),
+            dict.fromkeys(CapabilityTier, ()),
+        ),
+        {"devin": CompatibilityStatus("native")},
+        Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
+    )
+
+
+def _write_domain_bundle(tmp_path: Path, name: str) -> None:
+    skill_name = f"skill-{name}"
+    skill = tmp_path / "plugins" / name / "skills" / skill_name / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# Skill\n", encoding="utf-8")
+    # Both locations, as generate_plugin_views emits them: the bundle-root
+    # generic view and the copy `devin plugins install` actually reads.
+    devin_manifest = tmp_path / "plugins" / name / ".devin-plugin/plugin.json"
+    devin_manifest.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "name": name,
+        "version": "0.2.0",
+        "skills": [f"skills/{skill_name}"],
+        "harnesses": {
+            "antigravity": {
+                "mode": "imported",
+                "skills": [f"skills/{skill_name}"],
+            },
+            "devin": {
+                "mode": "native",
+                "skills": [f"skills/{skill_name}"],
+            },
+        },
+    }
+    for manifest in (tmp_path / "plugins" / name / "plugin.json", devin_manifest):
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+
 @pytest.fixture
 def desired(tmp_path: Path) -> DesiredState:
     contracts = []
     for name in DOMAIN_BUNDLES:
-        skill_name = f"skill-{name}"
-        skill = tmp_path / "plugins" / name / "skills" / skill_name / "SKILL.md"
-        skill.parent.mkdir(parents=True)
-        skill.write_text("# Skill\n", encoding="utf-8")
-        (tmp_path / "plugins" / name / "plugin.json").write_text(
-            json.dumps(
-                {
-                    "name": name,
-                    "version": "0.2.0",
-                    "skills": [f"skills/{skill_name}"],
-                    "harnesses": {
-                        "antigravity": {
-                            "mode": "imported",
-                            "skills": [f"skills/{skill_name}"],
-                        },
-                        "devin": {
-                            "mode": "native",
-                            "skills": [f"skills/{skill_name}"],
-                        },
-                    },
-                }
-            ),
-            encoding="utf-8",
-        )
-        contracts.append(
-            BundleContract(
-                name,
-                "0.2.0",
-                "fixture",
-                "fixture",
-                Components("skills", ("*/SKILL.md",), (), (), (), ()),
-                Capabilities(
-                    dict.fromkeys(CapabilityTier, ()),
-                    dict.fromkeys(CapabilityTier, ()),
-                ),
-                {"devin": CompatibilityStatus("native")},
-                Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
-            )
-        )
+        _write_domain_bundle(tmp_path, name)
+        contracts.append(_bundle_contract(name))
     generated_rule = tmp_path / "plugins/manifest-i-have-adhd/devin/global-rule.md"
     generated_rule.parent.mkdir(parents=True)
     generated_rule.write_text("# Generated ADHD rule\n", encoding="utf-8")
@@ -367,7 +375,9 @@ def test_devin_info_requires_exact_acquired_local_source(desired: DesiredState) 
 def test_devin_rejects_invalid_generic_view_before_mutation(
     desired: DesiredState,
 ) -> None:
-    view = desired.bundle_path(DOMAIN_BUNDLES[0]) / "plugin.json"
+    # The manifest `devin plugins install` reads, which is what the adapter
+    # validates -- corrupting the bundle-root sibling proves nothing about it.
+    view = desired.bundle_path(DOMAIN_BUNDLES[0]) / ".devin-plugin/plugin.json"
     document = json.loads(view.read_text(encoding="utf-8"))
     document["harnesses"]["devin"]["mode"] = "imported"
     view.write_text(json.dumps(document), encoding="utf-8")
@@ -400,3 +410,45 @@ def test_devin_native_errors_are_redacted_and_aggregated(
     target = home / ".codeium/windsurf/memories/global_rules.md"
     source = desired.bundle_path("manifest-i-have-adhd") / "devin/global-rule.md"
     assert target.read_bytes() == source.read_bytes()
+
+
+def test_devin_installs_domain_bundles_when_the_addon_is_not_shipped(
+    desired: DesiredState,
+) -> None:
+    """Release 0.3.0 ships the eight domain bundles without the ADHD addon.
+    install() prepared its global rule before the install loop and returned on
+    failure, so Devin ended with ZERO plugins installed."""
+    shutil.rmtree(desired.bundle_path("manifest-i-have-adhd"))
+    runner = QueueRunner(install_results(desired))
+    home = desired.release_root / "home"
+
+    result = DevinAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(home)}
+    ).install(desired)
+
+    assert result.state is ResultState.READY
+    assert result.installed_plugin_ids == DOMAIN_BUNDLES
+    assert runner.log[: len(DOMAIN_BUNDLES)] == [
+        ["devin", "plugins", "install", str(desired.bundle_path(name)), "--yes"]
+        for name in DOMAIN_BUNDLES
+    ]
+    assert not (home / ".codeium/windsurf/memories/global_rules.md").exists()
+
+
+def test_devin_still_blocks_when_a_shipped_addon_lacks_its_rule(
+    desired: DesiredState,
+) -> None:
+    """A bundle directory that exists without a usable rule is corrupt, not
+    absent, and must keep blocking before any native command runs."""
+    (desired.bundle_path("manifest-i-have-adhd") / "devin/global-rule.md").unlink()
+    runner = QueueRunner([])
+
+    result = DevinAdapter(
+        runner=runner,
+        which=lambda name: name,
+        env={"HOME": str(desired.release_root / "home")},
+    ).install(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "global rule is missing" in " ".join(result.errors)
+    assert runner.log == []

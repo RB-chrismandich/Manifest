@@ -1,0 +1,339 @@
+{
+  "description": "Specification, planning, trade-off, and implementation-loop workflows.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "cddl-runtime",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/cddl"
+          },
+          {
+            "component_id": "plan-store",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "component_id": "planning-config",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "planning-prompts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/prompts"
+          },
+          {
+            "component_id": "planning-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/references"
+          },
+          {
+            "component_id": "spec-review",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "cddl-runtime",
+            "path": "runtime/cddl"
+          },
+          {
+            "id": "plan-store",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "id": "planning-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "planning-prompts",
+            "path": "runtime/prompts"
+          },
+          {
+            "id": "planning-references",
+            "path": "runtime/references"
+          },
+          {
+            "id": "spec-review",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "cddl-runtime",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/cddl"
+          },
+          {
+            "component_id": "plan-store",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "component_id": "planning-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "planning-prompts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/prompts"
+          },
+          {
+            "component_id": "planning-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          },
+          {
+            "component_id": "spec-review",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "cddl-runtime",
+            "path": "runtime/cddl"
+          },
+          {
+            "id": "plan-store",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "id": "planning-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "planning-prompts",
+            "path": "runtime/prompts"
+          },
+          {
+            "id": "planning-references",
+            "path": "runtime/references"
+          },
+          {
+            "id": "spec-review",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "cddl-runtime",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/cddl"
+          },
+          {
+            "component_id": "plan-store",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "component_id": "planning-config",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "planning-prompts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/prompts"
+          },
+          {
+            "component_id": "planning-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/references"
+          },
+          {
+            "component_id": "spec-review",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "cddl-runtime",
+            "path": "runtime/cddl"
+          },
+          {
+            "id": "plan-store",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "id": "planning-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "planning-prompts",
+            "path": "runtime/prompts"
+          },
+          {
+            "id": "planning-references",
+            "path": "runtime/references"
+          },
+          {
+            "id": "spec-review",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "cddl-runtime",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/cddl"
+          },
+          {
+            "component_id": "plan-store",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "component_id": "planning-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "planning-prompts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/prompts"
+          },
+          {
+            "component_id": "planning-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          },
+          {
+            "component_id": "spec-review",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "cddl-runtime",
+            "path": "runtime/cddl"
+          },
+          {
+            "id": "plan-store",
+            "path": "runtime/plan_store.py"
+          },
+          {
+            "id": "planning-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "planning-prompts",
+            "path": "runtime/prompts"
+          },
+          {
+            "id": "planning-references",
+            "path": "runtime/references"
+          },
+          {
+            "id": "spec-review",
+            "path": "runtime/spec_review.sh"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    }
+  },
+  "name": "manifest-spec-planning",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/design-validate",
+    "skills/plan-manage",
+    "skills/premise-verify",
+    "skills/spec-audit-tasks",
+    "skills/spec-decide-tradeoffs",
+    "skills/spec-implement-loop",
+    "skills/spec-review"
+  ],
+  "version": "0.3.0"
+}

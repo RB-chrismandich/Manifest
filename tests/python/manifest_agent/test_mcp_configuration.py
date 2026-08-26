@@ -475,3 +475,43 @@ def test_absent_selected_native_existing_warns_without_inventing_transport() -> 
     assert result.state is ResultState.READY
     assert result.capabilities["mcp:stitch"] == "missing"
     assert "native Stitch setup" in " ".join(result.warnings)
+
+
+def test_preexisting_native_mcp_is_verified_without_claiming_ownership(
+    tmp_path: Path,
+) -> None:
+    """The blocker observed against release 0.3.0: Claude already had context7
+    (bootstrap registers it), the add exited 1, the capability landed `failed`,
+    and the receipt was refused for every harness."""
+    runner = RecordingRunner(
+        [
+            CommandResult(
+                ("fixture",), 1, "", "MCP server context7 already exists in user config"
+            )
+        ]
+    )
+
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        env={"HOME": str(tmp_path)},
+    ).apply_capabilities(_plan())
+
+    assert result.state is ResultState.READY
+    assert result.capabilities["mcp:context7"] == "verified"
+    # Manifest did not create this server, so it must not be recorded as owned:
+    # an owned entry would let uninstall delete the user's own registration.
+    assert result.owned_entries == ()
+
+
+def test_unrelated_native_mcp_failure_is_still_a_failure(tmp_path: Path) -> None:
+    runner = RecordingRunner([CommandResult(("fixture",), 1, "", "connection refused")])
+
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        env={"HOME": str(tmp_path)},
+    ).apply_capabilities(_plan())
+
+    assert result.state is ResultState.DEGRADED
+    assert result.capabilities["mcp:context7"] == "failed"
