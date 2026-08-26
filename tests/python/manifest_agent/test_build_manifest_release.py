@@ -304,6 +304,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
         "gemini-extension.json",
         "antigravity-extension.json",
         "plugin.json",
+        ".devin-plugin/plugin.json",
     ):
         path = bundle / relative
         document = json.loads(path.read_text(encoding="utf-8"))
