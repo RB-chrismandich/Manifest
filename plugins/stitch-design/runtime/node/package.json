@@ -11,7 +11,7 @@
     "@babel/parser": "7.29.8",
     "@babel/traverse": "7.29.8",
     "esbuild": "0.28.2",
-    "puppeteer-core": "25.8.0"
+    "puppeteer-core": "25.9.0"
   },
   "engines": {
     "node": ">=22.12"
