@@ -105,3 +105,9 @@ observed during `audit.py`'s `_parse_kv` execution.
 
 **Action:** When speculatively parsing unknown string values as JSON, apply a fast-path prefix check (e.g.,
 checking if `v[0]` is in `'{["tf-0123456789NIn'`) to short-circuit non-JSON strings before calling `json.loads()`.
+
+## 2026-06-30 - Iter vs While Walrus Operator for File Reads
+
+**Learning:** When reading files in chunks to compute digests or sums, both `for chunk in iter(lambda: stream.read(1024 * 1024), b"")` and `while chunk := stream.read(1024 * 1024):` have virtually identical performance (within 1-2% variance). Initial benchmarks showing walrus to be faster were due to warm-cache artifacts from sequential (rather than interleaved) testing. However, the walrus operator is more idiomatic and marginally safer because it halts cleanly on `None` for non-blocking streams, whereas `iter(..., b"")` would pass `None` to downstream functions like `hashlib.sha256().update()` and raise a `TypeError`.
+
+**Action:** Prefer `while chunk := stream.read(size):` over `iter(lambda: stream.read(size), b"")` for chunked reads because it is more idiomatic and safer with non-blocking streams, though it is not a performance optimization.

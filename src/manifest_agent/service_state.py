@@ -173,7 +173,7 @@ def _tree_checksum(root: Path) -> str:
             continue
         digest.update(b"f")
         with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            while chunk := stream.read(1024 * 1024):
                 digest.update(chunk)
     return digest.hexdigest()
 
