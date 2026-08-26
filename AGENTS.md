@@ -343,6 +343,18 @@ enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit
 
 ## Coding Standards
 
+**Script language: Bash (`.sh`) and Python (`.py`) are both Active — primary.**
+Neither is legacy. `configs/claude/scripts/` holds 41 `.sh` files beside 36
+`.py`, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
+is Bash by design. **Do not propose blanket `.sh`→`.py` migrations, or the
+reverse.** Match the convention of the code you are changing; when adding a new
+script, follow the directory it lives in. `docs/CODING_STANDARDS.md` sections
+"Bash (Active — primary)" and "Python (Active — primary)" are authoritative.
+
+This is stated normatively here because it is the rule agents most often
+violate — see #828, where one skill file drew 66 PRs, several of which
+rewrote a constraint warning against exactly this assumption into its inverse.
+
 Per-language coding standards and how they are enforced (editor → edit-time →
 commit → CI) are documented in
 [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md). An advisory PostToolUse hook
