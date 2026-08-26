@@ -97,16 +97,36 @@ allocation times when target strings are entirely absent in large documents (lik
 utilize a fast substring check (e.g., `'"test"' in content`) to short-circuit and bypass expensive parsing operations
 like `json.loads()` or `re.search()` if the target is absent.
 
-## 2026-06-30 - Fast-Path JSON Parsing for Argument Values
+## 2026-06-30 - Fast-Path JSON Parsing for Argument Values — RETRACTED 2026-08-26
 
-**Learning:** Using `json.loads` on arbitrary command-line arguments (like `key=value` pairs) inside a `try/except`
-block creates significant overhead due to `JSONDecodeError` being raised for common string values. This was
-observed during `audit.py`'s `_parse_kv` execution.
+**Retracted.** This learning was applied to `audit.py` and `ingest.py`, then reverted by #832 and re-proposed
+again by #841 because this entry still recommended it. Do not re-apply it.
 
-**Action:** When speculatively parsing unknown string values as JSON, apply a fast-path prefix check (e.g.,
-checking if `v[0]` is in `'{["tf-0123456789NIn'`) to short-circuit non-JSON strings before calling `json.loads()`.
-## 2026-06-30 - Iter vs While Walrus Operator for File Reads
+**Why it was reverted:** the fast path hand-rolls an allowlist of JSON-leading characters
+(`'{["tf-0123456789NIn'`), duplicating the parser's own acceptance grammar. A shadow grammar drifts from the real
+one, and these call sites are fail-open background ingest paths where the exception cost is on no hot user-facing
+loop. The `except json.JSONDecodeError` branch already does exactly what the fast path did — `continue` in
+`parse_transcript`/`trim`, `out[k] = v` in `_parse_kv` — so the optimization bought nothing but a second copy of
+the grammar. Differential-tested over 40 adversarial inputs: zero behavioural divergence.
 
-**Learning:** When reading files in chunks to compute digests or sums, `for chunk in iter(lambda: stream.read(1024 * 1024), b"")` incurs a noticeable performance overhead from setting up the iterator and lambda for every read. Replacing this pattern with `while chunk := stream.read(1024 * 1024):` (the walrus operator) avoids the iterator/lambda overhead entirely and benchmarks ~15-20% faster for large files, while keeping the code similarly compact and readable.
+**Action:** Let `json.loads` raise and handle it in `except`. Do not pre-filter by leading character.
 
-**Action:** Prefer `while chunk := stream.read(size):` over `iter(lambda: stream.read(size), b"")` for chunked reads.
+## 2026-06-30 - Iter vs While Walrus Operator for File Reads — CLAIM CORRECTED 2026-08-26
+
+The code change (`while chunk := stream.read(n):` over `iter(lambda: stream.read(n), b"")`) landed in #834 and is
+fine: for `bytes`, `b""` is the only falsy value, so the two forms are equivalent at every digest call site, and
+the walrus form additionally survives a raw non-blocking stream returning `None`.
+
+**The performance claim did not survive measurement.** The original entry asserted "~15-20% faster for large
+files". Re-measured over a 256MB file, sha256, median of 7 **interleaved alternating-order** trials:
+
+| chunk | iter | walrus | delta |
+|---|---|---|---|
+| 1024 KB | 863.0 ms | 884.8 ms | -2.5% |
+| 64 KB | 882.4 ms | 894.3 ms | -1.3% |
+
+Both within run-to-run variance. A naive **non-interleaved** run first showed walrus 19.6% *slower* at 64KB — a
+warm-cache ordering artifact, and exactly how a "15-20% faster" number gets produced.
+
+**Action:** Prefer the walrus form for readability, not for speed. Benchmark by interleaving alternating trials
+and reporting a median; a sequential A-then-B run measures page cache, not code.
