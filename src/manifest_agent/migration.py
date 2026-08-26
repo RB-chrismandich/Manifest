@@ -320,7 +320,7 @@ def _read_text_limited(path: Path) -> str:
 def _file_digest(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
+        while block := stream.read(1024 * 1024):
             digest.update(block)
     return digest.hexdigest()
 

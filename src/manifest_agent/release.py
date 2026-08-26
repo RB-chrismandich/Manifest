@@ -54,7 +54,7 @@ def verify_sha256(path: Path, expected: str) -> str:
     digest = hashlib.sha256()
     try:
         with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            while chunk := stream.read(1024 * 1024):
                 digest.update(chunk)
     except OSError as error:
         raise ReleaseError(f"unable to read release archive: {error}") from error
@@ -150,7 +150,7 @@ def _file_sha256(path: Path) -> tuple[int, bytes]:
     digest = hashlib.sha256()
     size = 0
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        while chunk := stream.read(1024 * 1024):
             size += len(chunk)
             digest.update(chunk)
     return size, digest.digest()
