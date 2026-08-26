@@ -1,0 +1,552 @@
+{
+  "description": "Design generation, review, extraction, and implementation workflows.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/skeptic-verifier.md"
+          },
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-loop",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/loop-scaffold",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
+        "skills/shadcn-ui",
+        "skills/spec-amend",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/skeptic-verifier.md"
+          },
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-loop",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/loop-scaffold",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
+        "skills/shadcn-ui",
+        "skills/spec-amend",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/skeptic-verifier.md"
+          },
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-loop",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/loop-scaffold",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
+        "skills/shadcn-ui",
+        "skills/spec-amend",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "design-lens-reviewer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "component_id": "skeptic-verifier",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/skeptic-verifier.md"
+          },
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "design-lens-reviewer",
+            "path": "agents/design-lens-reviewer.md"
+          },
+          {
+            "id": "skeptic-verifier",
+            "path": "agents/skeptic-verifier.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-loop",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/loop-scaffold",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/render-verify",
+        "skills/review-round",
+        "skills/screen-prompts",
+        "skills/shadcn-ui",
+        "skills/spec-amend",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    }
+  },
+  "name": "stitch-design",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/a11y-audit",
+    "skills/code-to-design",
+    "skills/design-loop",
+    "skills/design-md",
+    "skills/enhance-prompt",
+    "skills/extract-design-md",
+    "skills/extract-static-html",
+    "skills/generate-design",
+    "skills/loop-scaffold",
+    "skills/manage-design-system",
+    "skills/performance-check",
+    "skills/react-components",
+    "skills/react-native",
+    "skills/react-vite-dashboard",
+    "skills/remotion",
+    "skills/render-verify",
+    "skills/review-round",
+    "skills/screen-prompts",
+    "skills/shadcn-ui",
+    "skills/spec-amend",
+    "skills/stitch-loop",
+    "skills/taste-design",
+    "skills/upload-to-stitch",
+    "skills/ux-review"
+  ],
+  "version": "0.3.0"
+}

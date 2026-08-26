@@ -1,0 +1,1431 @@
+{
+  "description": "Workspace configuration, environment, session, and learning workflows.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex PermissionRequest surface only."
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex SessionStart surface only."
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex Stop surface only."
+          }
+        ],
+        "imported": [
+          {
+            "component_id": "compatibility-translator",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "component_id": "context-chronicler",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "component_id": "dependency-guardian",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "component_id": "devpanel-chaos-engineer",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "component_id": "devpanel-debugger",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "component_id": "devpanel-developer",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "component_id": "devpanel-performance-auditor",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "component_id": "devpanel-spec-guard",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "component_id": "devpanel-tester",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "component_id": "executor",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "component_id": "explore",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "component_id": "mech-executor",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "component_id": "scout",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "component_id": "security-executor",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "component_id": "verifier",
+            "component_type": "agents",
+            "mode": "imported",
+            "path": "agents/orchestration/verifier.md"
+          },
+          {
+            "component_id": "workspace-orchestration",
+            "component_type": "guidance",
+            "mode": "imported",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "imported",
+            "path": "guidance/token-economy.md"
+          },
+          {
+            "component_id": "command-catalog",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "component_id": "deploy-reconcile-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "component_id": "env-check-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "component_id": "help-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/help/scripts"
+          },
+          {
+            "component_id": "hook-integration-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "component_id": "learning-capture-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "component_id": "parallel-agent-config",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "component_id": "parallel-agent-prompts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "component_id": "parallel-agent-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "component_id": "parallel-agent-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "component_id": "pr-smoke-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "component_id": "skill-evolve-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "compatibility-translator",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "id": "context-chronicler",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "id": "dependency-guardian",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "id": "devpanel-chaos-engineer",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "id": "devpanel-debugger",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "id": "devpanel-developer",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "id": "devpanel-performance-auditor",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "id": "devpanel-spec-guard",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "id": "devpanel-tester",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "id": "executor",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "id": "explore",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "id": "mech-executor",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "id": "scout",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "id": "security-executor",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "id": "verifier",
+            "path": "agents/orchestration/verifier.md"
+          }
+        ],
+        "guidance": [
+          {
+            "id": "workspace-orchestration",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "id": "workspace-token-economy",
+            "path": "guidance/token-economy.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "command-catalog",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "id": "deploy-reconcile-scripts",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "id": "env-check-scripts",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "id": "help-scripts",
+            "path": "skills/help/scripts"
+          },
+          {
+            "id": "hook-integration-scripts",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "id": "learning-capture-scripts",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "id": "parallel-agent-config",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "id": "parallel-agent-prompts",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "id": "parallel-agent-references",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "id": "parallel-agent-scripts",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "id": "pr-smoke-scripts",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "id": "skill-evolve-scripts",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/parallel-agent",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "compatibility-translator",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "component_id": "context-chronicler",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "component_id": "dependency-guardian",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "component_id": "devpanel-chaos-engineer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "component_id": "devpanel-debugger",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "component_id": "devpanel-developer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "component_id": "devpanel-performance-auditor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "component_id": "devpanel-spec-guard",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "component_id": "devpanel-tester",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "component_id": "executor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "component_id": "explore",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "component_id": "mech-executor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "component_id": "scout",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "component_id": "security-executor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "component_id": "verifier",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/verifier.md"
+          },
+          {
+            "component_id": "workspace-orchestration",
+            "component_type": "guidance",
+            "mode": "native",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "native",
+            "path": "guidance/token-economy.md"
+          },
+          {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "component_id": "command-catalog",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "component_id": "deploy-reconcile-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "component_id": "env-check-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "component_id": "help-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/help/scripts"
+          },
+          {
+            "component_id": "hook-integration-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "component_id": "learning-capture-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "component_id": "parallel-agent-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "component_id": "parallel-agent-prompts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "component_id": "parallel-agent-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "component_id": "parallel-agent-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "component_id": "pr-smoke-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "component_id": "skill-evolve-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "compatibility-translator",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "id": "context-chronicler",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "id": "dependency-guardian",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "id": "devpanel-chaos-engineer",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "id": "devpanel-debugger",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "id": "devpanel-developer",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "id": "devpanel-performance-auditor",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "id": "devpanel-spec-guard",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "id": "devpanel-tester",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "id": "executor",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "id": "explore",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "id": "mech-executor",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "id": "scout",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "id": "security-executor",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "id": "verifier",
+            "path": "agents/orchestration/verifier.md"
+          }
+        ],
+        "guidance": [
+          {
+            "id": "workspace-orchestration",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "id": "workspace-token-economy",
+            "path": "guidance/token-economy.md"
+          }
+        ],
+        "hooks": [
+          {
+            "id": "codex-permission-request",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "id": "codex-session-start",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "id": "codex-stop",
+            "path": "hooks/codex-lifecycle-events.json"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "command-catalog",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "id": "deploy-reconcile-scripts",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "id": "env-check-scripts",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "id": "help-scripts",
+            "path": "skills/help/scripts"
+          },
+          {
+            "id": "hook-integration-scripts",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "id": "learning-capture-scripts",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "id": "parallel-agent-config",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "id": "parallel-agent-prompts",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "id": "parallel-agent-references",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "id": "parallel-agent-scripts",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "id": "pr-smoke-scripts",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "id": "skill-evolve-scripts",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/parallel-agent",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex PermissionRequest surface only."
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex SessionStart surface only."
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex Stop surface only."
+          }
+        ],
+        "generated": [
+          {
+            "component_id": "compatibility-translator",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "component_id": "context-chronicler",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "component_id": "dependency-guardian",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "component_id": "devpanel-chaos-engineer",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "component_id": "devpanel-debugger",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "component_id": "devpanel-developer",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "component_id": "devpanel-performance-auditor",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "component_id": "devpanel-spec-guard",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "component_id": "devpanel-tester",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "component_id": "executor",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "component_id": "explore",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "component_id": "mech-executor",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "component_id": "scout",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "component_id": "security-executor",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "component_id": "verifier",
+            "component_type": "agents",
+            "mode": "generated",
+            "path": "agents/orchestration/verifier.md"
+          },
+          {
+            "component_id": "workspace-orchestration",
+            "component_type": "guidance",
+            "mode": "generated",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "generated",
+            "path": "guidance/token-economy.md"
+          },
+          {
+            "component_id": "command-catalog",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "component_id": "deploy-reconcile-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "component_id": "env-check-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "component_id": "help-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/help/scripts"
+          },
+          {
+            "component_id": "hook-integration-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "component_id": "learning-capture-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "component_id": "parallel-agent-config",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "component_id": "parallel-agent-prompts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "component_id": "parallel-agent-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "component_id": "parallel-agent-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "component_id": "pr-smoke-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "component_id": "skill-evolve-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "compatibility-translator",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "id": "context-chronicler",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "id": "dependency-guardian",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "id": "devpanel-chaos-engineer",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "id": "devpanel-debugger",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "id": "devpanel-developer",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "id": "devpanel-performance-auditor",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "id": "devpanel-spec-guard",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "id": "devpanel-tester",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "id": "executor",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "id": "explore",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "id": "mech-executor",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "id": "scout",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "id": "security-executor",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "id": "verifier",
+            "path": "agents/orchestration/verifier.md"
+          }
+        ],
+        "guidance": [
+          {
+            "id": "workspace-orchestration",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "id": "workspace-token-economy",
+            "path": "guidance/token-economy.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "command-catalog",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "id": "deploy-reconcile-scripts",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "id": "env-check-scripts",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "id": "help-scripts",
+            "path": "skills/help/scripts"
+          },
+          {
+            "id": "hook-integration-scripts",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "id": "learning-capture-scripts",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "id": "parallel-agent-config",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "id": "parallel-agent-prompts",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "id": "parallel-agent-references",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "id": "parallel-agent-scripts",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "id": "pr-smoke-scripts",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "id": "skill-evolve-scripts",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/parallel-agent",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex PermissionRequest surface only."
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex SessionStart surface only."
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex Stop surface only."
+          }
+        ],
+        "native": [
+          {
+            "component_id": "compatibility-translator",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "component_id": "context-chronicler",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "component_id": "dependency-guardian",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "component_id": "devpanel-chaos-engineer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "component_id": "devpanel-debugger",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "component_id": "devpanel-developer",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "component_id": "devpanel-performance-auditor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "component_id": "devpanel-spec-guard",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "component_id": "devpanel-tester",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "component_id": "executor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "component_id": "explore",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "component_id": "mech-executor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "component_id": "scout",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "component_id": "security-executor",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "component_id": "verifier",
+            "component_type": "agents",
+            "mode": "native",
+            "path": "agents/orchestration/verifier.md"
+          },
+          {
+            "component_id": "workspace-orchestration",
+            "component_type": "guidance",
+            "mode": "native",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "native",
+            "path": "guidance/token-economy.md"
+          },
+          {
+            "component_id": "command-catalog",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "component_id": "deploy-reconcile-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "component_id": "env-check-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "component_id": "help-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/help/scripts"
+          },
+          {
+            "component_id": "hook-integration-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "component_id": "learning-capture-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "component_id": "parallel-agent-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "component_id": "parallel-agent-prompts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "component_id": "parallel-agent-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "component_id": "parallel-agent-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "component_id": "pr-smoke-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "component_id": "skill-evolve-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "components": {
+        "agents": [
+          {
+            "id": "compatibility-translator",
+            "path": "agents/orchestration/compatibility-translator.md"
+          },
+          {
+            "id": "context-chronicler",
+            "path": "agents/orchestration/context-chronicler.md"
+          },
+          {
+            "id": "dependency-guardian",
+            "path": "agents/orchestration/dependency-guardian.md"
+          },
+          {
+            "id": "devpanel-chaos-engineer",
+            "path": "agents/devpanel/chaos-engineer.md"
+          },
+          {
+            "id": "devpanel-debugger",
+            "path": "agents/devpanel/debugger.md"
+          },
+          {
+            "id": "devpanel-developer",
+            "path": "agents/devpanel/developer.md"
+          },
+          {
+            "id": "devpanel-performance-auditor",
+            "path": "agents/devpanel/performance-auditor.md"
+          },
+          {
+            "id": "devpanel-spec-guard",
+            "path": "agents/devpanel/spec-guard.md"
+          },
+          {
+            "id": "devpanel-tester",
+            "path": "agents/devpanel/tester.md"
+          },
+          {
+            "id": "executor",
+            "path": "agents/orchestration/executor.md"
+          },
+          {
+            "id": "explore",
+            "path": "agents/orchestration/Explore.md"
+          },
+          {
+            "id": "mech-executor",
+            "path": "agents/orchestration/mech-executor.md"
+          },
+          {
+            "id": "scout",
+            "path": "agents/orchestration/scout.md"
+          },
+          {
+            "id": "security-executor",
+            "path": "agents/orchestration/security-executor.md"
+          },
+          {
+            "id": "verifier",
+            "path": "agents/orchestration/verifier.md"
+          }
+        ],
+        "guidance": [
+          {
+            "id": "workspace-orchestration",
+            "path": "guidance/orchestration.md"
+          },
+          {
+            "id": "workspace-token-economy",
+            "path": "guidance/token-economy.md"
+          }
+        ],
+        "runtime": [
+          {
+            "id": "command-catalog",
+            "path": "skills/help/catalog/commands.json"
+          },
+          {
+            "id": "deploy-reconcile-scripts",
+            "path": "skills/deploy-reconcile/scripts"
+          },
+          {
+            "id": "env-check-scripts",
+            "path": "skills/env-check/scripts"
+          },
+          {
+            "id": "help-scripts",
+            "path": "skills/help/scripts"
+          },
+          {
+            "id": "hook-integration-scripts",
+            "path": "skills/ai-hooks-integration/scripts"
+          },
+          {
+            "id": "learning-capture-scripts",
+            "path": "skills/learning-capture/scripts"
+          },
+          {
+            "id": "parallel-agent-config",
+            "path": "skills/parallel-agent/config"
+          },
+          {
+            "id": "parallel-agent-prompts",
+            "path": "skills/parallel-agent/prompts"
+          },
+          {
+            "id": "parallel-agent-references",
+            "path": "skills/parallel-agent/references"
+          },
+          {
+            "id": "parallel-agent-scripts",
+            "path": "skills/parallel-agent/scripts"
+          },
+          {
+            "id": "pr-smoke-scripts",
+            "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "id": "skill-evolve-scripts",
+            "path": "skills/skill-evolve/scripts"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/parallel-agent",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    }
+  },
+  "name": "manifest-workspace",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/ai-hooks-integration",
+    "skills/automation-rework-breakeven",
+    "skills/config-audit",
+    "skills/deploy-reconcile",
+    "skills/env-check",
+    "skills/help",
+    "skills/learning-capture",
+    "skills/memory-compress",
+    "skills/metrics-report",
+    "skills/parallel-agent",
+    "skills/pass-cli",
+    "skills/pr-smoke",
+    "skills/prompt-optimize",
+    "skills/session-checkpoint",
+    "skills/skill-evolve",
+    "skills/test-isolate-ambient",
+    "skills/token-benchmark",
+    "skills/token-conserve"
+  ],
+  "version": "0.3.0"
+}
