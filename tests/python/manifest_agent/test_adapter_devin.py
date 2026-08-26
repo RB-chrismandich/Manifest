@@ -58,54 +58,50 @@ def command(
     return CommandResult(("fixture",), returncode, stdout, stderr)
 
 
+def _devin_bundle_contract(tmp_path: Path, name: str) -> BundleContract:
+    skill_name = f"skill-{name}"
+    skill = tmp_path / "plugins" / name / "skills" / skill_name / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# Skill\n", encoding="utf-8")
+    # Both locations, as generate_plugin_views emits them: the bundle-root
+    # generic view and the copy `devin plugins install` actually reads.
+    devin_manifest = tmp_path / "plugins" / name / ".devin-plugin/plugin.json"
+    devin_manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest_payload = {
+        "name": name,
+        "version": "0.2.0",
+        "skills": [f"skills/{skill_name}"],
+        "harnesses": {
+            "antigravity": {
+                "mode": "imported",
+                "skills": [f"skills/{skill_name}"],
+            },
+            "devin": {
+                "mode": "native",
+                "skills": [f"skills/{skill_name}"],
+            },
+        },
+    }
+    for manifest in (tmp_path / "plugins" / name / "plugin.json", devin_manifest):
+        manifest.write_text(json.dumps(manifest_payload), encoding="utf-8")
+    return BundleContract(
+        name,
+        "0.2.0",
+        "fixture",
+        "fixture",
+        Components("skills", ("*/SKILL.md",), (), (), (), ()),
+        Capabilities(
+            dict.fromkeys(CapabilityTier, ()),
+            dict.fromkeys(CapabilityTier, ()),
+        ),
+        {"devin": CompatibilityStatus("native")},
+        Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
+    )
+
+
 @pytest.fixture
 def desired(tmp_path: Path) -> DesiredState:
-    contracts = []
-    for name in DOMAIN_BUNDLES:
-        skill_name = f"skill-{name}"
-        skill = tmp_path / "plugins" / name / "skills" / skill_name / "SKILL.md"
-        skill.parent.mkdir(parents=True)
-        skill.write_text("# Skill\n", encoding="utf-8")
-        # Both locations, as generate_plugin_views emits them: the bundle-root
-        # generic view and the copy `devin plugins install` actually reads.
-        devin_manifest = tmp_path / "plugins" / name / ".devin-plugin/plugin.json"
-        devin_manifest.parent.mkdir(parents=True, exist_ok=True)
-        for manifest in (tmp_path / "plugins" / name / "plugin.json", devin_manifest):
-            manifest.write_text(
-                json.dumps(
-                    {
-                        "name": name,
-                        "version": "0.2.0",
-                        "skills": [f"skills/{skill_name}"],
-                        "harnesses": {
-                            "antigravity": {
-                                "mode": "imported",
-                                "skills": [f"skills/{skill_name}"],
-                            },
-                            "devin": {
-                                "mode": "native",
-                                "skills": [f"skills/{skill_name}"],
-                            },
-                        },
-                    }
-                ),
-                encoding="utf-8",
-            )
-        contracts.append(
-            BundleContract(
-                name,
-                "0.2.0",
-                "fixture",
-                "fixture",
-                Components("skills", ("*/SKILL.md",), (), (), (), ()),
-                Capabilities(
-                    dict.fromkeys(CapabilityTier, ()),
-                    dict.fromkeys(CapabilityTier, ()),
-                ),
-                {"devin": CompatibilityStatus("native")},
-                Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
-            )
-        )
+    contracts = [_devin_bundle_contract(tmp_path, name) for name in DOMAIN_BUNDLES]
     generated_rule = tmp_path / "plugins/manifest-i-have-adhd/devin/global-rule.md"
     generated_rule.parent.mkdir(parents=True)
     generated_rule.write_text("# Generated ADHD rule\n", encoding="utf-8")
