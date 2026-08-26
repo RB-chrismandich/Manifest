@@ -453,6 +453,11 @@ deploy_configs() {
     # Deploy Devin CLI configuration (opt-in; inheritance pin only)
     deploy_devin_config
 
+    # Every harness home now exists, so bundles can be installed into all of
+    # them. Must come AFTER the per-harness deploys: several adapters write into
+    # trees those functions create.
+    sync_all_native_harnesses
+
     # Project-scoped Copilot sync (non-blocking)
 
     # Deploy sync-skills CLI
@@ -544,6 +549,22 @@ configure_codex_skill_source() {
     create_symlink "$skills_dir" "$root" "Codex skills"
 }
 
+# manifest_uv_bin — echo a usable uv, or nothing when there is none.
+#
+# Separate from its two callers because they disagree about what a missing uv
+# MEANS: Codex reconciliation treats it as an error it must report, while the
+# cross-harness install treats it as a skip. Folding the message in here would
+# force one of those to lie.
+manifest_uv_bin() {
+    if command_exists uv; then
+        command -v uv
+    elif [[ -x "$HOME/.local/bin/uv" ]]; then
+        printf '%s\n' "$HOME/.local/bin/uv"
+    else
+        return 1
+    fi
+}
+
 sync_native_plugins() {
     [[ "${ENABLE_CODEX:-true}" == true ]] || return 0
     command_exists codex || {
@@ -551,14 +572,10 @@ sync_native_plugins() {
         return 0
     }
     local uv_bin=""
-    if command_exists uv; then
-        uv_bin="$(command -v uv)"
-    elif [[ -x "$HOME/.local/bin/uv" ]]; then
-        uv_bin="$HOME/.local/bin/uv"
-    else
+    uv_bin="$(manifest_uv_bin)" || {
         print_error "uv is required for Codex plugin reconciliation"
         return 1
-    fi
+    }
     local output state
     output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest bootstrap-sync \
         --source "$SCRIPT_DIR" --harness codex --non-interactive --json)" || {
@@ -575,6 +592,57 @@ sync_native_plugins() {
         return 1
     fi
     print_success "Codex native plugins reconciled"
+}
+
+# sync_all_native_harnesses — install the Manifest bundles into every harness
+# whose CLI is present, each through its OWN native plugin mechanism
+# (claude plugin install, codex, gemini extensions install, cursor-agent
+# marketplace add, agy plugin link, devin plugins install).
+#
+# Deliberately passes NO --harness. `_detect_requested` (service.py) records an
+# absent CLI as a NOTE when nothing was requested explicitly, but as an ERROR
+# when `--harness all` is named -- so the flagless form is the only one that
+# degrades cleanly on a machine holding, say, Claude but not Devin. Do not
+# "clarify" this by adding `--harness all`; it inverts the failure semantics.
+#
+# This closes a measured gap rather than a cosmetic one. Before it, bootstrap
+# reconciled Codex natively and registered the Claude marketplace, and every
+# other harness was left reading the flat ~/.manifest/skills catalog. Observed
+# 2026-08-25: `devin plugins list` reported none installed while ten manifest-*
+# bundles were installed in Claude, and that flat catalog's config-audit skill
+# still byte-matched manifest-workspace 0.1.1 against 0.3.0 installed -- so four
+# harnesses ran two-version-old skills while Claude ran current ones.
+#
+# NON-FATAL, for the same reason register_manifest_marketplace is: a contributor
+# whose harness refuses an install must still get a working bootstrap. A refusal
+# is reported and the deploy continues.
+sync_all_native_harnesses() {
+    local uv_bin=""
+    uv_bin="$(manifest_uv_bin)" || {
+        print_warning "uv not available — skipping native plugin install"
+        return 0
+    }
+
+    print_step "Installing Manifest bundles into every detected harness..."
+    local output state
+    if ! output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest install \
+        --source "$SCRIPT_DIR" --non-interactive --json 2>&1)"; then
+        print_warning "Native plugin install failed (continuing)"
+        [[ -n "$output" ]] && print_warning "$output"
+        return 0
+    fi
+
+    state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<< "$output" 2> /dev/null)" || {
+        print_warning "Native plugin install returned unreadable JSON (continuing)"
+        return 0
+    }
+    if [[ "$state" == READY ]]; then
+        print_success "Manifest bundles installed natively in every detected harness"
+    else
+        # DEGRADED/BLOCKED is a normal partial outcome (one harness unauthenticated,
+        # one bundle already present at another scope). Name it and move on.
+        print_warning "Native plugin install returned $state — run 'manifest reconcile --source $SCRIPT_DIR' to review"
+    fi
 }
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
