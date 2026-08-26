@@ -26,7 +26,7 @@ from manifest_agent.models import HarnessReceipt, OwnedEntry
 from manifest_agent.paths import xdg_paths
 
 _MARKER = "manifest"
-_OWNED_STATUS = "installed-by-manifest"
+OWNED_STATUS = "installed-by-manifest"
 _CAPABILITY_KINDS = frozenset({"executable", "mcp"})
 _RETIRED_EXECUTABLE_IDENTITIES = frozenset({"graphify"})
 _SECRET_BYTES = 32
@@ -418,7 +418,7 @@ def capability_ownership_errors(
     expected_identities = {
         identity
         for identity, status in receipt.capabilities.items()
-        if status == _OWNED_STATUS and identity.partition(":")[0] in _CAPABILITY_KINDS
+        if status == OWNED_STATUS and identity.partition(":")[0] in _CAPABILITY_KINDS
     }
     if not relevant_entries and not expected_identities:
         return ()
@@ -509,7 +509,7 @@ def _entry_errors(
         return [f"receipt contains {error}"]
     if identity != canonical_identity or entry.ownership_marker != _MARKER:
         errors.append(f"receipt has invalid ownership metadata for {identity}")
-    if receipt.capabilities.get(identity) != _OWNED_STATUS:
+    if receipt.capabilities.get(identity) != OWNED_STATUS:
         errors.append(
             f"receipt lacks Manifest-created capability evidence for {identity}"
         )
@@ -558,7 +558,7 @@ def _ownership_proof(
             "kind": kind,
             "ownership_marker": _MARKER,
             "proof_version": _PROOF_VERSION,
-            "status": _OWNED_STATUS,
+            "status": OWNED_STATUS,
             "target_path": target_path,
         },
         sort_keys=True,

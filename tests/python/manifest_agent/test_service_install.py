@@ -742,3 +742,43 @@ def test_graphify_upgrade_requires_the_current_canonical_bundle_inventory(
     assert service.runner.calls == []
     assert service.receipt_path.read_bytes() == before
     assert "install" not in claude.calls
+
+
+def test_downgraded_harness_keeps_manifest_ownership_evidence() -> None:
+    """A harness that CREATED a capability and then failed something unrelated
+    must keep its ownership evidence. Gemini hit exactly this against release
+    0.3.0: its MCP add succeeded, its extension install hit the consent banner,
+    the status was rewritten to `blocked` while the OwnedEntry survived, and the
+    receipt became unwritable for every harness."""
+    from manifest_agent.ownership import OWNED_STATUS
+    from manifest_agent.service_state import _harness_receipt
+
+    result = HarnessResult(
+        "gemini",
+        ResultState.BLOCKED,
+        (),
+        {"mcp:context7": OWNED_STATUS, "skill:docs-all": "verified"},
+        errors=("native command exited 1; stderr: consent banner",),
+    )
+
+    receipt = _harness_receipt(None, None, result, None)
+
+    assert receipt.capabilities["mcp:context7"] == OWNED_STATUS
+    # Unrelated successes still restate at the harness verdict.
+    assert receipt.capabilities["skill:docs-all"] == "blocked"
+
+
+def test_downgraded_harness_preserves_existing_failure_values() -> None:
+    from manifest_agent.service_state import _harness_receipt
+
+    result = HarnessResult(
+        "gemini",
+        ResultState.BLOCKED,
+        (),
+        {"mcp:context7": "failed"},
+        errors=("native command exited 1",),
+    )
+
+    receipt = _harness_receipt(None, None, result, None)
+
+    assert receipt.capabilities["mcp:context7"] == "failed"
