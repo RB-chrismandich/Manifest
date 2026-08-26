@@ -14,7 +14,10 @@ import time
 from pathlib import Path
 
 from _delegate_harness import (
+    _dispatch_background_async,
+    _known_job_ids,
     _new_job_id,
+    _poll_new_job_id,
     _registry,
     _run,
     _stub_entry,
@@ -293,11 +296,20 @@ class TestBackgroundLifecycle:
                 },
             }
         )
-        result = _run(env, "task", "--background", "--json", "hi")
-        assert result.returncode == 0, result.stderr
-        job_id = json.loads(result.stdout)["job_id"]
-        cancel = _run(env, "cancel", job_id, "--json")
-        assert cancel.returncode == 0, cancel.stderr
+        # Cancel as soon as the job dir lands on disk — before `task` returns —
+        # so we race the worker spawn, not a fast stub backend that can finish
+        # before the cancel subprocess starts after a blocking `_run(task)`.
+        known_ids = _known_job_ids(env_factory.delegations_dir)
+        dispatch = _dispatch_background_async(env, "--json", "hi")
+        try:
+            job_id = _poll_new_job_id(env_factory.delegations_dir, known_ids)
+            assert job_id is not None, "background job never appeared on disk"
+            cancel = _run(env, "cancel", job_id, "--json")
+            assert cancel.returncode == 0, cancel.stderr
+        finally:
+            dispatch.wait(timeout=30)
+
+        assert dispatch.returncode == 0, dispatch.stderr
 
         deadline = time.time() + 10
         state = None

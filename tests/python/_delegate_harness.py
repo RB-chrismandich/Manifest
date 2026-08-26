@@ -100,6 +100,36 @@ def _run(env, *args, input_text=None):
     )
 
 
+def _known_job_ids(delegations_dir):
+    if not delegations_dir.exists():
+        return set()
+    return {
+        p.name
+        for p in delegations_dir.rglob("*")
+        if p.is_dir() and (p / "record.json").exists()
+    }
+
+
+def _poll_new_job_id(delegations_dir, known_ids, timeout=10):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        new_ids = _known_job_ids(delegations_dir) - known_ids
+        if new_ids:
+            return next(iter(new_ids))
+        time.sleep(0.001)
+    return None
+
+
+def _dispatch_background_async(env, *args):
+    return subprocess.Popen(
+        [sys.executable, str(SCRIPT_PATH), "task", "--background", *list(args)],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
 def _new_job_id(env_factory, known_ids=()):
     """Resolve a job id by diffing job dirs under delegations_dir."""
     delegations_dir = env_factory.delegations_dir
