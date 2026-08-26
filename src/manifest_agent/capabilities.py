@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from importlib.resources import files
@@ -13,14 +12,12 @@ import yaml
 
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import BundleContract, CapabilityTier
-from manifest_agent.process import contains_credential_material
+from manifest_agent.process import (
+    contains_credential_material,
+    names_credential_field,
+)
 
 _SYSTEM_EXECUTABLES = frozenset({"bash", "git", "node", "python3"})
-_CREDENTIAL_KEY = re.compile(
-    r"(?:^|[._-])(?:authorization|credential|password|secret|token|api[_-]?key)"
-    r"(?:$|[._-])",
-    re.I,
-)
 
 
 class CapabilityConflict(RuntimeError):
@@ -255,7 +252,7 @@ def _catalog_document(name):
 
 
 def _assert_secret_free(value, key=None):
-    if key is not None and _CREDENTIAL_KEY.search(key):
+    if key is not None and names_credential_field(key):
         raise CapabilityConflict("capability catalog contains credential material")
     if isinstance(value, dict):
         for child_key, child in value.items():
