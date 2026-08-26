@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from manifest_agent.adapters.capability_inventory import (
+    NativeMcpInventory,
     _inventory_mapping,
 )
 from manifest_agent.capabilities import (
@@ -178,8 +179,12 @@ class ReceiptCapabilityMixin:
             runner=self.runner,
             which=self._which,
             env=self._env,
-            native_mcp_inventory=self._native_mcp_inventory,
+            native_mcp_inventory=self._native_mcp_inventory_for_apply(),
         )
+
+    def _native_mcp_inventory_for_apply(self) -> NativeMcpInventory | None:
+        """Return injected or remembered native state for capability application."""
+        return self._native_mcp_inventory
 
     def remove_capabilities(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only shared capabilities proven owned by the receipt."""

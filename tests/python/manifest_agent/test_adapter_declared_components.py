@@ -248,6 +248,7 @@ def test_missing_default_capability_is_degraded(
     assert result.errors == (
         "missing default capability evidence: manifest-workspace:mcp:context7",
     )
+    assert result.declared_degradations == ()
 
 
 def test_unselected_optional_capability_requires_no_evidence(
@@ -306,6 +307,7 @@ def test_explicit_component_degradation_is_degraded_with_exact_reason(
 
     assert result.state is ResultState.DEGRADED
     assert result.errors == ("agents are unavailable",)
+    assert result.declared_degradations == ("agents are unavailable",)
     assert result.capabilities["manifest-workspace:agent:executor"] == "degraded"
 
 
@@ -381,6 +383,7 @@ def test_result_combination_preserves_all_diagnostics() -> None:
         {"manifest-workspace:skill:help": "verified"},
         ("degraded",),
         ("second warning",),
+        declared_degradations=("degraded",),
     )
 
     result = combine_results(blocked, degraded)
@@ -389,3 +392,4 @@ def test_result_combination_preserves_all_diagnostics() -> None:
     assert result.installed_plugin_ids == ("manifest-workspace",)
     assert result.errors == ("blocked", "degraded")
     assert result.warnings == ("first warning", "second warning")
+    assert result.declared_degradations == ("degraded",)

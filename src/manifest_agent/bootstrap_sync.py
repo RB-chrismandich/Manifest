@@ -13,6 +13,7 @@ from typing import Any
 
 from manifest_agent.adapters.base import combine_results
 from manifest_agent.adapters.codex import CodexAdapter, _desired_target_identity
+from manifest_agent.adapters.convergence import has_undeclared_degradation
 from manifest_agent.codex_config import (
     PluginEnabledChange,
     apply_plugin_enabled,
@@ -1046,7 +1047,7 @@ class BootstrapSyncService:
                     else adapter.inspect(desired)
                 )
                 result = combine_results(installed, inspected)
-                if result.state is not ResultState.READY:
+                if not _converged(result):
                     raise _BootstrapAbort(
                         "Codex convergence did not reach READY", {"codex": result}
                     )
@@ -1221,3 +1222,17 @@ def reconcile_owned_harnesses(service, receipt, desired, selected, apply=True):
     """Public bridge retained for receipt-aware callers."""
     del receipt, selected, apply
     return BootstrapSyncService(service).run(desired)
+
+
+def _converged(result) -> bool:
+    """Whether a harness result is good enough to commit.
+
+    READY always converges. DEGRADED converges only when every contributor is a
+    contract-declared degradation the harness can never satisfy (see
+    adapters/convergence.py); a missing DEFAULT-tier capability still refuses.
+    """
+    if result.state is ResultState.READY:
+        return True
+    return result.state is ResultState.DEGRADED and not has_undeclared_degradation(
+        result
+    )

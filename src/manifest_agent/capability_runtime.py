@@ -9,14 +9,14 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from manifest_agent.adapters.codex_mcp_inventory import merged_native_mcp_inventory
 from manifest_agent.capability_cursor import (
     cursor_mcp_path as default_cursor_mcp_path,
 )
 from manifest_agent.capability_cursor import (
-    read_cursor_document,
     remove_owned_cursor_mcp,
-    write_json_atomic,
 )
+from manifest_agent.capability_mcp_runtime import McpApplyContext, apply_mcp
 from manifest_agent.models import (
     CapabilityTier,
     CommandResult,
@@ -39,48 +39,11 @@ if TYPE_CHECKING:
     )
 
 _MARKER = "manifest"
-_CURSOR_KEY_PREFIX = "manifest-"
 _STATE_PRIORITY = {
     ResultState.READY: 0,
     ResultState.DEGRADED: 1,
     ResultState.DRIFTED: 2,
     ResultState.BLOCKED: 3,
-}
-_NATIVE_HTTP_COMMANDS = {
-    "claude": lambda name, url: (
-        "claude",
-        "mcp",
-        "add",
-        "--scope",
-        "user",
-        "--transport",
-        "http",
-        name,
-        url,
-    ),
-    "codex": lambda name, url: ("codex", "mcp", "add", name, "--url", url),
-    "gemini": lambda name, url: (
-        "gemini",
-        "mcp",
-        "add",
-        "--scope",
-        "user",
-        "--transport",
-        "http",
-        name,
-        url,
-    ),
-    "devin": lambda name, url: (
-        "devin",
-        "mcp",
-        "add",
-        "--scope",
-        "user",
-        "--transport",
-        "http",
-        name,
-        url,
-    ),
 }
 
 
@@ -91,7 +54,7 @@ def apply_capability_plan(
     runner: CommandRunner,
     which: Callable[[str], str | None],
     env: Mapping[str, str] | None = None,
-    native_mcp_inventory: Collection[str] | Mapping[str, McpDefinition] = (),
+    native_mcp_inventory: Collection[str] | Mapping[str, McpDefinition] | None = None,
     cursor_mcp_path: Path | None = None,
     configure_mcp: bool = True,
     configure_executables: bool = True,
@@ -104,18 +67,20 @@ def apply_capability_plan(
             for name in plan.selected_executables
         )
     if configure_mcp:
-        results.extend(
-            _apply_mcp(
-                harness,
-                plan,
-                name,
-                runner,
-                env,
-                native_mcp_inventory,
-                cursor_mcp_path,
-            )
-            for name in plan.selected_mcp
+        observation = merged_native_mcp_inventory(
+            harness, runner, env, native_mcp_inventory
         )
+        context = McpApplyContext(
+            harness,
+            runner,
+            env,
+            observation,
+            cursor_mcp_path,
+            _run,
+            _success,
+            _failure,
+        )
+        results.extend(apply_mcp(context, plan, name) for name in plan.selected_mcp)
     return _combine(harness, results)
 
 
@@ -280,123 +245,6 @@ def _verify_recipe(
     )
 
 
-def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
-    tier = plan.tier("mcp", name)
-    identity = f"mcp:{name}"
-    definition = plan.mcp_definitions[name]
-    existing = _existing_mcp_result(harness, definition, tier, identity, inventory)
-    if existing is not None:
-        return existing
-    if definition.transport == "native-existing":
-        names = _native_inventory_names(harness, inventory, cursor_path, env)
-        if any(
-            native_name.startswith(definition.discovery_prefixes)
-            for native_name in names
-        ):
-            return _success(harness, identity, "verified")
-        return _failure(
-            harness,
-            tier,
-            f"native {name.title()} setup is not present in {harness}",
-            identity,
-        )
-    if harness == "cursor":
-        return _apply_cursor_mcp(
-            definition,
-            tier,
-            cursor_path or default_cursor_mcp_path(env),
-            harness,
-            env,
-        )
-    if harness == "antigravity":
-        return _failure(
-            harness,
-            tier,
-            f"Antigravity imported plugin has no native declaration for MCP {name}",
-            identity,
-        )
-    command_builder = _NATIVE_HTTP_COMMANDS.get(harness)
-    if command_builder is None or definition.url is None:
-        return _failure(
-            harness, tier, f"unsupported MCP transport for {name}", identity
-        )
-    try:
-        owned_entry = owned_capability_entry("mcp", name, env=env)
-    except OwnershipError as error:
-        return _failure(harness, tier, str(error), identity)
-    result = _run(
-        harness,
-        runner,
-        command_builder(name, definition.url),
-        tier,
-        identity,
-        env,
-        success="installed-by-manifest",
-    )[0]
-    if result.state is not ResultState.READY:
-        return result
-    return replace(
-        result,
-        owned_entries=(owned_entry,),
-    )
-
-
-def _existing_mcp_result(harness, definition, tier, identity, inventory):
-    from manifest_agent.capabilities import CapabilityConflict, merge_mcp_definitions
-
-    observed = _inventory_definition(inventory, definition.name)
-    if observed is None:
-        return None
-    if isinstance(observed, str) and definition.transport != "native-existing":
-        return _failure(
-            harness,
-            tier,
-            f"native MCP inventory lacks transport identity for {definition.name}",
-            identity,
-        )
-    if not isinstance(observed, str):
-        try:
-            merge_mcp_definitions(definition, observed)
-        except CapabilityConflict as error:
-            return _failure(harness, tier, str(error), identity)
-    return _success(harness, identity, "verified")
-
-
-def _apply_cursor_mcp(definition, tier, path, harness, env):
-    from manifest_agent.capabilities import CapabilityConflict
-
-    identity = f"mcp:{definition.name}"
-    desired = {"url": definition.url}
-    try:
-        document = read_cursor_document(path)
-        servers = document.setdefault("mcpServers", {})
-        if not isinstance(servers, dict):
-            raise CapabilityConflict("Cursor mcpServers must be a JSON object")
-        key = f"{_CURSOR_KEY_PREFIX}{definition.name}"
-        if key in servers:
-            if servers[key] != desired:
-                raise CapabilityConflict(f"conflicting Cursor MCP entry {key}")
-            return _success(harness, identity, "verified")
-        owned_entry = owned_capability_entry("mcp", definition.name, str(path), env=env)
-        servers[key] = desired
-        write_json_atomic(path, document)
-        return HarnessResult(
-            harness,
-            ResultState.READY,
-            (),
-            {identity: "installed-by-manifest"},
-            owned_entries=(owned_entry,),
-        )
-    except (
-        CapabilityConflict,
-        OwnershipError,
-        OSError,
-        UnicodeError,
-        json.JSONDecodeError,
-    ) as error:
-        return _failure(harness, tier, str(error), identity)
-
-
 def _remove_cursor_entries(receipt, path):
     from manifest_agent.capabilities import CapabilityConflict
 
@@ -434,9 +282,10 @@ def _success(harness, identity, status):
     return HarnessResult(harness, ResultState.READY, (), {identity: status})
 
 
-def _failure(harness, tier, diagnostic, identity=None):
+def _failure(harness, tier, diagnostic, identity=None, *, status=None):
     diagnostic = redact_text(diagnostic)
-    status = "missing" if tier is CapabilityTier.OPTIONAL else "failed"
+    if status is None:
+        status = "missing" if tier is CapabilityTier.OPTIONAL else "failed"
     capabilities = {identity: status} if identity else {}
     if tier is CapabilityTier.REQUIRED:
         return HarnessResult(
@@ -465,23 +314,7 @@ def _combine(harness, results):
         owned_entries=tuple(
             dict.fromkeys(entry for item in results for entry in item.owned_entries)
         ),
+        declared_degradations=tuple(
+            value for item in results for value in item.declared_degradations
+        ),
     )
-
-
-def _inventory_definition(inventory, name):
-    if isinstance(inventory, Mapping):
-        return inventory.get(name)
-    return name if name in inventory else None
-
-
-def _native_inventory_names(harness, inventory, cursor_path, env):
-    names = set(inventory.keys() if isinstance(inventory, Mapping) else inventory)
-    if harness == "cursor":
-        path = cursor_path or default_cursor_mcp_path(env)
-        try:
-            servers = read_cursor_document(path).get("mcpServers", {})
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            servers = {}
-        if isinstance(servers, dict):
-            names.update(name for name in servers if isinstance(name, str))
-    return names

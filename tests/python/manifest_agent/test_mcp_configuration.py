@@ -194,7 +194,11 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
 def test_documented_native_mcp_commands_are_exact(
     adapter_type, expected, tmp_path: Path
 ) -> None:
-    runner = RecordingRunner()
+    runner = RecordingRunner(
+        [CommandResult(("fixture",), 0, "[]", "")]
+        if adapter_type is CodexAdapter
+        else ()
+    )
     adapter = adapter_type(
         runner=runner, which=lambda name: name, env={"HOME": str(tmp_path)}
     )
@@ -202,7 +206,12 @@ def test_documented_native_mcp_commands_are_exact(
     result = adapter.apply_capabilities(_plan())
 
     assert result.state is ResultState.READY
-    assert runner.calls == [expected]
+    expected_calls = (
+        [("codex", "mcp", "list", "--json"), expected]
+        if adapter_type is CodexAdapter
+        else [expected]
+    )
+    assert runner.calls == expected_calls
     assert result.capabilities["mcp:context7"] == "installed-by-manifest"
 
 

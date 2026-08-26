@@ -153,6 +153,7 @@ class HarnessResult:
     errors: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     owned_entries: tuple[OwnedEntry, ...] = ()
+    declared_degradations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

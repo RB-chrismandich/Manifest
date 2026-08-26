@@ -189,6 +189,23 @@ def plugin_remove_json(name: str) -> str:
     )
 
 
+def mcp_list_json() -> str:
+    """Return the complete Codex JSON shape for the catalog context7 server."""
+    return json.dumps(
+        [
+            {
+                "name": "context7",
+                "enabled": True,
+                "transport": {
+                    "type": "streamable_http",
+                    "url": "https://mcp.context7.com/mcp/oauth",
+                },
+                "auth_status": "o_auth",
+            }
+        ]
+    )
+
+
 def installed_json(
     desired: DesiredState,
     version: str = "0.2.0",
@@ -210,7 +227,6 @@ def installed_json(
                 "source": "local",
                 "path": str(desired.bundle_path(name)),
             },
-            "mcpServers": {"context7": {}} if name == "manifest-workspace" else {},
         }
         for name in names
     ]

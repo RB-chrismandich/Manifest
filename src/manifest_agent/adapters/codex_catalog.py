@@ -9,10 +9,21 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from manifest_agent.adapters.base import collect_native_component_evidence
+from manifest_agent.adapters.base import (
+    CapabilityEvidenceFailure,
+    collect_native_component_evidence,
+    normalize_component_identity,
+)
 from manifest_agent.adapters.codex_common import COMMIT, MARKETPLACE, blocked
 from manifest_agent.adapters.codex_marketplace import desired_marketplace_identity
+from manifest_agent.adapters.codex_mcp_inventory import McpInventoryObservation
 from manifest_agent.adapters.codex_native import installed_plugin_path
+from manifest_agent.capabilities import (
+    CapabilityConflict,
+    McpDefinition,
+    load_mcp_catalog,
+    merge_mcp_definitions,
+)
 from manifest_agent.codex_config import (
     CodexConfigError,
     observe_plugin_enabled_rollback,
@@ -26,6 +37,8 @@ from manifest_agent.codex_skill_cutover import inspect_codex_skill_source
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
     AdapterMarketplaceState,
+    BundleContract,
+    CapabilityTier,
     CatalogPlugin,
     DesiredState,
     HarnessReceipt,
@@ -164,9 +177,13 @@ def component_evidence(
     desired: DesiredState,
     rows: Sequence[Mapping[str, Any]],
     which: Callable[[str], str | None],
+    *,
+    served_mcp: Mapping[str, McpDefinition] | None = None,
 ) -> set[str]:
+    """Collect Codex evidence from installed files and exact live MCP definitions."""
     roots: dict[str, Path] = {}
     mcp_servers: dict[str, tuple[str, ...]] = {}
+    matching_mcp = _matching_mcp_names(served_mcp or {})
     by_id = {
         row.get("pluginId"): row for row in rows if isinstance(row.get("pluginId"), str)
     }
@@ -177,13 +194,27 @@ def component_evidence(
         root_value = installed_plugin_path(row)
         if isinstance(root_value, str):
             roots[contract.name] = Path(root_value)
-        native_mcp = row.get("mcpServers")
-        if isinstance(native_mcp, Mapping):
-            mcp_servers[contract.name] = tuple(
-                server for server in native_mcp if isinstance(server, str)
-            )
+        declared_and_served = tuple(
+            name for name in _declared_mcp(contract) if name in matching_mcp
+        )
+        if declared_and_served:
+            mcp_servers[contract.name] = declared_and_served
     evidence = collect_native_component_evidence(desired, roots, mcp_servers, which)
     return _add_lifecycle_evidence(desired, evidence)
+
+
+def component_evidence_failures(
+    desired: DesiredState, observation: McpInventoryObservation
+) -> dict[str, CapabilityEvidenceFailure]:
+    """Map live Codex MCP conflicts or observation failure to contract identities."""
+    failures: dict[str, CapabilityEvidenceFailure] = {}
+    for contract in desired.all_contracts:
+        for name in _declared_mcp(contract):
+            failure = _mcp_evidence_failure(name, observation)
+            if failure is not None:
+                identity = normalize_component_identity(contract.name, "mcp", name)
+                failures[identity] = failure
+    return failures
 
 
 def _add_lifecycle_evidence(desired: DesiredState, evidence: set[str]) -> set[str]:
@@ -375,3 +406,54 @@ def receipt_identity(receipt: HarnessReceipt) -> str:
         separators=(",", ":"),
     ).encode()
     return hashlib.sha256(payload).hexdigest()
+
+
+def _declared_mcp(contract: BundleContract) -> tuple[str, ...]:
+    """Every MCP identity this bundle declares, across all tiers."""
+    return tuple(
+        dict.fromkeys(
+            name for tier in CapabilityTier for name in contract.capabilities.mcp[tier]
+        )
+    )
+
+
+def _matching_mcp_names(
+    served_mcp: Mapping[str, McpDefinition],
+) -> frozenset[str]:
+    catalog = load_mcp_catalog()
+    matches: set[str] = set()
+    for name, observed in served_mcp.items():
+        expected = catalog.get(name)
+        if expected is None:
+            continue
+        try:
+            merge_mcp_definitions(expected, observed)
+        except CapabilityConflict:
+            continue
+        matches.add(name)
+    return frozenset(matches)
+
+
+def _mcp_evidence_failure(
+    name: str, observation: McpInventoryObservation
+) -> CapabilityEvidenceFailure | None:
+    if observation.error is not None:
+        return CapabilityEvidenceFailure("observation-unavailable", observation.error)
+    conflict = observation.conflicts.get(name)
+    if conflict is not None:
+        return CapabilityEvidenceFailure("conflicting", conflict)
+    if not isinstance(observation.inventory, Mapping):
+        return None
+    observed = observation.inventory.get(name)
+    if observed is None:
+        return None
+    expected = load_mcp_catalog().get(name)
+    if expected is None:
+        return CapabilityEvidenceFailure(
+            "conflicting", f"Codex reported undeclared MCP server {name!r}"
+        )
+    try:
+        merge_mcp_definitions(expected, observed)
+    except CapabilityConflict as error:
+        return CapabilityEvidenceFailure("conflicting", str(error))
+    return None
