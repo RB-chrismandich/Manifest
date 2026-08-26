@@ -104,6 +104,8 @@ def scan(
             for line in _iter_lines(os.path.join(dirpath, n)):
                 if '"usage"' not in line:
                     continue
+                if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
+                    continue
                 try:
                     d = json.loads(line)
                 except json.JSONDecodeError:

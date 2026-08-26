@@ -146,6 +146,8 @@ def fold_file(handle, project, requests, since, until):
     for line in handle:
         if '"assistant"' not in line:
             continue
+        if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
+            continue
         try:
             rec = json.loads(line)
         except ValueError:

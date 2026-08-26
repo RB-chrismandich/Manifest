@@ -136,6 +136,8 @@ def transcript_models(path: str, since):
             for line in handle:
                 if '"assistant"' not in line:
                     continue
+                if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
+                    continue
                 try:
                     rec = json.loads(line)
                 except ValueError:
@@ -371,6 +373,8 @@ def collect(root, since, until, model_terms):
 def fold(handle, project, requests, since, until):
     for line in handle:
         if '"assistant"' not in line:
+            continue
+        if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
             continue
         try:
             rec = json.loads(line)

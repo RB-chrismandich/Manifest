@@ -90,6 +90,8 @@ def scan(root: Path, since: datetime | None, until: datetime | None) -> dict:
                     for line in fh:
                         if "Skill" not in line and "command-name" not in line:
                             continue
+                        if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
+                            continue
                         try:
                             d = json.loads(line)
                         except json.JSONDecodeError:

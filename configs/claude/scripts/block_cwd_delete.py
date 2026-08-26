@@ -135,6 +135,8 @@ def _last_cwd(path: str) -> str | None:
     for line in reversed(lines):
         if b'"cwd"' not in line:
             continue
+        if not line or (line[0] != 123 and line.lstrip()[:1] != b"{"):
+            continue
         try:
             record = json.loads(line)
         except ValueError:
