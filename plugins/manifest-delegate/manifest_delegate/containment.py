@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """OS-level containment for backend descendants that escape the process group.
 
 `killpg(recorded_pgid)` reaches only processes still in the backend's group. A
