@@ -111,6 +111,45 @@ def test_capability_tier_fixture_covers_exactly_the_domain_bundles() -> None:
     )
 
 
+def test_reconcile_script_expects_exactly_the_domain_bundles() -> None:
+    """`plugin_reconcile.py` ships INSIDE a bundle, so it cannot import the
+    coordinator's constant -- the spec named it specifically for that reason."""
+    source = (
+        REPO_ROOT
+        / "plugins/manifest-workspace/skills/deploy-reconcile/scripts/plugin_reconcile.py"
+    ).read_text(encoding="utf-8")
+    block = re.search(r"EXPECTED_BUNDLES = \{(.*?)\}", source, re.S)
+    assert block is not None, "plugin_reconcile.py no longer defines EXPECTED_BUNDLES"
+    expected = set(re.findall(r'"([^"]+)"', block.group(1)))
+
+    assert expected == CANONICAL, (
+        f"plugin_reconcile.py drift -- missing {sorted(CANONICAL - expected)}, "
+        f"unexpected {sorted(expected - CANONICAL)}"
+    )
+
+
+def test_capability_inspection_fixture_covers_every_domain_bundle() -> None:
+    """The fixture also records addons, so containment is the right relation --
+    but a domain bundle absent from it means the matrix gate checks nothing for
+    that bundle while still reporting green."""
+    fixture = json.loads(
+        (REPO_ROOT / "tests/fixtures/plugin_capability_inspection.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    for harness, record in fixture["harnesses"].items():
+        covered = set(record.get("components", {}))
+        assert covered >= CANONICAL, (
+            f"inspection fixture harness {harness!r} is missing "
+            f"{sorted(CANONICAL - covered)}"
+        )
+        for extra in sorted(covered - CANONICAL - set(ADDON_BUNDLES)):
+            assert (REPO_ROOT / "plugins" / extra).is_dir(), (
+                f"inspection fixture harness {harness!r} names {extra!r}, which is "
+                f"neither a domain bundle, an addon, nor a directory under plugins/"
+            )
+
+
 @pytest.mark.parametrize("bundle", sorted(DOMAIN_BUNDLES))
 def test_every_canonical_bundle_has_a_directory(bundle: str) -> None:
     """Anchors the other five: without this they would all agree with each
