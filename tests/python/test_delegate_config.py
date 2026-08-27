@@ -264,3 +264,77 @@ class TestBudgetCliArg:
         with pytest.raises(SystemExit) as exc:
             parser.parse_args(["task", "codex", "--budget", "-4", "do the thing"])
         assert exc.value.code == 2
+
+
+class TestStageSixConfigMigration:
+    """`~/.claude/config` is deleted by Stage 6 (#789). Config resolution must
+    already prefer the XDG location, so that deletion degrades to the new home
+    rather than silently reverting every user to factory defaults."""
+
+    def test_xdg_config_is_searched_before_the_legacy_claude_home(
+        self, tmp_path, monkeypatch
+    ):
+        xdg = tmp_path / "xdg"
+        (xdg / "manifest").mkdir(parents=True)
+        (xdg / "manifest" / "delegation.json").write_text(
+            json.dumps({"default_backend": "claude"})
+        )
+        legacy = tmp_path / "home/.claude/config"
+        legacy.mkdir(parents=True)
+        (legacy / "delegation.json").write_text(
+            json.dumps({"default_backend": "cursor"})
+        )
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        monkeypatch.delenv("MANIFEST_CONFIG_DIR", raising=False)
+        monkeypatch.setattr(delegate.constants, "XDG_CONFIG_DIR", str(xdg / "manifest"))
+        monkeypatch.setattr(delegate.constants, "HOME_CONFIG_DIR", str(legacy))
+
+        assert delegate.load_user_config()["default_backend"] == "claude"
+
+    def test_legacy_claude_home_still_resolves_until_stage_six(
+        self, tmp_path, monkeypatch
+    ):
+        """Bootstrap still deploys there today, so removing the fallback before
+        the cutover would drop live user configuration."""
+        legacy = tmp_path / "home/.claude/config"
+        legacy.mkdir(parents=True)
+        (legacy / "delegation.json").write_text(
+            json.dumps({"default_backend": "cursor"})
+        )
+        monkeypatch.setattr(
+            delegate.constants, "XDG_CONFIG_DIR", str(tmp_path / "absent")
+        )
+        monkeypatch.setattr(delegate.constants, "HOME_CONFIG_DIR", str(legacy))
+        monkeypatch.delenv("MANIFEST_CONFIG_DIR", raising=False)
+
+        assert delegate.load_user_config()["default_backend"] == "cursor"
+
+    def test_explicit_dir_and_env_still_outrank_both(self, tmp_path, monkeypatch):
+        explicit = tmp_path / "explicit"
+        explicit.mkdir()
+        (explicit / "delegation.json").write_text(
+            json.dumps({"default_backend": "codex"})
+        )
+        monkeypatch.setattr(
+            delegate.constants, "XDG_CONFIG_DIR", str(tmp_path / "absent")
+        )
+        monkeypatch.setattr(
+            delegate.constants, "HOME_CONFIG_DIR", str(tmp_path / "absent2")
+        )
+
+        assert (
+            delegate.load_user_config(explicit_dir=str(explicit))["default_backend"]
+            == "codex"
+        )
+
+
+def test_xdg_config_dir_matches_the_coordinator_convention(monkeypatch):
+    """`src/manifest_agent/paths.py` resolves `$XDG_CONFIG_HOME/manifest`; the
+    bundle must not invent a second location for the same configuration."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/tmp/xdg-probe")
+    assert delegate.constants._xdg_config_dir() == os.path.join(
+        "/tmp/xdg-probe", "manifest"
+    )
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    assert delegate.constants._xdg_config_dir().endswith("/.config/manifest")
