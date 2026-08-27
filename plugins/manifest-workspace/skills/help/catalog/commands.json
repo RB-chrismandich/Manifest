@@ -535,7 +535,7 @@
     {
       "bundle": "manifest-workspace",
       "category": "productivity",
-      "description": "Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template (\"optimize this prompt\", \"turn this into a skill\", \"harden this prompt for automation\").",
+      "description": "Automated Meta-Prompt Optimization Engine (Jules Target)",
       "name": "prompt-optimize",
       "qualified_name": "manifest-workspace:prompt-optimize"
     },
