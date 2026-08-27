@@ -43,6 +43,9 @@ Inspect the target path and dispatch to the matching specialized engine:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 Dispatch only when the target spans **three or more** independent language
 domains; one or two engines run inline, because the aggregation step is the only
 shared work and it is cheaper than the fan-out.
