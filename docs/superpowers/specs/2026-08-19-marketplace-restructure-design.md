@@ -686,8 +686,16 @@ Constraint-2 violations.
 
 **1.4 CI gates.**
 
-- `claude plugin validate --strict` per bundle (10/10 currently fail on one benign
-  warning each: 9× `compatibility`, 1× missing author).
+- ~~`claude plugin validate --strict` per bundle~~ — **PERMANENTLY OUT OF SCOPE
+  (2026-08-26).** The `claude` CLI is not available in CI: `grep -c 'claude
+  plugin' ci.yml` was 0 before this feature, so a gate phrased this way is
+  either unrunnable or **skips green**, and a skip that renders as a pass is the
+  exact false green this phase exists to remove. Recorded at
+  `.github/workflows/ci.yml:523-528`, where the bundle-partition job states the
+  same reasoning as its own justification for being pure python3 + bats.
+  (For the record: 10/10 bundles currently fail it on one benign warning each —
+  9× `compatibility`, 1× missing author — so wiring it would also require
+  silencing warnings before it could ever be green.)
 - **Bundle-local link checker**: fail when a SKILL.md cites a path absent from its
   own bundle. Catches criticals 1, 2, 4, 6, 7 of the 8 enumerated in §10 —
   **5 of 8**, not 6. (An earlier draft claimed 6 by counting critical 8; see the
@@ -1006,7 +1014,9 @@ forked skill's `model:` is not honored (0/4); `claude plugin list --json` report
 
 - Every Phase 1 repair gets a regression test that **fails before the fix**
   (mutation-verified — flip the source, watch it fail, restore).
-- `claude plugin validate --strict` green on all bundles.
+- ~~`claude plugin validate --strict` green on all bundles.~~ Superseded: see
+  §4 1.4 — permanently out of scope, because the CLI is absent in CI and the
+  check would skip green rather than fail honestly.
 - Link checker green; deliberately break one reference and confirm it fails.
 - `codex exec` startup produces no plugin-parse errors.
 - Re-measure the listing after 1.5 via §6's paired-run method, **not**
