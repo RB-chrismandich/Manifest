@@ -40,7 +40,7 @@ def test_skill_policies_bundles_cover_every_domain_bundle() -> None:
     so containment is the correct relation here, not equality."""
     partitions = set(_load_yaml("configs/claude/config/skill_policies.yml")["bundles"])
 
-    assert CANONICAL <= partitions, (
+    assert partitions >= CANONICAL, (
         f"domain bundles missing from skill_policies.yml bundles: "
         f"{sorted(CANONICAL - partitions)}"
     )
@@ -57,7 +57,7 @@ def test_marketplace_manifest_offers_every_domain_bundle() -> None:
     )
     offered = {entry["name"] for entry in manifest["plugins"]}
 
-    assert CANONICAL <= offered, (
+    assert offered >= CANONICAL, (
         f"marketplace.json does not offer: {sorted(CANONICAL - offered)}"
     )
 
