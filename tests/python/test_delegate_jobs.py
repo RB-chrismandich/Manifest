@@ -298,6 +298,13 @@ class TestBackgroundLifecycle:
         job_id = json.loads(result.stdout)["job_id"]
         cancel = _run(env, "cancel", job_id, "--json")
         assert cancel.returncode == 0, cancel.stderr
+        # Distinguishes the three interleavings, which the terminal state alone
+        # cannot: `was_alive` is False only when cancel found nothing to kill,
+        # i.e. it won the queued->running claim before the worker spawned
+        # anything. A cancelled-while-RUNNING job is also state "cancelled" and
+        # legitimately has a sentinel, because _cancel_active terminates a live
+        # backend and then marks the job cancelled.
+        cancel_won_the_claim = json.loads(cancel.stdout).get("was_alive") is False
 
         deadline = time.time() + 10
         state = None
@@ -307,10 +314,22 @@ class TestBackgroundLifecycle:
             if state not in ("queued", "running"):
                 break
             time.sleep(0.2)
-        assert state == "cancelled", f"final state={state!r}"
-        assert not sentinel.exists(), (
-            "backend executable ran despite cancel winning the race"
-        )
+        # Every terminal state here is correct behaviour. Nothing orders the
+        # worker against the cancel: the worker may win the claim and finish
+        # (state "completed" -- cancel is then a specified no-op, see
+        # test_cancel_already_terminal_is_noop_exit_0 below), or cancel may kill
+        # a live backend (state "cancelled", `was_alive` True, sentinel present
+        # and legitimate). Asserting `state == "cancelled"` alone reddened an
+        # unrelated docs-only PR when a loaded runner let the worker through
+        # (#846), and would equally have failed on a cancelled-while-running
+        # job. The G1 invariant is narrower than the terminal state.
+        assert state in ("cancelled", "completed"), f"final state={state!r}"
+        if state == "cancelled" and cancel_won_the_claim:
+            # The one combination that must never occur: cancel took the claim
+            # before any spawn, yet the backend executable still ran.
+            assert not sentinel.exists(), (
+                "backend executable ran despite cancel winning the claim"
+            )
 
     def test_cancel_already_terminal_is_noop_exit_0(self, env_factory):
         env = env_factory(
@@ -378,3 +397,53 @@ class TestConcurrencyAndRetention:
             assert result.returncode == 0, result.stderr
             job_ids.add(_new_job_id(env_factory, known_ids=job_ids))
         assert len(job_ids) == 3
+
+
+def test_cancel_marks_terminal_before_killing_anything(monkeypatch, tmp_path):
+    """The ordering that closes the cancel/spawn race (#846).
+
+    `_claim_running` refuses a record already in a TERMINAL state, so marking
+    cancelled BEFORE the kill is what stops a worker that has not yet claimed
+    from spawning a backend at all. Killing first leaves a window in which the
+    kill finds nothing (nothing has spawned) and the worker then claims and
+    forks -- reproduced at roughly 1 in 24 runs under parallel load, which is
+    far too rare to gate on. This pins the ordering itself, which is
+    deterministic, rather than the race it prevents.
+    """
+    from _delegate_inproc import delegate
+
+    jobs_cli = delegate.jobs_cli
+
+    calls = []
+
+    class _Store:
+        def mutate(self, job_id, fn, expected_version=None):
+            calls.append("mark")
+            record = {"state": "queued", "pgid": 1234}
+            return fn(dict(record)) or record
+
+        def read(self, job_id):
+            return {"state": "cancelled", "pgid": 1234}
+
+        def job_dir(self, job_id):
+            return tmp_path
+
+    monkeypatch.setattr(
+        jobs_cli, "_terminate_job_processes", lambda *a, **k: calls.append("kill")
+    )
+    monkeypatch.setattr(jobs_cli, "_reap_raced_pgid", lambda *a, **k: False)
+    monkeypatch.setattr(jobs_cli.process, "_clear_pgid_tracking", lambda *a, **k: None)
+    monkeypatch.setattr(jobs_cli, "_render_cancelled", lambda *a, **k: None)
+
+    jobs_cli._cancel_active(
+        _Store(), "job-1", {"state": "queued", "pgid": 1234}, _Args(), None
+    )
+
+    assert calls == ["mark", "kill"], (
+        f"cancel must mark the record terminal before killing; got {calls}"
+    )
+
+
+class _Args:
+    json = True
+    expected_version = None
