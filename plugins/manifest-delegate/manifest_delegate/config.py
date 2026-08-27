@@ -30,6 +30,10 @@ def _config_search_dirs(explicit_dir=None):
     env_dir = os.environ.get(constants.CONFIG_DIR_ENV)
     if env_dir:
         dirs.append(env_dir)
+    dirs.append(constants.XDG_CONFIG_DIR)
+    # Legacy bootstrap home, last: Stage 6 (#789) deletes it, and searching it
+    # after XDG means that deletion degrades to the new location rather than
+    # silently reverting every user to factory defaults.
     dirs.append(constants.HOME_CONFIG_DIR)
     return dirs
 
@@ -174,9 +178,10 @@ def _merge_user_config_data(data, chosen_path, result, report):
 
 
 def load_user_config(explicit_dir=None, reporter=None):
-    """Resolve ~/.claude/config/delegation.{json,yml} per D3.
+    """Resolve the user's delegation.{json,yml} per D3.
 
-    Precedence: explicit_dir > $MANIFEST_CONFIG_DIR > ~/.claude/config.
+    Precedence: explicit_dir > $MANIFEST_CONFIG_DIR > $XDG_CONFIG_HOME/manifest
+    > ~/.claude/config (legacy, retired by Stage 6 / #789).
     Within a directory: delegation.json always wins if present; otherwise
     delegation.yml is honored only when PyYAML is importable. Any parse
     failure is reported (never raised) and factory defaults are returned —

@@ -60,6 +60,21 @@ SUBCOMMANDS = [
 
 DELEGATIONS_DIR_ENV = "MANIFEST_DELEGATIONS_DIR"
 CONFIG_DIR_ENV = "MANIFEST_CONFIG_DIR"
+
+
+def _xdg_config_dir():
+    """`$XDG_CONFIG_HOME/manifest`, matching src/manifest_agent/paths.py."""
+    configured = os.environ.get("XDG_CONFIG_HOME")
+    base = configured if configured else os.path.expanduser("~/.config")
+    return os.path.join(base, "manifest")
+
+
+XDG_CONFIG_DIR = _xdg_config_dir()
+
+# LEGACY, retired by Stage 6 (#789): bootstrap deploys the user's
+# delegation.{json,yml} here, so it must keep resolving until bootstrap is gone.
+# Searched AFTER the XDG path so a migrated home wins, and so deleting this tree
+# degrades to the XDG location instead of losing user config.
 HOME_CONFIG_DIR = os.path.expanduser("~/.claude/config")
 
 KEEP_LAST_N = 50

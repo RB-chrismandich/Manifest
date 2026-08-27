@@ -91,6 +91,7 @@ from .constants import (  # noqa: F401  (flat re-export)
     SCRIPT_DIR,
     SHELL_METACHAR_RE,
     SUBCOMMANDS,
+    XDG_CONFIG_DIR,
     err,
 )
 from .envelope import (  # noqa: F401  (flat re-export)

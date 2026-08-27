@@ -54,7 +54,7 @@ def _probe_enabled_state(entry, user_config, services_disabled):
     if layer == "workspace services.yml":
         return (
             "disabled_workspace",
-            "enable in ~/.claude/config/services.yml (workspace layer outranks user enable)",
+            "enable in $XDG_CONFIG_HOME/manifest/services.yml (workspace layer outranks user enable)",
         )
     return (
         "disabled_user",

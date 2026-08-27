@@ -25,9 +25,9 @@ under 30 seconds. No probe ever prompts for input.
 backend      state              version   fix
 codex        ready              1.x       —
 claude       not_authenticated  2.x       run: claude  (then /login)
-antigravity  disabled_workspace 1.1.8     enable in ~/.claude/config/services.yml (workspace layer outranks user enable)
+antigravity  disabled_workspace 1.1.8     enable in $XDG_CONFIG_HOME/manifest/services.yml (workspace layer outranks user enable)
 cursor       ready              2026.x    —
-devin        disabled_workspace 3000.x    enable in ~/.claude/config/services.yml (workspace layer outranks user enable)
+devin        disabled_workspace 3000.x    enable in $XDG_CONFIG_HOME/manifest/services.yml (workspace layer outranks user enable)
 ```
 
 Devin ships **disabled** in `services.yml` (opt-in: `./bootstrap.sh
@@ -45,7 +45,8 @@ which config file/layer to edit). `--json` rows additionally carry `identity`
 Two places control whether a backend is even considered enabled, and they do
 not have equal authority:
 
-- **Workspace** `~/.claude/config/services.yml` — a service disabled here is
+- **Workspace** `$XDG_CONFIG_HOME/manifest/services.yml` (default
+  `~/.config/manifest/services.yml`) — a service disabled here is
   disabled everywhere in this workspace, regardless of user config.
   `disabled_workspace` means this layer is the blocker; user config cannot
   override it.
