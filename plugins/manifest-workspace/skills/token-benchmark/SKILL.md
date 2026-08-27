@@ -1,6 +1,6 @@
 ---
 name: token-benchmark
-description: "MONOREPO-ONLY (needs a Manifest checkout, not an installed bundle). Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md."
+description: "Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI, from a Manifest checkout only (MONOREPO-ONLY: the installed bundle does not ship the runtime). Uses MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md."
 ---
 
 # Token Benchmark Skill
