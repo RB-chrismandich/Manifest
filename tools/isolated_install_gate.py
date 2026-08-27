@@ -96,20 +96,110 @@ def _snapshot(root: Path) -> set[str]:
     return {str(p.relative_to(root)) for p in root.rglob("*")}
 
 
-def probe(bundle: str, checkout: Path) -> tuple[int, dict]:
-    """Install `bundle` alone into a scratch HOME and report what resolved."""
+def _preflight(bundle: str, checkout: Path) -> dict | None:
+    """Refuse to run -- never to pass -- when the probe cannot be performed."""
     if shutil.which("claude") is None:
-        return EXIT_UNVERIFIABLE, {
+        return {
             "state": "UNVERIFIABLE",
             "reason": "claude CLI not present; this gate requires a real install",
         }
     if not (checkout / ".claude-plugin" / "marketplace.json").is_file():
-        return EXIT_UNVERIFIABLE, {
+        return {
             "state": "UNVERIFIABLE",
             "reason": f"{checkout} does not contain .claude-plugin/marketplace.json",
         }
+    return None
 
-    findings: list[str] = []
+
+def _install_alone(
+    bundle: str, checkout: Path, env: dict[str, str]
+) -> tuple[dict | None, list[str]]:
+    """Add the local marketplace and install exactly one bundle."""
+    added = _run(
+        ["claude", "plugin", "marketplace", "add", str(checkout), "--scope", "user"],
+        env,
+    )
+    if added.returncode != 0:
+        return {
+            "state": "UNVERIFIABLE",
+            "reason": f"marketplace add exited {added.returncode}",
+            "stderr": added.stderr.strip()[:400],
+        }, []
+    installed = _run(
+        ["claude", "plugin", "install", f"{bundle}@{_MARKETPLACE}", "--scope", "user"],
+        env,
+    )
+    if installed.returncode != 0:
+        return {
+            "state": "FAILED",
+            "reason": f"install of {bundle} exited {installed.returncode}",
+            "stderr": installed.stderr.strip()[:400],
+        }, []
+    return None, []
+
+
+def _closure_findings(
+    bundle: str, expected: set[str], env: dict[str, str]
+) -> tuple[list[str], dict | None]:
+    """Assert the install brought the bundle and no undeclared sibling."""
+    present, error = _installed_manifest_bundles(env)
+    if error is not None:
+        return [], {"state": "UNVERIFIABLE", "reason": error}
+    findings = []
+    undeclared = {
+        name for name in present if name.startswith(("manifest-", "stitch-"))
+    } - expected
+    if undeclared:
+        findings.append(f"installed undeclared sibling bundles: {sorted(undeclared)}")
+    if bundle not in present:
+        findings.append(f"{bundle} is not in the post-install listing")
+    return findings, None
+
+
+def _teardown_findings(
+    bundle: str, home: Path, before: set[str], env: dict[str, str]
+) -> list[str]:
+    """Uninstall and assert cleanup on the REGISTRATION, not the file tree.
+
+    `plugin uninstall` deliberately retains plugins/cache/<marketplace>/ and
+    plugins/marketplaces/ -- shared marketplace material kept for reinstall, not
+    per-install state. Measured rather than assumed: after uninstall
+    installed_plugins.json goes to [] while the cache directory remains. A
+    tree-diff check here reported 35 surviving paths for manifest-docs and every
+    one was cache -- the confident false finding a pre-release gate must never
+    produce.
+    """
+    findings = []
+    removed = _run(["claude", "plugin", "uninstall", bundle, "--scope", "user"], env)
+    if removed.returncode != 0:
+        findings.append(f"uninstall exited {removed.returncode}")
+    still_present, listing_error = _installed_manifest_bundles(env)
+    if listing_error is not None:
+        findings.append(f"post-uninstall listing unreadable: {listing_error}")
+    elif bundle in still_present:
+        findings.append(f"{bundle} is still registered after uninstall")
+    unexpected_state = {
+        path
+        for path in _snapshot(home) - before
+        if bundle in path
+        and "plugins/cache/" not in path
+        and "plugins/marketplaces/" not in path
+    }
+    if unexpected_state:
+        findings.append(
+            f"{len(unexpected_state)} non-cache path(s) naming {bundle} survived "
+            f"uninstall, e.g. {sorted(unexpected_state)[:3]}"
+        )
+    return findings
+
+
+def probe(bundle: str, checkout: Path) -> tuple[int, dict]:
+    """Install `bundle` alone into a scratch HOME and report what resolved."""
+    blocked = _preflight(bundle, checkout)
+    if blocked is not None:
+        return EXIT_UNVERIFIABLE, blocked
+
+    expected = _declared_closure(checkout, bundle)
     with tempfile.TemporaryDirectory(prefix="isolated-install-") as scratch:
         home = Path(scratch)
         env = dict(os.environ)
@@ -117,92 +207,21 @@ def probe(bundle: str, checkout: Path) -> tuple[int, dict]:
         env["USERPROFILE"] = str(home)
         before = _snapshot(home)
 
-        added = _run(
-            [
-                "claude",
-                "plugin",
-                "marketplace",
-                "add",
-                str(checkout),
-                "--scope",
-                "user",
-            ],
-            env,
-        )
-        if added.returncode != 0:
-            return EXIT_UNVERIFIABLE, {
-                "state": "UNVERIFIABLE",
-                "reason": f"marketplace add exited {added.returncode}",
-                "stderr": added.stderr.strip()[:400],
-            }
-
-        installed = _run(
-            [
-                "claude",
-                "plugin",
-                "install",
-                f"{bundle}@{_MARKETPLACE}",
-                "--scope",
-                "user",
-            ],
-            env,
-        )
-        if installed.returncode != 0:
-            return EXIT_FAILED, {
-                "state": "FAILED",
-                "reason": f"install of {bundle} exited {installed.returncode}",
-                "stderr": installed.stderr.strip()[:400],
-            }
-
-        present, error = _installed_manifest_bundles(env)
-        if error is not None:
-            return EXIT_UNVERIFIABLE, {"state": "UNVERIFIABLE", "reason": error}
-
-        expected = _declared_closure(checkout, bundle)
-        undeclared = {
-            n for n in present if n.startswith(("manifest-", "stitch-"))
-        } - expected
-        if undeclared:
-            findings.append(
-                f"installed undeclared sibling bundles: {sorted(undeclared)}"
+        failure, findings = _install_alone(bundle, checkout, env)
+        if failure is not None:
+            code = (
+                EXIT_UNVERIFIABLE if failure["state"] == "UNVERIFIABLE" else EXIT_FAILED
             )
-        if bundle not in present:
-            findings.append(f"{bundle} is not in the post-install listing")
+            return code, failure
 
-        removed = _run(
-            ["claude", "plugin", "uninstall", bundle, "--scope", "user"], env
-        )
-        if removed.returncode != 0:
-            findings.append(f"uninstall exited {removed.returncode}")
-        # Cleanup is asserted on the REGISTRATION, not on the filesystem tree.
-        # `plugin uninstall` deliberately retains plugins/cache/<marketplace>/
-        # and plugins/marketplaces/ -- shared marketplace material kept for
-        # reinstall, not per-install state. Measured directly rather than
-        # assumed: after uninstall, installed_plugins.json goes to [] while the
-        # cache directory remains. A tree-diff check here reported 35 surviving
-        # paths and every one was cache -- the kind of confident false finding a
-        # pre-release gate must never produce.
-        still_present, listing_error = _installed_manifest_bundles(env)
-        if listing_error is not None:
-            findings.append(f"post-uninstall listing unreadable: {listing_error}")
-        elif bundle in still_present:
-            findings.append(f"{bundle} is still registered after uninstall")
-        unexpected_state = {
-            path
-            for path in _snapshot(home) - before
-            if bundle in path
-            and "plugins/cache/" not in path
-            and "plugins/marketplaces/" not in path
-        }
-        if unexpected_state:
-            findings.append(
-                f"{len(unexpected_state)} non-cache path(s) naming {bundle} "
-                f"survived uninstall, e.g. {sorted(unexpected_state)[:3]}"
-            )
+        closure, unreadable = _closure_findings(bundle, expected, env)
+        if unreadable is not None:
+            return EXIT_UNVERIFIABLE, unreadable
+        findings.extend(closure)
+        findings.extend(_teardown_findings(bundle, home, before, env))
 
-    state = "FAILED" if findings else "OK"
     return (EXIT_FAILED if findings else EXIT_OK), {
-        "state": state,
+        "state": "FAILED" if findings else "OK",
         "bundle": bundle,
         "expected_closure": sorted(expected),
         "findings": findings,
