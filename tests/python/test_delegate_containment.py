@@ -159,6 +159,33 @@ class TestLinuxEscapeIsClosed:
         proc.wait(timeout=30)
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="Linux is the containment venue"
+)
+def test_linux_ci_actually_exercises_containment():
+    """A skip that renders as a pass is the failure this gate exists to remove.
+
+    #862 first shipped green with BOTH Linux tests skipped on Ubuntu CI: the
+    probe requires a writable subtree and `/sys/fs/cgroup` is root-owned, so the
+    containment code was executed on no machine anywhere while the check went
+    green. That is the exact false green the module's own docstring warns about,
+    and a green Test job was not evidence of anything.
+
+    On CI this now FAILS instead of skipping, so an unverifiable venue is loud.
+    Locally on Linux it still skips, because a developer without a delegated
+    subtree should not be blocked.
+    """
+    if not os.environ.get("CI"):
+        pytest.skip("local Linux run; CI is the venue that must verify")
+    available, reason = containment.probe()
+    assert available, (
+        f"Linux CI cannot exercise containment ({reason}). The workflow must "
+        f"delegate a subtree and set {containment.CGROUP_ROOT_ENV}; without it "
+        f"the escape tests skip and this job reports green having verified "
+        f"nothing."
+    )
+
+
 def test_containment_is_wired_into_the_shared_kill_site():
     """`_kill_pgid` is the single call site cancel, timeout and the reaper share;
     if the reap is not there, contained hosts silently behave like degraded."""

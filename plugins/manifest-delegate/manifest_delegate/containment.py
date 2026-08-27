@@ -25,7 +25,24 @@ import signal
 
 from . import constants
 
-CGROUP_ROOT = "/sys/fs/cgroup"
+CGROUP_ROOT_ENV = "MANIFEST_CGROUP_ROOT"
+_DEFAULT_CGROUP_ROOT = "/sys/fs/cgroup"
+
+
+def cgroup_root() -> str:
+    """The delegated subtree to use, or the unified root when none is set.
+
+    A delegated subtree is the normal shape in both production and CI: the
+    cgroup root is owned by root, so an unprivileged process is handed a
+    chowned child instead. Without this override the probe could only ever
+    succeed as root, and would silently report degraded everywhere else --
+    which is precisely how the Linux test skipped on Ubuntu CI while the job
+    reported green.
+    """
+    return os.environ.get(CGROUP_ROOT_ENV) or _DEFAULT_CGROUP_ROOT
+
+
+CGROUP_ROOT = _DEFAULT_CGROUP_ROOT
 CGROUP_DIR_FILENAME = "backend.cgroup"
 
 STATE_CONTAINED = "contained"
@@ -36,7 +53,7 @@ def _controllers_path(base: str) -> str:
     return os.path.join(base, "cgroup.controllers")
 
 
-def probe(root: str = CGROUP_ROOT) -> tuple[bool, str]:
+def probe(root: str | None = None) -> tuple[bool, str]:
     """Return (available, reason). Reason is always populated, for reporting.
 
     Three conditions, checked in the order they fail on real systems: the
@@ -45,6 +62,7 @@ def probe(root: str = CGROUP_ROOT) -> tuple[bool, str]:
     the common case), and the kernel must expose `cgroup.kill` -- without it a
     reap would have to walk `cgroup.procs`, which races a forking descendant.
     """
+    root = root or cgroup_root()
     if not os.path.isfile(_controllers_path(root)):
         return False, "cgroup v2 unified hierarchy not mounted"
     if not os.access(root, os.W_OK):
@@ -52,7 +70,7 @@ def probe(root: str = CGROUP_ROOT) -> tuple[bool, str]:
     return True, "cgroup v2 with cgroup.kill"
 
 
-def create(job_dir: str, root: str = CGROUP_ROOT) -> tuple[str | None, str, str]:
+def create(job_dir: str, root: str | None = None) -> tuple[str | None, str, str]:
     """Create a per-job cgroup and record its path. Returns (path, state, reason).
 
     `reason` is populated in every outcome, including success, so a degraded run
@@ -63,6 +81,7 @@ def create(job_dir: str, root: str = CGROUP_ROOT) -> tuple[str | None, str, str]
     if the worker died -- the same crash-safe pattern backend.pgid uses for the
     process group.
     """
+    root = root or cgroup_root()
     available, reason = probe(root)
     if not available:
         return None, STATE_DEGRADED, reason
