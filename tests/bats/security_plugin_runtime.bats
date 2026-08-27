@@ -33,9 +33,11 @@ teardown() {
     run bash -c "grep -R -nE '(configs/claude|~/.claude/(scripts|references)|manifest parallel-agent|parallel_agent.py|learning_capture.sh|plugins/manifest-ops)' '$BUNDLE/skills' --include='SKILL.md' || true"
     assert_output ""
 
-    run grep -R -q '\[\[skill:parallel-agent\]\]' "$BUNDLE/skills"
+    # Qualified form since the `[[skill:]]` convention was retired
+    # (2026-08-27, Phase 0 item 4 option (b)).
+    run grep -R -q 'manifest-workspace:parallel-agent' "$BUNDLE/skills"
     assert_success
-    run grep -R -q '\[\[skill:learning-capture\]\]' "$BUNDLE/skills"
+    run grep -R -q 'manifest-workspace:learning-capture' "$BUNDLE/skills"
     assert_success
 }
 
