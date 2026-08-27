@@ -122,6 +122,19 @@ class TestForegroundTask:
                     assert stat.S_IMODE(fpath.stat().st_mode) == 0o600
 
 
+def _await_terminal_state(env, job_id, timeout=10):
+    """Poll `status` until the job leaves queued/running, or the timeout ends."""
+    deadline = time.time() + timeout
+    state = None
+    while time.time() < deadline:
+        status = _run(env, "status", job_id, "--json")
+        state = json.loads(status.stdout).get("state")
+        if state not in ("queued", "running"):
+            break
+        time.sleep(0.2)
+    return state
+
+
 class TestBackgroundLifecycle:
     def test_background_spawn_status_result(self, env_factory):
         env = env_factory(
@@ -306,14 +319,7 @@ class TestBackgroundLifecycle:
         # backend and then marks the job cancelled.
         cancel_won_the_claim = json.loads(cancel.stdout).get("was_alive") is False
 
-        deadline = time.time() + 10
-        state = None
-        while time.time() < deadline:
-            status = _run(env, "status", job_id, "--json")
-            state = json.loads(status.stdout).get("state")
-            if state not in ("queued", "running"):
-                break
-            time.sleep(0.2)
+        state = _await_terminal_state(env, job_id)
         # Every terminal state here is correct behaviour. Nothing orders the
         # worker against the cancel: the worker may win the claim and finish
         # (state "completed" -- cancel is then a specified no-op, see
