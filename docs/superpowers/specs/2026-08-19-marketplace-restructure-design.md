@@ -206,6 +206,56 @@ Phase 0 must decide and design:
    its version bump are all conditional on that choice, and both source and
    published-release installs must be tested. **Until then Phase 1 cannot claim to
    repair `manifest-delegate`, and §9a's patch bump for it is provisional.**
+
+   ---
+
+   **DRAFT DEFINITION 2026-08-27 — awaiting maintainer sign-off.** Written to be
+   accepted, amended or rejected as a unit; nothing below is implemented yet.
+
+   Two classes, distinguished by **one question**: does the coordinator install
+   it? Everything else follows.
+
+   | | **A — marketplace-only** | **B — portable-contracted** |
+   |---|---|---|
+   | example | `manifest-delegate` | `manifest-i-have-adhd` |
+   | `manifest-capabilities.yml` | none | required |
+   | loader membership | in neither `DOMAIN_BUNDLES` nor `ADDON_BUNDLES` | `ADDON_BUNDLES` only |
+   | `DesiredState.all_contracts` | absent | present |
+   | coordinator installs it | **no** — user installs from the marketplace | **only when selected**; never required |
+   | release archive | excluded | excluded |
+   | command catalog | listed, marked marketplace-only | listed |
+   | versioning | independent; marketplace metadata is the only contract | independent, but its contract version is checked when present |
+   | upgrade | `claude plugin update` by the user | coordinator, with the release it was selected in |
+   | rollback | user reinstalls the prior version | coordinator restores the receipt's recorded version |
+
+   **Why both classes are release-excluded.** `build_manifest_release.py`
+   archives only `DOMAIN_BUNDLES`. Keeping B excluded preserves that, and keeps
+   Phase 2b's "addons are uniformly excluded" assumption true — the assumption
+   breaks only if an addon enters the archive, not if it gains a contract.
+
+   **Consequences that must land with the definition, not after it:**
+
+   1. **Adapters must treat both classes as legitimate-but-not-required.**
+      Today a real install reports
+      `codex DRIFTED: unrecognized Manifest plugin: manifest-delegate@manifest`
+      *and* the same for `manifest-i-have-adhd`, on a correctly-configured
+      machine — for **different reasons** (A has no contract at all; B has one
+      the release does not carry). A permanent DRIFTED verdict on a correct
+      machine is the "gate nobody reads" shape §9a exists to remove.
+   2. **"Is this addon in this release?" becomes a class-level query.** #839's
+      Devin fix currently keys on the bundle *directory* existing, because there
+      is no class contract to consult — a workaround this definition should
+      retire by giving adapters a supported way to ask.
+   3. **Requiring an addon is a bug, not a policy choice.** Before #839,
+      `DevinAdapter.install` returned on a missing `manifest-i-have-adhd` file
+      **before its install loop**, so one absent addon blocked all eight domain
+      bundles. Class B must be unable to express that.
+
+   **`manifest-delegate` resolves as class A**: it ships no contract today and
+   nothing requires it, so class A is a description of its current state rather
+   than a migration. Its §9a patch bump stops being provisional at that point.
+
+   ---
 4. **The `[[skill:…]]` grammar decision** (blocking, promoted from Phase 1).
    There are **14 colon-qualified tokens across 6 files** — not the 2 call sites an
    earlier draft assumed:
