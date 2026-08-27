@@ -75,7 +75,7 @@ Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
 pinned `sonnet` model.
 
 This skill always fans out: one sub-agent per docs sub-skill. Use native Task
-sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched
+sub-agents on Claude, or `manifest-workspace:parallel-agent` / inline on other assistants. Dispatched
 sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass

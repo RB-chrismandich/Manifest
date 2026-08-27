@@ -10,7 +10,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via [[skill:learning-capture]].",
+      "description": "Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via `manifest-workspace:learning-capture`.",
       "name": "antipattern-detect",
       "qualified_name": "manifest-code-quality:antipattern-detect"
     },

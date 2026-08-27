@@ -41,7 +41,7 @@ for each). An empty `survived` means every candidate was refuted.
 Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
 pinned `opus` model.
 
-When ≥3 candidate findings need triage, invoke `[[skill:parallel-agent]]` with
+When ≥3 candidate findings need triage, invoke `manifest-workspace:parallel-agent` with
 one finding per review unit, adversarial verification enabled, and a bounded
 timeout, then aggregate its structured verdicts. If structured skill output is
 unavailable, perform the same triage inline and report `DEGRADED`. Below the

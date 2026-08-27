@@ -317,7 +317,7 @@ for shell, TypeScript, and Go.
 
 **Boundary**: this article covers the injection *sinks*. It does not replace the
 reactive registry — hardcoded secrets (`ANTI-025`) and unquoted shell expansion
-(`ANTI-001`) keep their entries there, and `[[skill:ai-code-audit]]` remains the deep
+(`ANTI-001`) keep their entries there, and `manifest-code-quality:ai-code-audit` remains the deep
 security pass. What CON-013 adds is that the sinks are now checked before the
 code is written rather than after it is reviewed.
 

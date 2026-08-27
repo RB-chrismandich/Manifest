@@ -84,7 +84,7 @@ message so they run concurrently, then one `skeptic-verifier` per BLOCKING
 finding. That is the point of the round — independence is structural, so the
 lenses must not be collapsed into one inline pass sharing context. Pick the
 mechanism per the bundled `sub-agent-dispatch.md` selection rules: native
-Task sub-agents on Claude, `[[skill:parallel-agent]]` or sequential re-reads
+Task sub-agents on Claude, `manifest-workspace:parallel-agent` or sequential re-reads
 elsewhere.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`). Pass

@@ -232,7 +232,7 @@ For Node.js projects that include a web framework (detected via `next`, `vite`, 
    ```bash
    echo '{"app": "<app>", "id": "homepage-loads", "tier": "Lite",
           "workflow": "Load the homepage; assert 200 and the app shell renders"}' |
-     [[skill:smoke-manage]] append --stdin --dry-run   # drop --dry-run to write
+     manifest-code-quality:smoke-manage append --stdin --dry-run   # drop --dry-run to write
    ```
 
 2. **Add a note to the summary** suggesting the optional runtime deps and gate:
@@ -240,7 +240,7 @@ For Node.js projects that include a web framework (detected via `next`, `vite`, 
    ```text
    Smoke testing (optional):
      Playwright + Chromium for deterministic UI steps (see smoke-manage install)
-     [[skill:smoke-manage]] run --app <app> --tier Lite
+     manifest-code-quality:smoke-manage run --app <app> --tier Lite
    ```
 
 This phase is **non-blocking** — only suggests, does not require installation.

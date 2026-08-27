@@ -264,7 +264,7 @@ pinned `sonnet` model.
 
 When ≥3 independent files or articles exist, dispatch one sub-agent per file to analyze it,
 then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
-`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
+`manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model

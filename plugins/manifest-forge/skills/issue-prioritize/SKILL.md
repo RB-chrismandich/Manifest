@@ -202,7 +202,7 @@ pinned `sonnet` model.
 When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
 below that, score inline. Pick the mechanism from the current harness's native
 sub-agent dispatch contract: native Task sub-agents where available, or
-`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents
+`manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents
 execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

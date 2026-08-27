@@ -31,9 +31,9 @@ store.
 All issue reads, comments, labels, and closes go through qualified Forge skill
 interfaces. Never locate or invoke a Forge runtime script directly.
 
-- Prepare or read an issue with `[[skill:manifest-forge:issue-prep-auto]]`.
-- Mark implementation active with `[[skill:manifest-forge:issue-sync-commit]]`.
-- Publish review/ready state with `[[skill:manifest-forge:issue-sync-pr]]`.
+- Prepare or read an issue with `manifest-forge:issue-prep-auto`.
+- Mark implementation active with `manifest-forge:issue-sync-commit`.
+- Publish review/ready state with `manifest-forge:issue-sync-pr`.
 - Use the canonical label definitions in `../../runtime/config/labels.json` when
   the Forge interaction asks for a label identity.
 
@@ -53,7 +53,7 @@ plan stale after seven days without modification.
 
 1. Resolve a plain description or use the qualified Forge preparation skill for
    an issue number.
-2. Use `[[skill:manifest-workspace:parallel-agent]]` when the work is security
+2. Use `manifest-workspace:parallel-agent` when the work is security
    sensitive, architectural, critical, or likely to change at least three files.
 3. Merge proposals at 80%+ consensus. At 50-79%, dispatch one Sonnet synthesis
    sub-agent using `../../runtime/prompts/synthesis.md`. Below 50%, present the
@@ -67,19 +67,19 @@ plan stale after seven days without modification.
 
 Review one named plan or all active plans. Report progress, age, and whether a
 plan should be archived or abandoned. A stale plan may be re-evaluated through
-`[[skill:manifest-workspace:parallel-agent]]`.
+`manifest-workspace:parallel-agent`.
 
 ### execute
 
 1. Resolve a named plan below `$PLAN_ROOT`, or an issue-linked plan matching
    `*issue-N*`. Ask when ambiguous.
 2. Require `**Status**: ACTIVE` and request the in-progress tracker state through
-   `[[skill:manifest-forge:issue-sync-commit]]` when issue-linked.
+   `manifest-forge:issue-sync-commit` when issue-linked.
 3. Implement unchecked deliverables in order, updating the plan and its log
    after each completed item. Propagate failures and ask whether to retry, skip,
    or abort.
-4. Run `[[skill:manifest-workspace:parallel-agent]]` for the final issue-linked
-   review. Publish the result through `[[skill:manifest-forge:issue-sync-pr]]`.
+4. Run `manifest-workspace:parallel-agent` for the final issue-linked
+   review. Publish the result through `manifest-forge:issue-sync-pr`.
 5. On approval, mark the plan COMPLETED and move it to
    `$PLAN_ROOT/.archive/`. Otherwise leave it active with the findings recorded.
 

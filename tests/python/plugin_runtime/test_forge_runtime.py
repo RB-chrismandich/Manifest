@@ -450,10 +450,18 @@ def test_forge_instructions_use_bundle_relative_runtime_contract(
             assert marker not in text, (
                 f"{document}: forbidden instruction marker {marker}"
             )
-        for reference in text.split("[[skill:")[1:]:
-            name = reference.split("]]", 1)[0]
+        # The `[[skill:]]` convention was retired 2026-08-27 (Phase 0 item 4
+        # option (b)); cross-domain references are now written qualified as
+        # `bundle:skill`, so the check is that every OTHER bundle referenced is
+        # one this domain is allowed to reach.
+        for match in re.finditer(
+            r"`(manifest-[a-z-]+|stitch-design):([a-z0-9-]+)`", text
+        ):
+            bundle, name = match.group(1), match.group(2)
+            if bundle == "manifest-forge":
+                continue
             assert name in allowed_cross_domain, (
-                f"{document}: unqualified cross-domain skill {name}"
+                f"{document}: cross-domain skill {bundle}:{name} not allowed"
             )
 
 

@@ -13,7 +13,7 @@ the palette: [references/mermaid.md](references/mermaid.md).
 ## Parallel Agent Integration
 
 Uses parallel agents CONDITIONALLY when analyzing 5+ unique imports/modules:
-`[[skill:parallel-agent]] --json --validate`
+`manifest-workspace:parallel-agent --json --validate`
 
 ## Steps
 

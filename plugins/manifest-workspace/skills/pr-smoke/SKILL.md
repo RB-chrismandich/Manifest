@@ -22,5 +22,5 @@ missing optional tools, and `2` FAIL for a regression. Relay the emitted result
 table and first failing gate.
 
 When an independent cross-provider review is required, invoke
-`[[skill:parallel-agent]]` separately and consume its structured output. If the
+`manifest-workspace:parallel-agent` separately and consume its structured output. If the
 harness cannot invoke it, perform the review inline and report `DEGRADED`.

@@ -83,6 +83,6 @@ unrelated edits remain quiet.
 - **No silent failures**: unresolvable/unsupported/malformed cases are reported,
   never swallowed, and never leave a partially-rewritten file.
 - **Security-sensitive**: this is a supply-chain control (Tier 1); changes to the
-  script itself warrant `[[skill:parallel-agent]] --json --validate --review`
+  script itself warrant `manifest-workspace:parallel-agent --json --validate --review`
   before merge when that interface is available, or an equivalent inline review
   reported as degraded.

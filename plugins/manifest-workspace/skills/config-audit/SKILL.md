@@ -13,5 +13,5 @@ Report each capability as `native`, `generated`, `imported`, `degraded`, or
 `unsupported`, matching the bundle contract. Missing or malformed receipt data
 is `DEGRADED`, never clean. Keep the audit read-only.
 
-Use `[[skill:deploy-reconcile]]` when the user needs a structured drift report
+Use `manifest-workspace:deploy-reconcile` when the user needs a structured drift report
 that names repair requirements.

@@ -61,7 +61,7 @@ pinned `sonnet` model.
 
 When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review
 inline. Pick the mechanism from the current harness's native sub-agent dispatch
-contract: native Task sub-agents where available, or `[[skill:parallel-agent]]`
+contract: native Task sub-agents where available, or `manifest-workspace:parallel-agent`
 / inline on other assistants. Dispatched sub-agents execute their task directly
 and do not re-dispatch.
 

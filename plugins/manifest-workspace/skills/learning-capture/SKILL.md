@@ -25,5 +25,5 @@ description. Never discard existing records. A malformed existing record must
 surface an error instead of being overwritten. The store is capped at 500
 entries.
 
-Cross-domain consumers invoke `[[skill:learning-capture]]`; capture failure is
+Cross-domain consumers invoke `manifest-workspace:learning-capture`; capture failure is
 advisory and must not change their primary verdict.

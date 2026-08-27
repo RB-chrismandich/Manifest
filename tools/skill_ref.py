@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Expand portable ``[[skill:name]]`` cross-skill reference tokens."""
+"""Expand portable ``[[skill:name]]`` cross-skill reference tokens.
+
+RETIRED 2026-08-27. The ``[[skill:...]]`` convention this resolves was retired as
+Phase 0 item 4 option (b): all 106 tokens were rewritten to qualified
+``bundle:skill`` commands, ``docs/PLUGIN_RELEASE.md`` forbids the syntax, and
+``tests/python/test_skill_token_ratchet.py`` asserts that zero ``[[skill:``
+sequences reach a packaged file. Nothing in production ever called this, which
+is why every token shipped literal to the model. Kept so its tests keep
+documenting the retired grammar -- do NOT reintroduce tokens on the strength of
+this file existing.
+"""
 
 from __future__ import annotations
 

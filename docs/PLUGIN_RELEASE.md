@@ -60,12 +60,22 @@ Two consequences when adding, renaming, or moving a skill:
 
 - **The bundle is part of the name.** Moving a skill between bundles is a
   user-visible rename, which is why the table above treats it as a major bump.
-- **Cross-skill references must be resolved, not hardcoded.** Write
-  `[[skill:other-name]]` in a SKILL.md body and let
-  `configs/claude/scripts/skill_ref.py` render it. A literal `/other-name` is
-  caught by `configs/claude/scripts/skill_reference_check.py`, which is
-  **blocking** for slash-form and dispatch-form references and advisory
-  (ratcheted) for prose mentions.
+- **Cross-skill references are written qualified. Do not use `[[skill:...]]`.**
+  Write the fully-qualified `bundle:other-name` directly in a SKILL.md body.
+  A literal `/other-name` is caught by
+  `configs/claude/scripts/skill_reference_check.py`, which is **blocking** for
+  slash-form and dispatch-form references and advisory (ratcheted) for prose
+  mentions.
+
+  The `[[skill:...]]` token convention was **retired on 2026-08-27**. It was
+  never rendered in production -- `skill_ref.py`'s only importer was a test, and
+  packaging installs straight from `./plugins/<bundle>` -- so every token
+  reached the model as literal text. All 106 across 45 files were rewritten to
+  qualified commands, and `tests/python/test_skill_token_ratchet.py` now asserts
+  that **no** `[[skill:` sequence reaches a packaged file. Guidance and gate
+  landed together, deliberately: this doc previously taught the token form while
+  nothing rendered it, so following the repo's own instructions produced literal
+  text in shipped skills.
 
 See [SKILL-NAMING.md](SKILL-NAMING.md) for the naming grammar itself.
 

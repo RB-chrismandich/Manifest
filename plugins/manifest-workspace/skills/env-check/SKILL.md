@@ -15,4 +15,4 @@ Unavailable optional harnesses remain informational. Do not inspect another
 harness's home or use one tool's settings to verify another tool.
 
 For a cross-provider orchestration readiness check, invoke
-`[[skill:parallel-agent]]` and consume its structured result when supported.
+`manifest-workspace:parallel-agent` and consume its structured result when supported.
