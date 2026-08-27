@@ -7,13 +7,16 @@
   "packageRules": [
     {
       "description": "The stitch runtime's node floor is >=22.12 (set by puppeteer-core 25.5); Babel 8 requires >=22.18. Block @babel/* majors until the floor is deliberately raised past 22.18 (see PRs #720/#722).",
-      "matchPackagePatterns": [
-        "^@babel/"
+      "matchPackageNames": [
+        "/^@babel\\//"
       ],
       "matchUpdateTypes": [
         "major"
       ],
       "enabled": false
     }
+  ],
+  "ignoreDeps": [
+    "myapp"
   ]
 }
