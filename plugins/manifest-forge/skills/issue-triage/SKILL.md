@@ -143,8 +143,8 @@ pinned `sonnet` model.
 
 When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
 inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`the current harness native sub-agent dispatch contract`):
-native Task sub-agents on Claude, or `manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents execute
-their task directly and do not re-dispatch.
+native Task sub-agents on Claude, or `manifest-workspace:parallel-agent` / inline on other assistants.
+Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

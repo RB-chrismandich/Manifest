@@ -454,7 +454,9 @@ def test_forge_instructions_use_bundle_relative_runtime_contract(
         # option (b)); cross-domain references are now written qualified as
         # `bundle:skill`, so the check is that every OTHER bundle referenced is
         # one this domain is allowed to reach.
-        for match in re.finditer(r"`(manifest-[a-z-]+|stitch-design):([a-z0-9-]+)`", text):
+        for match in re.finditer(
+            r"`(manifest-[a-z-]+|stitch-design):([a-z0-9-]+)`", text
+        ):
             bundle, name = match.group(1), match.group(2)
             if bundle == "manifest-forge":
                 continue
