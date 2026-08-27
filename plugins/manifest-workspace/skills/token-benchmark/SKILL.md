@@ -1,17 +1,39 @@
 ---
 name: token-benchmark
-description: Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md.
+description: "Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI, from a Manifest checkout only (MONOREPO-ONLY: the installed bundle does not ship the runtime). Uses MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md."
 ---
 
 # Token Benchmark Skill
 
 Measure how the Manifest configs affect token costs and response quality per CLI provider.
 
+## Monorepo-only
+
+This skill runs **against a Manifest checkout**, not from an installed bundle. Its
+runtime lives under the repository's benchmark test tree and is deliberately not
+vendored: it measures how *this repository's* config injection changes token
+cost, so there is nothing for it to measure on a machine that only has the
+installed plugin. It also regenerates the repository's token-benchmark document.
+
+The preflight below fails fast and explains why, rather than surfacing a
+`No such file or directory` traceback from a path the bundle never shipped.
+
 ## Prerequisites
 
 Check that the following are available before running. Report any missing items and stop.
 
 ```bash
+# Monorepo guard -- run this FIRST. The runtime below is a repo path, absent
+# from the installed bundle by design (see "Monorepo-only" above).
+if [ ! -d tests/token_benchmark ]; then
+  echo "token-benchmark: this skill is monorepo-only." >&2
+  echo "  The benchmark runtime package is not present under \$PWD." >&2
+  echo "  Run it from a Manifest checkout; the installed bundle does not ship" >&2
+  echo "  the benchmark runtime, and there is no Manifest config tree here to" >&2
+  echo "  measure." >&2
+  exit 2
+fi
+
 # API keys
 echo "${ANTHROPIC_API_KEY:+claude api key: set}" || echo "ANTHROPIC_API_KEY: missing"
 echo "${GOOGLE_API_KEY:+gemini api key: set}" || echo "GOOGLE_API_KEY: missing (or use OAuth)"
