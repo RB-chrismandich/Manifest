@@ -1,7 +1,7 @@
 # Proactive Coding Anti-Patterns (Guardrail Registry Reference)
 
 > Bundle-local snapshot of the seeded guardrail set. Read it before writing or
-> refactoring security-sensitive code. Invoke `manifest-workspace:learning-capture` query`
+> refactoring security-sensitive code. Invoke `manifest-workspace:learning-capture query`
 > for mutable `provenance: session-capture` additions; query failure is advisory
 > and never changes the primary security verdict.
 
@@ -538,5 +538,5 @@ each fix is local and the pattern is never recorded.
 repeated hotfixes with identical shape in different files.
 
 **Do this instead**: On the second occurrence of any mistake class, invoke
-`manifest-workspace:learning-capture` add` with a prevention rule so future sessions are
+`manifest-workspace:learning-capture add` with a prevention rule so future sessions are
 warned proactively; consult the registry before related work.

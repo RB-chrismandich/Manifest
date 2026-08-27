@@ -34,7 +34,7 @@ vocabulary. Analysis-only: never modify the target.
    pre-bundle source (or source map) if traceable; otherwise record in P0:
    "bundled artifact — source-level audit not possible".
 3. **Registry-driven**: run
-   `manifest-workspace:learning-capture` query --category antipattern --format json`
+   `manifest-workspace:learning-capture query --category antipattern --format json`
    before starting. Use entries tagged `arch`, `async-state`, `error-handling`,
    `security`, `dependency`, or `iteration` — including
    `provenance: session-capture` records — and apply their `detection_cue`s per

@@ -107,7 +107,7 @@ When triggered, this skill:
 ### Registry Anti-Patterns (advisory)
 
 On trigger, additionally consult the antipattern entries returned by the
-bundle-local `manifest-workspace:learning-capture` query` call above. Every entry carrying
+bundle-local `manifest-workspace:learning-capture query` call above. Every entry carrying
 exactly one guardrail-category tag (`arch`, `async-state`, `error-handling`,
 `security`, `dependency`, `iteration`) — including
 `provenance: session-capture` entries added after this skill shipped — defines
