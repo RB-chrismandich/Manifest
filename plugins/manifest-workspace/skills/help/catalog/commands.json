@@ -563,7 +563,7 @@
     {
       "bundle": "manifest-workspace",
       "category": "productivity",
-      "description": "Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md.",
+      "description": "MONOREPO-ONLY (needs a Manifest checkout, not an installed bundle). Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md.",
       "name": "token-benchmark",
       "qualified_name": "manifest-workspace:token-benchmark"
     },
