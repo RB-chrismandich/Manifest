@@ -59,7 +59,7 @@ When triggered, this skill:
    base for the detected language:
 
    ```bash
-   [[skill:learning-capture]] query --language <detected-language> --format llm
+   manifest-workspace:learning-capture query --language <detected-language> --format llm
    ```
 
    If relevant entries exist, include them as additional check items. This is
@@ -69,7 +69,7 @@ When triggered, this skill:
 2. **Invokes parallel agents** for cross-verification:
 
    ```bash
-   [[skill:parallel-agent]] --json --validate --analyze <file>
+   manifest-workspace:parallel-agent --json --validate --analyze <file>
    ```
 
    **Sub-agent dispatch**: pin this fan-out call to Sonnet explicitly
@@ -107,7 +107,7 @@ When triggered, this skill:
 ### Registry Anti-Patterns (advisory)
 
 On trigger, additionally consult the antipattern entries returned by the
-bundle-local `[[skill:learning-capture]] query` call above. Every entry carrying
+bundle-local `manifest-workspace:learning-capture` query` call above. Every entry carrying
 exactly one guardrail-category tag (`arch`, `async-state`, `error-handling`,
 `security`, `dependency`, `iteration`) — including
 `provenance: session-capture` entries added after this skill shipped — defines
@@ -121,7 +121,7 @@ a `detection_cue` and a `prevention_rule`.
   never gate or interrupt the workflow. Blocking remains exclusive to the
   Tier 1 validation gates (`validation_criteria.yml`).
 - Full per-entry detail: `../../runtime/references/antipatterns.md`. For a
-  systematic whole-codebase review, suggest `[[skill:ai-code-audit]]` instead of
+  systematic whole-codebase review, suggest `manifest-code-quality:ai-code-audit` instead of
   expanding inline feedback.
 
 ### Optional Semgrep pass
@@ -172,7 +172,7 @@ This skill provides information without interrupting user workflow:
 
 ## Integration with Commands
 
-This skill works alongside `[[skill:python-refactor]]`:
+This skill works alongside `manifest-code-quality:python-refactor`:
 
 - **Skill**: Lightweight, auto-triggered, inline feedback
 - **Command**: Comprehensive, user-invoked, full report
@@ -180,7 +180,7 @@ This skill works alongside `[[skill:python-refactor]]`:
 When both trigger:
 
 1. Skill provides immediate feedback
-2. User can invoke `[[skill:python-refactor]]` for detailed analysis
+2. User can invoke `manifest-code-quality:python-refactor` for detailed analysis
 3. Results are complementary, not duplicated
 
 ## Configuration

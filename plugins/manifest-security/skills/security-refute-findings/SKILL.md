@@ -42,7 +42,7 @@ refuted one, each reason citing concrete `file:line` evidence. An empty survived
 Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
 pinned `opus` model.
 
-When ≥3 candidate findings need refutation, invoke `[[skill:parallel-agent]]`
+When ≥3 candidate findings need refutation, invoke `manifest-workspace:parallel-agent`
 with one finding per review unit, adversarial verification enabled, and a bounded
 timeout, then aggregate its structured verdicts. If structured skill output is
 unavailable, perform the same refutations inline and report `DEGRADED`. Below

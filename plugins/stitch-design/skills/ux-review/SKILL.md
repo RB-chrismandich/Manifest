@@ -152,7 +152,7 @@ pinned `sonnet` model.
 
 When ≥3 independent pages or flows need review, dispatch one sub-agent per page/flow to review it, then merge findings;
 below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-use native sub-agents when available, or `[[skill:manifest-workspace:parallel-agent]]` / inline
+use native sub-agents when available, or `manifest-workspace:parallel-agent` / inline
 on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

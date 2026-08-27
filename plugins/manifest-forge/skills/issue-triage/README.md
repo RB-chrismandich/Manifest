@@ -158,5 +158,5 @@ without modifying the immutable bundle:
 ## See Also
 
 - [Linear API Documentation](https://developers.linear.app/docs)
-- `[[skill:parallel-agent]]` for optional consensus checks
+- `manifest-workspace:parallel-agent` for optional consensus checks
 - The active harness's native plan-management documentation

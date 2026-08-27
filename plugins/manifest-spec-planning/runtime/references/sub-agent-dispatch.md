@@ -8,7 +8,7 @@
 | Mechanism | Use for | Availability |
 |-----------|---------|--------------|
 | Native Task/Agent sub-agents | Parallel reads, fan-out research, broad audits, and CDDL personas | Claude Code and Cursor |
-| `[[skill:manifest-workspace:parallel-agent]]` | Independent cross-model verification of one artifact or decision | Cross-platform |
+| `manifest-workspace:parallel-agent` | Independent cross-model verification of one artifact or decision | Cross-platform |
 | `cddl_invoke.py` | One read-only CDDL critic or developer-reviewer through an installed native CLI | Cross-platform |
 | Inline work | Trivial work or platforms without a suitable dispatch seam | Cross-platform |
 
@@ -17,7 +17,7 @@
 - Use native sub-agents when at least three independent units exist or the
   owning skill states a lower threshold.
 - Below the threshold, work inline; dispatch overhead is not justified.
-- Use `[[skill:manifest-workspace:parallel-agent]]` for independent
+- Use `manifest-workspace:parallel-agent` for independent
   cross-model verification, not as a replacement for separated CDDL personas.
 - On Gemini, Codex, Antigravity, or Devin, use `cddl_invoke.py` for read-only
   CDDL critics. The developer remains inline because it must edit the tree.

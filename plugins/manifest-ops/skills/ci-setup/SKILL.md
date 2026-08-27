@@ -125,7 +125,7 @@ for the selected platform, then apply the customizations below.
 ### Step 4.5: E2E Smoke Test Job (Optional)
 
 If `smoke-catalog/` exists in the project and contains `*.yaml` or `*.yml` files,
-invoke `[[skill:smoke-manage]]` to identify the target project's supported
+invoke `manifest-code-quality:smoke-manage` to identify the target project's supported
 non-interactive smoke command. Add a `Lite` smoke job only when that command is
 available in the target repository; otherwise report the omitted optional job
 instead of emitting a dependency on a Manifest coordinator CLI.

@@ -149,8 +149,11 @@ def test_security_references_and_skill_interfaces_are_bundle_local(
     assert "../../runtime/references/ci/gitlab-ci-triggers.md" in combined
     assert "../../runtime/references/antipatterns.md" in combined
     assert "../../runtime/references/code-constitution.md" in combined
-    assert "[[skill:parallel-agent]]" in combined
-    assert "[[skill:learning-capture]]" in combined
+    # Qualified form since the `[[skill:]]` convention was retired
+    # (2026-08-27, Phase 0 item 4 option (b)): nothing rendered the token,
+    # so every one shipped literal to the model.
+    assert "manifest-workspace:parallel-agent" in combined
+    assert "manifest-workspace:learning-capture" in combined
 
 
 def test_semgrep_is_optional_and_only_selected_modes_require_it(

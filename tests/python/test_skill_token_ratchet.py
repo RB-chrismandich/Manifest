@@ -1,15 +1,15 @@
-"""`[[skill:]]` tokens must not grow while the convention's fate is undecided.
+"""No `[[skill:]]` token may reach a packaged file. The convention is retired.
 
 Spec: `docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`
 §4 1.4 "Token gates", check 2 -- the packaged-artifact check, which asserts
 **zero** `[[skill:` sequences in every packaged file and records a baseline of
 106 occurrences across 45 files to drive to zero.
 
-That gate cannot land as written until the corpus is actually zero, and Phase 0
-item 4 is still an open fork: (a) wire a renderer into packaging, or (b) retire
-the convention and rewrite every token. This ratchet is the decision-neutral
-half that can land now -- it does not care which option is chosen, only that
-the corpus stops accumulating while nobody has chosen.
+Phase 0 item 4 was decided 2026-08-27 as **option (b): retire the convention**.
+All 106 tokens across 45 files were rewritten to qualified `bundle:skill`
+commands and `docs/PLUGIN_RELEASE.md` now forbids the syntax, so the corpus is
+zero and this IS that gate rather than a ratchet toward it. The second test
+below -- which fails when the count falls -- now pins zero as the floor.
 
 Neither resolver runs in production (`tools/skill_ref.py`'s only importer is a
 test; `_bundle_expected_views()` never emits a transformed SKILL.md), so every
@@ -30,11 +30,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGINS = REPO_ROOT / "plugins"
 
-# Measured 2026-08-26 on main, unchanged from the PR #810 head measurement
-# recorded in the tracking issue. LOWER these when tokens are removed; a
-# ratchet that is never tightened is just a comment.
-BASELINE_TOKENS = 106
-BASELINE_FILES = 45
+# ZERO as of 2026-08-27: the convention was retired, not merely ratcheted.
+# All 106 tokens were rewritten to qualified `bundle:skill` commands and
+# PLUGIN_RELEASE.md now forbids the syntax. At zero this stops being a
+# ratchet and becomes the packaged-artifact gate the spec specified
+# (section 4 1.4 token gate 2): assert NO `[[skill:` reaches a packaged file.
+BASELINE_TOKENS = 0
+BASELINE_FILES = 0
 
 _TOKEN = re.compile(r"\[\[skill:")
 
@@ -69,9 +71,9 @@ def test_skill_token_corpus_does_not_grow() -> None:
 
 
 def test_baseline_is_tightened_when_tokens_are_removed() -> None:
-    """The other half of a ratchet. Without this the baseline drifts upward in
-    effect -- removals buy headroom for future additions instead of being
-    locked in."""
+    """At zero this pins the floor rather than tightening a ratchet: it fails if
+    BASELINE_TOKENS is ever raised above the real count, which is how an
+    exemption for "just one" token would otherwise be granted quietly."""
     tokens, files, _ = _token_census()
 
     assert tokens == BASELINE_TOKENS, (

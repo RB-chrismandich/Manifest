@@ -13,7 +13,7 @@ find. Concision is measured, not judged: read
 ## Parallel Agent Integration
 
 Uses parallel agents CONDITIONALLY when total documentation lines > 500:
-`[[skill:parallel-agent]] --json --validate`
+`manifest-workspace:parallel-agent --json --validate`
 
 ## Steps
 
@@ -104,6 +104,6 @@ Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
 pinned `sonnet` model.
 
 Above ~10 docs, fan out one sub-agent per topic directory through
-`[[skill:parallel-agent]]`, or use native Task sub-agents on Claude. Dispatch on
+`manifest-workspace:parallel-agent`, or use native Task sub-agents on Claude. Dispatch on
 **Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

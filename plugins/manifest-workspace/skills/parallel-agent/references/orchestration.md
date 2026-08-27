@@ -22,10 +22,10 @@ warning is advisory. If none are available, the command exits non-zero.
 
 ## Cross-domain use
 
-Invoke `[[skill:parallel-agent]]` with target files, mode, validation flag, and
+Invoke `manifest-workspace:parallel-agent` with target files, mode, validation flag, and
 timeout. Consume its JSON result when the harness supports structured skill
 output; otherwise perform the same review inline and report `DEGRADED`.
 
-Invoke `[[skill:learning-capture]]` with category, language, and finding text
+Invoke `manifest-workspace:learning-capture` with category, language, and finding text
 when a reusable lesson emerges. Failure to capture learning is advisory and
 must not change the primary verdict.

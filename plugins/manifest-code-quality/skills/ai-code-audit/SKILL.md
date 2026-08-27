@@ -7,7 +7,7 @@ description: "Seven-pass audit of a codebase for AI-generation defects (architec
 
 Structured audit of a **local** codebase for the defects characteristic of
 AI-generated/iterated code, driven by the XDG-owned guardrail records exposed
-through `[[skill:learning-capture]]` and reported in the repo's standard verdict
+through `manifest-workspace:learning-capture` and reported in the repo's standard verdict
 vocabulary. Analysis-only: never modify the target.
 
 ## Invocation
@@ -34,7 +34,7 @@ vocabulary. Analysis-only: never modify the target.
    pre-bundle source (or source map) if traceable; otherwise record in P0:
    "bundled artifact — source-level audit not possible".
 3. **Registry-driven**: run
-   `[[skill:learning-capture]] query --category antipattern --format json`
+   `manifest-workspace:learning-capture` query --category antipattern --format json`
    before starting. Use entries tagged `arch`, `async-state`, `error-handling`,
    `security`, `dependency`, or `iteration` — including
    `provenance: session-capture` records — and apply their `detection_cue`s per
@@ -65,7 +65,7 @@ vocabulary. Analysis-only: never modify the target.
 
 Before reporting, every candidate `critical` or `high` finding gets an
 independent adversarial re-check: dispatch one native Task sub-agent or invoke
-`[[skill:parallel-agent]]` with ONLY the cited evidence and
+`manifest-workspace:parallel-agent` with ONLY the cited evidence and
 the instruction to **refute** the finding. Refuted — or the evidence cannot be
 re-confirmed — → downgrade to **Unverified observations** (a status change —
 never re-label the severity) or drop. Mark surviving findings "verified
@@ -111,7 +111,7 @@ and record the dissent under Unverified observations for transparency.
 
 ## Capture proposals
 - <recurring anti-pattern with no registry entry — offer the full invocation to fill in:
-  `[[skill:learning-capture]] add --category antipattern --language <lang> --title "..." --description "..."
+  manifest-workspace:learning-capture add --category antipattern --language <lang> --title "..." --description "..."
   --tags "<guardrail-tag>" --severity <sev> --detection-cue "..." --prevention-rule "..."
   --provenance session-capture --source ai-code-audit`>
 ```
@@ -124,7 +124,7 @@ pinned `opus` model.
 Dispatch sub-agents ONLY for the cross-verification step: one adversarial
 refuter per candidate `critical`/`high` finding. The passes themselves run
 inline — they share the P0 orientation context and must not be split. Use
-native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline adversarial
+native Task sub-agents on Claude, or `manifest-workspace:parallel-agent` / inline adversarial
 re-reads on other assistants. Dispatched refuters judge only the evidence they
 are given and do not re-dispatch.
 

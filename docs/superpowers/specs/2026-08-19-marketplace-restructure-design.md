@@ -711,6 +711,14 @@ Constraint-2 violations.
      packaged file type**, Markdown *and* generated command catalogs *and*
      vendored references. Baseline to drive to zero: **106 occurrences across 45
      files**.
+
+     **OUTCOME 2026-08-27: Phase 0 item 4 decided as option (b) — the
+     convention is RETIRED.** All 106 tokens across 45 files were rewritten to
+     qualified `bundle:skill` commands, `PLUGIN_RELEASE.md` now forbids the
+     syntax, and the gate is live at zero in
+     `tests/python/test_skill_token_ratchet.py`. Option (a)'s source grammar
+     check (item 1 above) is therefore **permanently out of scope** — it was
+     conditional on tokens being retained in source, and none are.
 - **Isolated single-bundle install gate** (implements Phase 0 item 5) — install
   one bundle alone and assert every cross-skill call resolves or takes its
   documented fallback.

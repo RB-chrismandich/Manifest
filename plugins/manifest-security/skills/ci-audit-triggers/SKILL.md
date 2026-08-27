@@ -87,7 +87,7 @@ either platform — only the vocabulary changes:
 Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
 pinned `sonnet` model.
 
-When ≥3 workflow files need auditing, invoke `[[skill:parallel-agent]]` with one
+When ≥3 workflow files need auditing, invoke `manifest-workspace:parallel-agent` with one
 workflow per review unit, security-analysis mode, validation enabled, and a
 bounded timeout; consume its structured result and merge findings. If the
 current harness cannot return structured skill output, perform the same reviews

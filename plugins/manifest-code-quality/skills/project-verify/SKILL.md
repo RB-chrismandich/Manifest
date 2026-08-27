@@ -20,7 +20,7 @@ and produces a unified report.
 After detecting the project language (Phase 1), check for known issues:
 
 ```bash
-[[skill:learning-capture]] query --language <detected-language> --format llm
+manifest-workspace:learning-capture query --language <detected-language> --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights:
@@ -90,7 +90,7 @@ After the standard lint/test/security scans complete, check for a smoke catalog
 2. **If it does**: Execute the deterministic PR-gate tier:
 
    ```bash
-   [[skill:smoke-manage]] run --tier Lite
+   manifest-code-quality:smoke-manage run --tier Lite
    ```
 
 3. **If runtime deps are missing** (runner reports Playwright/Chromium absent): Record as
@@ -178,7 +178,7 @@ After producing the quality report, if any checks failed:
    - Run:
 
      ```bash
-     [[skill:learning-capture]] add \
+     manifest-workspace:learning-capture add \
        --category antipattern --language <detected> \
        --title "Verify: <tool> failures" \
        --description "<summary of failures>" \

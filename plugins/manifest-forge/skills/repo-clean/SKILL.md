@@ -213,7 +213,7 @@ pinned `sonnet` model.
 When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then
 consolidate; below that, sweep inline. Pick the mechanism from the current
 harness's native sub-agent dispatch contract: native Task sub-agents where
-available, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched
+available, or `manifest-workspace:parallel-agent` / inline on other assistants. Dispatched
 sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

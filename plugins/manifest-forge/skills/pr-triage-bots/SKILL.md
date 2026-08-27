@@ -51,7 +51,7 @@ pinned `sonnet` model.
 When ≥3 bot PRs are open, dispatch one sub-agent per PR (or batch) to triage it, then consolidate
 dispositions; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`the current harness native sub-agent dispatch contract`): native Task sub-agents on Claude, or
-`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
+`manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

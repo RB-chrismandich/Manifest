@@ -110,8 +110,13 @@ def test_learning_contract_covers_every_cross_domain_invocation(
     result = run_python(script, "contract", env=isolated_env(tmp_path), cwd=tmp_path)
     assert result.returncode == 0, result.stderr
     contract = json.loads(result.stdout)
+    # `[[skill:learning-capture]] <cmd>` became
+    # `manifest-workspace:learning-capture <cmd>` when the token convention was
+    # retired (2026-08-27, Phase 0 item 4 option (b)). In fenced blocks the
+    # reference is bare; in prose it is inside a code span, so the leading
+    # backtick stays optional exactly as before.
     invocation = re.compile(
-        r"(?:^\s*|`)\[\[skill:learning-capture\]\]\s+"
+        r"(?:^\s*|`)manifest-workspace:learning-capture\s+"
         r"([a-z-]+)(.*?)(?:```|\n\s*\n|`>)",
         re.DOTALL | re.MULTILINE,
     )

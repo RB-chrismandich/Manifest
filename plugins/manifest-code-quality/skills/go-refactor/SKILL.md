@@ -11,7 +11,7 @@ standards. Generate a comprehensive refactoring report with prioritized recommen
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `[[skill:parallel-agent]] --json --full-output --validate --analyze`
+Executes: `manifest-workspace:parallel-agent --json --full-output --validate --analyze`
 
 Consensus scoring:
 
@@ -38,7 +38,7 @@ You are a Senior Go Engineer analyzing a production Go codebase. Your goals are 
 Before starting analysis, check for known patterns relevant to this codebase:
 
 ```bash
-[[skill:learning-capture]] query --language go --format llm
+manifest-workspace:learning-capture query --language go --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights for Go:
@@ -274,7 +274,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     [[skill:learning-capture]] add \
+     manifest-workspace:learning-capture add \
        --category antipattern --language go \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
@@ -285,7 +285,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     [[skill:learning-capture]] add \
+     manifest-workspace:learning-capture add \
        --category tool_discovery --language go \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
@@ -301,7 +301,7 @@ pinned `sonnet` model.
 
 When ≥3 independent packages or analysis dimensions exist, dispatch one sub-agent per package to analyze it,
 then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
-`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
+`manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model

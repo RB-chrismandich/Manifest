@@ -11,5 +11,5 @@ rates, consensus distribution, duration summaries, provider/model usage, and
 the time window covered.
 
 Ignore malformed files only with an explicit warning naming each file. If no
-artifacts exist, report `DEGRADED` and suggest `[[skill:parallel-agent]]` to
+artifacts exist, report `DEGRADED` and suggest `manifest-workspace:parallel-agent` to
 produce structured results. This skill is read-only.

@@ -477,7 +477,7 @@ jq -c '.[] | select(.needs_agent_review == true)' "$DUPLICATES_FILE" | while rea
         '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_with_components.json")
 
     # Call parallel agents for consensus
-    consensus=$([[skill:parallel-agent]] --json --timeout 300 \
+    consensus=$(manifest-workspace:parallel-agent --json --timeout 300 \
         --cursor-model mini --claude-model haiku \
         "Are these issues duplicates?
 
@@ -645,7 +645,7 @@ validate_priorities() {
         current_priority=$(echo "$issue" | jq -r '.priority')
 
         # Call parallel agents for priority scoring
-        consensus=$([[skill:parallel-agent]] --json --timeout 300 \
+        consensus=$(manifest-workspace:parallel-agent --json --timeout 300 \
             --cursor-model flash --claude-model sonnet \
             "Score this issue for prioritization:
 
