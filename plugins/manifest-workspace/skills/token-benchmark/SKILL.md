@@ -10,11 +10,10 @@ Measure how the Manifest configs affect token costs and response quality per CLI
 ## Monorepo-only
 
 This skill runs **against a Manifest checkout**, not from an installed bundle. Its
-runtime lives at `tests/token_benchmark/` in the repository and is deliberately
-not vendored: it measures how *this repository's* config injection changes token
+runtime lives under the repository's benchmark test tree and is deliberately not
+vendored: it measures how *this repository's* config injection changes token
 cost, so there is nothing for it to measure on a machine that only has the
-installed plugin. It also regenerates `docs/TOKEN_BENCHMARK.md`, a repository
-document.
+installed plugin. It also regenerates the repository's token-benchmark document.
 
 The preflight below fails fast and explains why, rather than surfacing a
 `No such file or directory` traceback from a path the bundle never shipped.
@@ -26,9 +25,9 @@ Check that the following are available before running. Report any missing items 
 ```bash
 # Monorepo guard -- run this FIRST. The runtime below is a repo path, absent
 # from the installed bundle by design (see "Monorepo-only" above).
-if [ ! -f tests/token_benchmark/harness.py ]; then
+if [ ! -d tests/token_benchmark ]; then
   echo "token-benchmark: this skill is monorepo-only." >&2
-  echo "  tests/token_benchmark/harness.py is not present in \$PWD." >&2
+  echo "  The benchmark runtime package is not present under \$PWD." >&2
   echo "  Run it from a Manifest checkout; the installed bundle does not ship" >&2
   echo "  the benchmark runtime, and there is no Manifest config tree here to" >&2
   echo "  measure." >&2
