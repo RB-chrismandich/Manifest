@@ -53,7 +53,7 @@ cache — exactly the confident false finding a pre-release gate must not produc
 
 All eight domain bundles pass as of 2026-08-26:
 
-```
+```text
 manifest-code-quality   OK      manifest-security       OK
 manifest-docs           OK      manifest-spec-planning  OK
 manifest-forge          OK      manifest-workspace      OK
