@@ -257,7 +257,6 @@ def _render_cancelled(args, resolved, record, was_alive):
 
 def _cancel_active(store, resolved, record, args, expected):
     before_pgid = record.get("pgid")
-    was_alive = _terminate_job_processes(store, resolved, record)
 
     def _mark_cancelled(rec):
         if rec.get("state") in jobstore.TERMINAL_STATES:
@@ -265,6 +264,26 @@ def _cancel_active(store, resolved, record, args, expected):
         rec["state"] = "cancelled"
         return rec
 
+    # Mark terminal BEFORE killing. _claim_running refuses a record already in
+    # a TERMINAL state, so a worker that has not yet claimed can no longer
+    # spawn a backend once this CAS lands -- which is the barrier
+    # _terminate_job_processes' docstring already relies on ("if it is mid-fork
+    # before locking, the atomic queued->running claim still stops the
+    # backend"). Killing first left a window between the kill (which finds
+    # nothing, because nothing has spawned yet) and this CAS, in which the
+    # worker could claim queued->running and fork a backend that no guard then
+    # reliably reaped: _reap_raced_pgid can miss a backend forked but not yet
+    # published while backend.lock is not yet held, so its bounded wait exits
+    # immediately and _clear_pgid_tracking orphans it.
+    #
+    # Reproduced at ~1 in 24 runs under parallel load (#846) as a job that
+    # reached state "cancelled" with was_alive False -- cancel found nothing to
+    # kill -- while the stub backend's start sentinel existed, proving the
+    # executable ran anyway.
+    #
+    # A stale-version CAS failure now returns before any kill, which is also
+    # the safer order: this process has not cancelled the job, so it has no
+    # business killing its processes.
     try:
         record = store.mutate(resolved, _mark_cancelled, expected_version=expected)
     except (OSError, ValueError) as error:
@@ -273,6 +292,7 @@ def _cancel_active(store, resolved, record, args, expected):
         # path instead of surfacing a traceback.
         print(f"delegate: {error}", file=sys.stderr)
         return 2
+    was_alive = _terminate_job_processes(store, resolved, record)
     if _reap_raced_pgid(store, resolved, before_pgid):
         was_alive = True
     process._clear_pgid_tracking(store, resolved)
