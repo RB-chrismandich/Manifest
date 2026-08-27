@@ -49,6 +49,5 @@ shared work and it is cheaper than the fan-out.
 
 Pin every dispatched agent to **sonnet**. Language-domain refactor analysis is
 bounded, engine-guided work — it does not need the main-loop tier, and an
-unpinned agent inherits it. Where a harness has no native sub-agent surface,
-fall back to one dispatched call per target file and pin the tier explicitly on
-each; never let the fallback path inherit the caller's tier.
+unpinned agent inherits it. Selection rules and the cross-harness fallback are
+in `~/.claude/references/sub-agent-dispatch.md`.

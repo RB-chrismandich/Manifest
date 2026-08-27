@@ -98,6 +98,11 @@
       "value": "sub-agent-dispatch.md"
     },
     {
+      "path": "plugins/manifest-code-quality/skills/refactor/SKILL.md",
+      "kind": "home-tree-path",
+      "value": "~/.claude/references/sub-agent-dispatch.md"
+    },
+    {
       "path": "plugins/manifest-code-quality/skills/shell-refactor/SKILL.md",
       "kind": "missing-bundled-reference",
       "value": "sub-agent-dispatch.md"
