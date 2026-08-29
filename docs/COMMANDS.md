@@ -90,7 +90,7 @@ _122 commands, generated from `.apm/skills/*/SKILL.md`._
 | Command | Description | When to use | Status |
 |---------|-------------|-------------|--------|
 | `/ai-hooks-integration` | Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks. | Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. | available |
-| `/prompt-optimize` | Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template ("optimize this prompt", "turn this into a skill", "harden this prompt for automation"). | Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template ("optimize this prompt", "turn this into a skill", "harden this prompt for automation"). | available |
+| `/prompt-optimize` | Automated Meta-Prompt Optimization Engine (Jules Target) | Automated Meta-Prompt Optimization Engine (Jules Target) | available |
 | `/skill-evolve` | Preview skill proposals stored in XDG data and require a separate explicit repository workflow before opening a review PR. | Preview skill proposals stored in XDG data and require a separate explicit repository workflow before opening a review PR. | available |
 
 ### CI/CD, Testing & Quality
