@@ -17,6 +17,13 @@ from _delegate_inproc import _valid_backend, delegate
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 
+def _forbid_jobstore_initialization(message):
+    def fail():
+        raise AssertionError(message)
+
+    return fail
+
+
 class _GateArgs:
     transcript = ""
     stop_hook_active = False
@@ -54,12 +61,14 @@ class TestGateAllows:
         )
         assert rc == 0
 
-    def test_disabled_gate_leaves_zero_active_jobs(self, tmp_path, monkeypatch):
-        """G8: a gate that short-circuits on the disabled check must not
-        create a queued job record. Before the fix, cmd_gate created the job
-        record before the enabled check ran, leaking a permanent queued job
-        every time the gate is skipped."""
+    def test_disabled_gate_does_not_initialize_jobstore(self, tmp_path, monkeypatch):
+        """A disabled gate must allow without touching durable job state."""
         self._setup(tmp_path, monkeypatch)
+        monkeypatch.setattr(
+            delegate.gate.jobstore,
+            "JobStore",
+            _forbid_jobstore_initialization("disabled gate initialized JobStore"),
+        )
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}]
@@ -68,12 +77,6 @@ class TestGateAllows:
             args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set()
         )
         assert rc == 0
-        store = delegate.JobStore(cwd=str(tmp_path))
-        jobs = list(store.list()) if hasattr(store, "list") else []
-        active = [j for j in jobs if j.get("state") in ("queued", "running")]
-        assert active == [], (
-            f"disabled gate must not leave any queued/running jobs: {active!r}"
-        )
 
     def test_disabled_allows_prints_decision_json(self, tmp_path, monkeypatch, capsys):
         self._setup(tmp_path, monkeypatch)
@@ -94,6 +97,11 @@ class TestGateAllows:
 
     def test_no_edits_in_finishing_turn_allows(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
+        monkeypatch.setattr(
+            delegate.gate.jobstore,
+            "JobStore",
+            _forbid_jobstore_initialization("no-edit gate initialized JobStore"),
+        )
         entries = [
             {"type": "user", "message": {"role": "user", "content": "do a thing"}},
             {
@@ -139,20 +147,66 @@ class TestGateAllows:
         out = capsys.readouterr().out
         assert "decision" not in out
 
-    def test_stop_hook_active_records_gate_job(self, tmp_path, monkeypatch):
+    def test_stop_hook_active_does_not_initialize_jobstore(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
+        monkeypatch.setattr(
+            delegate.gate.jobstore,
+            "JobStore",
+            _forbid_jobstore_initialization("stop-hook re-entry initialized JobStore"),
+        )
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path, [{"type": "user", "message": {"role": "user", "content": "x"}}]
         )
         args.stop_hook_active = True
-        delegate.cmd_gate(
+        rc = delegate.cmd_gate(
             args, [_valid_backend("codex")], {"review_gate": {"enabled": True}}, set()
         )
-        store = delegate.JobStore(cwd=str(tmp_path))
-        jobs = list(store.list()) if hasattr(store, "list") else None
-        if jobs is not None:
-            assert any(j.get("kind") == "gate" for j in jobs)
+        assert rc == 0
+
+    def test_enabled_gate_with_edits_initializes_jobstore_before_execution(
+        self, tmp_path, monkeypatch
+    ):
+        self._setup(tmp_path, monkeypatch)
+        store = object()
+        constructor_calls = []
+        executed_with = []
+
+        def construct_store():
+            constructor_calls.append(True)
+            return store
+
+        def execute_gate(store_, *args):
+            executed_with.append(store_)
+            return 0
+
+        monkeypatch.setattr(delegate.gate.jobstore, "JobStore", construct_store)
+        monkeypatch.setattr(delegate.gate, "_gate_execute", execute_gate)
+        args = _GateArgs()
+        args.transcript = self._transcript(
+            tmp_path,
+            [
+                {"type": "user", "message": {"role": "user", "content": "fix it"}},
+                {
+                    "type": "assistant",
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
+                },
+            ],
+        )
+
+        rc = delegate.cmd_gate(
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
+        )
+
+        assert rc == 0
+        assert constructor_calls == [True]
+        assert executed_with == [store]
 
     def test_bash_only_turn_allows(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
