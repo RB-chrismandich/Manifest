@@ -125,7 +125,6 @@ def _gate_format_block(findings):
 
 def cmd_gate(args, backends, user_config, services_disabled):
     """`gate` — Stop-hook review gate (US4): blocks the turn end on findings."""
-    store = jobstore.JobStore()
     json_mode = getattr(args, "json", False)
 
     if getattr(args, "stop_hook_active", False):
@@ -168,6 +167,7 @@ def cmd_gate(args, backends, user_config, services_disabled):
         backend.resolve_budget(entry, user_config, gate_cfg.get("budget_seconds")),
         config.GATE_BUDGET_CAP_SECONDS,
     )
+    store = jobstore.JobStore()
     return _gate_execute(
         store, entry, prompt, prompt_bytes, budget, json_mode, args.transcript
     )
