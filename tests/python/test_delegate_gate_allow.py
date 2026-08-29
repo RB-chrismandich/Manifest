@@ -147,16 +147,12 @@ class TestGateAllows:
         out = capsys.readouterr().out
         assert "decision" not in out
 
-    def test_stop_hook_active_does_not_initialize_jobstore(
-        self, tmp_path, monkeypatch
-    ):
+    def test_stop_hook_active_does_not_initialize_jobstore(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
         monkeypatch.setattr(
             delegate.gate.jobstore,
             "JobStore",
-            _forbid_jobstore_initialization(
-                "stop-hook re-entry initialized JobStore"
-            ),
+            _forbid_jobstore_initialization("stop-hook re-entry initialized JobStore"),
         )
         args = _GateArgs()
         args.transcript = self._transcript(
@@ -195,9 +191,7 @@ class TestGateAllows:
                     "type": "assistant",
                     "message": {
                         "role": "assistant",
-                        "content": [
-                            {"type": "tool_use", "name": "Edit", "input": {}}
-                        ],
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
                     },
                 },
             ],
