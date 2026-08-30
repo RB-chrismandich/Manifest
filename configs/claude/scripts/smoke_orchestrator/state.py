@@ -109,7 +109,12 @@ class StateManager:
         # on a shared CI host (Tier-1 review B-3, defense-in-depth).
         with contextlib.suppress(OSError):
             path.parent.chmod(0o700)
-        current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        # ⚡ Bolt: Single read avoids TOCTOU and double filesystem overhead vs path.exists() + read_text()
+        try:
+            raw = path.read_text(encoding="utf-8")
+            current = json.loads(raw)
+        except FileNotFoundError:
+            current = {}
         current[name] = value
         path.write_text(json.dumps(current), encoding="utf-8")
         with contextlib.suppress(OSError):
