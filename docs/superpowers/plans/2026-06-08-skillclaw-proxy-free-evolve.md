@@ -117,9 +117,7 @@ def test_normalize_block_list_keeps_text_thinking_tooluse():
 
 
 def test_normalize_drops_empty_thinking():
-    blocks = ing.normalize_content(
-        [{"type": "thinking", "thinking": "", "signature": "X"}]
-    )
+    blocks = ing.normalize_content([{"type": "thinking", "thinking": "", "signature": "X"}])
     assert blocks == []
 ```
 
@@ -144,7 +142,6 @@ Usage:
     skillclaw_ingest.py <transcripts_dir> <out_dir> [--state FILE]
         [--window-days N] [--settle-minutes N] [--max-tool-output-chars N]
 """
-
 from __future__ import annotations
 
 import argparse
@@ -162,9 +159,7 @@ def _truncate(text: str, limit: int) -> tuple[str, bool]:
     return text[:limit] + f"…[+{len(text) - limit} chars truncated]", True
 
 
-def normalize_content(
-    content, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUTPUT
-) -> list[dict]:
+def normalize_content(content, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUTPUT) -> list[dict]:
     """Normalize a message.content (str or block list) into kept blocks."""
     if isinstance(content, str):
         return [{"kind": "text", "text": content}] if content.strip() else []
@@ -184,26 +179,16 @@ def normalize_content(
             if txt.strip():
                 out.append({"kind": "thinking", "text": txt})
         elif bt == "tool_use":
-            out.append(
-                {
-                    "kind": "tool_use",
-                    "name": block.get("name", "?"),
-                    "input": block.get("input", {}),
-                }
-            )
+            out.append({"kind": "tool_use", "name": block.get("name", "?"),
+                        "input": block.get("input", {})})
         elif bt == "tool_result":
             raw = block.get("content", "")
             if not isinstance(raw, str):
                 raw = json.dumps(raw)[:max_tool_output_chars]
             text, truncated = _truncate(raw, max_tool_output_chars)
-            out.append(
-                {
-                    "kind": "tool_result",
-                    "output": text,
-                    "is_error": bool(block.get("is_error", False)),
-                    "truncated": truncated,
-                }
-            )
+            out.append({"kind": "tool_result", "output": text,
+                        "is_error": bool(block.get("is_error", False)),
+                        "truncated": truncated})
     return out
 ```
 
@@ -239,25 +224,20 @@ def test_tool_result_output_is_truncated():
     tr = blocks[0]
     assert tr["kind"] == "tool_result"
     assert tr["truncated"] is True
-    assert len(tr["output"]) < 600  # 500 + marker, not 5000
+    assert len(tr["output"]) < 600           # 500 + marker, not 5000
     assert "truncated" in tr["output"]
 
 
 def test_long_tool_use_input_values_are_truncated():
     blocks = ing.normalize_content(
-        [
-            {
-                "type": "tool_use",
-                "name": "Write",
-                "input": {"file_path": "/a.txt", "content": "y" * 5000},
-            }
-        ],
+        [{"type": "tool_use", "name": "Write",
+          "input": {"file_path": "/a.txt", "content": "y" * 5000}}],
         max_tool_output_chars=500,
     )
     tu = blocks[0]
     assert tu["name"] == "Write"
     assert len(tu["input"]["content"]) < 600
-    assert tu["input"]["file_path"] == "/a.txt"  # short values untouched
+    assert tu["input"]["file_path"] == "/a.txt"   # short values untouched
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -319,52 +299,30 @@ import json  # noqa: E402  (top of file already has pathlib/sys)
 
 def test_parse_transcript_builds_session(tmp_path):
     f = tmp_path / "sess-abc.jsonl"
-    _write_jsonl(
-        f,
-        [
-            {"type": "queue-operation", "operation": "enqueue"},  # noise, ignored
-            {
-                "type": "user",
-                "sessionId": "sess-abc",
-                "cwd": "/repo",
-                "gitBranch": "main",
-                "message": {"role": "user", "content": "fix the bug"},
-            },
-            {
-                "type": "assistant",
-                "sessionId": "sess-abc",
-                "message": {
-                    "role": "assistant",
-                    "content": [{"type": "text", "text": "done"}],
-                },
-            },
-        ],
-    )
+    _write_jsonl(f, [
+        {"type": "queue-operation", "operation": "enqueue"},   # noise, ignored
+        {"type": "user", "sessionId": "sess-abc", "cwd": "/repo", "gitBranch": "main",
+         "message": {"role": "user", "content": "fix the bug"}},
+        {"type": "assistant", "sessionId": "sess-abc",
+         "message": {"role": "assistant",
+                     "content": [{"type": "text", "text": "done"}]}},
+    ])
     rec = ing.parse_transcript(f)
     assert rec["session_id"] == "sess-abc"
     assert rec["cwd"] == "/repo"
     assert rec["git_branch"] == "main"
     assert len(rec["turns"]) == 2
-    assert rec["turns"][0] == {
-        "role": "user",
-        "blocks": [{"kind": "text", "text": "fix the bug"}],
-    }
+    assert rec["turns"][0] == {"role": "user", "blocks": [{"kind": "text", "text": "fix the bug"}]}
 
 
 def test_parse_transcript_tolerates_partial_trailing_line(tmp_path):
     f = tmp_path / "sess-x.jsonl"
     f.write_text(
-        json.dumps(
-            {
-                "type": "user",
-                "sessionId": "sess-x",
-                "message": {"role": "user", "content": "hi"},
-            }
-        )
-        + "\n"
-        + '{"type":"assistant","message":{"role":"assist'  # truncated, no newline
+        json.dumps({"type": "user", "sessionId": "sess-x",
+                    "message": {"role": "user", "content": "hi"}}) + "\n"
+        + '{"type":"assistant","message":{"role":"assist'   # truncated, no newline
     )
-    rec = ing.parse_transcript(f)  # must not raise
+    rec = ing.parse_transcript(f)        # must not raise
     assert rec["session_id"] == "sess-x"
     assert len(rec["turns"]) == 1
 
@@ -385,9 +343,7 @@ Expected: FAIL — `parse_transcript` not defined.
 Append to `skillclaw_ingest.py`:
 
 ```python
-def parse_transcript(
-    path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUTPUT
-) -> dict | None:
+def parse_transcript(path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUTPUT) -> dict | None:
     """Parse one transcript .jsonl into a session record, or None if no turns.
 
     Defensive: skips unparseable lines (including a truncated trailing line from
@@ -416,12 +372,7 @@ def parse_transcript(
                 turns.append({"role": msg.get("role", "?"), "blocks": blocks})
     if not turns:
         return None
-    return {
-        "session_id": session_id,
-        "cwd": cwd,
-        "git_branch": git_branch,
-        "turns": turns,
-    }
+    return {"session_id": session_id, "cwd": cwd, "git_branch": git_branch, "turns": turns}
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -456,8 +407,8 @@ def test_within_window():
 
 def test_is_settled():
     now = 1_000_000.0
-    assert ing.is_settled(now - 600, now, settle_minutes=5) is True  # 10 min old
-    assert ing.is_settled(now - 60, now, settle_minutes=5) is False  # 1 min old
+    assert ing.is_settled(now - 600, now, settle_minutes=5) is True    # 10 min old
+    assert ing.is_settled(now - 60, now, settle_minutes=5) is False    # 1 min old
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -505,18 +456,9 @@ git commit -m "feat(skillclaw): ingest window + settle recency predicates"
 ```python
 def _mk_transcript(d: Path, name: str, mtime: float) -> Path:
     f = d / f"{name}.jsonl"
-    f.write_text(
-        json.dumps(
-            {
-                "type": "user",
-                "sessionId": name,
-                "message": {"role": "user", "content": "hi"},
-            }
-        )
-        + "\n"
-    )
+    f.write_text(json.dumps({"type": "user", "sessionId": name,
+                             "message": {"role": "user", "content": "hi"}}) + "\n")
     import os
-
     os.utime(f, (mtime, mtime))
     return f
 
@@ -527,19 +469,13 @@ def test_ingest_writes_and_filters(tmp_path):
     out = tmp_path / "sessions"
     state = tmp_path / ".state.json"
     now = 1_000_000.0
-    _mk_transcript(src, "fresh", now - 3600)  # 1h old → ingested
-    _mk_transcript(src, "stale", now - 50 * 86400)  # 50d old → window-skipped
-    _mk_transcript(src, "active", now - 60)  # 1m old → settle-skipped
+    _mk_transcript(src, "fresh", now - 3600)            # 1h old → ingested
+    _mk_transcript(src, "stale", now - 50 * 86400)      # 50d old → window-skipped
+    _mk_transcript(src, "active", now - 60)             # 1m old → settle-skipped
 
-    summary = ing.ingest(
-        tmp_path / "projects",
-        out,
-        state,
-        window_days=30,
-        settle_minutes=5,
-        max_tool_output_chars=500,
-        now=now,
-    )
+    summary = ing.ingest(tmp_path / "projects", out, state,
+                         window_days=30, settle_minutes=5,
+                         max_tool_output_chars=500, now=now)
     assert summary["ingested"] == 1
     assert summary["skipped_old"] == 1
     assert summary["skipped_unsettled"] == 1
@@ -553,25 +489,11 @@ def test_ingest_is_incremental(tmp_path):
     state = tmp_path / ".state.json"
     now = 1_000_000.0
     _mk_transcript(src, "one", now - 3600)
-    first = ing.ingest(
-        tmp_path / "projects",
-        out,
-        state,
-        window_days=30,
-        settle_minutes=5,
-        max_tool_output_chars=500,
-        now=now,
-    )
+    first = ing.ingest(tmp_path / "projects", out, state, window_days=30,
+                       settle_minutes=5, max_tool_output_chars=500, now=now)
     assert first["ingested"] == 1
-    second = ing.ingest(
-        tmp_path / "projects",
-        out,
-        state,
-        window_days=30,
-        settle_minutes=5,
-        max_tool_output_chars=500,
-        now=now,
-    )
+    second = ing.ingest(tmp_path / "projects", out, state, window_days=30,
+                        settle_minutes=5, max_tool_output_chars=500, now=now)
     assert second["ingested"] == 0
     assert second["skipped_seen"] == 1
 ```
@@ -598,16 +520,8 @@ def save_state(state_path: Path, state: dict) -> None:
     state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
 
-def ingest(
-    transcripts_dir,
-    out_dir,
-    state_path,
-    *,
-    window_days,
-    settle_minutes,
-    max_tool_output_chars,
-    now=None,
-) -> dict:
+def ingest(transcripts_dir, out_dir, state_path, *, window_days, settle_minutes,
+           max_tool_output_chars, now=None) -> dict:
     """Ingest new, settled, in-window transcripts into out_dir. Returns counts."""
     now = time.time() if now is None else now
     transcripts_dir = Path(transcripts_dir).expanduser()
@@ -616,13 +530,8 @@ def ingest(
     state_path = Path(state_path).expanduser()
     state = load_state(state_path)
 
-    summary = {
-        "ingested": 0,
-        "skipped_old": 0,
-        "skipped_unsettled": 0,
-        "skipped_seen": 0,
-        "skipped_empty": 0,
-    }
+    summary = {"ingested": 0, "skipped_old": 0, "skipped_unsettled": 0,
+               "skipped_seen": 0, "skipped_empty": 0}
     for f in sorted(transcripts_dir.rglob("*.jsonl")):
         mtime = f.stat().st_mtime
         if not within_window(mtime, now, window_days):
@@ -641,8 +550,7 @@ def ingest(
             state[key] = mtime
             continue
         (out_dir / f"{rec['session_id']}.json").write_text(
-            json.dumps(rec, indent=2), encoding="utf-8"
-        )
+            json.dumps(rec, indent=2), encoding="utf-8")
         state[key] = mtime
         summary["ingested"] += 1
     save_state(state_path, state)
@@ -656,18 +564,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--state", default="~/.skillclaw/.ingest-state.json")
     ap.add_argument("--window-days", type=int, default=30)
     ap.add_argument("--settle-minutes", type=int, default=5)
-    ap.add_argument(
-        "--max-tool-output-chars", type=int, default=DEFAULT_MAX_TOOL_OUTPUT
-    )
+    ap.add_argument("--max-tool-output-chars", type=int, default=DEFAULT_MAX_TOOL_OUTPUT)
     args = ap.parse_args(argv)
-    summary = ingest(
-        args.transcripts_dir,
-        args.out_dir,
-        args.state,
-        window_days=args.window_days,
-        settle_minutes=args.settle_minutes,
-        max_tool_output_chars=args.max_tool_output_chars,
-    )
+    summary = ingest(args.transcripts_dir, args.out_dir, args.state,
+                     window_days=args.window_days, settle_minutes=args.settle_minutes,
+                     max_tool_output_chars=args.max_tool_output_chars)
     print(json.dumps(summary))
     return 0
 
@@ -754,12 +655,8 @@ def test_estimate_tokens_is_roughly_quarter_length():
 
 
 def test_build_prompt_substitutes_sections():
-    sessions = [
-        {
-            "session_id": "s1",
-            "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "do x"}]}],
-        }
-    ]
+    sessions = [{"session_id": "s1", "turns": [
+        {"role": "user", "blocks": [{"kind": "text", "text": "do x"}]}]}]
     prompt = ev.build_prompt(TEMPLATE, sessions, ["existing-skill"])
     assert "existing-skill" in prompt
     assert "do x" in prompt
@@ -773,12 +670,8 @@ def test_parse_candidates_extracts_skill_blocks():
         "~~~\n"
     )
     cands = ev.parse_candidates(output)
-    assert cands == [
-        {
-            "name": "foo-bar",
-            "content": "---\nname: foo-bar\ndescription: does foo\n---\n# Foo\nstep 1\n",
-        }
-    ]
+    assert cands == [{"name": "foo-bar",
+                      "content": "---\nname: foo-bar\ndescription: does foo\n---\n# Foo\nstep 1\n"}]
 
 
 def test_parse_candidates_handles_no_skills():
@@ -805,7 +698,6 @@ Usage:
     skillclaw_evolve.py <sessions_dir> <evolved_dir> [--template FILE]
         [--token-budget N]
 """
-
 from __future__ import annotations
 
 import argparse
@@ -855,10 +747,8 @@ def build_prompt(template: str, sessions: list[dict], library_names: list[str]) 
 
 
 def parse_candidates(output: str) -> list[dict]:
-    return [
-        {"name": m.group("name").strip(), "content": m.group("body")}
-        for m in _SKILL_RE.finditer(output)
-    ]
+    return [{"name": m.group("name").strip(), "content": m.group("body")}
+            for m in _SKILL_RE.finditer(output)]
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
@@ -887,25 +777,17 @@ git commit -m "feat(skillclaw): evolve prompt template + token estimate, prompt 
 def test_chunk_sessions_splits_over_budget():
     # each session renders to ~ (len//4) tokens; make 3 sessions of ~40k tokens
     big = "x" * 160_000
-    sessions = [
-        {
-            "session_id": f"s{i}",
-            "turns": [{"role": "user", "blocks": [{"kind": "text", "text": big}]}],
-        }
-        for i in range(3)
-    ]
+    sessions = [{"session_id": f"s{i}",
+                 "turns": [{"role": "user", "blocks": [{"kind": "text", "text": big}]}]}
+                for i in range(3)]
     chunks = ev.chunk_sessions(sessions, token_budget=100_000)
-    assert len(chunks) >= 2  # 120k tokens total → multiple chunks
-    assert sum(len(c) for c in chunks) == 3  # no session lost
+    assert len(chunks) >= 2                       # 120k tokens total → multiple chunks
+    assert sum(len(c) for c in chunks) == 3       # no session lost
 
 
 def test_chunk_sessions_single_chunk_under_budget():
-    sessions = [
-        {
-            "session_id": "s1",
-            "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "tiny"}]}],
-        }
-    ]
+    sessions = [{"session_id": "s1",
+                 "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "tiny"}]}]}]
     chunks = ev.chunk_sessions(sessions, token_budget=100_000)
     assert chunks == [sessions]
 ```
@@ -969,33 +851,20 @@ git commit -m "feat(skillclaw): evolve map-reduce chunking under token budget"
 def test_evolve_uses_injected_runner_and_writes(tmp_path):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    (sessions_dir / "s1.json").write_text(
-        json.dumps(
-            {
-                "session_id": "s1",
-                "turns": [
-                    {
-                        "role": "user",
-                        "blocks": [{"kind": "text", "text": "deploy steps"}],
-                    }
-                ],
-            }
-        )
-    )
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "deploy steps"}]}]}))
     template = tmp_path / "tpl.md"
     template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
     evolved = tmp_path / "evolved"
 
     def fake_runner(prompt):
         assert "deploy steps" in prompt
-        return (
-            "~~~skill name=deploy-flow\n---\nname: deploy-flow\n"
-            "description: how to deploy\n---\n# Deploy\nstep 1\n~~~\n"
-        )
+        return ("~~~skill name=deploy-flow\n---\nname: deploy-flow\n"
+                "description: how to deploy\n---\n# Deploy\nstep 1\n~~~\n")
 
-    summary = ev.evolve(
-        sessions_dir, evolved, template, token_budget=100_000, runner=fake_runner
-    )
+    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
+                        runner=fake_runner)
     assert summary["candidates"] == 1
     assert (evolved / "deploy-flow" / "SKILL.md").read_text().startswith("---")
 
@@ -1007,15 +876,10 @@ def test_evolve_empty_sessions_is_clean_noop(tmp_path):
     template.write_text("{{LIBRARY}}{{SESSIONS}}")
     evolved = tmp_path / "evolved"
     calls = []
-    summary = ev.evolve(
-        sessions_dir,
-        evolved,
-        template,
-        token_budget=100_000,
-        runner=lambda p: calls.append(p) or "NO_SKILLS",
-    )
+    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
+                        runner=lambda p: calls.append(p) or "NO_SKILLS")
     assert summary["candidates"] == 0
-    assert calls == []  # no sessions → no model calls
+    assert calls == []                 # no sessions → no model calls
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1049,19 +913,11 @@ def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
 
 def _committed_library_names(evolved_dir: Path) -> list[str]:
     base = Path(evolved_dir).expanduser()
-    return (
-        sorted(p.parent.name for p in base.glob("*/SKILL.md")) if base.exists() else []
-    )
+    return sorted(p.parent.name for p in base.glob("*/SKILL.md")) if base.exists() else []
 
 
-def evolve(
-    sessions_dir,
-    evolved_dir,
-    template_path,
-    *,
-    token_budget=DEFAULT_TOKEN_BUDGET,
-    runner=subprocess_runner,
-) -> dict:
+def evolve(sessions_dir, evolved_dir, template_path, *,
+           token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner) -> dict:
     """Map-reduce sessions into SKILL.md candidates. Returns a summary dict."""
     sessions = load_sessions(sessions_dir)
     template = Path(template_path).expanduser().read_text(encoding="utf-8")
@@ -1096,12 +952,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
     args = ap.parse_args(argv)
     try:
-        summary = evolve(
-            args.sessions_dir,
-            args.evolved_dir,
-            args.template,
-            token_budget=args.token_budget,
-        )
+        summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
+                         token_budget=args.token_budget)
     except (RuntimeError, FileNotFoundError) as e:
         print(f"skillclaw_evolve: {e}", file=sys.stderr)
         return 1
@@ -1140,8 +992,8 @@ def test_rejected_candidates_are_copied_to_rejected_dir(tmp_path):
     evolved = tmp_path / "evolved"
     committed = tmp_path / "committed"
     rejected = tmp_path / "rejected"
-    _skill(committed, "_", VALID)  # committed dir exists
-    _skill(evolved, "broken", "# no frontmatter\n")  # invalid → rejected
+    _skill(committed, "_", VALID)                       # committed dir exists
+    _skill(evolved, "broken", "# no frontmatter\n")     # invalid → rejected
     rc = promote.main([str(evolved), str(committed), "--rejected-dir", str(rejected)])
     assert rc == 0
     # the rejected SKILL.md must have been copied for inspection

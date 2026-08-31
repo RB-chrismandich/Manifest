@@ -76,7 +76,7 @@ def test_catalog_rejects_duplicate_names(tmp_path):
         '{"plugins":['
         '{"name":"one","version":"1.0.0","source":"./plugins/one"},'
         '{"name":"one","version":"1.0.1","source":"./plugins/two"}'
-        "]}"
+        ']}'
     )
     with pytest.raises(CatalogError, match="duplicate plugin name"):
         load_catalog(marketplace)
@@ -118,9 +118,7 @@ source existence. Do not infer versions from directory contents.
 Update `ManifestService._desired_state()` so it loads:
 
 ```python
-catalog_plugins = load_catalog(
-    resolved.release_root / ".claude-plugin/marketplace.json"
-)
+catalog_plugins=load_catalog(resolved.release_root / ".claude-plugin/marketplace.json")
 ```
 
 Update every `DesiredState` fixture constructor to pass a tuple of catalog entries. Test helpers should derive entries

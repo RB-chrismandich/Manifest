@@ -17,9 +17,7 @@ tracebacks, error responses, or logs. Build it so the secret never escapes.
        with _get(url, token, accept) as resp:
            ...
    except Exception:
-       raise RuntimeError(
-           "upstream request failed"
-       ) from None  # `from None` discards the chained context
+       raise RuntimeError("upstream request failed") from None  # `from None` discards the chained context
    ```
 
 3. **Return a generic error to clients** — on failure, send a fixed status + opaque message (e.g. `502 "upstream

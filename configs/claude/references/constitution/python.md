@@ -119,11 +119,9 @@ would have made that divergence impossible to express.
 def charge(order, mode="standard"):
     return order["amount"] * RATES[mode]
 
-
 # right — declared shape, closed value set, validated once at the edge
 class Mode(StrEnum):
     STANDARD = "standard"
-
 
 def charge(order: Order, mode: Mode = Mode.STANDARD) -> Decimal:
     return order.amount * RATES[mode]

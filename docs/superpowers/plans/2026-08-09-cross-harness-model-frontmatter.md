@@ -151,14 +151,11 @@ Test Codex GPT tier resolution, Gemini, Antigravity/agy, Cursor, native auto, mi
 precedence:
 
 ```python
-assert (
-    effective_fallback_mode(
-        cli_mode=None,
-        skill_mode=ModelFallbackMode.AUTO,
-        global_mode=ModelFallbackMode.CONFIRM,
-    )
-    is ModelFallbackMode.AUTO
-)
+assert effective_fallback_mode(
+    cli_mode=None,
+    skill_mode=ModelFallbackMode.AUTO,
+    global_mode=ModelFallbackMode.CONFIRM,
+) is ModelFallbackMode.AUTO
 ```
 
 - [ ] **Step 2: Run tests and confirm they fail**

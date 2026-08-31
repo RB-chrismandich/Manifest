@@ -105,7 +105,6 @@ CLI (always invoked as `python3 "${SCRIPT_DIR}/skillclaw_audit.py" <cmd>`):
 
 Env overrides (tests): SKILLCLAW_AUDIT_DIR (default ~/.skillclaw).
 """
-
 from __future__ import annotations
 
 import json
@@ -209,14 +208,8 @@ def _read(p):
 
 def test_log_appends_jsonl_and_updates_status(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
-    audit.log(
-        "20260609T230501Z-4821",
-        "-",
-        "run_start",
-        window_days=30,
-        token_budget=100000,
-        apply=True,
-    )
+    audit.log("20260609T230501Z-4821", "-", "run_start",
+              window_days=30, token_budget=100000, apply=True)
     log_lines = (tmp_path / "promote.log").read_text().splitlines()
     assert len(log_lines) == 1
     first = json.loads(log_lines[0])
@@ -231,9 +224,7 @@ def test_chunk_done_event_records_eta(tmp_path, monkeypatch):
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
     audit.log(rid, "evolve", "stage_start", chunks=12)
-    audit.log(
-        rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60
-    )
+    audit.log(rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60)
     status = _read(tmp_path / "status.json")
     assert status["stage"] == "evolve"
     assert status["evolve"]["chunk"] == 4 and status["evolve"]["total"] == 12
@@ -247,7 +238,7 @@ def test_new_run_id_resets_snapshot_no_state_bleed(tmp_path, monkeypatch):
     audit.log("20260609T235959Z-2222", "-", "run_start")  # different run_id
     status = _read(tmp_path / "status.json")
     assert status["run_id"] == "20260609T235959Z-2222"
-    assert status["pr_url"] is None  # prior run's PR must not bleed in
+    assert status["pr_url"] is None          # prior run's PR must not bleed in
     assert status["state"] == "running"
 ```
 
@@ -292,26 +283,16 @@ def _apply_event(status: dict, stage: str, event: str, fields: dict) -> dict:
             if k in fields:
                 cfg[k] = fields[k]
     elif event == "stage_start" and stage == "evolve":
-        status["evolve"] = {
-            "chunk": 0,
-            "total": fields.get("chunks", 0),
-            "elapsed_s": 0,
-            "eta_s": None,
-            "eta_label": "estimating…",
-        }
+        status["evolve"] = {"chunk": 0, "total": fields.get("chunks", 0),
+                            "elapsed_s": 0, "eta_s": None, "eta_label": "estimating…"}
     elif event == "stage_end" and "ingested" in fields:
         status["totals"]["ingested"] = fields["ingested"]
     elif event == "chunk_done":
         done, total = fields.get("i", 0), fields.get("total", 0)
         elapsed = fields.get("elapsed_s", 0)
         eta_s, label = compute_eta(done, total, elapsed)
-        status["evolve"] = {
-            "chunk": done,
-            "total": total,
-            "elapsed_s": elapsed,
-            "eta_s": eta_s,
-            "eta_label": label,
-        }
+        status["evolve"] = {"chunk": done, "total": total, "elapsed_s": elapsed,
+                            "eta_s": eta_s, "eta_label": label}
     elif event == "candidates":
         new = fields.get("new") or []
         changed = fields.get("changed") or []
@@ -346,10 +327,7 @@ def log(run_id, stage, event, **fields):
         current = _read_status()
         if event == "run_start" or current.get("run_id") != run_id:
             current = _fresh_status(run_id)
-        _write_atomic(
-            _status_path(),
-            json.dumps(_apply_event(current, stage, event, fields), indent=2),
-        )
+        _write_atomic(_status_path(), json.dumps(_apply_event(current, stage, event, fields), indent=2))
     except Exception:  # noqa: BLE001 - fail-open: never raise into the pipeline
         return
 ```
@@ -392,9 +370,7 @@ def test_render_status_running_evolve(tmp_path, monkeypatch):
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
     audit.log(rid, "evolve", "stage_start", chunks=12)
-    audit.log(
-        rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60
-    )
+    audit.log(rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60)
     out = audit.render_status()
     assert "evolve" in out and "chunk 4/12" in out and "~2m left (est)" in out
 
@@ -410,9 +386,7 @@ def test_render_status_done_summary(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
-    audit.log(
-        rid, "classify", "candidates", new=["a", "b", "c"], changed=[], dropped=[]
-    )
+    audit.log(rid, "classify", "candidates", new=["a", "b", "c"], changed=[], dropped=[])
     audit.log(rid, "promote", "pr_opened", url="https://x/pull/7")
     audit.log(rid, "-", "run_end", state="done", total_seconds=252.4)
     out = audit.render_status()
@@ -444,7 +418,7 @@ def _pid_alive(pid):
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True  # exists but owned by another user
+        return True   # exists but owned by another user
     except OSError:
         return False
     return True
@@ -473,13 +447,10 @@ def render_status():
             ev = st.get("evolve") or {}
             stage = st.get("stage", "?")
             if stage == "evolve" and ev.get("total"):
-                return "run %s · evolve · chunk %s/%s · %s elapsed · %s" % (
-                    short,
-                    ev.get("chunk"),
-                    ev.get("total"),
-                    _fmt_secs(ev.get("elapsed_s")),
-                    ev.get("eta_label", "estimating…"),
-                )
+                return ("run %s · evolve · chunk %s/%s · %s elapsed · %s"
+                        % (short, ev.get("chunk"), ev.get("total"),
+                           _fmt_secs(ev.get("elapsed_s")),
+                           ev.get("eta_label", "estimating…")))
             return "run %s · %s · running" % (short, stage)
         if state == STALE:
             return "run %s · stale (no live process)" % short
@@ -530,10 +501,8 @@ def test_trim_keeps_only_recent_run_ids(tmp_path, monkeypatch):
     for i in range(5):
         audit.log("run-%d" % i, "-", "run_start")
     audit.trim(max_runs=2)
-    rids = {
-        json.loads(ln)["run_id"]
-        for ln in (tmp_path / "promote.log").read_text().splitlines()
-    }
+    rids = {json.loads(ln)["run_id"]
+            for ln in (tmp_path / "promote.log").read_text().splitlines()}
     assert rids == {"run-3", "run-4"}
 
 
@@ -622,12 +591,12 @@ def test_fail_open_on_unwritable_dir(tmp_path, monkeypatch):
     blocker = tmp_path / "blocker"
     blocker.write_text("not a dir")
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(blocker / "sub"))
-    audit.log("run-x", "-", "run_start")  # must not raise
+    audit.log("run-x", "-", "run_start")          # must not raise
     assert audit.render_status() == "no recent run"
 
 
 def test_storage_auto_inits_when_absent(tmp_path, monkeypatch):
-    target = tmp_path / "fresh" / "nested"  # does not exist yet
+    target = tmp_path / "fresh" / "nested"        # does not exist yet
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(target))
     audit.log("run-1", "-", "run_start")
     assert (target / "promote.log").exists()
@@ -636,17 +605,8 @@ def test_storage_auto_inits_when_absent(tmp_path, monkeypatch):
 
 def test_cli_log_parses_key_value_and_json(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
-    rc = audit.main(
-        [
-            "log",
-            "run-1",
-            "classify",
-            "candidates",
-            'new=["a","b"]',
-            "dropped=[]",
-            "changed=[]",
-        ]
-    )
+    rc = audit.main(["log", "run-1", "classify", "candidates",
+                     'new=["a","b"]', "dropped=[]", "changed=[]"])
     assert rc == 0
     status = json.loads((tmp_path / "status.json").read_text())
     assert status["totals"]["candidates"] == 2
@@ -656,7 +616,7 @@ def test_cli_status_and_trim(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     assert audit.main(["status"]) == 0
     assert capsys.readouterr().out.strip() == "no recent run"
-    assert audit.main(["trim", "--max-runs", "10"]) == 0  # no log yet -> no-op, rc 0
+    assert audit.main(["trim", "--max-runs", "10"]) == 0   # no log yet -> no-op, rc 0
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -744,29 +704,16 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
     sessions_dir.mkdir()
     big = "x" * 160_000  # ~40k tokens each -> 2 sessions force >=2 chunks at budget 50k
     for i in range(2):
-        (sessions_dir / f"s{i}.json").write_text(
-            json.dumps(
-                {
-                    "session_id": f"s{i}",
-                    "turns": [
-                        {"role": "user", "blocks": [{"kind": "text", "text": big}]}
-                    ],
-                }
-            )
-        )
+        (sessions_dir / f"s{i}.json").write_text(json.dumps(
+            {"session_id": f"s{i}", "turns": [
+                {"role": "user", "blocks": [{"kind": "text", "text": big}]}]}))
     template = tmp_path / "tpl.md"
     template.write_text("{{LIBRARY}}{{SESSIONS}}")
     evolved = tmp_path / "evolved"
     out = "~~~skill name=dup\n---\nname: dup\ndescription: d\n---\n# Dup\nstep\n~~~\n"
 
-    ev.evolve(
-        sessions_dir,
-        evolved,
-        template,
-        token_budget=50_000,
-        runner=lambda p: out,
-        run_id="20260609T230501Z-4821",
-    )
+    ev.evolve(sessions_dir, evolved, template, token_budget=50_000,
+              runner=lambda p: out, run_id="20260609T230501Z-4821")
 
     log_lines = (tmp_path / "audit" / "promote.log").read_text().splitlines()
     events = [json.loads(ln)["event"] for ln in log_lines]
@@ -799,7 +746,6 @@ def _load_audit():
     """Import the audit logger lazily; return None if unavailable (fail-open)."""
     try:
         import skillclaw_audit
-
         return skillclaw_audit
     except Exception:  # noqa: BLE001
         return None
@@ -821,54 +767,38 @@ def evolve(sessions_dir, evolved_dir, template_path, *,
 Replace the map loop (the `chunks = chunk_sessions(...)` block through `mapped.extend(parse_candidates(out))`) with:
 
 ```python
-chunks = chunk_sessions(sessions, token_budget)
-audit_mod = audit if audit is not None else (_load_audit() if run_id else None)
-if audit_mod and run_id:
-    audit_mod.log(run_id, "evolve", "stage_start", chunks=len(chunks))
-
-mapped: list[dict] = []
-start = time.monotonic()
-for idx, chunk in enumerate(chunks, 1):
-    out = runner(build_prompt(template, chunk, library))
-    mapped.extend(parse_candidates(out))
+    chunks = chunk_sessions(sessions, token_budget)
+    audit_mod = audit if audit is not None else (_load_audit() if run_id else None)
     if audit_mod and run_id:
-        elapsed = time.monotonic() - start
-        _, label = audit_mod.compute_eta(idx, len(chunks), elapsed)
-        audit_mod.log(
-            run_id,
-            "evolve",
-            "chunk_done",
-            i=idx,
-            total=len(chunks),
-            chunk_seconds=round(elapsed, 1),
-            elapsed_s=round(elapsed, 1),
-        )
-        print(
-            "[skillclaw] evolve · chunk %d/%d · %s · %s"
-            % (idx, len(chunks), _fmt_elapsed(elapsed), label),
-            file=sys.stderr,
-        )
+        audit_mod.log(run_id, "evolve", "stage_start", chunks=len(chunks))
+
+    mapped: list[dict] = []
+    start = time.monotonic()
+    for idx, chunk in enumerate(chunks, 1):
+        out = runner(build_prompt(template, chunk, library))
+        mapped.extend(parse_candidates(out))
+        if audit_mod and run_id:
+            elapsed = time.monotonic() - start
+            _, label = audit_mod.compute_eta(idx, len(chunks), elapsed)
+            audit_mod.log(run_id, "evolve", "chunk_done", i=idx, total=len(chunks),
+                          chunk_seconds=round(elapsed, 1), elapsed_s=round(elapsed, 1))
+            print("[skillclaw] evolve · chunk %d/%d · %s · %s"
+                  % (idx, len(chunks), _fmt_elapsed(elapsed), label), file=sys.stderr)
 ```
 
 Wire the new arg through `main`. In the `argparse` block add:
 
 ```python
-ap.add_argument(
-    "--run-id", default=None, help="audit run id; enables per-chunk status logging"
-)
+    ap.add_argument("--run-id", default=None,
+                    help="audit run id; enables per-chunk status logging")
 ```
 
 and pass it in the `evolve(...)` call inside `main`:
 
 ```python
-summary = evolve(
-    args.sessions_dir,
-    args.evolved_dir,
-    args.template,
-    committed_dir=args.committed_dir,
-    token_budget=args.token_budget,
-    run_id=args.run_id,
-)
+        summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
+                         committed_dir=args.committed_dir, token_budget=args.token_budget,
+                         run_id=args.run_id)
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**

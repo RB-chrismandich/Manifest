@@ -106,9 +106,7 @@ class TestCliAgentsConfig:
         config = Config(config_path=str(tmp_path / "none.yml"))
         assert config.get("rate_limits.antigravity.requests_per_minute") == 100
         assert config.get("credit_fallback.antigravity") == [
-            "advanced",
-            "flash",
-            "mini",
+            "advanced", "flash", "mini",
         ]
         tiers = config.get("model_tiers.antigravity")
         assert set(tiers) == {"mini", "flash", "advanced"}
@@ -293,34 +291,22 @@ Append to `tests/python/agents/test_runners.py` (and add `CLIAgent` to the exist
 class TestCLIAgentCommandAssembly:
     def test_unknown_provider_raises(self, tmp_path):
         with pytest.raises(ValueError, match="no cli_agents config"):
-            CLIAgent(
-                "nonexistent",
-                model="flash",
-                rate_limiter=_make_limiter(),
-                config=_make_config(tmp_path),
-            )
+            CLIAgent("nonexistent", model="flash",
+                     rate_limiter=_make_limiter(), config=_make_config(tmp_path))
 
     def test_codex_auto_drops_model_args_atomically(self, tmp_path):
-        agent = CLIAgent(
-            "codex",
-            model="auto",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="auto",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         cmd = agent._build_command("hello", output_file="/tmp/out.txt")
         assert agent.model_name is None
-        assert "--model" not in cmd  # no dangling flag
+        assert "--model" not in cmd          # no dangling flag
         assert cmd[0] == "codex"
-        assert cmd[-1] == "hello"  # prompt is last
-        assert "/tmp/out.txt" in cmd  # {output_file} substituted
+        assert cmd[-1] == "hello"            # prompt is last
+        assert "/tmp/out.txt" in cmd         # {output_file} substituted
 
     def test_codex_tier_resolves_via_model_tiers(self, tmp_path):
-        agent = CLIAgent(
-            "codex",
-            model="mini",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="mini",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         cmd = agent._build_command("hello", output_file="/tmp/out.txt")
         i = cmd.index("--model")
         assert cmd[i + 1] == "o4-mini"
@@ -328,32 +314,20 @@ class TestCLIAgentCommandAssembly:
     def test_cursor_tier_resolves_via_model_tiers(self, tmp_path):
         # Deliberate behavior change: cursor now honors model_tiers.cursor
         # (the old CursorAgent passed the raw tier string through).
-        agent = CLIAgent(
-            "cursor",
-            model="flash",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("cursor", model="flash",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         cmd = agent._build_command("hello")
         i = cmd.index("--model")
         assert cmd[i + 1] == "gpt-5.1-codex"
 
     def test_custom_model_passes_through(self, tmp_path):
-        agent = CLIAgent(
-            "codex",
-            model="custom-model-123",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="custom-model-123",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         assert agent.model_name == "custom-model-123"
 
     def test_antigravity_command_shape(self, tmp_path):
-        agent = CLIAgent(
-            "antigravity",
-            model="flash",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("antigravity", model="flash",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         cmd = agent._build_command("hello")
         assert cmd[0] == "agy"
         assert cmd[1] == "--print"
@@ -365,60 +339,39 @@ class TestCLIAgentCommandAssembly:
 class TestCLIAgentExecution:
     def test_missing_binary(self, tmp_path, monkeypatch):
         import shutil
-
         monkeypatch.setattr(shutil, "which", lambda _: None)
-        agent = CLIAgent(
-            "codex",
-            model="auto",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="auto",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         result = asyncio.run(agent._execute_impl("test", "prompt"))
         assert result["status"] == "missing"
         assert "codex" in result["error"]
 
     def test_stdout_strategy_collects_stdout(self, tmp_path):
-        agent = CLIAgent(
-            "cursor",
-            model="flash",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("cursor", model="flash",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         result = agent._collect_output(0, b"the answer\n", b"", None)
         assert result["status"] == "complete"
         assert result["output"] == "the answer"
 
     def test_file_strategy_prefers_file_over_stdout(self, tmp_path):
-        agent = CLIAgent(
-            "codex",
-            model="auto",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="auto",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         out = tmp_path / "out.txt"
         out.write_text("from file\n")
         result = agent._collect_output(0, b"from stdout", b"", str(out))
         assert result["output"] == "from file"
 
     def test_file_strategy_falls_back_to_stdout(self, tmp_path):
-        agent = CLIAgent(
-            "codex",
-            model="auto",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="auto",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         out = tmp_path / "empty.txt"
         out.write_text("")
         result = agent._collect_output(0, b"from stdout", b"", str(out))
         assert result["output"] == "from stdout"
 
     def test_no_output_nonzero_exit_is_failed(self, tmp_path):
-        agent = CLIAgent(
-            "codex",
-            model="auto",
-            rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
-        )
+        agent = CLIAgent("codex", model="auto",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         result = agent._collect_output(1, b"", b"boom", None)
         assert result["status"] == "failed"
         assert "boom" in result["error"]
@@ -433,9 +386,8 @@ class TestCLIAgentExecution:
             "output": "stdout",
         }
         config.config["model_tiers"]["fake"] = {"flash": "fake-model-1"}
-        agent = CLIAgent(
-            "fake", model="flash", rate_limiter=_make_limiter(), config=config
-        )
+        agent = CLIAgent("fake", model="flash",
+                         rate_limiter=_make_limiter(), config=config)
         result = asyncio.run(agent._execute_impl("hello world", "prompt"))
         assert result["status"] == "complete"
         assert result["output"] == "prefix --model fake-model-1 hello world"
@@ -502,9 +454,7 @@ class CLIAgent(BaseAgent):
         resolved = self.config.get(f"model_tiers.{self.name}.{tier}")
         return resolved if resolved else tier
 
-    def _build_command(
-        self, prompt: str, output_file: Optional[str] = None
-    ) -> List[str]:
+    def _build_command(self, prompt: str, output_file: Optional[str] = None) -> List[str]:
         """Assemble argv: binary + base_args + optional model group + prompt.
 
         model_args are appended only when a model is resolved — the group is
@@ -789,8 +739,7 @@ class TestCLIFlagsAntigravity:
 
         result = subprocess.run(
             [sys.executable, self.SCRIPT, "--help"],
-            capture_output=True,
-            text=True,
+            capture_output=True, text=True,
         )
         assert "--antigravity-model" in result.stdout
         assert "--antigravity-only" in result.stdout
