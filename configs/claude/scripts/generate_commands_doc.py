@@ -168,10 +168,12 @@ def write_doc(doc_path: str, catalog: dict, base_text: str | None = None) -> Non
     p = Path(doc_path)
     if base_text is not None:
         base = base_text
-    elif p.exists():
-        base = p.read_text(encoding="utf-8")
     else:
-        base = ""
+        try:
+            base = p.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            base = ""
+
     out = inject(base, render_section(catalog))
     if not out.endswith("\n"):
         out += "\n"

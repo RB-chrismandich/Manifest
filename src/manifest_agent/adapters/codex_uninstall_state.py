@@ -28,8 +28,11 @@ def load_or_create_uninstall_saga(
     path: Path, receipt: HarnessReceipt, plugin_ids: Sequence[str]
 ) -> dict[str, Any]:
     identity = receipt_identity(receipt)
-    if path.exists():
+    try:
         document = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        document = None
+    if document is not None:
         if not _valid_saga(document, identity, plugin_ids):
             raise ValueError("schema or receipt identity mismatch")
         return document

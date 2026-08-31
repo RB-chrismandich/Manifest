@@ -268,7 +268,11 @@ def main(argv: list[str] | None = None) -> int:
                 "inspection evidence contains blocked capability cells", file=sys.stderr
             )
             return 2
-        if not target.exists() or target.read_text(encoding="utf-8") != output:
+        try:
+            existing = target.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            existing = None
+        if existing != output:
             print(
                 "docs/PLUGIN_CAPABILITY_MATRIX.md is stale; run tools/render_plugin_capability_matrix.py",
                 file=sys.stderr,

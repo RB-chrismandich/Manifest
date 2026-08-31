@@ -108,7 +108,10 @@ def main(argv=None) -> int:
 
     mcp_servers = url_servers(servers)
     content = render(mcp_servers)
-    existing = output_path.read_text(encoding="utf-8") if output_path.exists() else None
+    try:
+        existing = output_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        existing = None
 
     if existing == content:
         print(f"Cursor mcp.json: unchanged ({len(mcp_servers)} servers)")

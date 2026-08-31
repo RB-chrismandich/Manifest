@@ -99,8 +99,10 @@ class StateManager:
 
     def load_persisted(self, app: str) -> None:
         path = self._state_file(app)
-        if path.exists():
+        try:
             self._mem.update(json.loads(path.read_text(encoding="utf-8")))
+        except FileNotFoundError:
+            pass
 
     def _write_persisted(self, app: str, name: str, value: Any) -> None:
         path = self._state_file(app)
@@ -109,7 +111,10 @@ class StateManager:
         # on a shared CI host (Tier-1 review B-3, defense-in-depth).
         with contextlib.suppress(OSError):
             path.parent.chmod(0o700)
-        current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            current = {}
         current[name] = value
         path.write_text(json.dumps(current), encoding="utf-8")
         with contextlib.suppress(OSError):
