@@ -308,16 +308,6 @@
       "value": "tests/lint/check_bats_assertions.sh"
     },
     {
-      "path": "plugins/manifest-workspace/skills/prompt-optimize/SKILL.md",
-      "kind": "cross-bundle-path",
-      "value": "docs/CODING_STANDARDS.md"
-    },
-    {
-      "path": "plugins/manifest-workspace/skills/prompt-optimize/SKILL.md",
-      "kind": "cross-bundle-path",
-      "value": "docs/CODING_STANDARDS.md"
-    },
-    {
       "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/TOKEN_BENCHMARK.md"
