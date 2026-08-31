@@ -261,7 +261,10 @@ def main(argv=None) -> int:
             return 2
         content = render(build_cursor_frontmatter(fm), body)
         out_path = out_dir / src_path.name
-        existing = out_path.read_text(encoding="utf-8") if out_path.exists() else None
+        try:
+            existing = out_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            existing = None
         if existing == content:
             unchanged += 1
             continue

@@ -77,12 +77,14 @@ class ResultState(StrEnum):
     BLOCKED = "BLOCKED"
     DRIFTED = "DRIFTED"
 
+
 @dataclass(frozen=True)
 class CommandResult:
     argv: tuple[str, ...]
     returncode: int
     stdout: str
     stderr: str
+
 
 @dataclass(frozen=True)
 class HarnessResult:
@@ -93,8 +95,10 @@ class HarnessResult:
     errors: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
 
+
 class HarnessAdapter(Protocol):
     name: str
+
     def detect(self) -> Detection: ...
     def inspect(self, desired: DesiredState) -> HarnessResult: ...
     def install(self, desired: DesiredState) -> HarnessResult: ...
@@ -122,6 +126,7 @@ class DesiredState:
     def bundle_path(self, name: str) -> Path:
         return self.release_root / "plugins" / name
 
+
 @dataclass(frozen=True)
 class OwnedEntry:
     kind: str
@@ -129,6 +134,7 @@ class OwnedEntry:
     ownership_marker: str
     target_path: str | None = None
     previous_checksum: str | None = None
+
 
 @dataclass(frozen=True)
 class HarnessReceipt:
@@ -140,6 +146,7 @@ class HarnessReceipt:
     capabilities: dict[str, str]
     verified: bool
     errors: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True)
 class InstallationReceipt:
@@ -184,10 +191,15 @@ class InstallationReceipt:
 from manifest_agent.models import CapabilityTier, ResultState
 from manifest_agent.paths import xdg_paths
 
+
 def test_result_states_are_stable_strings():
     assert [state.value for state in ResultState] == [
-        "READY", "DEGRADED", "BLOCKED", "DRIFTED"
+        "READY",
+        "DEGRADED",
+        "BLOCKED",
+        "DRIFTED",
     ]
+
 
 def test_xdg_paths_never_fall_back_to_claude_home(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -196,12 +208,14 @@ def test_xdg_paths_never_fall_back_to_claude_home(monkeypatch, tmp_path):
     assert paths.state == tmp_path / ".local/state/manifest"
     assert ".claude" not in str(paths)
 
+
 def test_cli_lists_only_control_plane_commands():
     result = CliRunner().invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert all(name in result.output for name in (
-        "install", "migrate", "reconcile", "uninstall"
-    ))
+    assert all(
+        name in result.output
+        for name in ("install", "migrate", "reconcile", "uninstall")
+    )
     assert "parallel-agent" not in result.output
 ```
 
@@ -257,6 +271,7 @@ class CapabilityTier(StrEnum):
     DEFAULT = "default"
     OPTIONAL = "optional"
 
+
 @dataclass(frozen=True)
 class XdgPaths:
     config: Path
@@ -264,12 +279,14 @@ class XdgPaths:
     state: Path
     cache: Path
 
+
 def xdg_paths() -> XdgPaths:
     home = Path.home()
     return XdgPaths(
         config=Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "manifest",
         data=Path(os.environ.get("XDG_DATA_HOME", home / ".local/share")) / "manifest",
-        state=Path(os.environ.get("XDG_STATE_HOME", home / ".local/state")) / "manifest",
+        state=Path(os.environ.get("XDG_STATE_HOME", home / ".local/state"))
+        / "manifest",
         cache=Path(os.environ.get("XDG_CACHE_HOME", home / ".cache")) / "manifest",
     )
 ```
@@ -321,9 +338,11 @@ def test_loads_minimal_contract(fixtures_dir):
     assert contract.name == "manifest-docs"
     assert contract.components.skills_root == "skills"
 
+
 def test_unknown_capability_tier_fails_closed(fixtures_dir):
     with pytest.raises(ContractError, match="unknown capability tier"):
         load_contract(fixtures_dir / "unknown-tier.yml")
+
 
 def test_domain_loader_requires_exact_nine(tmp_path):
     with pytest.raises(ContractError, match="expected 9 domain contracts"):
@@ -386,9 +405,15 @@ Load the wheel-packaged schema with `importlib.resources.files("manifest_agent.d
 
 ```python
 DOMAIN_BUNDLES = (
-    "manifest-code-quality", "manifest-docs", "manifest-forge",
-    "manifest-graphify", "manifest-ops", "manifest-security",
-    "manifest-spec-planning", "manifest-workspace", "stitch-design",
+    "manifest-code-quality",
+    "manifest-docs",
+    "manifest-forge",
+    "manifest-graphify",
+    "manifest-ops",
+    "manifest-security",
+    "manifest-spec-planning",
+    "manifest-workspace",
+    "stitch-design",
 )
 ```
 
@@ -434,6 +459,7 @@ def test_generator_emits_three_native_views_per_domain(repo_root, tmp_path):
     assert (tmp_path / "manifest-docs/.claude-plugin/plugin.json").is_file()
     assert (tmp_path / "manifest-docs/gemini-extension.json").is_file()
     assert (tmp_path / "manifest-docs/plugin.json").is_file()
+
 
 def test_marketplace_excludes_optional_addon_from_parity_count(repo_root):
     contracts = load_domain_contracts(repo_root / "plugins")
@@ -519,7 +545,9 @@ generic_view = {
     "version": contract.version,
     "description": contract.description,
     "skills": [f"skills/{name}" for name in discovered_skill_names],
-    "required": [], "optional": [], "forbidden": [],
+    "required": [],
+    "optional": [],
+    "forbidden": [],
 }
 ```
 
@@ -589,16 +617,19 @@ def test_runner_never_uses_a_shell(tmp_path):
     assert result.stdout.strip() == "ok"
     assert result.argv[0] == "python3"
 
+
 def test_checksum_mismatch_blocks_release(tmp_path):
     archive = tmp_path / "release.tgz"
     archive.write_bytes(b"tampered")
     with pytest.raises(ReleaseError, match="checksum mismatch"):
         verify_sha256(archive, "0" * 64)
 
+
 def test_receipt_write_is_atomic_and_round_trips(tmp_path):
     write_receipt_atomic(tmp_path / "installation.json", SAMPLE_RECEIPT)
     assert read_receipt(tmp_path / "installation.json") == SAMPLE_RECEIPT
     assert not list(tmp_path.glob("*.tmp"))
+
 
 def test_receipt_rejects_secret_fields(tmp_path):
     secret_entry = OwnedEntry(
@@ -629,7 +660,9 @@ completed = subprocess.run(
     text=True,
     env=merged_env,
 )
-return CommandResult(tuple(argv), completed.returncode, completed.stdout, completed.stderr)
+return CommandResult(
+    tuple(argv), completed.returncode, completed.stdout, completed.stderr
+)
 ```
 
 Never accept a string command and never set `shell=True`.
@@ -678,19 +711,26 @@ git commit -m "feat(installer): add immutable releases and atomic state"
 - [ ] **Step 1: Write the failing protocol contract test**
 
 ```python
-@pytest.mark.parametrize("name", [
-    "claude", "codex", "gemini", "cursor", "antigravity", "devin"
-])
+@pytest.mark.parametrize(
+    "name", ["claude", "codex", "gemini", "cursor", "antigravity", "devin"]
+)
 def test_registry_has_exact_supported_harnesses(name):
     assert AdapterRegistry.names() == (
-        "claude", "codex", "gemini", "cursor", "antigravity", "devin"
+        "claude",
+        "codex",
+        "gemini",
+        "cursor",
+        "antigravity",
+        "devin",
     )
+
 
 def test_nonzero_native_command_is_blocked(fake_adapter, desired):
     fake_adapter.runner.queue(returncode=9, stderr="native failure")
     result = fake_adapter.install(desired)
     assert result.state is ResultState.BLOCKED
     assert "native failure" in result.errors[0]
+
 
 def test_missing_declared_component_cannot_be_ready(fake_adapter, desired):
     fake_adapter.inventory.omit("manifest-workspace:agent:executor")
@@ -759,16 +799,31 @@ git commit -m "feat(installer): define harness adapter contract"
 def test_claude_installs_marketplace_and_nine_plugins(adapter, desired, log):
     result = adapter.install(desired)
     assert result.state is ResultState.READY
-    assert log[0] == ["claude", "plugin", "marketplace", "add", desired.source, "--scope", "user"]
+    assert log[0] == [
+        "claude",
+        "plugin",
+        "marketplace",
+        "add",
+        desired.source,
+        "--scope",
+        "user",
+    ]
     assert [row[:3] for row in log if row[1:3] == ["plugin", "install"]] == [
         ["claude", "plugin", "install"]
     ] * 9
 
+
 def test_codex_pins_marketplace_ref(adapter, desired, log):
     adapter.install(desired)
     assert log[0] == [
-        "codex", "plugin", "marketplace", "add", desired.source,
-        "--ref", desired.commit, "--json"
+        "codex",
+        "plugin",
+        "marketplace",
+        "add",
+        desired.source,
+        "--ref",
+        desired.commit,
+        "--json",
     ]
     assert ["codex", "plugin", "add", "manifest-docs@manifest", "--json"] in log
 ```
@@ -849,16 +904,20 @@ git commit -m "feat(installer): add Claude and Codex adapters"
 def test_gemini_installs_each_bundle_from_verified_release(adapter, desired, log):
     result = adapter.install(desired)
     assert result.state is ResultState.READY
-    assert [row[:3] for row in log] == [
-        ["gemini", "extensions", "install"]
-    ] * 9
+    assert [row[:3] for row in log] == [["gemini", "extensions", "install"]] * 9
     assert all("--consent" in row and "--skip-settings" in row for row in log)
+
 
 def test_cursor_indexes_immutable_marketplace_ref(adapter, desired, log):
     adapter.install(desired)
     assert log[0] == [
-        "cursor-agent", "plugin", "marketplace", "add",
-        desired.repository_url, "--git-ref", desired.commit,
+        "cursor-agent",
+        "plugin",
+        "marketplace",
+        "add",
+        desired.repository_url,
+        "--git-ref",
+        desired.commit,
     ]
 ```
 
@@ -935,15 +994,17 @@ git commit -m "feat(installer): add Gemini and Cursor adapters"
 def test_antigravity_links_marketplace_then_installs_nine(adapter, desired, log):
     adapter.install(desired)
     assert log[0] == ["agy", "plugin", "link", "manifest", desired.source]
-    assert [row[:3] for row in log[1:10]] == [
-        ["agy", "plugin", "install"]
-    ] * 9
+    assert [row[:3] for row in log[1:10]] == [["agy", "plugin", "install"]] * 9
+
 
 def test_devin_installs_verified_local_bundle_views(adapter, desired, log):
     adapter.install(desired)
     assert log[0] == [
-        "devin", "plugins", "install",
-        str(desired.bundle_path("manifest-code-quality")), "--yes",
+        "devin",
+        "plugins",
+        "install",
+        str(desired.bundle_path("manifest-code-quality")),
+        "--yes",
     ]
     assert len(log) == 10  # nine installs plus final list
 ```
@@ -1030,13 +1091,16 @@ def test_repeated_default_mcp_is_registered_once(contracts):
     plan = resolve_capabilities(contracts, selected_optional=set())
     assert plan.default_mcp == ("context7",)
 
+
 def test_optional_mcp_is_not_inferred(contracts):
     plan = resolve_capabilities(contracts, selected_optional=set())
     assert "github" not in plan.selected_mcp
 
+
 def test_conflicting_transport_definitions_block():
     with pytest.raises(CapabilityConflict, match="context7"):
         merge_mcp_definitions(HTTP_CONTEXT7, STDIO_CONTEXT7)
+
 
 def test_graphify_has_one_pinned_user_scope_recipe(executable_catalog):
     assert executable_catalog["graphify"] == {
@@ -1150,9 +1214,11 @@ def test_install_preserves_successful_harnesses_after_later_failure(service):
     assert report.harnesses["claude"].state is ResultState.READY
     assert read_receipt().harnesses["claude"].verified is True
 
+
 def test_reconcile_is_read_only_by_default(service):
     service.reconcile(apply=False)
     assert service.runner.calls == []
+
 
 def test_uninstall_uses_receipt_not_directory_globs(service):
     service.uninstall()
@@ -1261,12 +1327,18 @@ def test_parallel_agent_uses_only_files_below_its_skill_root(workspace_bundle):
     assert result.returncode == 0
     assert ".claude" not in result.stderr
 
+
 def test_learning_capture_defaults_to_xdg_data(workspace_bundle, xdg_home):
-    run_learning_capture(workspace_bundle, ["add", "--category", "pattern", "--text", "x"])
+    run_learning_capture(
+        workspace_bundle, ["add", "--category", "pattern", "--text", "x"]
+    )
     assert (xdg_home.data / "manifest/knowledge/entries.jsonl").is_file()
 
+
 def test_workspace_contract_lists_every_runtime_asset(workspace_contract):
-    runtime_paths = {component.path for component in workspace_contract.components.runtime}
+    runtime_paths = {
+        component.path for component in workspace_contract.components.runtime
+    }
     assert "skills/parallel-agent/scripts" in runtime_paths
     assert "skills/env-check/scripts" in runtime_paths
     assert workspace_contract.components.agents
@@ -1399,13 +1471,15 @@ git commit -m "refactor(workspace): make orchestration runtime bundle-local"
 - [ ] **Step 1: Write failing runtime and provider tests**
 
 ```python
-@pytest.mark.parametrize("command", [
-    "git_ops.sh", "tracker_ops.sh", "branch_clean.sh", "pr_review.sh", "lifecycle.sh"
-])
+@pytest.mark.parametrize(
+    "command",
+    ["git_ops.sh", "tracker_ops.sh", "branch_clean.sh", "pr_review.sh", "lifecycle.sh"],
+)
 def test_forge_runtime_is_packaged_and_executable(forge_bundle, command):
     path = forge_bundle / "runtime/bin" / command
     assert path.is_file()
     assert os.access(path, os.X_OK)
+
 
 def test_tracker_config_is_resolved_from_forge_bundle(forge_runtime, empty_home):
     result = forge_runtime("tracker_ops.sh", "resolve-provider", home=empty_home)
@@ -1500,20 +1574,27 @@ git commit -m "refactor(forge): package git and tracker runtime"
 ```python
 def test_constitution_cli_loads_only_adjacent_policy(code_quality_bundle, empty_home):
     result = run_python(
-        code_quality_bundle / "skills/code-audit-constitution/scripts/constitution_check.py",
+        code_quality_bundle
+        / "skills/code-audit-constitution/scripts/constitution_check.py",
         "--help",
         home=empty_home,
     )
     assert result.returncode == 0
 
+
 def test_smoke_cli_imports_without_legacy_manifest_runtime(code_quality_bundle):
-    result = run_python(code_quality_bundle / "skills/smoke-manage/scripts/smoke.py", "--help")
+    result = run_python(
+        code_quality_bundle / "skills/smoke-manage/scripts/smoke.py", "--help"
+    )
     assert result.returncode == 0
     assert "manifest_cli" not in result.stderr
 
+
 def test_docs_lint_runs_from_installed_bundle(docs_bundle, tmp_path):
     (tmp_path / "README.md").write_text("# Example\n", encoding="utf-8")
-    result = run_python(docs_bundle / "runtime/docs_lint.py", str(tmp_path / "README.md"))
+    result = run_python(
+        docs_bundle / "runtime/docs_lint.py", str(tmp_path / "README.md")
+    )
     assert result.returncode == 0
 ```
 
@@ -1595,11 +1676,14 @@ git commit -m "refactor(quality): isolate audit smoke and docs runtimes"
 
 ```python
 @pytest.mark.parametrize("bundle", ["manifest-ops", "manifest-security"])
-def test_ci_platform_is_owned_by_each_consuming_bundle(plugin_root, bundle, fake_git_repo):
+def test_ci_platform_is_owned_by_each_consuming_bundle(
+    plugin_root, bundle, fake_git_repo
+):
     helper = plugin_root / bundle / "runtime/bin/ci_platform.sh"
     result = run(helper, cwd=fake_git_repo, home=empty_home())
     assert result.returncode == 0
     assert result.stdout.strip() in {"github", "gitlab", "unknown"}
+
 
 def test_version_pin_does_not_require_home_hook(ops_bundle):
     result = run(ops_bundle / "runtime/bin/version_pin.sh", "--help", home=empty_home())
@@ -1688,13 +1772,17 @@ git commit -m "refactor(plugins): isolate ops and security runtimes"
 def test_cddl_cli_resolves_adjacent_charter(spec_bundle, empty_home):
     result = run_python(
         spec_bundle / "runtime/cddl/cddl_invoke.py",
-        "--charter", "qa-critic", "--help",
+        "--charter",
+        "qa-critic",
+        "--help",
         home=empty_home,
     )
     assert result.returncode == 0
 
+
 def test_default_plan_store_is_xdg(spec_bundle, xdg_home):
     assert resolve_plan_root({}) == xdg_home.data / "manifest/plans"
+
 
 def test_graphify_and_stitch_do_not_require_workspace_files(plugin_root):
     assert no_cross_plugin_paths(plugin_root / "manifest-graphify")
@@ -1779,17 +1867,31 @@ git commit -m "refactor(plugins): isolate planning graph and design assets"
 ```python
 def test_every_bootstrap_output_class_has_a_disposition(legacy_inventory):
     assert set(legacy_inventory.categories) == {
-        "skills", "agents", "guidance", "hooks", "permissions", "mcp",
-        "scripts", "optional_tools", "configuration", "diagnostics",
-        "updates", "uninstall",
+        "skills",
+        "agents",
+        "guidance",
+        "hooks",
+        "permissions",
+        "mcp",
+        "scripts",
+        "optional_tools",
+        "configuration",
+        "diagnostics",
+        "updates",
+        "uninstall",
     }
+
 
 def test_destructive_entries_require_ownership_proof(legacy_inventory):
     for entry in legacy_inventory.entries:
         if entry.action in {"disable", "remove"}:
             assert entry.ownership_proof.type in {
-                "symlink-target", "deploy-stamp", "generated-hash", "exact-marker"
+                "symlink-target",
+                "deploy-stamp",
+                "generated-hash",
+                "exact-marker",
             }
+
 
 def test_unknown_files_are_always_user_owned(scan_result):
     assert scan_result.entry("~/.claude/custom.txt").classification == "user-owned"
@@ -1801,9 +1903,15 @@ def test_unknown_files_are_always_user_owned(scan_result):
 def test_migration_never_exposes_zero_or_two_writers(migration, event_log):
     migration.migrate(DESIRED)
     assert event_log == [
-        "snapshot-legacy", "shadow-install", "shadow-verify",
-        "disable-legacy", "native-install", "native-verify", "commit-receipt",
+        "snapshot-legacy",
+        "shadow-install",
+        "shadow-verify",
+        "disable-legacy",
+        "native-install",
+        "native-verify",
+        "commit-receipt",
     ]
+
 
 def test_failed_native_verify_restores_legacy_writer(migration, legacy_home):
     migration.adapters["claude"].verify_result = BLOCKED_CLAUDE
@@ -1811,6 +1919,7 @@ def test_failed_native_verify_restores_legacy_writer(migration, legacy_home):
     assert report.state is ResultState.BLOCKED
     assert legacy_home.skills_link.is_symlink()
     assert not migration.receipt_path.exists()
+
 
 def test_migration_preserves_unowned_settings(migration, mixed_user_home):
     before = mixed_user_home.read_unowned_entries()
@@ -1926,11 +2035,22 @@ The checker scans every runtime-bearing contract path and all skill instructions
 
 ```python
 FORBIDDEN_RUNTIME_PATTERNS = (
-    "bootstrap.sh", "bootstrap/", "~/.claude/scripts", "~/.claude/config",
-    "configs/claude/scripts", "configs/claude/config", "configs/claude/prompts",
-    "configs/claude/references", "manifest-agent", "uvx --from manifest-agent",
-    "manifest parallel-agent", "manifest smoke", "../manifest-",
-    "npx skills add", "stitch-skills/plugins", "stitch-utilities",
+    "bootstrap.sh",
+    "bootstrap/",
+    "~/.claude/scripts",
+    "~/.claude/config",
+    "configs/claude/scripts",
+    "configs/claude/config",
+    "configs/claude/prompts",
+    "configs/claude/references",
+    "manifest-agent",
+    "uvx --from manifest-agent",
+    "manifest parallel-agent",
+    "manifest smoke",
+    "../manifest-",
+    "npx skills add",
+    "stitch-skills/plugins",
+    "stitch-utilities",
 )
 ```
 
@@ -2063,13 +2183,18 @@ def test_repository_has_no_deployment_tree(repo_root):
     assert not (repo_root / ".apm").exists()
     assert not (repo_root / "templates").exists()
 
+
 def test_release_index_covers_all_bundle_bytes(release_index, release_archive):
     assert release_index.version == "0.2.0"
     assert set(release_index.bundles) == set(DOMAIN_BUNDLES)
     assert release_index.archive_sha256 == sha256(release_archive)
 
+
 def test_docs_use_uvx_install_entrypoint(repo_root):
-    assert "uvx --from manifest-agent manifest install" in (repo_root / "README.md").read_text()
+    assert (
+        "uvx --from manifest-agent manifest install"
+        in (repo_root / "README.md").read_text()
+    )
 ```
 
 - [ ] **Step 2: Prove the new path is green before deleting legacy code**

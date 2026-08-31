@@ -103,6 +103,7 @@ chmod +x "$SCRATCH/measure_frontmatter.sh"
 ```python
 # $SCRATCH/parse_check.py — invoked by --parse
 import sys, glob, yaml
+
 bad = 0
 for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
     fm = []
@@ -110,13 +111,15 @@ for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
         lines = fh.read().splitlines()
     assert lines[0] == "---"
     for ln in lines[1:]:
-        if ln == "---": break
+        if ln == "---":
+            break
         fm.append(ln)
     try:
         d = yaml.safe_load("\n".join(fm))
         assert "name" in d and "description" in d, f"{f}: missing keys"
     except Exception as e:
-        print(f"PARSE FAIL {f}: {e}"); bad += 1
+        print(f"PARSE FAIL {f}: {e}")
+        bad += 1
 sys.exit(1 if bad else 0)
 ```
 
@@ -146,33 +149,41 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 # Replaces ONLY the description span in place; every other front-matter line
 # (name, any future keys) and the body are left byte-for-byte unchanged.
 import glob, re, yaml
+
 YAML_INDICATORS = set("-?:[]{}#&*!|>'\"%@`\\")  # includes backslash per spec
 # Derive excluded set dynamically from retired skill supply provenance (spec constraint) —
 # any skill with a `source:` is externally managed. No hardcoded name.
 cfg = yaml.safe_load(open(".retired skill supply/config.yaml")) or {}
 EXCL = {s["name"] for s in (cfg.get("skills") or []) if s.get("source")}
+
+
 def needs_quote(v):
     return (": " in v) or (v[:1] in YAML_INDICATORS)
+
+
 def emit(v):
-    v = " ".join(v.split())           # fold whitespace/newlines to single spaces
+    v = " ".join(v.split())  # fold whitespace/newlines to single spaces
     return '"' + v.replace('"', '\\"') + '"' if needs_quote(v) else v
+
+
 for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
     name = f.split("/")[-2]
-    if name in EXCL: continue
+    if name in EXCL:
+        continue
     text = open(f).read()
     lines = text.split("\n")
     assert lines[0] == "---", f"{f}: no front-matter"
-    end = lines.index("---", 1)                       # closing marker index
-    di = next(i for i in range(1, end) if re.match(r'^description:', lines[i]))
-    if not re.match(r'^description:\s*[|>]', lines[di]):
-        continue                                       # already inline — outside Lever A scope
-    dj = di + 1                                        # end of the description span
-    while dj < end and not re.match(r'^[A-Za-z0-9_-]+:', lines[dj]):
-        dj += 1                                        # consume indented/blank block-scalar lines
+    end = lines.index("---", 1)  # closing marker index
+    di = next(i for i in range(1, end) if re.match(r"^description:", lines[i]))
+    if not re.match(r"^description:\s*[|>]", lines[di]):
+        continue  # already inline — outside Lever A scope
+    dj = di + 1  # end of the description span
+    while dj < end and not re.match(r"^[A-Za-z0-9_-]+:", lines[dj]):
+        dj += 1  # consume indented/blank block-scalar lines
     val = yaml.safe_load("\n".join(lines[di:dj]))["description"]
     new_lines = lines[:di] + [f"description: {emit(val)}"] + lines[dj:]
     out = "\n".join(new_lines)
-    if out != text:                                   # skip already-inline & minimal
+    if out != text:  # skip already-inline & minimal
         open(f, "w").write(out)
         print("normalized", name)
 ```
@@ -194,18 +205,30 @@ Expected: ~39 "normalized <name>" lines (excludes any already-inline).
 ```python
 # $SCRATCH/verify_preserved.py — compare old (git HEAD) vs new parsed descriptions
 import subprocess, glob, yaml
+
+
 def parse(text):
-    lines = text.splitlines(); end = lines.index("---", 1)
+    lines = text.splitlines()
+    end = lines.index("---", 1)
     return yaml.safe_load("\n".join(lines[1:end]))["description"]
+
+
 fails = 0
 for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
-    old = subprocess.run(["git","show",f"HEAD:{f}"],capture_output=True,text=True).stdout
-    if not old: continue
-    o = " ".join(parse(old).split()); n = " ".join(parse(open(f).read()).split())
+    old = subprocess.run(
+        ["git", "show", f"HEAD:{f}"], capture_output=True, text=True
+    ).stdout
+    if not old:
+        continue
+    o = " ".join(parse(old).split())
+    n = " ".join(parse(open(f).read()).split())
     if o != n:
-        print(f"TOKEN DRIFT {f}:\n  old={o!r}\n  new={n!r}"); fails += 1
+        print(f"TOKEN DRIFT {f}:\n  old={o!r}\n  new={n!r}")
+        fails += 1
 print("OK: all preserved" if not fails else f"{fails} drifted")
-import sys; sys.exit(1 if fails else 0)
+import sys
+
+sys.exit(1 if fails else 0)
 ```
 
 Run: `python3 $SCRATCH/verify_preserved.py`

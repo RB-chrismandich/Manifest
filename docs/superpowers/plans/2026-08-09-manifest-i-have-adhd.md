@@ -384,9 +384,7 @@ zero and an activation banner containing the mirrored version. Empty output is v
 - [ ] **Step 5: Disable and record upstream state**
 
 ```python
-change = set_plugin_enabled(
-    config_path, "i-have-adhd@i-have-adhd", False
-)
+change = set_plugin_enabled(config_path, "i-have-adhd@i-have-adhd", False)
 ```
 
 Attach ownership only when previous is true. Restore on final-inspection or receipt-write failure.

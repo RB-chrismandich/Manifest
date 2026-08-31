@@ -110,6 +110,7 @@ all open issues are fetched without a label filter.
 ```python
 #!/usr/bin/env python3
 """Normalize issues from different providers into a common schema."""
+
 import json
 import sys
 from datetime import datetime, timezone
@@ -177,7 +178,9 @@ for item in raw:
             "labels": fields.get("labels", []),
             "created_at": fields.get("created", ""),
             "updated_at": fields.get("updated", ""),
-            "assignees": [assignee["displayName"]] if assignee.get("displayName") else [],
+            "assignees": [assignee["displayName"]]
+            if assignee.get("displayName")
+            else [],
             "comment_count": 0,
             "platform": "jira",
         }
@@ -199,6 +202,7 @@ calling parallel agents for the full list.
 ```python
 #!/usr/bin/env python3
 """Heuristic pre-scoring for issue prioritization."""
+
 import json
 import re
 import sys
@@ -220,15 +224,31 @@ TYPE_PATTERNS = {
 
 # Label-based scoring hints
 LABEL_IMPACT = {
-    "critical": 5, "blocker": 5, "high": 4, "priority": 4,
-    "medium": 3, "low": 2, "minor": 1, "cosmetic": 1,
-    "security": 5, "data-loss": 5, "performance": 3,
+    "critical": 5,
+    "blocker": 5,
+    "high": 4,
+    "priority": 4,
+    "medium": 3,
+    "low": 2,
+    "minor": 1,
+    "cosmetic": 1,
+    "security": 5,
+    "data-loss": 5,
+    "performance": 3,
 }
 
 LABEL_URGENCY = {
-    "urgent": 5, "critical": 5, "blocker": 4, "hotfix": 5,
-    "p0": 5, "p1": 4, "p2": 3, "p3": 2, "p4": 1,
+    "urgent": 5,
+    "critical": 5,
+    "blocker": 4,
+    "hotfix": 5,
+    "p0": 5,
+    "p1": 4,
+    "p2": 3,
+    "p3": 2,
+    "p4": 1,
 }
+
 
 def detect_type(title, body, labels):
     """Detect issue type from title, body, and labels."""
@@ -256,6 +276,7 @@ def detect_type(title, body, labels):
             return issue_type
 
     return "feature"  # default
+
 
 def heuristic_score(issue):
     """Calculate heuristic scores for an issue."""
@@ -327,12 +348,14 @@ def heuristic_score(issue):
         "type": detect_type(issue["title"], issue.get("body", ""), labels),
     }
 
+
 # Score all issues
 scored = []
 for issue in issues:
     scores = heuristic_score(issue)
     issue["scores"] = scores
     scored.append(issue)
+
 
 # Sort by score descending, with tiebreakers
 def sort_key(issue):
@@ -341,6 +364,7 @@ def sort_key(issue):
     has_plan = 0 if "planned" in {l.lower() for l in issue.get("labels", [])} else 1
     created = issue.get("created_at", "9999")
     return (-s["score"], type_priority, has_plan, created)
+
 
 scored.sort(key=sort_key)
 
@@ -402,6 +426,7 @@ Parse agent outputs and merge with heuristic scores:
 ```python
 #!/usr/bin/env python3
 """Merge agent-refined scores with heuristic scores."""
+
 import json
 import sys
 
@@ -422,7 +447,8 @@ try:
         output = agent.get("output", "")
         # Find JSON array in output
         import re
-        match = re.search(r'\[[\s\S]*?\]', output)
+
+        match = re.search(r"\[[\s\S]*?\]", output)
         if match:
             try:
                 scores = json.loads(match.group())
@@ -449,17 +475,22 @@ for candidate in candidates:
 
         # Recalculate score with averaged dimensions
         s = candidate["scores"]
-        s["score"] = (s["impact"] * 3) + (s["urgency"] * 2) + (s["readiness"] * 2) - s["risk"]
+        s["score"] = (
+            (s["impact"] * 3) + (s["urgency"] * 2) + (s["readiness"] * 2) - s["risk"]
+        )
 
         # Merge metadata from first agent response
         first = agent_scores[0]
-        candidate["scores"]["type"] = first.get("type", candidate["scores"].get("type", "feature"))
+        candidate["scores"]["type"] = first.get(
+            "type", candidate["scores"].get("type", "feature")
+        )
         candidate["scores"]["rationale"] = first.get("rationale", "")
         candidate["scores"]["services"] = first.get("services", [])
         candidate["scores"]["dependencies"] = first.get("dependencies", "None")
         candidate["agent_refined"] = True
     else:
         candidate["agent_refined"] = False
+
 
 # Re-sort
 def sort_key(issue):
@@ -468,6 +499,7 @@ def sort_key(issue):
     has_plan = 0 if "planned" in {l.lower() for l in issue.get("labels", [])} else 1
     created = issue.get("created_at", "9999")
     return (-s["score"], type_priority, has_plan, created)
+
 
 candidates.sort(key=sort_key)
 

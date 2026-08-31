@@ -386,9 +386,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         from render_plugin_capability_matrix import _load_inspection
 
-        if not matrix_path.exists() or matrix_path.read_text(
-            encoding="utf-8"
-        ) != render(_load_inspection(inspection_path)):
+        try:
+            existing = matrix_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            existing = None
+        if existing != render(_load_inspection(inspection_path)):
             print("docs/PLUGIN_CAPABILITY_MATRIX.md", file=sys.stderr)
             return 1
     return 0

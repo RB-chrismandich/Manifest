@@ -44,7 +44,11 @@ def main() -> int:
     output = ROOT / "docs" / "PLUGIN_CAPABILITY_INVENTORY.md"
     expected = render()
     if options.check:
-        if not output.exists() or output.read_text(encoding="utf-8") != expected:
+        try:
+            existing = output.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            existing = None
+        if existing != expected:
             print(
                 f"{output.relative_to(ROOT)} is stale; run tools/render_capability_inventory.py",
                 file=sys.stderr,

@@ -215,13 +215,17 @@ Append to `tests/python/agents/test_synthesis.py`:
 class TestSynthesisBackendResolution:
     def test_auto_prefers_cli_without_api_key(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         engine = _make_engine(tmp_path)
         assert engine._resolve_synthesis_backend() == "cli"
 
     def test_auto_prefers_sdk_with_api_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         from agents import synthesis as synth_module
 
         original = synth_module.HAS_ANTHROPIC
@@ -247,13 +251,17 @@ class TestSynthesisBackendResolution:
 
     def test_backend_cli_forces_cli_even_with_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["backend"] = "cli"
         assert engine._resolve_synthesis_backend() == "cli"
 
     def test_backend_sdk_forces_sdk(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         from agents import synthesis as synth_module
 
         original = synth_module.HAS_ANTHROPIC
@@ -267,7 +275,9 @@ class TestSynthesisBackendResolution:
 
     def test_invalid_backend_falls_back_to_auto(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["backend"] = "bogus"
         assert engine._resolve_synthesis_backend() == "cli"
@@ -297,26 +307,24 @@ from agents.config import HAS_ANTHROPIC, Config, Logger, select_backend
 Add method on `SynthesisEngine`:
 
 ```python
-    def _resolve_synthesis_backend(self) -> str | None:
-        raw = self.config.get("synthesis.backend", "auto")
-        if raw not in ("auto", "cli", "sdk"):
-            if self.logger:
-                self.logger.warning(f"invalid synthesis.backend={raw!r}, using auto")
-            raw = "auto"
+def _resolve_synthesis_backend(self) -> str | None:
+    raw = self.config.get("synthesis.backend", "auto")
+    if raw not in ("auto", "cli", "sdk"):
+        if self.logger:
+            self.logger.warning(f"invalid synthesis.backend={raw!r}, using auto")
+        raw = "auto"
 
-        has_cli = bool(shutil.which("claude"))
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    has_cli = bool(shutil.which("claude"))
+    has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
-        if raw == "cli":
-            return "cli" if has_cli else None
-        if raw == "sdk":
-            return "sdk" if HAS_ANTHROPIC else None
-        # auto
-        if not has_key and not has_cli:
-            return None
-        return select_backend(
-            has_sdk=HAS_ANTHROPIC, has_key=has_key, has_cli=has_cli
-        )
+    if raw == "cli":
+        return "cli" if has_cli else None
+    if raw == "sdk":
+        return "sdk" if HAS_ANTHROPIC else None
+    # auto
+    if not has_key and not has_cli:
+        return None
+    return select_backend(has_sdk=HAS_ANTHROPIC, has_key=has_key, has_cli=has_cli)
 ```
 
 - [ ] **Step 4: Run tests to verify pass**
@@ -375,7 +383,9 @@ class TestSynthesisCliInvoke:
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["unified_recommendation"] == "merged"
         assert result["triggered"] is True
@@ -398,7 +408,9 @@ class TestSynthesisCliInvoke:
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["triggered"] is True
         assert "not logged in" in result["error"]
@@ -408,13 +420,17 @@ class TestSynthesisCliInvoke:
 
         client_factory = MagicMock()
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
-        monkeypatch.setattr(synth_module, "AsyncAnthropic", client_factory, raising=False)
+        monkeypatch.setattr(
+            synth_module, "AsyncAnthropic", client_factory, raising=False
+        )
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setattr(synth_module.shutil, "which", lambda _: None)
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["triggered"] is True
         assert "ANTHROPIC_API_KEY" in result["error"]
@@ -440,7 +456,9 @@ class TestSynthesisCliInvoke:
         engine.config.config.setdefault("synthesis", {})["timeout"] = 1
 
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         proc.kill.assert_called_once()
         proc.wait.assert_called_once()
@@ -457,74 +475,77 @@ Expected: FAIL
 Add helper methods on `SynthesisEngine` (argv building can mirror `CLIAgent._build_command` logic inline — read `runners.py:473-512` for reference):
 
 ```python
-    def _build_claude_cli_command(self, prompt: str, output_file: str | None) -> list[str]:
-        spec = self.config.get("cli_agents.claude") or {}
-        binary = spec.get("binary", "claude")
-        model_tier = self.config.get("synthesis.model", "sonnet")
-        model_name = self.config.get(f"model_tiers.claude.{model_tier}", model_tier)
+def _build_claude_cli_command(self, prompt: str, output_file: str | None) -> list[str]:
+    spec = self.config.get("cli_agents.claude") or {}
+    binary = spec.get("binary", "claude")
+    model_tier = self.config.get("synthesis.model", "sonnet")
+    model_name = self.config.get(f"model_tiers.claude.{model_tier}", model_tier)
 
-        def subst(arg: str) -> str:
-            return arg.replace("{output_file}", output_file or "").replace("{model}", model_name)
-
-        def subst_prompt(arg: str) -> str:
-            if "{prompt}" in arg:
-                return prompt.join(subst(piece) for piece in arg.split("{prompt}"))
-            return subst(arg)
-
-        cmd = [binary]
-        for arg in spec.get("base_args", []):
-            s = subst(arg)
-            if s:
-                cmd.append(s)
-        if model_name:
-            cmd += [a for a in (subst(a) for a in spec.get("model_args", [])) if a]
-        for arg in spec.get("prompt_args", ["-p", "{prompt}"]):
-            s = subst_prompt(arg)
-            if s or "{prompt}" in arg:
-                cmd.append(s)
-        return cmd
-
-    async def _invoke_claude_cli(self, prompt: str) -> str:
-        spec = self.config.get("cli_agents.claude") or {}
-        output_strategy = spec.get("output", "stdout")
-        output_file = None
-        if output_strategy == "file_then_stdout":
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, prefix="synthesis_out_"
-            ) as tmp:
-                output_file = tmp.name
-
-        cmd = self._build_claude_cli_command(prompt, output_file)
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+    def subst(arg: str) -> str:
+        return arg.replace("{output_file}", output_file or "").replace(
+            "{model}", model_name
         )
-        try:
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                err = stderr.decode("utf-8", errors="ignore").strip()
-                raise RuntimeError(err or f"claude exited {proc.returncode}")
-            text = ""
-            if (
-                output_strategy == "file_then_stdout"
-                and output_file
-                and os.path.exists(output_file)
-            ):
-                with open(output_file) as f:
-                    text = f.read().strip()
-            if not text:
-                text = stdout.decode("utf-8", errors="ignore").strip()
-            return text
-        except asyncio.CancelledError:
-            proc.kill()
-            await proc.wait()
-            raise
-        finally:
-            if output_file:
-                with contextlib.suppress(OSError):
-                    os.unlink(output_file)
+
+    def subst_prompt(arg: str) -> str:
+        if "{prompt}" in arg:
+            return prompt.join(subst(piece) for piece in arg.split("{prompt}"))
+        return subst(arg)
+
+    cmd = [binary]
+    for arg in spec.get("base_args", []):
+        s = subst(arg)
+        if s:
+            cmd.append(s)
+    if model_name:
+        cmd += [a for a in (subst(a) for a in spec.get("model_args", [])) if a]
+    for arg in spec.get("prompt_args", ["-p", "{prompt}"]):
+        s = subst_prompt(arg)
+        if s or "{prompt}" in arg:
+            cmd.append(s)
+    return cmd
+
+
+async def _invoke_claude_cli(self, prompt: str) -> str:
+    spec = self.config.get("cli_agents.claude") or {}
+    output_strategy = spec.get("output", "stdout")
+    output_file = None
+    if output_strategy == "file_then_stdout":
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, prefix="synthesis_out_"
+        ) as tmp:
+            output_file = tmp.name
+
+    cmd = self._build_claude_cli_command(prompt, output_file)
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            err = stderr.decode("utf-8", errors="ignore").strip()
+            raise RuntimeError(err or f"claude exited {proc.returncode}")
+        text = ""
+        if (
+            output_strategy == "file_then_stdout"
+            and output_file
+            and os.path.exists(output_file)
+        ):
+            with open(output_file) as f:
+                text = f.read().strip()
+        if not text:
+            text = stdout.decode("utf-8", errors="ignore").strip()
+        return text
+    except asyncio.CancelledError:
+        proc.kill()
+        await proc.wait()
+        raise
+    finally:
+        if output_file:
+            with contextlib.suppress(OSError):
+                os.unlink(output_file)
 ```
 
 Refactor the invoke section of `synthesize()` (replace the block starting at `# Execute synthesis using Claude`):

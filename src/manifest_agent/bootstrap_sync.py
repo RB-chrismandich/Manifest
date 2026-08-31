@@ -1060,8 +1060,11 @@ class BootstrapSyncService:
                             "Codex SessionStart delivery probe did not reach READY",
                             {"codex": result},
                         )
-                if config_path.exists():
+                try:
                     parsed = config_path.read_text(encoding="utf-8")
+                except FileNotFoundError:
+                    parsed = None
+                if parsed is not None:
                     if "i-have-adhd@i-have-adhd" in parsed:
                         change = prepare_plugin_enabled(
                             config_path, "i-have-adhd@i-have-adhd", False

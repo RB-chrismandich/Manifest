@@ -328,9 +328,10 @@ def record_fired(moment_id: str, now: datetime) -> None:
     try:
         p = _state_path()
         p.parent.mkdir(parents=True, exist_ok=True)
-        cur = {}
-        if p.exists():
+        try:
             cur = json.loads(p.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            cur = {}
         cur[moment_id] = now.isoformat()
         p.write_text(json.dumps(cur), encoding="utf-8")
     except Exception:

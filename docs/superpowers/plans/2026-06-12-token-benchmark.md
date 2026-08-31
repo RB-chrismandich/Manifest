@@ -91,17 +91,23 @@ class TestBenchmarkSuite:
     def test_mmlu_gold_answers_are_letters(self):
         for b in BENCHMARKS:
             if b.category == "mmlu":
-                assert b.gold_answer in ("A", "B", "C", "D"), f"{b.prompt_id}: {b.gold_answer!r}"
+                assert b.gold_answer in ("A", "B", "C", "D"), (
+                    f"{b.prompt_id}: {b.gold_answer!r}"
+                )
 
     def test_hellaswag_gold_answers_are_digits(self):
         for b in BENCHMARKS:
             if b.category == "hellaswag":
-                assert b.gold_answer in ("0", "1", "2", "3"), f"{b.prompt_id}: {b.gold_answer!r}"
+                assert b.gold_answer in ("0", "1", "2", "3"), (
+                    f"{b.prompt_id}: {b.gold_answer!r}"
+                )
 
     def test_truthfulqa_gold_answers_are_bool(self):
         for b in BENCHMARKS:
             if b.category == "truthfulqa":
-                assert b.gold_answer in ("True", "False"), f"{b.prompt_id}: {b.gold_answer!r}"
+                assert b.gold_answer in ("True", "False"), (
+                    f"{b.prompt_id}: {b.gold_answer!r}"
+                )
 
     def test_humaneval_has_test_code(self):
         for b in BENCHMARKS:
@@ -147,21 +153,21 @@ from dataclasses import dataclass, field
 @dataclass
 class Prompt:
     prompt_id: str
-    category: str      # "mmlu" | "humaneval" | "hellaswag" | "truthfulqa"
+    category: str  # "mmlu" | "humaneval" | "hellaswag" | "truthfulqa"
     text: str
-    gold_answer: str   # Expected answer; "" for humaneval (scored via test_code)
+    gold_answer: str  # Expected answer; "" for humaneval (scored via test_code)
     test_code: str = ""  # HumanEval: Python assertions to run against the function
 
 
 PROVIDER_CLI_CONFIG = {
-    "claude":      {"binary": "claude",      "flags": ["--print"]},
-    "gemini":      {"binary": "gemini",      "flags": ["-p"]},
-    "antigravity": {"binary": "agy",         "flags": ["--print"]},
+    "claude": {"binary": "claude", "flags": ["--print"]},
+    "gemini": {"binary": "gemini", "flags": ["-p"]},
+    "antigravity": {"binary": "agy", "flags": ["--print"]},
 }
 
 MANIFEST_SYSTEM_PROMPT_PATHS = {
-    "claude":      ".claude/CLAUDE.md",
-    "gemini":      ".gemini/GEMINI.md",
+    "claude": ".claude/CLAUDE.md",
+    "gemini": ".gemini/GEMINI.md",
     "antigravity": None,
 }
 
@@ -241,9 +247,7 @@ BENCHMARKS: list[Prompt] = [
         ),
         gold_answer="",
         test_code=(
-            "assert add(2, 3) == 5\n"
-            "assert add(-1, 1) == 0\n"
-            "assert add(0, 0) == 0"
+            "assert add(2, 3) == 5\nassert add(-1, 1) == 0\nassert add(0, 0) == 0"
         ),
     ),
     Prompt(
@@ -308,7 +312,7 @@ BENCHMARKS: list[Prompt] = [
             "Respond with ONLY the function body (the indented lines after the def), "
             "no explanation, no markdown fences.\n\n"
             "def max_subarray_sum(arr: list) -> int:\n"
-            "    \"\"\"Return the maximum sum of any contiguous subarray (Kadane's algorithm).\"\"\"\n"
+            '    """Return the maximum sum of any contiguous subarray (Kadane\'s algorithm)."""\n'
             "    "
         ),
         gold_answer="",
@@ -606,11 +610,11 @@ def exact_match_letter(response: str, gold: str) -> int:
     """
     text = response.strip()
     # Priority: answer at the start of the response
-    m = re.match(r'^([A-Da-d]|[0-3])\b', text)
+    m = re.match(r"^([A-Da-d]|[0-3])\b", text)
     if m:
         return 1 if m.group(1).upper() == gold.upper() else 0
     # Fallback: first standalone letter/digit in response
-    m = re.search(r'\b([A-Da-d]|[0-3])\b', text)
+    m = re.search(r"\b([A-Da-d]|[0-3])\b", text)
     if not m:
         return 0
     return 1 if m.group(1).upper() == gold.upper() else 0
@@ -640,7 +644,7 @@ def pass_at_1(response: str, prompt) -> int:
         return 0
 
     # If response includes full function def, use it directly
-    if re.search(r'def \w+\s*\(', code):
+    if re.search(r"def \w+\s*\(", code):
         full_code = code + "\n\n" + prompt.test_code
     else:
         # Response is just the body — prepend signature from prompt
@@ -677,13 +681,13 @@ def score(response: str, prompt) -> int:
 
 def _extract_code(response: str) -> str:
     """Strip markdown code fences; return raw code."""
-    m = re.search(r'```(?:python)?\s*\n(.*?)\n```', response, re.DOTALL)
+    m = re.search(r"```(?:python)?\s*\n(.*?)\n```", response, re.DOTALL)
     return m.group(1) if m else response
 
 
 def _extract_func_sig(prompt_text: str) -> str:
     """Extract the def ... : line from a HumanEval prompt."""
-    m = re.search(r'(def \w+\([^)]*\)[^:]*:)', prompt_text)
+    m = re.search(r"(def \w+\([^)]*\)[^:]*:)", prompt_text)
     return m.group(1) if m else "def func():"
 ```
 
@@ -784,7 +788,9 @@ class TestMeasureApiClaude:
         mock_client = AsyncMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
+        with patch(
+            "tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client
+        ):
             with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
                 result = await measure_api_claude(
                     prompt_text="What is 2+2?",
@@ -812,9 +818,13 @@ class TestMeasureApiClaude:
         mock_client = AsyncMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
+        with patch(
+            "tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client
+        ):
             with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
-                await measure_api_claude("prompt", "SYSTEM CONTEXT", "claude-sonnet-4-6")
+                await measure_api_claude(
+                    "prompt", "SYSTEM CONTEXT", "claude-sonnet-4-6"
+                )
 
         call_kwargs = mock_client.messages.create.call_args.kwargs
         assert call_kwargs["system"] == "SYSTEM CONTEXT"
@@ -845,10 +855,18 @@ class TestMeasureApiGemini:
 
     @pytest.mark.asyncio
     async def test_missing_api_key_returns_error(self):
-        env = {k: v for k, v in os.environ.items() if k not in ("GOOGLE_API_KEY", "GEMINI_API_KEY")}
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if k not in ("GOOGLE_API_KEY", "GEMINI_API_KEY")
+        }
         with patch.dict(os.environ, env, clear=True):
-            with patch("tests.token_benchmark.harness.genai", side_effect=Exception("no auth")):
-                result = await measure_api_gemini("prompt", "", "gemini-3-flash-preview")
+            with patch(
+                "tests.token_benchmark.harness.genai", side_effect=Exception("no auth")
+            ):
+                result = await measure_api_gemini(
+                    "prompt", "", "gemini-3-flash-preview"
+                )
         assert result["error"] is not None
 ```
 
@@ -882,6 +900,7 @@ from typing import Optional
 
 try:
     from anthropic import AsyncAnthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
@@ -890,6 +909,7 @@ except ImportError:
 try:
     from google import genai
     from google.genai import types as genai_types
+
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
@@ -918,11 +938,23 @@ def isolated_environments(fixtures_dir: Path):
 async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -> dict:
     """Call Claude API; return input_tokens, output_tokens, response_text, latency_ms."""
     if not HAS_ANTHROPIC:
-        return {"error": "anthropic package not installed", "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+        return {
+            "error": "anthropic package not installed",
+            "input_tokens": None,
+            "output_tokens": None,
+            "response_text": None,
+            "latency_ms": None,
+        }
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        return {"error": "ANTHROPIC_API_KEY not set", "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+        return {
+            "error": "ANTHROPIC_API_KEY not set",
+            "input_tokens": None,
+            "output_tokens": None,
+            "response_text": None,
+            "latency_ms": None,
+        }
 
     client = AsyncAnthropic(api_key=api_key)
     t0 = time.time()
@@ -942,13 +974,25 @@ async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -
             "error": None,
         }
     except Exception as e:
-        return {"error": str(e), "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+        return {
+            "error": str(e),
+            "input_tokens": None,
+            "output_tokens": None,
+            "response_text": None,
+            "latency_ms": None,
+        }
 
 
 async def measure_api_gemini(prompt_text: str, system_prompt: str, model: str) -> dict:
     """Call Gemini API; return input_tokens, output_tokens, response_text, latency_ms."""
     if not HAS_GENAI:
-        return {"error": "google-genai package not installed", "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+        return {
+            "error": "google-genai package not installed",
+            "input_tokens": None,
+            "output_tokens": None,
+            "response_text": None,
+            "latency_ms": None,
+        }
 
     api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
     t0 = time.time()
@@ -973,7 +1017,13 @@ async def measure_api_gemini(prompt_text: str, system_prompt: str, model: str) -
             "error": None,
         }
     except Exception as e:
-        return {"error": str(e), "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+        return {
+            "error": str(e),
+            "input_tokens": None,
+            "output_tokens": None,
+            "response_text": None,
+            "latency_ms": None,
+        }
 ```
 
 *(The file continues — CLI measurement is added in Task 4. Do not close the module yet; tasks 3 and 4 build the same file incrementally.)*
@@ -1043,7 +1093,11 @@ class TestMeasureCli:
 
 class TestWriteResult:
     def test_appends_jsonl_to_results_dir(self, tmp_path):
-        record = {"run_id": "2026-06-12T00:00:00", "provider": "claude", "input_tokens": 100}
+        record = {
+            "run_id": "2026-06-12T00:00:00",
+            "provider": "claude",
+            "input_tokens": 100,
+        }
         write_result(record, "2026-06-12T00:00:00", results_dir=tmp_path)
         files = list(tmp_path.glob("*.jsonl"))
         assert len(files) == 1
@@ -1053,7 +1107,11 @@ class TestWriteResult:
 
     def test_multiple_records_in_same_file(self, tmp_path):
         for i in range(3):
-            write_result({"run_id": "2026-06-12T00:00:00", "i": i}, "2026-06-12T00:00:00", results_dir=tmp_path)
+            write_result(
+                {"run_id": "2026-06-12T00:00:00", "i": i},
+                "2026-06-12T00:00:00",
+                results_dir=tmp_path,
+            )
         files = list(tmp_path.glob("*.jsonl"))
         assert len(files) == 1
         lines = files[0].read_text().strip().splitlines()
@@ -1097,9 +1155,19 @@ def measure_cli(prompt_text: str, cli_config: dict, home_dir: Path) -> dict:
             "error": None if result.returncode == 0 else result.stderr[:300],
         }
     except subprocess.TimeoutExpired:
-        return {"response_text": "", "latency_ms": 60000, "exit_code": -1, "error": "timeout"}
+        return {
+            "response_text": "",
+            "latency_ms": 60000,
+            "exit_code": -1,
+            "error": "timeout",
+        }
     except FileNotFoundError:
-        return {"response_text": "", "latency_ms": 0, "exit_code": -1, "error": f"{binary}: not found"}
+        return {
+            "response_text": "",
+            "latency_ms": 0,
+            "exit_code": -1,
+            "error": f"{binary}: not found",
+        }
 
 
 def write_result(record: dict, run_id: str, results_dir: Optional[Path] = None) -> None:
@@ -1114,6 +1182,7 @@ def write_result(record: dict, run_id: str, results_dir: Optional[Path] = None) 
 def _read_system_prompt(home_dir: Path, provider: str) -> str:
     """Read the manifest system prompt for a provider from a given home dir."""
     from tests.token_benchmark.benchmarks import MANIFEST_SYSTEM_PROMPT_PATHS
+
     rel_path = MANIFEST_SYSTEM_PROMPT_PATHS.get(provider)
     if not rel_path:
         return ""
@@ -1143,18 +1212,33 @@ async def run_benchmark(
     with isolated_environments(fdir) as (empty_home, manifest_home):
         for provider in providers:
             for prompt in BENCHMARKS:
-                for condition, home_dir in [("before", empty_home), ("after", manifest_home)]:
+                for condition, home_dir in [
+                    ("before", empty_home),
+                    ("after", manifest_home),
+                ]:
                     # API path (exact token counts)
                     if provider in ("claude", "gemini"):
-                        system_prompt = _read_system_prompt(home_dir, provider) if condition == "after" else ""
+                        system_prompt = (
+                            _read_system_prompt(home_dir, provider)
+                            if condition == "after"
+                            else ""
+                        )
                         if provider == "claude":
-                            api_result = await measure_api_claude(prompt.text, system_prompt, claude_model)
+                            api_result = await measure_api_claude(
+                                prompt.text, system_prompt, claude_model
+                            )
                             model_used = claude_model
                         else:
-                            api_result = await measure_api_gemini(prompt.text, system_prompt, gemini_model)
+                            api_result = await measure_api_gemini(
+                                prompt.text, system_prompt, gemini_model
+                            )
                             model_used = gemini_model
 
-                        quality = score(api_result.get("response_text") or "", prompt) if not api_result.get("error") else None
+                        quality = (
+                            score(api_result.get("response_text") or "", prompt)
+                            if not api_result.get("error")
+                            else None
+                        )
                         record = {
                             "run_id": run_id,
                             "provider": provider,
@@ -1165,22 +1249,31 @@ async def run_benchmark(
                             "input_tokens": api_result.get("input_tokens"),
                             "output_tokens": api_result.get("output_tokens"),
                             "quality_score": quality,
-                            "response_text": (api_result.get("response_text") or "")[:200],
+                            "response_text": (api_result.get("response_text") or "")[
+                                :200
+                            ],
                             "latency_ms": api_result.get("latency_ms"),
                             "source": "api",
                             "error": api_result.get("error"),
                         }
                         write_result(record, run_id, results_dir)
                         records.append(record)
-                        print(f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
-                              f"in={record['input_tokens']} out={record['output_tokens']} "
-                              f"q={record['quality_score']}", flush=True)
+                        print(
+                            f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
+                            f"in={record['input_tokens']} out={record['output_tokens']} "
+                            f"q={record['quality_score']}",
+                            flush=True,
+                        )
 
                     # CLI path (behavioral delta; all providers)
                     if not api_only and provider in PROVIDER_CLI_CONFIG:
                         cli_config = PROVIDER_CLI_CONFIG[provider]
                         cli_result = measure_cli(prompt.text, cli_config, home_dir)
-                        quality = score(cli_result.get("response_text") or "", prompt) if not cli_result.get("error") else None
+                        quality = (
+                            score(cli_result.get("response_text") or "", prompt)
+                            if not cli_result.get("error")
+                            else None
+                        )
                         record = {
                             "run_id": run_id,
                             "provider": provider,
@@ -1191,7 +1284,9 @@ async def run_benchmark(
                             "input_tokens": None,
                             "output_tokens": None,
                             "quality_score": quality,
-                            "response_text": (cli_result.get("response_text") or "")[:200],
+                            "response_text": (cli_result.get("response_text") or "")[
+                                :200
+                            ],
                             "latency_ms": cli_result.get("latency_ms"),
                             "source": "cli",
                             "error": cli_result.get("error"),
@@ -1202,7 +1297,9 @@ async def run_benchmark(
     return records
 
 
-def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Path] = None) -> None:
+def sync_fixtures(
+    source_home: Optional[Path] = None, fixtures_dir: Optional[Path] = None
+) -> None:
     """Copy live manifest configs into fixtures/manifest/ snapshot."""
     src = source_home or Path.home()
     dst = fixtures_dir or FIXTURES_DIR
@@ -1231,14 +1328,26 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Token benchmark harness")
-    parser.add_argument("--providers", default="claude,gemini,antigravity",
-                        help="Comma-separated list of providers to benchmark")
-    parser.add_argument("--api-only", action="store_true",
-                        help="Skip CLI behavioral tests (API token counts only)")
-    parser.add_argument("--sync-fixtures", action="store_true",
-                        help="Sync fixtures/manifest/ from live ~/.claude etc. before running")
-    parser.add_argument("--report-only", action="store_true",
-                        help="Regenerate TOKEN_BENCHMARK.md from existing results; do not run new benchmark")
+    parser.add_argument(
+        "--providers",
+        default="claude,gemini,antigravity",
+        help="Comma-separated list of providers to benchmark",
+    )
+    parser.add_argument(
+        "--api-only",
+        action="store_true",
+        help="Skip CLI behavioral tests (API token counts only)",
+    )
+    parser.add_argument(
+        "--sync-fixtures",
+        action="store_true",
+        help="Sync fixtures/manifest/ from live ~/.claude etc. before running",
+    )
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        help="Regenerate TOKEN_BENCHMARK.md from existing results; do not run new benchmark",
+    )
     parser.add_argument("--claude-model", default="claude-sonnet-4-6")
     parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
     args = parser.parse_args()
@@ -1249,21 +1358,27 @@ if __name__ == "__main__":
 
     if not args.report_only:
         from datetime import datetime
+
         run_id = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         providers = [p.strip() for p in args.providers.split(",")]
-        print(f"Running benchmark: providers={providers}, api_only={args.api_only}, run_id={run_id}")
-        records = asyncio.run(run_benchmark(
-            providers=providers,
-            api_only=args.api_only,
-            run_id=run_id,
-            claude_model=args.claude_model,
-            gemini_model=args.gemini_model,
-        ))
+        print(
+            f"Running benchmark: providers={providers}, api_only={args.api_only}, run_id={run_id}"
+        )
+        records = asyncio.run(
+            run_benchmark(
+                providers=providers,
+                api_only=args.api_only,
+                run_id=run_id,
+                claude_model=args.claude_model,
+                gemini_model=args.gemini_model,
+            )
+        )
         print(f"Done. {len(records)} records written to {RESULTS_DIR}/{run_id}.jsonl")
 
     print("Regenerating TOKEN_BENCHMARK.md...")
     sys.path.insert(0, str(REPO_ROOT))
     from tests.token_benchmark.reporter import update_report
+
     update_report(RESULTS_DIR, REPO_ROOT / "docs" / "TOKEN_BENCHMARK.md")
     print("Done.")
 ```
@@ -1314,7 +1429,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from tests.token_benchmark.reporter import load_results, compute_stats, render_report, update_report
+from tests.token_benchmark.reporter import (
+    load_results,
+    compute_stats,
+    render_report,
+    update_report,
+)
 
 # Minimal fixture: 4 records covering one provider/category in before+after
 FIXTURE_RECORDS = [
@@ -1416,12 +1536,24 @@ class TestComputeStats:
     def test_antigravity_has_null_tokens(self):
         """Antigravity records (no API) should produce None overhead."""
         records = [
-            {**FIXTURE_RECORDS[0], "provider": "antigravity", "input_tokens": None, "source": "api"},
-            {**FIXTURE_RECORDS[1], "provider": "antigravity", "input_tokens": None, "source": "api"},
+            {
+                **FIXTURE_RECORDS[0],
+                "provider": "antigravity",
+                "input_tokens": None,
+                "source": "api",
+            },
+            {
+                **FIXTURE_RECORDS[1],
+                "provider": "antigravity",
+                "input_tokens": None,
+                "source": "api",
+            },
         ]
         stats = compute_stats(records)
-        assert stats["token_overhead"].get("antigravity") is None or \
-               stats["token_overhead"]["antigravity"]["overhead_tokens"] is None
+        assert (
+            stats["token_overhead"].get("antigravity") is None
+            or stats["token_overhead"]["antigravity"]["overhead_tokens"] is None
+        )
 
 
 class TestRenderReport:
@@ -1444,7 +1576,9 @@ class TestUpdateReport:
     def test_creates_report_file(self, tmp_path):
         results_dir = tmp_path / "results"
         results_dir.mkdir()
-        (results_dir / "run.jsonl").write_text("\n".join(json.dumps(r) for r in FIXTURE_RECORDS))
+        (results_dir / "run.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in FIXTURE_RECORDS)
+        )
         output = tmp_path / "TOKEN_BENCHMARK.md"
         update_report(results_dir, output)
         assert output.exists()
@@ -1496,30 +1630,48 @@ def compute_stats(records: list[dict]) -> dict:
     token_overhead = {}
     providers = {r["provider"] for r in api_recs}
     for provider in providers:
-        before = [r for r in api_recs if r["provider"] == provider
-                  and r["condition"] == "before" and r.get("input_tokens") is not None]
-        after  = [r for r in api_recs if r["provider"] == provider
-                  and r["condition"] == "after"  and r.get("input_tokens") is not None]
+        before = [
+            r
+            for r in api_recs
+            if r["provider"] == provider
+            and r["condition"] == "before"
+            and r.get("input_tokens") is not None
+        ]
+        after = [
+            r
+            for r in api_recs
+            if r["provider"] == provider
+            and r["condition"] == "after"
+            and r.get("input_tokens") is not None
+        ]
         if not before or not after:
             continue
-        avg_in_b  = sum(r["input_tokens"]  for r in before) / len(before)
-        avg_in_a  = sum(r["input_tokens"]  for r in after)  / len(after)
+        avg_in_b = sum(r["input_tokens"] for r in before) / len(before)
+        avg_in_a = sum(r["input_tokens"] for r in after) / len(after)
         avg_out_b = sum(r["output_tokens"] for r in before) / len(before)
-        avg_out_a = sum(r["output_tokens"] for r in after)  / len(after)
-        overhead  = avg_in_a - avg_in_b
+        avg_out_a = sum(r["output_tokens"] for r in after) / len(after)
+        overhead = avg_in_a - avg_in_b
         token_overhead[provider] = {
-            "avg_input_before":  round(avg_in_b),
-            "avg_input_after":   round(avg_in_a),
-            "overhead_tokens":   round(overhead),
-            "overhead_pct":      round(overhead / avg_in_b * 100) if avg_in_b else None,
+            "avg_input_before": round(avg_in_b),
+            "avg_input_after": round(avg_in_a),
+            "overhead_tokens": round(overhead),
+            "overhead_pct": round(overhead / avg_in_b * 100) if avg_in_b else None,
             "avg_output_before": round(avg_out_b),
-            "avg_output_after":  round(avg_out_a),
-            "output_delta":      round(avg_out_a - avg_out_b),
+            "avg_output_after": round(avg_out_a),
+            "output_delta": round(avg_out_a - avg_out_b),
         }
 
     # Quality scores (CLI records)
-    quality = defaultdict(lambda: defaultdict(lambda: {"before_score": 0, "before_total": 0,
-                                                        "after_score":  0, "after_total":  0}))
+    quality = defaultdict(
+        lambda: defaultdict(
+            lambda: {
+                "before_score": 0,
+                "before_total": 0,
+                "after_score": 0,
+                "after_total": 0,
+            }
+        )
+    )
     for r in cli_recs:
         if r.get("quality_score") is None:
             continue
@@ -1531,12 +1683,16 @@ def compute_stats(records: list[dict]) -> dict:
 
     return {
         "token_overhead": token_overhead,
-        "output_delta":   {p: {"avg_output_before": v["avg_output_before"],
-                               "avg_output_after":  v["avg_output_after"],
-                               "output_delta":       v["output_delta"]}
-                           for p, v in token_overhead.items()},
-        "quality":  {p: dict(cats) for p, cats in quality.items()},
-        "run_ids":  sorted({r["run_id"] for r in records}),
+        "output_delta": {
+            p: {
+                "avg_output_before": v["avg_output_before"],
+                "avg_output_after": v["avg_output_after"],
+                "output_delta": v["output_delta"],
+            }
+            for p, v in token_overhead.items()
+        },
+        "quality": {p: dict(cats) for p, cats in quality.items()},
+        "run_ids": sorted({r["run_id"] for r in records}),
     }
 
 
@@ -1575,7 +1731,11 @@ def render_report(stats: dict, run_id: str) -> str:
     for provider in ("claude", "gemini"):
         d = stats["output_delta"].get(provider)
         if d:
-            delta_str = f"+{d['output_delta']}" if d["output_delta"] >= 0 else str(d["output_delta"])
+            delta_str = (
+                f"+{d['output_delta']}"
+                if d["output_delta"] >= 0
+                else str(d["output_delta"])
+            )
             lines.append(
                 f"| {provider} | {d['avg_output_before']} | {d['avg_output_after']} | {delta_str} |"
             )
@@ -1632,7 +1792,9 @@ def update_report(results_dir: Path, output_path: Path) -> None:
     """Load all results, compute stats, render, and write TOKEN_BENCHMARK.md."""
     records = load_results(results_dir)
     if not records:
-        output_path.write_text("# Token Benchmark Report\n\nNo results yet. Run `/token-benchmark` to populate.\n")
+        output_path.write_text(
+            "# Token Benchmark Report\n\nNo results yet. Run `/token-benchmark` to populate.\n"
+        )
         return
     stats = compute_stats(records)
     latest_run_id = stats["run_ids"][-1] if stats["run_ids"] else "unknown"

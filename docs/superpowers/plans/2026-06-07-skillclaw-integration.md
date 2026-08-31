@@ -902,7 +902,7 @@ def test_redacts_anthropic_and_openai_keys():
 
 
 def test_redacts_auth_headers():
-    text = 'Authorization: Bearer abcdef.GHIJ-klmno\nx-api-key: secret-token-value'
+    text = "Authorization: Bearer abcdef.GHIJ-klmno\nx-api-key: secret-token-value"
     out = scrub.redact_text(text)
     assert "abcdef.GHIJ-klmno" not in out
     assert "secret-token-value" not in out
@@ -943,6 +943,7 @@ Usage:
     skillclaw_scrub.py <sessions_dir>     # scrub all *.json/*.jsonl in place
     skillclaw_scrub.py --check <dir>      # exit 1 if any secret remains
 """
+
 from __future__ import annotations
 
 import argparse
@@ -1004,9 +1005,9 @@ def main(argv: list[str]) -> int:
     changed = 0
     for f in _iter_session_files(root):
         if args.check:
-            if redact_text(f.read_text(encoding="utf-8", errors="replace")) != f.read_text(
-                encoding="utf-8", errors="replace"
-            ):
+            if redact_text(
+                f.read_text(encoding="utf-8", errors="replace")
+            ) != f.read_text(encoding="utf-8", errors="replace"):
                 print(f"secret found in {f}", file=sys.stderr)
                 leaked = True
         else:
@@ -1077,10 +1078,10 @@ def _skill(dirpath: Path, name: str, body: str) -> Path:
 def test_classify_new_changed_unchanged(tmp_path):
     evolved = tmp_path / "evolved"
     committed = tmp_path / "committed"
-    _skill(evolved, "alpha", VALID.replace("foo", "alpha"))            # NEW
-    _skill(evolved, "beta", VALID.replace("foo", "beta") + "more\n")   # CHANGED
+    _skill(evolved, "alpha", VALID.replace("foo", "alpha"))  # NEW
+    _skill(evolved, "beta", VALID.replace("foo", "beta") + "more\n")  # CHANGED
     _skill(committed, "beta", VALID.replace("foo", "beta"))
-    _skill(evolved, "gamma", VALID.replace("foo", "gamma"))            # UNCHANGED
+    _skill(evolved, "gamma", VALID.replace("foo", "gamma"))  # UNCHANGED
     _skill(committed, "gamma", VALID.replace("foo", "gamma"))
 
     result = promote.classify(evolved, committed)
@@ -1136,6 +1137,7 @@ validation), with reasons. No git side effects here.
 Usage:
     skillclaw_promote.py <evolved_dir> <committed_dir> [--skill NAME]
 """
+
 from __future__ import annotations
 
 import argparse
