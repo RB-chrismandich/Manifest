@@ -157,13 +157,13 @@ cli_agents:
     output: stdout
   cursor:
     binary: cursor-agent
-    base_args: ["--print", "--output-format", "text", "--mode", "ask"]
+    base_args: ["--print", "--trust", "--output-format", "text", "--mode", "ask"]
     model_args: ["--model", "{model}"]
     prompt_args: ["{prompt}"]
     output: stdout
   codex:
     binary: codex
-    base_args: ["exec", "--full-auto", "--color", "never",
+    base_args: ["exec", "--sandbox", "workspace-write", "--color", "never",
                 "--output-last-message", "{output_file}"]
     model_args: ["--model", "{model}"]
     output: file_then_stdout

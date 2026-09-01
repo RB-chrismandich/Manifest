@@ -195,6 +195,7 @@ def _default_config() -> dict:
                 "binary": "cursor-agent",
                 "base_args": [
                     "--print",
+                    "--trust",
                     "--output-format",
                     "text",
                     "--mode",
@@ -208,7 +209,8 @@ def _default_config() -> dict:
                 "binary": "codex",
                 "base_args": [
                     "exec",
-                    "--full-auto",
+                    "--sandbox",
+                    "workspace-write",
                     "--color",
                     "never",
                     "--output-last-message",
