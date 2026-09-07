@@ -147,7 +147,7 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
                 "--transport",
                 "http",
                 "context7",
-                "https://mcp.context7.com/mcp/oauth",
+                "https://mcp.context7.com/mcp",
             ),
         ),
         (
@@ -158,7 +158,7 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
                 "add",
                 "context7",
                 "--url",
-                "https://mcp.context7.com/mcp/oauth",
+                "https://mcp.context7.com/mcp",
             ),
         ),
         (
@@ -172,7 +172,7 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
                 "--transport",
                 "http",
                 "context7",
-                "https://mcp.context7.com/mcp/oauth",
+                "https://mcp.context7.com/mcp",
             ),
         ),
         (
@@ -186,7 +186,7 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
                 "--transport",
                 "http",
                 "context7",
-                "https://mcp.context7.com/mcp/oauth",
+                "https://mcp.context7.com/mcp",
             ),
         ),
     ],
@@ -248,7 +248,7 @@ def test_existing_http_mcp_requires_exact_transport_identity() -> None:
 
 def test_matching_http_transport_inventory_is_preserved() -> None:
     runner = RecordingRunner()
-    context7 = McpDefinition("context7", "http", "https://mcp.context7.com/mcp/oauth")
+    context7 = McpDefinition("context7", "http", "https://mcp.context7.com/mcp")
 
     result = ClaudeAdapter(
         runner=runner,
@@ -298,7 +298,7 @@ def test_cursor_atomic_merge_and_receipt_owned_removal_preserve_unrelated_values
     assert installed.state is ResultState.READY
     assert installed.capabilities["mcp:context7"] == "installed-by-manifest"
     assert after_install["mcpServers"]["manifest-context7"] == {
-        "url": "https://mcp.context7.com/mcp/oauth"
+        "url": "https://mcp.context7.com/mcp"
     }
     assert json.dumps(after_install["mcpServers"]["foreign"]) == json.dumps(unrelated)
     assert removed.state is ResultState.READY
@@ -315,7 +315,7 @@ def test_cursor_preserves_matching_preexisting_manifest_entry(tmp_path: Path) ->
         json.dumps(
             {
                 "mcpServers": {
-                    "manifest-context7": {"url": "https://mcp.context7.com/mcp/oauth"}
+                    "manifest-context7": {"url": "https://mcp.context7.com/mcp"}
                 }
             }
         ),
@@ -469,7 +469,7 @@ def test_absent_selected_native_existing_warns_without_inventing_transport() -> 
             "--transport",
             "http",
             "context7",
-            "https://mcp.context7.com/mcp/oauth",
+            "https://mcp.context7.com/mcp",
         )
     ]
     assert result.state is ResultState.READY

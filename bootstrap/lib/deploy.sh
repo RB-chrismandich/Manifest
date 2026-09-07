@@ -717,10 +717,9 @@ deploy_cursor_configs() {
         prune_cursor_rules "$cursor_source_dir/rules" "$CURSOR_TARGET_DIR/rules"
     fi
 
-    # Copy Cursor MCP config template (global MCP server defaults)
+    # Merge MCP defaults without replacing user servers or bearer headers.
     if [[ -f "$cursor_source_dir/mcp.json" ]]; then
-        cp "$cursor_source_dir/mcp.json" "$CURSOR_TARGET_DIR/mcp.json"
-        print_success "Deployed Cursor MCP config to $CURSOR_TARGET_DIR/mcp.json"
+        merge_mcp_defaults "$cursor_source_dir/mcp.json" "$CURSOR_TARGET_DIR/mcp.json"
     fi
 
     # Copy Cursor lifecycle-hooks config (spec 2026-07-11 cursor-feature-parity
@@ -766,6 +765,20 @@ deploy_cursor_configs() {
     link_shared_assets "$CURSOR_TARGET_DIR" "Cursor" "true"
 
     print_success "Cursor configuration deployed to $CURSOR_TARGET_DIR"
+}
+
+merge_mcp_defaults() {
+    local src="$1" tgt="$2"
+    local helper="$SCRIPT_DIR/configs/claude/scripts/merge_mcp_defaults.py"
+    if ! command_exists python3 || [[ ! -f "$helper" ]]; then
+        print_warning "MCP defaults merge unavailable; preserved existing config"
+        return 0
+    fi
+    if python3 "$helper" "$src" "$tgt"; then
+        print_success "Merged MCP defaults into $tgt"
+    else
+        print_warning "Could not merge MCP defaults into $tgt; preserved existing config"
+    fi
 }
 
 # Union repo-shipped hooks into an EXISTING settings JSON that rsync's
@@ -1312,6 +1325,7 @@ deploy_gemini_configs() {
     if [[ -f "$gemini_source_dir/settings.json" ]]; then
         # Merge with existing settings rather than overwriting (preserve auth)
         if [[ -f "$GEMINI_TARGET_DIR/settings.json" ]]; then
+            merge_mcp_defaults "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
             merge_settings_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
         else
             cp "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"

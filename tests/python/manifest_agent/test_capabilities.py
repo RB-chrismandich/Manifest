@@ -78,7 +78,7 @@ def test_conflicting_transport_definitions_block() -> None:
     http = McpDefinition(
         name="context7",
         transport="http",
-        url="https://mcp.context7.com/mcp/oauth",
+        url="https://mcp.context7.com/mcp",
     )
     stdio = McpDefinition(name="context7", transport="stdio", command=("context7",))
 
@@ -93,7 +93,7 @@ def test_catalogs_are_exact_secret_free_coordinator_data() -> None:
     assert mcp_catalog["context7"] == McpDefinition(
         name="context7",
         transport="http",
-        url="https://mcp.context7.com/mcp/oauth",
+        url="https://mcp.context7.com/mcp",
     )
     assert mcp_catalog["stitch"].transport == "native-existing"
     assert mcp_catalog["stitch"].discovery_prefixes == ("stitch", "mcp_stitch")

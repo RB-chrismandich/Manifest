@@ -24,6 +24,12 @@
 ./bootstrap.sh --install-mcp
 ```
 
+When Context7 is selected, bootstrap runs its pinned device OAuth login once,
+stores the resulting API key privately under `~/.config/context7/`, and writes
+bearer-authenticated `/mcp` entries for every enabled harness. Later runs reuse
+that credential. Existing user MCP servers and authenticated entries win over
+repo defaults during deployment.
+
 The "Services to configure" banner and end-of-run summary reflect the effective
 configuration (existing `~/.claude/config/services.yml` merged with explicit CLI flags).
 

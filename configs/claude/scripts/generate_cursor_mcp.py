@@ -8,9 +8,9 @@ An entry is emitted when it has a `url` (remote-HTTP, so Cursor-eligible under
 Order follows the registry (YAML document) order.
 
 The `shipped` gate exists because registering every catalog server is not free:
-each is launched via `npx mcp-remote`, one subprocess per agent invocation, and
-four of them took local bats runs from ~7 minutes to not finishing (#646). That
-prune originally covered Claude only, leaving Cursor with all nine registered;
+each adds tool discovery and startup work, and four of them took local bats runs
+from ~7 minutes to not finishing (#646). That prune originally covered Claude
+only, leaving Cursor with all nine registered;
 the flag makes one registry field decide the default for every platform.
 Catalog-only servers stay in the registry and stay installable via
 `./bootstrap.sh --install-mcp`.

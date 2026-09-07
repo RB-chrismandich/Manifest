@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make Context7 authentication persistent across harnesses: device OAuth now
+  stores one long-lived API key, Manifest writes private bearer-authenticated
+  `/mcp` entries, and deploys preserve existing MCP credentials.
 - Reconcile the complete Codex plugin marketplace before retiring flat skills.
 - Add the pinned, cross-harness `manifest-i-have-adhd` plugin and reversible upstream migration.
 - Add portable skill model chains, bounded failure classification, explicit fallback authorization, and `manifest skill-run`.

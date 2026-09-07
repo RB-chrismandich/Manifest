@@ -6,9 +6,9 @@
 #
 # `shipped: true` means "register this by default on every platform". Everything
 # else is catalog-only: offered by --install-mcp, absent until asked for. The
-# default is deliberately Context7 alone — each remote server is launched via
-# `npx mcp-remote`, i.e. one subprocess per agent invocation, and registering
-# four of them took local bats runs from ~7 minutes to not finishing (#646).
+# default is deliberately Context7 alone — every registered remote adds tool
+# discovery and startup work, and registering four took local bats runs from
+# ~7 minutes to not finishing (#646).
 # Consumers: generate_cursor_mcp.py filters on this key; bootstrap/lib/mcp.sh
 # must keep listing ALL entries so --install-mcp stays a full catalog (its awk
 # fallback treats any unrecognised key as a server name, so `shipped` is in that
@@ -24,7 +24,7 @@ mcp_servers:
     purpose: "Error triage, issue investigation, stack traces, release regressions"
 
   context7:
-    url: "https://mcp.context7.com/mcp/oauth"
+    url: "https://mcp.context7.com/mcp"
     transport: "http"
     oauth: true
     shipped: true

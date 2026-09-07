@@ -198,7 +198,7 @@ def mcp_list_json() -> str:
                 "enabled": True,
                 "transport": {
                     "type": "streamable_http",
-                    "url": "https://mcp.context7.com/mcp/oauth",
+                    "url": "https://mcp.context7.com/mcp",
                 },
                 "auth_status": "o_auth",
             }
