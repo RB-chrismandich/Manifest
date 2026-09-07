@@ -452,11 +452,11 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       jobs whose worker died) — thin wrappers, `--help` compliant (repo
       gate), each opening with the D11 version probe
 - [x] T034 [US4] Author `plugins/manifest-delegate/hooks/hooks.json`: Stop
-      hook timeout 900s, SessionStart/SessionEnd 5s, script paths via
+      hook timeout 900s, SessionStart 5s / SessionEnd 3s (Codex cap), script paths via
       `${CLAUDE_PLUGIN_ROOT}` (plan.md Complexity Tracking row 1)
 - [x] T035 [US4] Create `tests/bats/delegate_plugin.bats` with the NEW plugin
       hook-wiring gate (no repo precedent exists): hooks.json parses, declares
-      exactly Stop/SessionStart/SessionEnd with timeouts 900/5/5, referenced
+      exactly Stop/SessionStart/SessionEnd with timeouts 900/5/3, referenced
       scripts exist and are executable, `${CLAUDE_PLUGIN_ROOT}` used (no
       absolute paths), and the code-level gate-budget cap (≤840s) is asserted
 - [x] T036 [US4] Extend

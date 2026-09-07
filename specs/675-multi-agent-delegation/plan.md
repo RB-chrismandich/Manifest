@@ -157,7 +157,7 @@ plugins/manifest-delegate/
 │   ├── delegate.py                 # executable entry (D5): version probe → sys.path → manifest_delegate; task|review|status|result|cancel|setup|transfer|gate|resume-candidate; --help first
 │   ├── stop_gate_hook.py           # Stop hook → delegate.py gate (soft gate, D9)
 │   └── session_hook.py             # SessionStart (env capture) / SessionEnd (capture eviction + orphan cleanup)
-├── hooks/hooks.json                # Stop (900s; gate budget capped ≤840s) + SessionStart/SessionEnd (5s)
+├── hooks/hooks.json                # Stop (900s; gate budget capped ≤840s) + SessionStart (5s) / SessionEnd (3s; Codex cap)
 ├── agents/delegate-runner.md       # thin forwarder agent, model: sonnet, tools: Bash
 └── skills/
     ├── delegate/

@@ -2,7 +2,7 @@
 # T035: hook-wiring gate for plugins/manifest-delegate/hooks/hooks.json — no
 # repo precedent exists for this shape, so this file IS the gate. Asserts the
 # hooks.json declares exactly Stop/SessionStart/SessionEnd with timeouts
-# 900/5/5, referenced scripts exist and are executable, ${CLAUDE_PLUGIN_ROOT}
+# 900/5/3, referenced scripts exist and are executable, ${CLAUDE_PLUGIN_ROOT}
 # is used (no absolute paths), and the Stop wrapper timeout outlasts the
 # code-level gate-budget cap (840s, data-model.md review_gate.budget_seconds).
 
@@ -28,7 +28,7 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
-@test "hooks.json timeouts are 900/5/5 for Stop/SessionStart/SessionEnd" {
+@test "hooks.json timeouts are 900/5/3 for Stop/SessionStart/SessionEnd" {
   run python3 -c "
 import json
 d = json.load(open('$HOOKS_JSON'))['hooks']
@@ -36,7 +36,7 @@ def timeout_of(event):
     return d[event][0]['hooks'][0]['timeout']
 assert timeout_of('Stop') == 900, timeout_of('Stop')
 assert timeout_of('SessionStart') == 5, timeout_of('SessionStart')
-assert timeout_of('SessionEnd') == 5, timeout_of('SessionEnd')
+assert timeout_of('SessionEnd') == 3, timeout_of('SessionEnd')
 print('ok')
 "
   [ "$status" -eq 0 ]
