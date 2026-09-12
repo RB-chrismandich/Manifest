@@ -90,3 +90,8 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-10-25 - Python-over-shell Policy Conflict
+
+**Learning:** Unconditional Python-over-shell policies can conflict with project-aware contracts in skills. Security verification availability must also be ensured.
+**Action:** Do not enforce unconditional Python-over-shell policies if they conflict with project-aware contracts.
