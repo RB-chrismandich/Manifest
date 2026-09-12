@@ -90,3 +90,7 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-09-12 - Reject Python-only policy and preserve operational examples
+**Learning:** Enforcing a strict Python-only policy in skill templates is unsafe. Additionally, removing useful operational examples degrades the usefulness of the skill templates. The `prompt-optimize` rewrite series already handles this structural update.
+**Action:** Reverted duplicate modifications to `prompt-optimize` that enforced a Python-only policy and stripped operational examples.
