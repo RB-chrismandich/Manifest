@@ -90,3 +90,9 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-09-01 - Python-only runtime mandate contradicts repository conventions
+
+**Learning:** The Python-only runtime mandate contradicts repository conventions and duplicates several
+other prompt-optimize proposals.
+**Action:** Reverted local duplicate modifications and safely terminated the task.
