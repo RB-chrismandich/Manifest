@@ -223,7 +223,7 @@ cli_agents:
   # tool-approval prompts). Install: curl https://cursor.com/install -fsS | bash
   cursor:
     binary: cursor-agent
-    base_args: ["--print", "--output-format", "text", "--mode", "ask"]
+    base_args: ["--print", "--trust", "--output-format", "text", "--mode", "ask"]
     model_args: ["--model", "{model}"]
     prompt_args: ["{prompt}"]
     skill_prompt_transport: stdin
@@ -231,7 +231,7 @@ cli_agents:
     output: stdout
   codex:
     binary: codex
-    base_args: ["exec", "--full-auto", "--color", "never",
+    base_args: ["exec", "--sandbox", "workspace-write", "--color", "never",
                 "--output-last-message", "{output_file}"]
     model_args: ["--model", "{model}"]
     skill_prompt_transport: stdin

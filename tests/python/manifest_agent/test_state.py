@@ -106,6 +106,7 @@ def test_graphify_retirement_transaction_rejects_unknown_fields(tmp_path) -> Non
 def test_state_module_imports_in_a_fresh_interpreter() -> None:
     result = subprocess.run(
         [sys.executable, "-c", "import manifest_agent.state"],
+        env={"PYTHONPATH": "src"},
         check=False,
         capture_output=True,
         text=True,

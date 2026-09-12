@@ -95,7 +95,7 @@ dump_parsed() {
     # only context7 is registered by default.
     [ "${#MCP_SERVER_NAMES[@]}" -eq 9 ]
     run dump_parsed
-    assert_line --partial "context7|https://mcp.context7.com/mcp/oauth|http|"
+    assert_line --partial "context7|https://mcp.context7.com/mcp|http|"
     refute_output --partial "shipped"
 }
 

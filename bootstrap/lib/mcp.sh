@@ -246,13 +246,16 @@ configure_cursor_mcp_config() {
         return 0
     fi
 
-    # Build JSON dynamically from selected servers
+    # Build JSON dynamically from selected non-Context7 servers. Context7 is
+    # written by its official setup command with a persistent bearer key; a
+    # generic URL-only write here would discard that authentication.
     local json_entries=""
     local first=true
     local idx
     for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
         local name="${MCP_SERVER_NAMES[$idx]}"
         local url="${MCP_SERVER_URLS[$idx]}"
+        [[ "$name" == "context7" ]] && continue
         if [[ "$first" == true ]]; then
             first=false
         else
@@ -262,15 +265,81 @@ configure_cursor_mcp_config() {
         json_entries+=$'\n'"    \"${name}\": {"$'\n'"      \"url\": \"${url}\""$'\n'"    }"
     done
 
-    cat > "$cursor_mcp_file" << EOF
+    if [[ "$first" == true ]]; then
+        print_info "Cursor MCP defaults handled by Context7 setup (skipped generic write)"
+        return 0
+    fi
+
+    local defaults_file
+    defaults_file="$(mktemp "${TMPDIR:-/tmp}/cursor-mcp-defaults.XXXXXX")" || return 1
+    cat > "$defaults_file" << EOF
 {
   "mcpServers": {${json_entries}
   }
 }
 EOF
 
-    chmod 600 "$cursor_mcp_file" 2> /dev/null || true
+    local merge_helper="$SCRIPT_DIR/configs/claude/scripts/merge_mcp_defaults.py"
+    if [[ ! -f "$merge_helper" ]] || ! command_exists python3 ||
+        ! python3 "$merge_helper" "$defaults_file" "$cursor_mcp_file"; then
+        rm -f "$defaults_file"
+        print_warning "Could not merge Cursor MCP servers without replacing existing authentication"
+        return 1
+    fi
+    rm -f "$defaults_file"
     print_success "Configured Cursor MCP servers in $cursor_mcp_file"
+}
+
+# Context7's official login exchanges device OAuth once for a long-lived API
+# key stored at ~/.config/context7/credentials.json (0600). Manifest then writes
+# only the bearer-authenticated /mcp entries: `ctx7 setup` also installs its own
+# rules and skills, which duplicate and modify Manifest-managed configuration.
+configure_context7_persistent_auth() {
+    if ! command_exists npx; then
+        print_warning "npx unavailable; skipped persistent Context7 authentication"
+        return 1
+    fi
+
+    local -a targets=()
+    [[ "${ENABLE_CLAUDE:-true}" == true ]] && targets+=(--claude)
+    [[ "${ENABLE_CURSOR:-true}" == true ]] && targets+=(--cursor)
+    [[ "${ENABLE_CODEX:-true}" == true ]] && targets+=(--codex)
+    [[ "${ENABLE_GEMINI:-true}" == true ]] && targets+=(--gemini)
+    [[ "${ENABLE_ANTIGRAVITY:-true}" == true ]] && targets+=(--antigravity)
+    [[ "${ENABLE_DEVIN:-false}" == true ]] && targets+=(--devin)
+
+    if [[ ${#targets[@]} -eq 0 ]]; then
+        print_info "No enabled harnesses need Context7 setup"
+        return 0
+    fi
+    local configure_script="$SCRIPT_DIR/configs/claude/scripts/configure_context7_auth.py"
+    if [[ ! -f "$configure_script" ]] || ! command_exists python3; then
+        print_warning "Context7 authentication configurator unavailable"
+        return 1
+    fi
+    if npx --yes ctx7@0.5.10 login &&
+        python3 "$configure_script" ${targets[@]+"${targets[@]}"}; then
+        print_success "Context7 persistent authentication configured"
+        return 0
+    fi
+    print_warning "Context7 authentication was not configured"
+    return 1
+}
+
+context7_is_selected() {
+    local idx
+    for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
+        [[ "${MCP_SERVER_NAMES[$idx]}" == "context7" ]] && return 0
+    done
+    return 1
+}
+
+non_context7_is_selected() {
+    local idx
+    for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
+        [[ "${MCP_SERVER_NAMES[$idx]}" != "context7" ]] && return 0
+    done
+    return 1
 }
 
 # ---------------------------------------------------------------------------
@@ -458,11 +527,16 @@ install_mcp_servers() {
     local failures=0
     local idx
 
+    if context7_is_selected; then
+        configure_context7_persistent_auth || failures=$((failures + 1))
+    fi
+
     # 4. Install selected servers to each enabled agent
     if [[ "$ENABLE_CLAUDE" == true ]]; then
         if command_exists claude; then
             print_step "Configuring Claude MCP servers..."
             for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
+                [[ "${MCP_SERVER_NAMES[$idx]}" == "context7" ]] && continue
                 install_claude_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
             done
         else
@@ -476,6 +550,7 @@ install_mcp_servers() {
         if command_exists gemini; then
             print_step "Configuring Gemini MCP servers..."
             for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
+                [[ "${MCP_SERVER_NAMES[$idx]}" == "context7" ]] && continue
                 install_gemini_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
             done
         else
@@ -489,6 +564,7 @@ install_mcp_servers() {
         if command_exists codex; then
             print_step "Configuring Codex MCP servers..."
             for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
+                [[ "${MCP_SERVER_NAMES[$idx]}" == "context7" ]] && continue
                 install_codex_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
             done
         else
@@ -499,8 +575,10 @@ install_mcp_servers() {
     fi
 
     if [[ "$ENABLE_CURSOR" == true ]]; then
-        print_step "Configuring Cursor MCP servers..."
-        configure_cursor_mcp_config || failures=$((failures + 1))
+        if non_context7_is_selected; then
+            print_step "Configuring Cursor MCP servers..."
+            configure_cursor_mcp_config || failures=$((failures + 1))
+        fi
     else
         print_info "Cursor is disabled; skipped Cursor MCP setup"
     fi
@@ -537,8 +615,8 @@ install_mcp_servers() {
     # 5. OAuth notes & summary
     echo ""
     echo -e "${BOLD}OAuth Notes:${NC}"
-    echo "  Claude: OAuth is completed on first use of each MCP server."
-    echo "  Gemini: OAuth is completed on first use of each MCP server."
+    echo "  Context7: one device OAuth login is reused through its stored API key."
+    echo "  Other servers: OAuth is completed on first use where required."
     echo "  Codex:  Run 'codex mcp login <server>' to pre-authenticate (optional)."
     echo "          Example: codex mcp login sentry"
     echo ""

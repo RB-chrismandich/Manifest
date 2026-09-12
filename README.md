@@ -36,6 +36,10 @@ cd Manifest
 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ```
 
+Context7 uses a one-time device OAuth login. Its long-lived credential stays in
+`~/.config/context7/credentials.json`; subsequent installs reuse it across all
+enabled harnesses without installing duplicate Context7 rules or skills.
+
 > **`./bootstrap.sh` is not side-effect-free on the working tree.** Every run
 > no longer invokes retired skill supply (removed 2026-07-27, feature 522 FR-021a).
 > The project-scoped Copilot target `.github/skills/` is no longer synced.

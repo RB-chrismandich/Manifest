@@ -52,7 +52,7 @@ ENABLED_HTTP = """
     "enabled": true,
     "transport": {
       "type": "streamable_http",
-      "url": "https://mcp.context7.com/mcp/oauth"
+      "url": "https://mcp.context7.com/mcp"
     },
     "auth_status": "o_auth"
   }
@@ -145,7 +145,7 @@ def test_enabled_http_server_is_observed_with_catalog_transport() -> None:
         "context7": McpDefinition(
             name="context7",
             transport="http",
-            url="https://mcp.context7.com/mcp/oauth",
+            url="https://mcp.context7.com/mcp",
         )
     }
 
@@ -228,7 +228,7 @@ def _plan(definition: McpDefinition) -> CapabilityPlan:
 
 
 CONTEXT7 = McpDefinition(
-    name="context7", transport="http", url="https://mcp.context7.com/mcp/oauth"
+    name="context7", transport="http", url="https://mcp.context7.com/mcp"
 )
 
 
@@ -327,7 +327,7 @@ def test_injected_empty_inventory_suppresses_live_codex_fallback() -> None:
             "add",
             "context7",
             "--url",
-            "https://mcp.context7.com/mcp/oauth",
+            "https://mcp.context7.com/mcp",
         ]
     ]
     assert result.capabilities["mcp:context7"] == "installed-by-manifest"
@@ -351,7 +351,7 @@ def test_live_codex_inventory_overrides_runtime_remembered_inventory() -> None:
             "add",
             "context7",
             "--url",
-            "https://mcp.context7.com/mcp/oauth",
+            "https://mcp.context7.com/mcp",
         ],
     ]
     assert result.capabilities["mcp:context7"] == "installed-by-manifest"

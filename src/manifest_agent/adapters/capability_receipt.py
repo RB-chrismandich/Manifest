@@ -15,8 +15,6 @@ from manifest_agent.adapters.capability_inventory import (
 from manifest_agent.capabilities import (
     CapabilityConflict,
     CapabilityPlan,
-    apply_capability_plan,
-    remove_owned_capabilities,
     resolve_capabilities,
 )
 from manifest_agent.capability_cursor import cursor_mcp_path
@@ -173,6 +171,8 @@ class ReceiptCapabilityMixin:
 
     def apply_capabilities(self, plan: CapabilityPlan) -> HarnessResult:
         """Apply MCP and executable capabilities without adapter duplication."""
+        from manifest_agent.capability_runtime import apply_capability_plan
+
         return apply_capability_plan(
             self.name,
             plan,
@@ -188,6 +188,8 @@ class ReceiptCapabilityMixin:
 
     def remove_capabilities(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only shared capabilities proven owned by the receipt."""
+        from manifest_agent.capability_runtime import remove_owned_capabilities
+
         return remove_owned_capabilities(
             self.name, receipt, runner=self.runner, env=self._env
         )

@@ -718,7 +718,8 @@ async def check_credits(
             proc = await asyncio.create_subprocess_exec(
                 "codex",
                 "exec",
-                "--full-auto",
+                "--sandbox",
+                "read-only",
                 "--model",
                 config.get("model_tiers.codex.mini", "gpt-5.6-luna"),
                 "respond with OK",

@@ -22,7 +22,8 @@ setup() {
 
     export SCRIPT_DIR="$SANDBOX/repo"
     CURSOR_AGENTS_SRC="$SCRIPT_DIR/configs/cursor/agents"
-    mkdir -p "$SCRIPT_DIR/configs/cursor/rules" "$CURSOR_AGENTS_SRC"
+    mkdir -p "$SCRIPT_DIR/configs/cursor/rules" "$SCRIPT_DIR/configs/claude/scripts" "$CURSOR_AGENTS_SRC"
+    cp "$REPO_ROOT/configs/claude/scripts/merge_mcp_defaults.py" "$SCRIPT_DIR/configs/claude/scripts/"
     # Minimal but real hooks.json/mcp.json so deploy_cursor_configs' earlier
     # steps are no-ops rather than errors.
     printf '{"version":1,"hooks":{}}' > "$SCRIPT_DIR/configs/cursor/hooks.json"
@@ -83,6 +84,32 @@ teardown() {
     [ -f "$CURSOR_TARGET_DIR/mcp.json" ]
     [ -f "$CURSOR_TARGET_DIR/hooks.json" ]
     [ ! -d "$CURSOR_TARGET_DIR/agents" ]
+}
+
+@test "deploy_cursor_configs preserves authenticated MCP entries and user servers" {
+    mkdir -p "$CURSOR_TARGET_DIR"
+    cat > "$CURSOR_TARGET_DIR/mcp.json" <<'EOF'
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {"Authorization": "Bearer ctx7sk-test-secret-must-not-leak"}
+    },
+    "private": {"url": "https://private.example/mcp"}
+  }
+}
+EOF
+
+    run deploy_cursor_configs
+    assert_success
+    refute_output --partial "ctx7sk-test-secret-must-not-leak"
+    run python3 -c "
+import json
+d=json.load(open('$CURSOR_TARGET_DIR/mcp.json'))['mcpServers']
+assert d['context7']['headers']['Authorization'] == 'Bearer ctx7sk-test-secret-must-not-leak'
+assert d['private']['url'] == 'https://private.example/mcp'
+print('auth-and-user-server-preserved')"
+    assert_output "auth-and-user-server-preserved"
 }
 
 @test "disabling after enabling prunes exactly the manifest-owned Cursor agent files" {

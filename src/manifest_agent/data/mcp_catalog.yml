@@ -1,6 +1,6 @@
 context7:
   transport: http
-  url: https://mcp.context7.com/mcp/oauth
+  url: https://mcp.context7.com/mcp
 github:
   transport: http
   url: https://api.githubcopilot.com/mcp/
