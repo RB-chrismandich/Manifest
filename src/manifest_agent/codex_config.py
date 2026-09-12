@@ -54,7 +54,10 @@ def _load(path: Path) -> tuple[bytes, dict]:
     if path.is_symlink():
         raise CodexConfigError("Codex config path must not be a symlink")
     try:
-        data = path.read_bytes() if path.exists() else b""
+        try:
+            data = path.read_bytes()
+        except FileNotFoundError:
+            data = b""
         document = tomllib.loads(data.decode("utf-8")) if data else {}
     except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
         raise CodexConfigError("Codex config is unreadable or malformed") from error
@@ -99,7 +102,10 @@ def _candidate(data: bytes, plugin_id: str, enabled: bool) -> tuple[bytes, bool 
 
 def _atomic_cas(path: Path, before: bytes, candidate: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    current = path.read_bytes() if path.exists() else b""
+    try:
+        current = path.read_bytes()
+    except FileNotFoundError:
+        current = b""
     if content_sha256(current) != content_sha256(before):
         raise CodexConfigError("Codex config changed during compare-and-swap")
     descriptor = -1
@@ -113,9 +119,11 @@ def _atomic_cas(path: Path, before: bytes, candidate: bytes) -> None:
             stream.write(candidate)
             stream.flush()
             os.fsync(stream.fileno())
-        if content_sha256(
-            path.read_bytes() if path.exists() else b""
-        ) != content_sha256(before):
+        try:
+            check_data = path.read_bytes()
+        except FileNotFoundError:
+            check_data = b""
+        if content_sha256(check_data) != content_sha256(before):
             raise CodexConfigError("Codex config changed during compare-and-swap")
         os.replace(temporary, path)
         temporary = None
