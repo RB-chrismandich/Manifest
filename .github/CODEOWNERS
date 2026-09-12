@@ -7,5 +7,8 @@
 # the security boundary; it must not be weakened without owner review.
 /.github/workflows/   @RB-chrismandich
 
+# Runner-manager policy controls admission and execution configuration for GRF.
+/.github/runner-manager.yml   @RB-chrismandich
+
 # The ownership rules themselves must not change without owner review.
 /.github/CODEOWNERS   @RB-chrismandich
