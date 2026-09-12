@@ -90,3 +90,6 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+## 2026-09-02 - Prompt-Optimize Python Runtime Constraint Rejection
+**Learning:** Forcing Python-only runtime compliance on the prompt-optimize skill is incorrect and rejected as duplicate behavior.
+**Action:** Do not enforce Python-only rules across generic skill generation templates unless specifically validated against the target project's conventions.
