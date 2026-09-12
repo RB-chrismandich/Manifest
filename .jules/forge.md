@@ -90,3 +90,7 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-09-05 - Reject Python-only prompt policies and unsafe baseline deletions
+**Learning:** The prompt policy enforcing Python-only runtime compliance conflicts with established repository conventions (which prefer Bash `.sh` scripts as documented in `docs/CODING_STANDARDS.md`). Furthermore, deleting cross-bundle references from `tools/bundle_link_baseline.json` as a workaround to preserve out-of-scope policies is unsafe and destroys project-aware runtime guidance.
+**Action:** Refused to implement the Python-only runtime policy in `prompt-optimize/SKILL.md` and reverted the unsafe baseline deletion.
