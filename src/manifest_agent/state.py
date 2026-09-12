@@ -160,10 +160,10 @@ def receipt_for_persistence(
 def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
     """Read and strictly reconstruct a secret-free installation receipt."""
     source = _receipt_path(path)
-    if not source.exists():
-        return None
     try:
         document = json.loads(source.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise StateError("unable to read installation receipt") from error
     _assert_secret_free(document)
@@ -192,16 +192,17 @@ def read_retired_graphify_transaction(
     path: Path,
 ) -> RetiredGraphifyTransaction | None:
     """Read a validated Graphify retirement journal without changing state."""
-    if not path.exists():
-        return None
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise StateError("unable to read retired Graphify transaction") from error
+
+    try:
         _assert_secret_free(document)
         transaction = _decode_retired_graphify_transaction(document)
     except (
-        OSError,
-        UnicodeError,
-        json.JSONDecodeError,
         KeyError,
         TypeError,
         ValueError,
