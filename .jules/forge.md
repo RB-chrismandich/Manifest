@@ -90,3 +90,8 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+## 2023-08-29 - prompt-optimize skill template conflict
+
+**Learning:** Enforcing a Python-only runtime rule in skill templates conflicts with overarching repository conventions when the target codebase predominantly uses another language (like `.sh` in this repo). Additionally, proposed rules that duplicate active work stream proposals (like newer `prompt-optimize` specs) will be closed to avoid duplicate/conflicting architectural changes.
+
+**Action:** Reverted the prompt-optimize skill changes, closed the task, and recorded this architectural lesson to prefer existing coding standards (`docs/CODING_STANDARDS.md`) over generic constraints unless explicitly overriding repo-wide rules is appropriate.
