@@ -90,3 +90,6 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+## 2025-02-18 - Language Selection Convention for prompt-optimize
+**Learning:** The prompt-optimize skill template must retain target-project language selection (e.g. Bash/Python convention) rather than enforcing a strict Python-only runtime policy.
+**Action:** Reverted the strict Python-only refactor for the prompt-optimize skill template as it conflicts with the repository's established conventions.
