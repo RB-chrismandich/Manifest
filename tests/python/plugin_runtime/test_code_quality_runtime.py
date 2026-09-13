@@ -371,8 +371,8 @@ def test_refactor_policies_share_risk_gate_and_check_only_verification(
     repo_root: Path,
 ) -> None:
     config = _review_config(repo_root)
+    assert config["review_escalation"]["default_mode"] == "single-agent"
     expected_trigger = " OR ".join(config["review_escalation"]["conditions"])
-
     for skill_name in ("refactor", *REFACTOR_SKILLS):
         policy = config["tool_policies"][skill_name]
         assert policy["parallel_agents"] == "conditional"
@@ -434,7 +434,9 @@ def test_shell_refactor_testing_guidance_requires_preinstalled_tools_and_isolati
     source = (code_quality_bundle / "skills/shell-refactor/SKILL.md").read_text(
         encoding="utf-8"
     )
-    testing = source.split("## Testing Recommendations", 1)[1].split("## Related Tools", 1)[0]
+    testing = source.split("## Testing Recommendations", 1)[1].split(
+        "## Related Tools", 1
+    )[0]
 
     assert "npm install -g bats" not in testing
     assert "already available" in testing

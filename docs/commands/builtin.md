@@ -47,7 +47,7 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
-| `/code-audit` | Auto-triggered security and quality checks | AUTO (always when triggered) |
+| `/code-audit` | Semantic security-boundary review | AUTO (only when triggered) |
 | `/metrics-report` | Visualize agent efficiency metrics | NO |
 | `/learning-capture` | Capture structured lessons learned | NO |
 | `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
@@ -63,9 +63,10 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `apm-dev-sync` | **Retired** (spec 674 Phase 5). Skills ship as plugin bundles: `claude plugin update <bundle>@manifest` |
 | `sync-skills` | Legacy copy-based sync; stands down for apm-owned domains (`skills`) |
 
-The `code-audit` skill auto-triggers only for explicit security review requests
-or confirmed security-boundary behavior changes. Security keywords and
-complexity thresholds are advisory review signals, not activation triggers.
+`code-audit` activates only for explicit security review requests or confirmed
+security-boundary behavior changes. File size, function/class counts,
+complexity metrics, and keyword matches alone are advisory review signals, not
+activation triggers.
 
 ---
 

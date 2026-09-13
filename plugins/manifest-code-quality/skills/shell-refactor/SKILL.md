@@ -396,24 +396,14 @@ files=(*.txt)
 
 ## Testing Recommendations
 
-### Unit Testing with BATS
+### Testing during this review
 
-```bash
-# Only if BATS is already present inside a trusted isolated sandbox
-bats tests/bootstrap.bats
-```
-
-If BATS is not already available, or the checkout is untrusted outside enforced
-isolation, report the check as `unavailable` instead of installing tools during
-review.
-
-### Integration Testing
-
-```bash
-# Only run checkout-controlled scripts inside enforced isolation you control
-docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 ./setup.sh --skip-auth
-docker run --rm -v "$PWD:/work" -w /work fedora:39 ./setup.sh --skip-auth
-```
+This review is check-only. Do not install BATS or other tooling, and do not run
+checkout-controlled test scripts, Docker images, or `setup.sh` from the target
+checkout. If a BATS or container scenario would be needed to establish a
+finding, report the check as `unavailable` with the missing verified-isolation
+or an already available preinstalled-tool reason. Recommend the command to the
+repository owner; do not execute it during this review.
 
 If you cannot provide enforced isolation for checkout-controlled execution,
 report these checks as `unavailable`.

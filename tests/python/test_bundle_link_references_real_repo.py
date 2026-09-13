@@ -88,9 +88,8 @@ def test_real_repo_does_not_flag_the_documented_non_defects() -> None:
 
     # manifest-security/skills/code-audit resolves its ../../runtime/
     # references/{code-constitution,antipatterns}.md citations correctly --
-    # neither may appear as a violation value for this file (it does have an
-    # unrelated, separately-verified command_config.yml violation, so the
-    # file itself is not asserted clean here, only these two citations are).
+    # neither may appear as a violation value for this file. Its dispatch
+    # reference is now skill-local, so this file is expected to remain clean.
     for value in ("code-constitution.md", "antipatterns.md"):
         assert ("plugins/manifest-security/skills/code-audit/SKILL.md", value) not in {
             (path, val) for path, _kind, val in found

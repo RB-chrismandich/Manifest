@@ -157,9 +157,10 @@ When triggered, report findings in this format:
 This skill provides information without interrupting user workflow:
 
 - **Never blocks** code execution or user commands
-- **Reports inline** when patterns detected
+- **Reports inline** when triggered
 - **Suggests fixes** but doesn't auto-apply
-- **Escalates only** for Critical severity findings
+- **Escalates review only** when one of the five routing risk conditions is
+  present; finding severity does not replace that decision
 
 ## Integration with Commands
 

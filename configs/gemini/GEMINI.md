@@ -340,55 +340,30 @@ Files generated per run:
 
 ## Orchestrated Code Review Workflow
 
-When modifying code, the orchestrating agent spawns subagents for analysis, synthesis, and validation.
-
-### Workflow Overview
-
-```text
-+---------------------------------------------------------------+
-|                     Orchestrator                                |
-+---------------------------------------------------------------+
-|  1. Receive code modification task                              |
-|  2. Pre-flight analysis                                         |
-|  3. If criteria met -> Bash: parallel_agent.py --json --validate|
-|  4. Parse JSON output from agents                               |
-|  5. If disagreement -> Synthesis                                |
-|  6. Validation against criteria                                 |
-|  7. Report final result to user                                 |
-+---------------------------------------------------------------+
-```
+One capable reviewer is the default. Add independent review only for a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+impact, conflicting evidence or unresolved uncertainty, or genuinely
+independent codebase-wide tracks. Counts of files, lines, packages, modules,
+languages, keywords, and units do not independently escalate review.
 
 ### Phase 1: Pre-flight Analysis
 
-Before making significant code changes, determine if parallel review is needed by
-analyzing files/changes against the criteria in `~/.claude/prompts/preflight_analysis.md`
-(symlinked at `~/.gemini/prompts/preflight_analysis.md`).
-
-Return JSON with `needs_parallel_review`, `reason`, `triggered_criteria`, `confidence`.
-
-**Trigger Criteria**:
-
-- Security-sensitive: auth, crypto, secrets, input validation
-- Architectural: new services, API changes, schema modifications
-- Large changes: >200 lines modified
-- Critical logic: payments, user data, compliance
+Assess the five conditions in `~/.claude/prompts/preflight_analysis.md`
+(symlinked at `~/.gemini/prompts/preflight_analysis.md`) and return JSON with
+`needs_parallel_review`, `reason`, `triggered_criteria`, and `confidence`.
+Record concrete behavior evidence; a keyword or size measurement is not a
+trigger.
 
 ### Phase 2: Parallel Agent Review
 
-If pre-flight triggers review, execute:
+If the risk gate opens and cross-model review is appropriate, execute:
 
 ```bash
-# Always use absolute paths and large timeout for file arguments
 ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 --review /absolute/path/to/file
 ```
 
-Parse the JSON output to extract:
-
-- `agents.gemini.output` - Gemini's analysis
-- `agents.cursor.output` - Cursor's analysis
-- `agents.claude.output` - Claude's analysis
-- `agents.*.status` - Agent completion status
-- `cross_verification.consensus_score` - Agreement percentage
+If the review cannot run safely or a required capability is unavailable, report
+it as unavailable rather than as passing.
 
 ### Phase 3: Synthesis (on disagreement)
 
@@ -509,9 +484,10 @@ Skills are invoked as slash commands in Gemini CLI. Representative examples:
 ### Auto-Triggered Skill
 
 The `code-audit` skill (symlinked from `~/.claude/skills/code-audit/SKILL.md`)
-auto-triggers only for explicit security review requests or confirmed
-security-boundary behavior changes. Security keywords and complexity thresholds
-are advisory review signals, not activation triggers.
+activates only for an explicit security review request or confirmed changed
+behavior at a security boundary. Keywords, file size, function/class counts,
+and complexity metrics alone do not activate it; feedback remains inline and
+non-blocking.
 
 ---
 

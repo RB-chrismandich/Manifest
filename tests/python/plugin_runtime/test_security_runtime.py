@@ -158,6 +158,23 @@ def test_security_references_and_skill_interfaces_are_bundle_local(
     assert "manifest-workspace:learning-capture" in combined
 
 
+def test_ci_audit_parallel_dispatch_requests_structured_json(
+    security_bundle: Path,
+) -> None:
+    paths = (
+        security_bundle / "skills/ci-audit-triggers/SKILL.md",
+        security_bundle
+        / "skills/ci-audit-triggers/references/ci-audit-triggers-dispatch.md",
+    )
+
+    for path in paths:
+        source = path.read_text(encoding="utf-8")
+        assert (
+            "manifest-workspace:parallel-agent --analyze <workflow> --validate --json"
+            in source
+        )
+
+
 def test_semgrep_is_optional_and_only_selected_modes_require_it(
     security_bundle: Path,
 ) -> None:
@@ -314,7 +331,9 @@ def test_ci_audit_dispatch_uses_supported_analyze_contract(
     skill = security_bundle / "skills/ci-audit-triggers/SKILL.md"
     source = skill.read_text(encoding="utf-8")
     reference = skill.parent / "references/ci-audit-triggers-dispatch.md"
-    invocation = "manifest-workspace:parallel-agent --analyze <workflow> --validate"
+    invocation = (
+        "manifest-workspace:parallel-agent --analyze <workflow> --validate --json"
+    )
 
     assert "configs%2Fclaude/references/sub-agent-dispatch.md" not in source
     assert f"`{invocation}`" in source

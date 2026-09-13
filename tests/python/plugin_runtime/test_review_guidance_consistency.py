@@ -58,3 +58,29 @@ def test_active_guides_use_semantic_risk_routing(
     assert "code-audit` auto-triggers on security-sensitive patterns" not in source
     assert "auto-triggers on security-sensitive code" not in source
     assert "Code quality skill auto-triggers" not in source
+    assert "The `code-audit` skill auto-triggers" not in source
+    assert "skill_file_lines" not in source or "advisory" in source
+    assert ">200 lines modified" not in source
+
+
+def test_shared_dispatch_guidance_has_only_the_risk_gate(repo_root: Path) -> None:
+    source = (repo_root / "configs/claude/references/sub-agent-dispatch.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "independent_units >= 3" not in source
+    assert "≥3 independent units" not in source
+    assert "trust-boundary change" in source
+    assert "Counts of files" in source
+
+
+def test_shell_refactor_review_never_installs_or_executes_checkout_code(
+    repo_root: Path,
+) -> None:
+    source = (
+        repo_root / "plugins/manifest-code-quality/skills/shell-refactor/SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    assert "npm install -g bats" not in source
+    assert 'docker run --rm -v "$PWD:/work"' not in source
+    assert "unavailable" in source
