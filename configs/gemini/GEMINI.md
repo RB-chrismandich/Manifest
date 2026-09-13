@@ -509,9 +509,9 @@ Skills are invoked as slash commands in Gemini CLI. Representative examples:
 ### Auto-Triggered Skill
 
 The `code-audit` skill (symlinked from `~/.claude/skills/code-audit/SKILL.md`)
-auto-triggers on security-sensitive patterns (auth, crypto, secrets, input
-validation) or complexity (>500 lines, >10 functions, or >5 classes per file),
-giving inline feedback without blocking the workflow.
+auto-triggers only for explicit security review requests or confirmed
+security-boundary behavior changes. Security keywords and complexity thresholds
+are advisory review signals, not activation triggers.
 
 ---
 

@@ -224,11 +224,15 @@ def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list
 def render(inspection: dict[str, Any] | None = None) -> str:
     """Return deterministic Markdown, one applicability state per cell."""
     provenance = None if inspection is None else inspection.get("provenance")
-    evidence_description = (
-        "synthetic fixture evidence; not live native inspection"
-        if provenance == "synthetic-fixture"
-        else "verified native adapter inspection evidence"
-    )
+    if provenance == "synthetic-fixture":
+        evidence_description = "synthetic fixture evidence; not live native inspection"
+    elif provenance is None:
+        evidence_description = (
+            "no native adapter inspection evidence; missing inspections render as "
+            "`BLOCKED(adapter inspection missing)`"
+        )
+    else:
+        evidence_description = "verified native adapter inspection evidence"
     lines = [
         "# Plugin Capability Matrix",
         "",

@@ -399,24 +399,24 @@ files=(*.txt)
 ### Unit Testing with BATS
 
 ```bash
-# Install BATS
-npm install -g bats
-
-# Create test file: tests/bootstrap.bats
-@test "detect_platform identifies macOS" {
-  run detect_platform
-  [ "$status" -eq 0 ]
-  [[ "$PLATFORM" = "macos" ]]
-}
+# Only if BATS is already present inside a trusted isolated sandbox
+bats tests/bootstrap.bats
 ```
+
+If BATS is not already available, or the checkout is untrusted outside enforced
+isolation, report the check as `unavailable` instead of installing tools during
+review.
 
 ### Integration Testing
 
 ```bash
-# Test in Docker containers
+# Only run checkout-controlled scripts inside enforced isolation you control
 docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 ./setup.sh --skip-auth
 docker run --rm -v "$PWD:/work" -w /work fedora:39 ./setup.sh --skip-auth
 ```
+
+If you cannot provide enforced isolation for checkout-controlled execution,
+report these checks as `unavailable`.
 
 ---
 

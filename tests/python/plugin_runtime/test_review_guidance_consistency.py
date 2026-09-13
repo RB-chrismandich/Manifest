@@ -45,6 +45,7 @@ def test_validation_configs_do_not_duplicate_code_audit_activation(
         "configs/gemini/GEMINI.md",
         "configs/cursor/rules/orchestration.mdc",
         "docs/commands/builtin.md",
+        "docs/configuration/commands.md",
     ),
 )
 def test_active_guides_use_semantic_risk_routing(
@@ -55,3 +56,5 @@ def test_active_guides_use_semantic_risk_routing(
     assert "confirmed" in source or "risk-based" in source
     assert "ALWAYS Use Parallel Agents For" not in source
     assert "code-audit` auto-triggers on security-sensitive patterns" not in source
+    assert "auto-triggers on security-sensitive code" not in source
+    assert "Code quality skill auto-triggers" not in source

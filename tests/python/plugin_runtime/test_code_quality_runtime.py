@@ -426,3 +426,17 @@ def test_refactor_report_templates_disclose_review_and_check_outcomes(
         assert "| Command | Result | unavailable_reason |" in template
         assert "`unavailable`" in template
         assert "ALWAYS uses parallel agents" not in source
+
+
+def test_shell_refactor_testing_guidance_requires_preinstalled_tools_and_isolation(
+    code_quality_bundle: Path,
+) -> None:
+    source = (code_quality_bundle / "skills/shell-refactor/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    testing = source.split("## Testing Recommendations", 1)[1].split("## Related Tools", 1)[0]
+
+    assert "npm install -g bats" not in testing
+    assert "already available" in testing
+    assert "enforced isolation" in testing
+    assert "report the check as `unavailable`" in testing

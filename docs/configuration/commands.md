@@ -18,12 +18,18 @@ thresholds:
   docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
   docs_diagrams_modules: 5        # Trigger when analyzing 5+ unique imports/modules
 
-  # Code quality skill auto-triggers
+  # Code quality review signals (advisory only; not auto-triggers)
   skill_file_lines: 500           # File > 500 lines
   skill_function_count: 10        # > 10 functions per file
   skill_class_count: 5            # > 5 classes per file
   skill_cyclomatic_complexity: 15 # Cyclomatic complexity > 15
 ```
+
+These thresholds are advisory review signals only. The risk-based escalation
+contract uses
+semantic conditions such as trust-boundary changes, destructive behavior, broad
+compatibility or deployment impact, conflicting evidence, or genuinely
+independent codebase-wide tracks.
 
 ### Consensus Thresholds
 

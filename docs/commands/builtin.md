@@ -63,8 +63,9 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `apm-dev-sync` | **Retired** (spec 674 Phase 5). Skills ship as plugin bundles: `claude plugin update <bundle>@manifest` |
 | `sync-skills` | Legacy copy-based sync; stands down for apm-owned domains (`skills`) |
 
-The `code-audit` skill auto-triggers on security-sensitive code, large files (>500 lines),
-or complex files (>10 functions or >5 classes).
+The `code-audit` skill auto-triggers only for explicit security review requests
+or confirmed security-boundary behavior changes. Security keywords and
+complexity thresholds are advisory review signals, not activation triggers.
 
 ---
 

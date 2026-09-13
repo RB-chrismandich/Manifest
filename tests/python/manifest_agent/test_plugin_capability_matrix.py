@@ -88,7 +88,10 @@ def test_synthetic_fixture_evidence_is_not_rendered_as_live_native_inspection() 
 def test_matrix_without_inspection_is_explicitly_blocked() -> None:
     renderer = _renderer_module()
 
-    assert "BLOCKED(adapter inspection missing)" in renderer.render()
+    rendered = renderer.render()
+
+    assert "no native adapter inspection evidence" in rendered
+    assert "BLOCKED(adapter inspection missing)" in rendered
 
 
 def test_matrix_blocks_ready_harness_without_matching_plugin_component_or_capability(
