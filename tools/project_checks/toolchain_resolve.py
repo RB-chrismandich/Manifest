@@ -59,7 +59,7 @@ def resolve_tool(store_ref: str, root: Path) -> tuple[Path, str]:
     """
     lock_path = root / DEFAULT_LOCK_RELATIVE
     try:
-        lock = toolchain.load_lock_file(lock_path)
+        lock = toolchain.load_lock_file(lock_path, repo_root=root)
     except (OSError, ValueError) as error:
         raise ToolchainBlocked(f"toolchain lock unavailable: {error}") from error
     try:

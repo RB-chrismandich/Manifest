@@ -5,15 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from importlib import resources
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from .debt import evaluate_findings
+from . import toolchain
 from .models import CheckSpec
-from .preservation import load_invariants
 from .receipt import is_number
+from .secure_input import read_trust_anchor
 
 VALID_GROUPS = frozenset({"lint", "test", "structure", "security", "package"})
 VALID_PROFILES = frozenset({"quick", "full", "security", "release"})
@@ -67,34 +68,54 @@ def _relative(value: str, label: str) -> None:
         raise ValueError(f"{label} must be candidate-relative")
 
 
-def _policy_root(path: Path) -> Path:
-    return path.parent.parent if path.parent.name == "config" else path.parent
-
-
 def _policies(
-    path: Path, document: dict[str, Any]
+    document: dict[str, Any], repo_root: Path
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
-    root = _policy_root(path)
-    debt = evaluate_findings([], root / document["debt_baseline"])
-    invariants = load_invariants(root / document["preservation"])
-    return debt, invariants
+    from .debt_baseline import load_baseline_bytes
+    from .preservation import load_invariants_bytes
+
+    load_baseline_bytes(
+        read_trust_anchor(repo_root, repo_root / document["debt_baseline"])
+    )
+    invariants = load_invariants_bytes(
+        read_trust_anchor(repo_root, repo_root / document["preservation"])
+    )
+    return {"status": "PASS", "new_findings": []}, invariants
 
 
-def _document(path: Path) -> tuple[bytes, dict[str, Any]]:
+def _project_checks_schema() -> dict[str, Any]:
+    """Load the packaged schema, falling back to the source checkout safely."""
     try:
-        payload = path.read_bytes()
+        payload = (
+            resources.files("manifest_agent.data")
+            .joinpath("project-checks.schema.json")
+            .read_bytes()
+        )
+    except (FileNotFoundError, ModuleNotFoundError, OSError):
+        checkout_root = Path(__file__).parents[3]
+        try:
+            payload = read_trust_anchor(
+                checkout_root, checkout_root / "schemas" / "project-checks.schema.json"
+            )
+        except (OSError, ValueError) as error:
+            raise ValueError(
+                f"project checks schema is unavailable: {error}"
+            ) from error
+    try:
+        return json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"project checks schema is unavailable: {error}") from error
+
+
+def _document(path: Path, repo_root: Path) -> tuple[bytes, dict[str, Any]]:
+    try:
+        payload = read_trust_anchor(repo_root, path)
         value = json.loads(payload)
     except json.JSONDecodeError as error:
         raise ValueError(f"registry is not valid JSON: {error}") from error
     if not isinstance(value, dict):
         raise ValueError("registry must be a JSON object")
-    schema_path = _policy_root(path) / "schemas/project-checks.schema.json"
-    if not schema_path.is_file():
-        schema_path = Path(__file__).parents[3] / "schemas/project-checks.schema.json"
-    try:
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f"project checks schema is unavailable: {error}") from error
+    schema = _project_checks_schema()
     errors = sorted(Draft202012Validator(schema).iter_errors(value), key=str)
     if errors:
         raise ValueError(f"registry schema validation failed: {errors[0].message}")
@@ -216,22 +237,31 @@ def _profiles(profiles: dict[str, Any], ids: set[str]) -> None:
             raise ValueError(f"profile {profile} references unknown or duplicate check")
 
 
-def load_registry(path: Path) -> dict[str, Any]:
-    """Validate and load all executable registry declarations and policies."""
-    payload, document = _document(path)
+def load_registry(path: Path, *, repo_root: Path | None = None) -> dict[str, Any]:
+    """Validate executable declarations against an explicit checkout root."""
+    repo_root = repo_root or (
+        path.parent.parent if path.parent.name == "config" else path.parent
+    )
+    """Validate checkout-owned executable declarations and policies."""
+    payload, document = _document(path, repo_root)
     ids: set[str] = set()
     checks = tuple(_check(raw, ids) for raw in document["checks"])
     _profiles(document["profiles"], ids)
-    debt, invariants = _policies(path, document)
+    debt, invariants = _policies(document, repo_root)
+    lock_fields = toolchain.lock_digest_for_registry(
+        document, path, repo_root=repo_root
+    )
     return {
         "checks": checks,
         "profiles": document["profiles"],
         "path": path,
+        "repo_root": repo_root,
         "config_digest": hashlib.sha256(payload).hexdigest(),
         "debt_baseline": document["debt_baseline"],
         "preservation": document["preservation"],
         "debt": debt,
         "invariants": invariants,
+        **lock_fields,
     }
 
 

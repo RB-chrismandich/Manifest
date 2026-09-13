@@ -355,8 +355,15 @@ def _read_source_bytes(ctx: Any, url: str) -> bytes:
 def _materialize_env(
     ctx: Any, bundle: str, entry: Mapping, env_root: Path, names: list[str]
 ) -> dict[str, str]:
+    platform_entry = entry["platforms"][ctx.platform]
     ctx_m = materialize.MaterializeContext(
-        ctx.lock, ctx.store, ctx.platform, ctx.repo_root, ctx.env
+        ctx.lock,
+        ctx.store,
+        ctx.platform,
+        ctx.repo_root,
+        ctx.env,
+        platform_entry.get("python_provider"),
+        ctx.attest_missing,
     )
     if bundle == "project-env":
         materialize.materialize_project_env(ctx_m, env_root)

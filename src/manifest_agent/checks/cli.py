@@ -70,7 +70,7 @@ def check(
     output: Path | None,
 ) -> None:
     try:
-        registry = load_registry(project_config)
+        registry = load_registry(project_config, repo_root=Path.cwd())
         head_sha = _git_revision("HEAD")
         base_sha = _git_revision(base)
         tree_sha = _git_tree("HEAD")
@@ -122,7 +122,7 @@ def check_aggregate(
     output: Path | None,
 ) -> None:
     try:
-        registry = load_registry(project_config)
+        registry = load_registry(project_config, repo_root=Path.cwd())
         receipts = [
             json.loads(path.read_text(encoding="utf-8"))
             for path in sorted(results_dir.glob("*.json"))

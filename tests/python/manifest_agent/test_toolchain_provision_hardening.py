@@ -7,7 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from manifest_agent.checks import toolchain, toolchain_env, toolchain_materialize
+from manifest_agent.checks import (
+    toolchain,
+    toolchain_env,
+    toolchain_env_digest,
+    toolchain_materialize,
+)
 from manifest_agent.checks import (
     toolchain_provision as provision,
 )
@@ -69,6 +74,21 @@ def test_offline_rejects_unattested_locked_artifact(tmp_path: Path):
 
     assert not complete
     assert any("unattested" in problem for problem in problems)
+
+
+def test_lock_rejects_partial_external_python_provider_pin() -> None:
+    """An external provider must have every exact identity field."""
+    archive = _archive("demo", b"verified binary")
+    lock = _lock(archive)
+    lock["tools"]["demo"]["kind"] = "python-env"
+    lock["tools"]["demo"]["platforms"]["linux-x64"]["python_provider"] = {
+        "implementation": "cpython",
+        "version": "3.14.0",
+        "build": "main:today",
+    }
+
+    with pytest.raises(ValueError, match="invalid Python provider"):
+        provision.validate_lock(lock)
 
 
 def test_store_root_rejects_symlink_escape_into_checkout(tmp_path: Path, monkeypatch):
@@ -334,7 +354,15 @@ def _node_materialization_fixture(tmp_path: Path):
                         "path_in_archive": "node-v1/bin/node",
                     }
                 },
-            }
+            },
+            "node-env": {
+                "platforms": {
+                    "linux-x64": {
+                        "sha256": hashlib.sha256(b"{}").hexdigest(),
+                        "package_json_sha256": hashlib.sha256(b"{}").hexdigest(),
+                    }
+                }
+            },
         }
     }
     resolved = toolchain.ResolvedTool(
@@ -382,3 +410,40 @@ def test_uncommitted_stage_is_discarded_instead_of_published(tmp_path: Path):
         (transaction.path / "payload").write_text("unverified")
 
     assert not (store / relative).exists()
+
+
+@pytest.mark.parametrize(
+    ("materialize", "expected_flag"),
+    [
+        (toolchain_materialize.materialize_python_env, "--locked"),
+        (toolchain_materialize.materialize_project_env, "--frozen"),
+    ],
+)
+def test_python_materializers_install_local_dependencies_non_editably(
+    tmp_path: Path, monkeypatch, materialize, expected_flag: str
+):
+    """Both uv sync paths must materialize path dependencies, never link them."""
+    repo_root = tmp_path / "repo"
+    (repo_root / "config/toolchain").mkdir(parents=True)
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        toolchain_materialize, "_resolved_uv", lambda _ctx: tmp_path / "uv"
+    )
+    monkeypatch.setattr(
+        toolchain_materialize, "_run", lambda argv, **_kwargs: calls.append(argv)
+    )
+
+    materialize(
+        toolchain_materialize.MaterializeContext(
+            {},
+            tmp_path / "store",
+            "linux-x64",
+            repo_root,
+            {},
+            toolchain_env_digest.trusted_python_provider().lock_record(),
+        ),
+        tmp_path / "env",
+    )
+
+    assert expected_flag in calls[0]
+    assert "--no-editable" in calls[0]

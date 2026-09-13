@@ -130,7 +130,40 @@
         },
         "exe_sha256": {
           "$ref": "#/$defs/sha256OrNull",
-          "description": "The trust anchor `toolchain.resolve()` verifies at every preflight; null is unattested and must resolve to BLOCKED, never PASS, and the store's own manifest.json is never trusted for this value. Meaning depends on `kind` (Correction 3, phase-3-5-decisions.md): for `binary`, the sha256 of the materialized executable's bytes. For `python-env`/`node-env`, the sha256 of the installed DISTRIBUTION SET (every dist-info RECORD, or the node_modules/.package-lock.json packages object) -- never of one console script's bytes, which embed an absolute, store-location-dependent interpreter/launcher path and can never match a committed lock."
+          "description": "The trust anchor `toolchain.resolve()` verifies at every preflight; null is unattested and must resolve to BLOCKED, never PASS."
+        },
+        "package_json_sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "node-env only: sha256 of exact package.json bytes copied beside package-lock.json before npm ci; null is unattested."
+        },
+        "python_provider": {
+          "description": "python-env only: exact external interpreter implementation, version, build, and executable SHA-256. Null means no portable provider was attested and provisioning must BLOCK with observed evidence.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "implementation",
+            "version",
+            "build",
+            "exe_sha256"
+          ],
+          "properties": {
+            "implementation": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "version": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "build": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "exe_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
         },
         "path_in_archive": {
           "$ref": "#/$defs/nonEmptyString"

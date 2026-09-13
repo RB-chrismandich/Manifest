@@ -1,18 +1,4 @@
-"""Resolve `store:` tool references against a hash-verified toolchain store.
-
-The store is the trust boundary the parent design (phase-3-5-decisions.md,
-section 3a) introduces: a check preflight never trusts a binary found by name
-on `PATH`. Instead `tools[NAME].executable` may be `"store:<tool>/<relative-
-exe>"`, naming an entry in `config/toolchain.lock.json` and a bin path inside
-`<store>/manifest.json` written by `manifest provision`. `resolve()` re-hashes
-the executable (and, for `python-env`/`node-env`, the interpreter behind the
-console script) against what `manifest provision` recorded, on every call --
-so a swapped launcher with an unchanged version string is caught here, not by
-the downstream version probe.
-
-Network only happens in `manifest provision` (see `toolchain_provision.py`).
-This module never downloads anything; it only reads local files.
-"""
+"""Resolve hash-verified ``store:`` tool references without network access."""
 
 from __future__ import annotations
 
@@ -25,6 +11,7 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from . import (
     toolchain_cache,
@@ -32,6 +19,7 @@ from . import (
     toolchain_fingerprint,
     toolchain_path_prepend,
 )
+from .secure_input import read_trust_anchor
 
 STORE_ENV_VAR = "MANIFEST_TOOLCHAIN_STORE"
 XDG_CACHE_ENV_VAR = "XDG_CACHE_HOME"
@@ -125,11 +113,12 @@ def store_root(env: Mapping[str, str], *forbidden_roots: Path) -> Path:
 
 
 def sha256_file(path: Path) -> str:
+    """Return the SHA-256 digest of the complete regular file at `path`."""
     with open(path, "rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def lock_digest(lock: Mapping) -> str:
+def lock_digest(lock: Mapping[str, Any]) -> str:
     """A stable content digest of an in-memory lock document."""
     serialized = json.dumps(
         lock, sort_keys=True, separators=(",", ":"), ensure_ascii=False
@@ -138,30 +127,21 @@ def lock_digest(lock: Mapping) -> str:
 
 
 def lock_digest_for_registry(
-    document: Mapping, registry_path: Path
+    document: Mapping[str, Any], registry_path: Path, *, repo_root: Path
 ) -> dict[str, object]:
-    """Compute the (`toolchain_lock`, `toolchain_lock_digest`,
-    `toolchain_lock_document`) registry fields.
-
-    The digest is folded into `config_digest` for free: it becomes part of
-    the normalized registry document that `runner._config_digest` hashes.
-    `toolchain_lock_document` is what `runner.py` actually resolves `store:`
-    tools against -- without it, every `store:` reference would BLOCK as
-    unattested even after a successful `manifest provision` (this was a real
-    defect in the first cut: the digest was folded in, but the lock content
-    itself never reached the runner for a registry loaded from a real file).
-    """
+    """Load the declared lock from its checkout-owned no-follow descriptor."""
     relative = document.get("toolchain_lock", "") or ""
     digest, lock_document = "", {}
     if relative:
-        candidate = registry_path.resolve().parent.parent / relative
-        if candidate.is_file():
-            raw = candidate.read_bytes()
+        try:
+            raw = read_trust_anchor(repo_root, repo_root / relative)
             digest = hashlib.sha256(raw).hexdigest()
-            try:
-                lock_document = json.loads(raw)
-            except ValueError:
-                lock_document = {}
+            parsed = json.loads(raw)
+            lock_document = parsed if isinstance(parsed, dict) else {}
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise ValueError(
+                f"toolchain lock trust anchor unavailable: {error}"
+            ) from error
     return {
         "toolchain_lock": relative,
         "toolchain_lock_digest": digest,
@@ -169,18 +149,27 @@ def lock_digest_for_registry(
     }
 
 
-def load_lock_file(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_lock_file(path: Path, *, repo_root: Path) -> dict[str, Any]:
+    """Load a checkout-owned toolchain lock without following a symlink."""
+    try:
+        document = json.loads(read_trust_anchor(repo_root, path))
+    except (ValueError, json.JSONDecodeError) as error:
+        raise ValueError(f"toolchain lock unavailable: {error}") from error
+    if not isinstance(document, dict):
+        raise ValueError("toolchain lock must be a JSON object")
+    return document
 
 
-def load_store_manifest(store: Path) -> dict | None:
+def load_store_manifest(store: Path) -> dict[str, Any] | None:
+    """Load the store manifest only when its top-level value is an object."""
     manifest_path = store / "manifest.json"
     if not manifest_path.is_file():
         return None
     try:
-        return json.loads(manifest_path.read_text(encoding="utf-8"))
+        document = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+    return document if isinstance(document, dict) else None
 
 
 def _safe_relative(value: str) -> bool:
@@ -192,35 +181,86 @@ def _safe_relative(value: str) -> bool:
     return not path.is_absolute() and ".." not in path.parts
 
 
+def _locked_executable(
+    lock: Mapping[str, Any], bundle: str, relative: str, platform: str
+) -> tuple[Mapping[str, Any], Mapping[str, Any], str] | BlockedReason:
+    tools = lock.get("tools")
+    entry = tools.get(bundle) if isinstance(tools, Mapping) else None
+    platforms = entry.get("platforms") if isinstance(entry, Mapping) else None
+    platform_entry = platforms.get(platform) if isinstance(platforms, Mapping) else None
+    exe_sha256 = toolchain_env.expected_exe_sha256(bundle, relative, platform_entry)
+    if not (
+        isinstance(entry, Mapping)
+        and isinstance(platform_entry, Mapping)
+        and isinstance(exe_sha256, str)
+    ):
+        return BlockedReason(f"toolchain: {bundle} unattested for {platform}")
+    return entry, platform_entry, exe_sha256
+
+
 def resolve(
-    store_reference: str, *, lock: Mapping, store: Path, platform: str, repo_root: Path
+    store_reference: str,
+    *,
+    lock: Mapping[str, Any],
+    store: Path,
+    platform: str,
+    repo_root: Path,
 ) -> ResolvedTool | BlockedReason:
     """Resolve a store reference only when its executable matches the lock."""
     parsed = parse_store_executable(store_reference)
     if parsed is None:
         raise ValueError(f"not a store executable reference: {store_reference!r}")
     bundle, relative = parsed
-    entry = (lock.get("tools") or {}).get(bundle)
-    platform_entry = (entry or {}).get("platforms", {}).get(platform)
-    exe_sha256 = toolchain_env.expected_exe_sha256(bundle, relative, platform_entry)
-    if entry is None or platform_entry is None or exe_sha256 is None:
-        return BlockedReason(f"toolchain: {bundle} unattested for {platform}")
+    locked = _locked_executable(lock, bundle, relative, platform)
+    if isinstance(locked, BlockedReason):
+        return locked
+    not_provisioned = f"toolchain: {bundle} not provisioned (run manifest provision)"
+    entry, platform_entry, exe_sha256 = locked
     manifest = load_store_manifest(store)
     if manifest is None:
-        return BlockedReason(
-            f"toolchain: {bundle} not provisioned (run manifest provision)"
-        )
+        return BlockedReason(not_provisioned)
     if (
         manifest.get("lock_digest") != lock_digest(lock)
         or manifest.get("platform") != platform
     ):
         return BlockedReason("toolchain: store stale (lock or platform changed)")
 
-    bundle_manifest = (manifest.get("tools") or {}).get(bundle)
-    if bundle_manifest is None:
-        return BlockedReason(
-            f"toolchain: {bundle} not provisioned (run manifest provision)"
+    executable = _manifest_executable(
+        manifest, bundle, relative, entry, platform_entry, platform, not_provisioned
+    )
+    if isinstance(executable, BlockedReason):
+        return executable
+    bundle_manifest, exe_info = executable
+    if entry.get("kind") in ("python-env", "node-env"):
+        inputs = _EnvExeInputs(
+            bundle,
+            entry,
+            exe_info,
+            bundle_manifest,
+            exe_sha256,
+            platform_entry.get("python_provider"),
         )
+        return _resolve_env_exe(
+            inputs, lock=lock, store=store, platform=platform, repo_root=repo_root
+        )
+    return _verify_exe(bundle, exe_info, store, exe_sha256)
+
+
+def _manifest_executable(
+    manifest: Mapping,
+    bundle: str,
+    relative: str,
+    entry: Mapping,
+    platform_entry: Mapping,
+    platform: str,
+    not_provisioned: str,
+) -> tuple[Mapping, Mapping] | BlockedReason:
+    manifest_tools = manifest.get("tools")
+    bundle_manifest = (
+        manifest_tools.get(bundle) if isinstance(manifest_tools, Mapping) else None
+    )
+    if not isinstance(bundle_manifest, Mapping):
+        return BlockedReason(not_provisioned)
     if (
         bundle_manifest.get("platform") != platform
         or bundle_manifest.get("version") != entry.get("version")
@@ -230,18 +270,11 @@ def resolve(
     source_sha256 = bundle_manifest.get("source_sha256")
     if source_sha256 is not None and source_sha256 != platform_entry.get("sha256"):
         return BlockedReason("toolchain: store stale (lock changed)")
-
-    exe_info = (bundle_manifest.get("executables") or {}).get(relative)
-    if exe_info is None:
-        return BlockedReason(
-            f"toolchain: {bundle} not provisioned (run manifest provision)"
-        )
-    if entry.get("kind") in ("python-env", "node-env"):
-        inputs = _EnvExeInputs(bundle, entry, exe_info, bundle_manifest, exe_sha256)
-        return _resolve_env_exe(
-            inputs, lock=lock, store=store, platform=platform, repo_root=repo_root
-        )
-    return _verify_exe(bundle, exe_info, store, exe_sha256)
+    executables = bundle_manifest.get("executables")
+    exe_info = executables.get(relative) if isinstance(executables, Mapping) else None
+    if not isinstance(exe_info, Mapping):
+        return BlockedReason(not_provisioned)
+    return bundle_manifest, exe_info
 
 
 @dataclass(frozen=True)
@@ -255,6 +288,7 @@ class _EnvExeInputs:
     exe_info: Mapping
     bundle_manifest: Mapping
     exe_sha256: str
+    python_provider: Mapping[str, str] | None
 
 
 def _resolve_env_exe(
@@ -278,14 +312,14 @@ def _resolve_env_exe(
         )
     # Repository context is supplied by the caller; cwd is never trust input.
     env_trust = toolchain_env.EnvTrust(store, repo_root.resolve(strict=True))
-    return toolchain_env.verify_env_exe(
+    executable = toolchain_env.EnvExecutable(
         inputs.bundle,
         inputs.entry["kind"],
-        inputs.exe_info,
-        env_trust,
+        str(inputs.exe_info.get("path", "")),
         inputs.exe_sha256,
-        node_result,
+        inputs.python_provider,
     )
+    return toolchain_env.verify_env_exe(executable, env_trust, node_result)
 
 
 def _checked_relative_path(store: Path, relative_path: str) -> Path | None:
@@ -365,6 +399,9 @@ def resolved_env(env: Mapping[str, str], resolved: ResolvedTool) -> dict[str, st
 
 
 # Re-exported from toolchain_cache (moved there to keep this file under the
+
+# Fixed OS command baseline used whenever a legal system executable is invoked.
+OS_BASELINE_PATH = toolchain_cache.OS_BASELINE_PATH
 # Code Constitution's 500-line ceiling -- see that module's docstring).
 run_cache_directory = toolchain_cache.run_cache_directory
 cache_environment = toolchain_cache.cache_environment
@@ -376,12 +413,14 @@ scratch_home_environment = toolchain_cache.scratch_home_environment
 # `fingerprint_for` wrap it with this module's own `sha256_file`/`store_root`
 # so callers keep their original signature.
 def fingerprint(store: Path, resolved: Mapping[str, ResolvedTool]) -> dict[str, str]:
+    """Return file-identity evidence for a resolved store tool set."""
     return toolchain_fingerprint.fingerprint(store, resolved, sha256_file)
 
 
 def fingerprint_for(
     resolved: ResolvedTool | None, env: Mapping[str, str]
 ) -> dict[str, str]:
+    """Return resolution evidence for one tool under the supplied environment."""
     return toolchain_fingerprint.fingerprint_for(resolved, env, store_root, sha256_file)
 
 
@@ -402,7 +441,10 @@ _PREFLIGHT_CTX = toolchain_path_prepend.Context(
 
 
 def resolve_for_preflight(
-    tool: Mapping, env: Mapping[str, str], lock: Mapping, candidate_root: Path
+    tool: Mapping[str, Any],
+    env: Mapping[str, str],
+    lock: Mapping[str, Any],
+    candidate_root: Path,
 ) -> tuple[ResolvedTool | None, tuple[str, ...], dict[str, str], str | None]:
     """Resolve every `store:` reference a tool's preflight touches.
 
@@ -431,15 +473,18 @@ def resolve_for_preflight(
     except UnsafeStoreLocationError as error:
         return None, (), env, f"toolchain: {error}"
     platform = current_platform()
+    inputs = toolchain_path_prepend.ResolutionInputs(
+        lock, store, platform, candidate_root
+    )
     engine_outcome = toolchain_path_prepend.resolve_engine_refs(
-        tool, lock, store, platform, _PREFLIGHT_CTX
+        tool, _PREFLIGHT_CTX, inputs
     )
     if isinstance(engine_outcome, BlockedReason):
         return None, (), env, engine_outcome.reason
     merged, version_argv = engine_outcome
     if path_prepend:
         prepend_outcome = toolchain_path_prepend.resolve_dirs(
-            path_prepend, _PREFLIGHT_CTX, lock, store, platform
+            path_prepend, _PREFLIGHT_CTX, inputs
         )
         if isinstance(prepend_outcome, BlockedReason):
             return None, (), env, prepend_outcome.reason

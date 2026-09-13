@@ -19,10 +19,13 @@ from . import toolchain
 from . import toolchain_provision as provision_mod
 
 
-def _load_lock(path: Path) -> dict:
-    lock = json.loads(path.read_text(encoding="utf-8"))
+def _load_lock(path: Path) -> tuple[dict, Path]:
+    """Load a no-follow lock beneath its lexical checkout root."""
+    lock_path = path.absolute()
+    repo_root = lock_path.parent.parent
+    lock = toolchain.load_lock_file(lock_path, repo_root=repo_root)
     provision_mod.validate_lock(lock)
-    return lock
+    return lock, repo_root
 
 
 def _parse_imports(values: tuple[str, ...]) -> dict[str, Path]:
@@ -78,13 +81,12 @@ def _run_imports(
     return outcomes
 
 
-def _resolve_safe_store(store_option: Path | None) -> Path:
-    """Resolve the store location through the enforced safety check, whether
-    it came from `--store` or the documented environment-variable precedence."""
+def _resolve_safe_store(store_option: Path | None, *, repo_root: Path) -> Path:
+    """Resolve the store while rejecting any location inside ``repo_root``."""
     env = dict(os.environ)
     if store_option is not None:
         env["MANIFEST_TOOLCHAIN_STORE"] = str(store_option)
-    return toolchain.store_root(env)
+    return toolchain.store_root(env, repo_root)
 
 
 @click.command("provision")
@@ -116,28 +118,36 @@ def _resolve_safe_store(store_option: Path | None) -> Path:
     help="Adopt an existing binary if its sha256 matches the lock.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit stable JSON.")
+@click.option(
+    "--attest-missing",
+    is_flag=True,
+    help="Observe missing environment/cache pins without publishing them.",
+)
 @click.pass_context
 def provision(context: click.Context, **options: Any) -> None:
     """Populate the content-addressed toolchain store from a reviewed lock."""
     platform_id = options["platform_id"] or toolchain.current_platform()
     as_json = options["as_json"]
-    if options["imports"] and (options["offline"] or options["only"]):
-        raise click.UsageError("--import cannot be combined with --offline or --only")
+    if options["imports"] and (
+        options["offline"] or options["only"] or options["attest_missing"]
+    ):
+        raise click.UsageError(
+            "--import cannot be combined with --offline, --only, or --attest-missing"
+        )
     try:
-        store = _resolve_safe_store(options["store"])
-    except toolchain.UnsafeStoreLocationError as error:
-        report = {"status": "blocked", "problems": [str(error)]}
-        click.echo(_render(report, as_json), nl=False)
-        context.exit(3)
-        return
-    try:
-        lock = _load_lock(options["lock"])
+        lock, repo_root = _load_lock(options["lock"])
     except (OSError, ValueError) as error:
         report = {"status": "blocked", "problems": [str(error)]}
         click.echo(_render(report, as_json), nl=False)
         context.exit(3)
         return
-    repo_root = options["lock"].resolve(strict=True).parent.parent
+    try:
+        store = _resolve_safe_store(options["store"], repo_root=repo_root)
+    except toolchain.UnsafeStoreLocationError as error:
+        report = {"status": "blocked", "problems": [str(error)]}
+        click.echo(_render(report, as_json), nl=False)
+        context.exit(3)
+        return
     if options["offline"]:
         report, exit_code = _run_offline(lock, store, platform_id, repo_root)
         click.echo(_render(report, as_json), nl=False)
@@ -155,11 +165,12 @@ def provision(context: click.Context, **options: Any) -> None:
             only=only,
             repo_root=repo_root,
             env=dict(os.environ),
+            attest_missing=options["attest_missing"],
         )
-    blocked = any(outcome.status == "blocked" for outcome in outcomes)
+    incomplete = any(outcome.status in {"blocked", "UNPINNED"} for outcome in outcomes)
     report = {
-        "status": "blocked" if blocked else "complete",
+        "status": "blocked" if incomplete else "complete",
         "outcomes": [asdict(outcome) for outcome in outcomes],
     }
     click.echo(_render(report, as_json), nl=False)
-    context.exit(3 if blocked else 0)
+    context.exit(3 if incomplete else 0)

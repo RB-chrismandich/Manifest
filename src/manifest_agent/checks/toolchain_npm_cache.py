@@ -37,6 +37,7 @@ independent of npm's internal directory sharding.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import subprocess
 import tempfile
@@ -62,29 +63,92 @@ class NpmCacheError(RuntimeError):
     """`node-cache` materialization failed (`manifest provision` only)."""
 
 
+def _frame(hasher, kind: bytes, relative: bytes, payload: bytes) -> None:
+    hasher.update(kind)
+    hasher.update(len(relative).to_bytes(8, "big"))
+    hasher.update(relative)
+    hasher.update(len(payload).to_bytes(8, "big"))
+    hasher.update(payload)
+
+
+_VOLATILE_FIELDS = frozenset({"date", "expires", "time"})
+
+
+def _stable_record(value: object) -> object:
+    """Strip only volatile HTTP fields from a decoded cacache index record."""
+    if isinstance(value, dict):
+        return {
+            key: _stable_record(item)
+            for key, item in value.items()
+            if key not in _VOLATILE_FIELDS
+        }
+    if isinstance(value, list):
+        return [_stable_record(item) for item in value]
+    return value
+
+
+def _semantic_index_bytes(path: Path, index_root: Path) -> tuple[bytes, bytes]:
+    """Validate a cacache bucket and return its path plus stable semantics."""
+    bucket = path.relative_to(index_root).as_posix().encode()
+    records: set[bytes] = set()
+    for raw in path.read_bytes().splitlines():
+        if not raw:
+            continue
+        checksum, separator, value = raw.partition(b"\t")
+        if (
+            not separator
+            or len(checksum) != 40
+            or any(byte not in b"0123456789abcdef" for byte in checksum)
+            or hashlib.sha1(value).hexdigest().encode() != checksum
+        ):
+            raise NpmCacheError("node-cache: malformed index record")
+        try:
+            payload = json.loads(value)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise NpmCacheError("node-cache: malformed index record") from error
+        key = payload.get("key") if isinstance(payload, dict) else None
+        if not isinstance(key, str):
+            raise NpmCacheError("node-cache: malformed index record")
+        key_hash = hashlib.sha256(key.encode()).hexdigest()
+        expected_bucket = f"{key_hash[:2]}/{key_hash[2:4]}/{key_hash[4:]}".encode()
+        if bucket != expected_bucket:
+            raise NpmCacheError("node-cache: malformed index record")
+        records.add(
+            json.dumps(
+                _stable_record(payload), sort_keys=True, separators=(",", ":")
+            ).encode()
+        )
+    if not records:
+        raise NpmCacheError("node-cache: malformed index record")
+    return bucket, b"".join(
+        len(value).to_bytes(8, "big") + value for value in sorted(records)
+    )
+
+
 def index_digest(cache_root: Path) -> str | None:
-    """Digest immutable npm content blobs with unambiguous framed records."""
+    """Digest canonical index semantics and exact content-v2 bytes."""
     content_root = cache_root / "_cacache" / "content-v2"
-    if not content_root.is_dir():
+    index_root = cache_root / _INDEX_SUBDIR
+    if not content_root.is_dir() or not index_root.is_dir():
         return None
-    entries = sorted(path for path in content_root.rglob("*") if not path.is_dir())
-    if not entries:
+    index_entries = sorted(path for path in index_root.rglob("*") if not path.is_dir())
+    content_entries = sorted(
+        path for path in content_root.rglob("*") if not path.is_dir()
+    )
+    if not index_entries or not content_entries:
         return None
     hasher = hashlib.sha256()
-    hasher.update(len(entries).to_bytes(8, "big"))
-    for path in entries:
+    hasher.update((len(index_entries) + len(content_entries)).to_bytes(8, "big"))
+    for bucket, record in sorted(
+        _semantic_index_bytes(path, index_root) for path in index_entries
+    ):
+        _frame(hasher, b"I", bucket, record)
+    for path in content_entries:
         relative = path.relative_to(cache_root).as_posix().encode()
-        mode = path.lstat().st_mode & 0o777
         if path.is_symlink():
-            kind, payload = b"L", os.readlink(path).encode()
+            _frame(hasher, b"L", relative, os.readlink(path).encode())
         else:
-            kind, payload = b"F", path.read_bytes()
-        hasher.update(kind)
-        hasher.update(len(relative).to_bytes(8, "big"))
-        hasher.update(relative)
-        hasher.update(mode.to_bytes(2, "big"))
-        hasher.update(len(payload).to_bytes(8, "big"))
-        hasher.update(payload)
+            _frame(hasher, b"C", relative, path.read_bytes())
     return hasher.hexdigest()
 
 
@@ -161,43 +225,39 @@ def _npm_ci_into_cache(
 
 
 def materialize(
-    *,
-    repo_root: Path,
-    store: Path,
-    lock: Mapping,
-    platform: str,
-    env: Mapping[str, str],
-    expected_digest: str | None = None,
+    ctx: _ProvisionContext, *, expected_digest: str | None = None, publish: bool = True
 ) -> tuple[Path, str]:
-    """Materialize a verified npm cache."""
-    resolved_npm = _resolve_npm_for_materialize(lock, store, platform, repo_root)
-    project = repo_root / PROJECT_RELATIVE
+    """Materialize a verified npm cache for the complete provision context."""
+    resolved_npm = _resolve_npm_for_materialize(
+        ctx.lock, ctx.store, ctx.platform, ctx.repo_root
+    )
+    project = ctx.repo_root / PROJECT_RELATIVE
     try:
         package_json_bytes = (project / "package.json").read_bytes()
         package_lock_bytes = (project / "package-lock.json").read_bytes()
     except OSError as error:
         raise NpmCacheError(f"node-cache source unavailable: {error}") from error
-
-    relative = f"caches/{CACHE_BUNDLE}/{platform}"
+    relative = f"caches/{CACHE_BUNDLE}/{ctx.platform}"
     try:
-        with staged_directory(store, relative) as transaction:
+        with staged_directory(ctx.store, relative) as transaction:
             stage = transaction.path
             _npm_ci_into_cache(
                 resolved_npm=resolved_npm,
                 package_json_bytes=package_json_bytes,
                 package_lock_bytes=package_lock_bytes,
                 cache_dir=stage,
-                env=env,
+                env=ctx.env,
             )
             digest = index_digest(stage)
             if digest is None:
                 raise NpmCacheError("node-cache: npm ci produced an empty cache index")
             if expected_digest is not None and digest != expected_digest:
                 raise NpmCacheError("node-cache: digest mismatch")
-            transaction.commit()
+            if publish:
+                transaction.commit()
     except (OSError, ValueError) as error:
         raise NpmCacheError(f"node-cache store mutation failed: {error}") from error
-    return store / relative, digest
+    return ctx.store / relative, digest
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,15 +271,23 @@ class ResolvedCache:
 def resolve(
     *, repo_root: Path, store: Path, lock: Mapping, platform: str
 ) -> ResolvedCache | toolchain.BlockedReason:
-    """Hash-verified resolution of the store's `node-cache` -- never
-    `~/.npm`, never a network fetch: `manifest check` only reads what
-    `manifest provision` already verified and wrote, and re-verifies both
-    that the candidate's own lockfile still matches what was cached AND
-    that the cache's own contents still match its attested digest."""
-    entry = (lock.get("caches") or {}).get(CACHE_BUNDLE)
-    platform_entry = (entry or {}).get("platforms", {}).get(platform)
-    attested_digest = (platform_entry or {}).get("digest") if platform_entry else None
-    if entry is None or platform_entry is None or attested_digest is None:
+    """Resolve only a complete cache attested by schema-valid lock records."""
+    caches = lock.get("caches")
+    if not isinstance(caches, Mapping):
+        return toolchain.BlockedReason("toolchain: invalid caches")
+    entry = caches.get(CACHE_BUNDLE)
+    if not isinstance(entry, Mapping):
+        return toolchain.BlockedReason(
+            f"toolchain: {CACHE_BUNDLE} unattested for {platform}"
+        )
+    platforms = entry.get("platforms")
+    platform_entry = platforms.get(platform) if isinstance(platforms, Mapping) else None
+    if not isinstance(platform_entry, Mapping):
+        return toolchain.BlockedReason(
+            f"toolchain: {CACHE_BUNDLE} unattested for {platform}"
+        )
+    attested_digest = platform_entry.get("digest")
+    if not isinstance(attested_digest, str):
         return toolchain.BlockedReason(
             f"toolchain: {CACHE_BUNDLE} unattested for {platform}"
         )
@@ -234,11 +302,6 @@ def resolve(
             f"toolchain: {CACHE_BUNDLE} stale (package-lock.json changed)"
         )
     cache_dir = store / "caches" / CACHE_BUNDLE / platform
-    if not cache_dir.is_dir():
-        return toolchain.BlockedReason(
-            f"toolchain: no store-anchored npm cache for {CACHE_BUNDLE} "
-            "(run manifest provision)"
-        )
     actual_digest = index_digest(cache_dir)
     if actual_digest is None or actual_digest != attested_digest:
         return toolchain.BlockedReason(f"toolchain: {CACHE_BUNDLE} digest mismatch")
@@ -251,7 +314,7 @@ def resolve_for_check(root: Path) -> ResolvedCache | toolchain.BlockedReason:
     resolve_tool`) -- the one entry point `dependency_checks.py` calls."""
     lock_path = root / "config" / "toolchain.lock.json"
     try:
-        lock = toolchain.load_lock_file(lock_path)
+        lock = toolchain.load_lock_file(lock_path, repo_root=root)
     except (OSError, ValueError) as error:
         return toolchain.BlockedReason(f"toolchain lock unavailable: {error}")
     try:
@@ -308,7 +371,7 @@ def _record(ctx: _ProvisionContext, bundle: str, digest: str) -> None:
 
 
 def provision(ctx: _ProvisionContext, bundle: str) -> tuple[str, str, str | None]:
-    """Materialize and record a cache, returning status, reason, and digest."""
+    """Materialize and record a cache, or observe an unpinned cache digest."""
     if bundle != CACHE_BUNDLE:
         return (
             "blocked",
@@ -320,18 +383,15 @@ def provision(ctx: _ProvisionContext, bundle: str) -> tuple[str, str, str | None
     expected_digest = platform_entry.get("digest")
     expected_source = cache_entry.get("source_sha256")
     try:
-        if expected_digest is None or source_sha256(ctx.repo_root) != expected_source:
+        if source_sha256(ctx.repo_root) != expected_source:
+            return "blocked", f"toolchain: {bundle} cache is unattested or stale", None
+        if expected_digest is None and not ctx.attest_missing:
             return "blocked", f"toolchain: {bundle} cache is unattested or stale", None
         _cache_dir, digest = materialize(
-            repo_root=ctx.repo_root,
-            store=ctx.store,
-            lock=ctx.lock,
-            platform=ctx.platform,
-            env=ctx.env,
-            expected_digest=expected_digest,
+            ctx, expected_digest=expected_digest, publish=expected_digest is not None
         )
-        if digest != expected_digest:
-            return "blocked", f"toolchain: {bundle} cache digest mismatch", None
+        if expected_digest is None:
+            return "UNPINNED", f"UNPINNED: toolchain: {bundle} unattested", digest
         _record(ctx, bundle, digest)
     except (NpmCacheError, OSError, ValueError) as error:
         return "blocked", str(error), None

@@ -22,6 +22,9 @@ printf '%s\n' "$*" > "$UV_LOG"
 printf '{"state":"READY"}\n'
 STUB
     chmod +x "$HOME/.local/bin/uv"
+    # Direct consumer tests establish the same invocation-scoped capability
+    # that check_uv provides to production bootstrap.
+    export MANIFEST_VERIFIED_UV_BIN="$HOME/.local/bin/uv"
 
     export PATH="$SANDBOX/bin:/usr/bin:/bin"
     export RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''

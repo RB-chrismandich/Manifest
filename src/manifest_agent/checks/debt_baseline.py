@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 
 
-def load_baseline(path: Path) -> frozenset[str]:
+def load_baseline_bytes(payload: bytes) -> frozenset[str]:
+    """Validate a debt baseline read through a verified trust-anchor handle."""
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+        document = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"debt baseline is unavailable or invalid: {error}") from error
     findings = document.get("findings") if isinstance(document, dict) else None
     if (
@@ -24,3 +25,10 @@ def load_baseline(path: Path) -> frozenset[str]:
     ):
         raise ValueError("debt baseline has malformed findings")
     return frozenset(ids)
+
+
+def load_baseline(path: Path) -> frozenset[str]:
+    try:
+        return load_baseline_bytes(path.read_bytes())
+    except OSError as error:
+        raise ValueError(f"debt baseline is unavailable or invalid: {error}") from error

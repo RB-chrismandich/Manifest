@@ -6,6 +6,8 @@ on:
   # No base-branch filter: stacked story-PRs (e.g. 003-us4 -> 003-us3) must
   # run CI too, not only PRs that target main.
   pull_request:
+  workflow_dispatch:
+
 
 permissions:
   contents: read
@@ -592,3 +594,186 @@ jobs:
             exit 1
           fi
           echo "Cursor rules, mcp.json, and agents are up-to-date"
+  toolchain-attest-linux:
+    name: Toolchain Attestation (Linux x64)
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dispatched head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify dispatched head
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Install committed verified uv
+        run: |
+          set -euo pipefail
+          export HOME="$RUNNER_TEMP/manifest-verified-uv-home"
+          mkdir -p "$HOME"
+          print_warning() { printf '%s\n' "$*" >&2; }
+          print_step() { printf '%s\n' "$*"; }
+          print_success() { printf '%s\n' "$*"; }
+          command_exists() { command -v "$1" > /dev/null 2>&1; }
+          source bootstrap/lib/verified_uv.sh
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-apple-darwin x86_64-apple-darwin; do
+            [[ "$(_uv_archive_sha256 "$target")" =~ ^[[:xdigit:]]{64}$ ]]
+            [[ "$(_uv_executable_sha256 "$target")" =~ ^[[:xdigit:]]{64}$ ]]
+          done
+          check_uv
+          UV_BIN="${MANIFEST_VERIFIED_UV_BIN:-}"
+          UV_TOKEN="${MANIFEST_VERIFIED_UV_TOKEN:-}"
+          test -n "$UV_BIN" && test -x "$UV_BIN" && test -n "$UV_TOKEN"
+          printf 'MANIFEST_VERIFIED_UV_BIN=%s\nMANIFEST_VERIFIED_UV_TOKEN=%s\n' "$UV_BIN" "$UV_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Sync repository package from its lock
+        run: |
+          set -euo pipefail
+          test -n "${MANIFEST_VERIFIED_UV_BIN:-}" && test -x "$MANIFEST_VERIFIED_UV_BIN"
+          test -n "${MANIFEST_VERIFIED_UV_TOKEN:-}"
+          "$MANIFEST_VERIFIED_UV_BIN" sync --frozen --locked
+
+      - name: Provision and validate attestation evidence
+        env:
+          ATTESTATION_PLATFORM: linux-x64
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/toolchain-attestation-report.json"
+          metadata="$RUNNER_TEMP/toolchain-attestation-metadata.json"
+          set +e
+          "$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision --lock config/toolchain.lock.json --platform linux-x64 --store "$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "$report"
+          provision_exit=$?
+          set -e
+          export PROVISION_EXIT="$provision_exit"
+          export ATTESTATION_REPORT="$report"
+          export ATTESTATION_METADATA="$metadata"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          def digest(value, field):
+              if not isinstance(value, str) or len(value) != 64:
+                  raise SystemExit(f"malformed {field}")
+              try:
+                  int(value, 16)
+              except ValueError as error:
+                  raise SystemExit(f"malformed {field}") from error
+
+          report_path = Path(os.environ["ATTESTATION_REPORT"])
+          metadata_path = Path(os.environ["ATTESTATION_METADATA"])
+          exit_code = int(os.environ["PROVISION_EXIT"])
+          lock_path = Path("config/toolchain.lock.json")
+          lock = json.loads(lock_path.read_text(encoding="utf-8"))
+          platform = os.environ["ATTESTATION_PLATFORM"]
+          expected_unpinned = {}
+          expected_complete = set()
+          pinned_records = {}
+          bundle_kinds = {}
+          for bundle, entry in lock["tools"].items():
+              record = entry["platforms"].get(platform)
+              if record is None:
+                  continue
+              pinned_records[bundle] = record
+              bundle_kinds[bundle] = entry["kind"]
+              missing = {"digest"} if record.get("exe_sha256") is None else set()
+              if entry["kind"] == "python-env" and record.get("python_provider") is None:
+                  missing.add("provider")
+              if missing:
+                  expected_unpinned[bundle] = missing
+              else:
+                  expected_complete.add(bundle)
+          for bundle, entry in lock.get("caches", {}).items():
+              record = entry.get("platforms", {}).get(platform)
+              if record is None:
+                  continue
+              pinned_records[bundle] = record
+              if record.get("digest") is None:
+                  expected_unpinned[bundle] = {"digest"}
+              else:
+                  expected_complete.add(bundle)
+          try:
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+          except (OSError, json.JSONDecodeError) as error:
+              raise SystemExit(f"malformed provision report: {error}") from error
+          outcomes = report.get("outcomes") if isinstance(report, dict) else None
+          if not isinstance(outcomes, list):
+              raise SystemExit("provision report has no outcomes")
+          by_bundle = {}
+          for outcome in outcomes:
+              if not isinstance(outcome, dict) or not isinstance(outcome.get("bundle"), str):
+                  raise SystemExit("malformed outcome")
+              bundle = outcome["bundle"]
+              if bundle in by_bundle:
+                  raise SystemExit("missing/extra/duplicate attestation outcomes")
+              by_bundle[bundle] = outcome
+          expected = set(expected_unpinned) | expected_complete
+          if set(by_bundle) != expected:
+              raise SystemExit("missing/extra/duplicate attestation outcomes")
+          observed = []
+          for bundle, fields in expected_unpinned.items():
+              outcome = by_bundle[bundle]
+              record = pinned_records[bundle]
+              if outcome.get("status") != "UNPINNED" or not str(outcome.get("reason", "")).startswith("UNPINNED:"):
+                  raise SystemExit(f"unattested {bundle} lacks UNPINNED evidence")
+              digest(outcome.get("digest"), f"{bundle} digest")
+              expected_digest = record.get("exe_sha256", record.get("digest"))
+              if expected_digest is not None and outcome["digest"] != expected_digest:
+                  raise SystemExit(f"unattested {bundle} violates its existing digest pin")
+              provider = outcome.get("provider")
+              if bundle_kinds.get(bundle) == "python-env":
+                  if not isinstance(provider, dict) or set(provider) != {"implementation", "version", "build", "exe_sha256"}:
+                      raise SystemExit(f"unattested {bundle} has malformed provider evidence")
+                  if not all(isinstance(provider[key], str) and provider[key] for key in provider):
+                      raise SystemExit(f"unattested {bundle} has malformed provider evidence")
+                  digest(provider["exe_sha256"], f"{bundle} provider exe_sha256")
+                  expected_provider = record.get("python_provider")
+                  if expected_provider is not None and provider != expected_provider:
+                      raise SystemExit(f"unattested {bundle} violates its existing provider pin")
+              elif provider is not None:
+                  raise SystemExit(f"unexpected provider evidence for {bundle}")
+              observed.append({"bundle": bundle, "digest": outcome["digest"], "provider": provider})
+          for bundle in expected_complete:
+              if by_bundle[bundle].get("status") != "provisioned":
+                  raise SystemExit(f"fully pinned {bundle} did not provision")
+          if expected_unpinned:
+              if exit_code != 3 or report.get("status") != "blocked":
+                  raise SystemExit("attestation acquisition did not report the complete UNPINNED set")
+          elif exit_code != 0 or report.get("status") != "complete":
+              raise SystemExit("complete lock did not provision successfully")
+          uv_path = Path(os.environ["MANIFEST_VERIFIED_UV_BIN"])
+          if not uv_path.is_file() or not os.access(uv_path, os.X_OK):
+              raise SystemExit("verified uv is absent or non-executable")
+          uv_sha = hashlib.sha256(uv_path.read_bytes()).hexdigest()
+          if os.environ.get("MANIFEST_VERIFIED_UV_TOKEN") != f"sha256:{uv_sha}":
+              raise SystemExit("verified uv token mismatch")
+          metadata = {
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "head_sha": os.environ["GITHUB_SHA"],
+              "lock_sha256": hashlib.sha256(lock_path.read_bytes()).hexdigest(),
+              "platform": platform,
+              "command_exit": exit_code,
+              "provider": {"name": "verified-uv", "sha256": uv_sha},
+              "observed_records": sorted(observed, key=lambda item: item["bundle"]),
+              "artifact_filenames": {"report": report_path.name, "metadata": metadata_path.name},
+          }
+          metadata_path.write_text(json.dumps(metadata, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload Linux toolchain attestation
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: linux-x64-toolchain-attestations-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/toolchain-attestation-report.json
+            ${{ runner.temp }}/toolchain-attestation-metadata.json
+          if-no-files-found: warn
+          retention-days: 14

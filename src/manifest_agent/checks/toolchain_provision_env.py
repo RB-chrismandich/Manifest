@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping
 from pathlib import Path
 
-from . import toolchain_env
+from . import toolchain_env, toolchain_env_digest
 from . import toolchain_materialize as materialize
 from .toolchain_provision_models import ProvisionContext, ProvisionOutcome
 from .toolchain_provision_store import (
@@ -50,6 +51,57 @@ def provision_environment(
     return ProvisionOutcome(bundle, "provisioned", digest=digest)
 
 
+def _observed_provider(entry: Mapping, env_root: Path) -> dict[str, str] | None:
+    if entry["kind"] != "python-env":
+        return None
+    return toolchain_env_digest.external_python_provider(
+        toolchain_env_digest.python_provider_from_env(env_root)
+    ).lock_record()
+
+
+def _unattested_outcome(
+    ctx: ProvisionContext,
+    bundle: str,
+    entry: Mapping,
+    env_root: Path,
+    digest: str,
+) -> ProvisionOutcome:
+    provider = (
+        _observed_provider(entry, env_root) if entry["kind"] == "python-env" else None
+    )
+    return ProvisionOutcome(
+        bundle,
+        "UNPINNED" if ctx.attest_missing else "blocked",
+        f"UNPINNED: toolchain: {bundle} unattested for {ctx.platform}",
+        digest=digest,
+        provider=provider,
+    )
+
+
+def _pinned_python_provider(
+    ctx: ProvisionContext,
+    bundle: str,
+    entry: Mapping,
+    env_root: Path,
+    platform_entry: Mapping,
+) -> dict[str, str] | ProvisionOutcome | None:
+    if entry["kind"] != "python-env":
+        return None
+    provider = toolchain_env_digest.external_python_provider(
+        toolchain_env_digest.python_provider_from_env(env_root)
+    )
+    pinned = platform_entry.get("python_provider")
+    if provider.matches(pinned):
+        return pinned
+    if pinned is None and ctx.attest_missing:
+        return None
+    observed = json.dumps(provider.lock_record(), sort_keys=True, separators=(",", ":"))
+    state = "unpinned" if pinned is None else "does not match the lock"
+    return ProvisionOutcome(
+        bundle, "blocked", f"toolchain: {bundle} Python provider {state}: {observed}"
+    )
+
+
 def _materialize_attested(
     ctx: ProvisionContext,
     bundle: str,
@@ -71,28 +123,33 @@ def _materialize_attested(
                     "blocked",
                     f"toolchain: {bundle} missing console script(s) {missing}",
                 )
+            pinned_provider = _pinned_python_provider(
+                ctx, bundle, entry, env_root, platform_entry
+            )
+            if isinstance(pinned_provider, ProvisionOutcome):
+                return pinned_provider
             digest = toolchain_env.distribution_set_digest(
                 env_root,
                 entry["kind"],
                 store=ctx.store,
                 checkout_root=ctx.repo_root.resolve(),
                 canonical_env_root=ctx.store / relative,
+                python_provider=pinned_provider,
             )
             expected_digest = platform_entry.get("exe_sha256")
-            if expected_digest is None:
-                return ProvisionOutcome(
-                    bundle,
-                    "blocked",
-                    f"toolchain: {bundle} unattested for {ctx.platform}",
-                    digest=digest,
-                )
-            if digest != expected_digest:
+            missing_provider = (
+                entry["kind"] == "python-env"
+                and platform_entry.get("python_provider") is None
+            )
+            if expected_digest is not None and digest != expected_digest:
                 return ProvisionOutcome(
                     bundle,
                     "blocked",
                     f"toolchain: {bundle} digest mismatch",
                     digest=digest,
                 )
+            if expected_digest is None or (ctx.attest_missing and missing_provider):
+                return _unattested_outcome(ctx, bundle, entry, env_root, digest)
             transaction.commit()
     except (
         OSError,
