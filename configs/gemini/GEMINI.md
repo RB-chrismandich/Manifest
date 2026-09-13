@@ -285,22 +285,13 @@ enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.
 
 ---
 
-## Workflow Integration
+### Before or After Making Changes
 
-### Before Making Changes
-
-```bash
-# Get multi-agent review of proposed changes
-~/.claude/scripts/parallel_agent.py --json --validate \
-  "Review this planned change: [description]. Files affected: [list]"
-```
-
-### After Making Changes
-
-```bash
-# Validate the implementation (use absolute path, 10 min timeout)
-~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 --review /absolute/path/to/modified_file
-```
+Use one capable reviewer by default. Invoke multi-agent validation only when a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+impact, unresolved uncertainty, or genuinely independent codebase-wide tracks
+are present. Record the reason and run the escalated command with `--command`
+and `--review-mode escalated`; otherwise do not invoke `parallel_agent.py`.
 
 ### For Complex Decisions
 

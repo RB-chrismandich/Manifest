@@ -59,7 +59,9 @@ find . -type f -exec grep -l "^#!/bin/bash\|^#!/bin/sh" {} \;
 
 ### Step 2: Run ShellCheck Analysis
 
-For each script, run ShellCheck:
+When ShellCheck is available as a trusted preinstalled static tool, run it for
+each script. Otherwise report the ShellCheck check as `unavailable` and include
+the missing-tool reason; never install it during review.
 
 ```bash
 shellcheck --severity=info script.sh
@@ -343,7 +345,7 @@ local var="value"  # Function-scoped variables
 - **Be specific**: Every finding must have exact file:line location
 - **Be actionable**: Every finding must have a concrete fix
 - **Prioritize security**: Command injection and unsafe operations come first
-- **Run ShellCheck**: Always include actual ShellCheck output
+- **Run ShellCheck when available**: Otherwise report it as `unavailable`
 - **Show examples**: Include before/after code snippets
 
 ---
@@ -412,7 +414,7 @@ report these checks as `unavailable`.
 
 ## Related Tools
 
-- **ShellCheck**: Static analysis (already installed)
+- **ShellCheck**: Optional static analysis; report `unavailable` when absent
 - **shfmt**: Shell script formatter
 - **bashate**: OpenStack style checker
 - **bats**: Bash Automated Testing System
