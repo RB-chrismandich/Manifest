@@ -262,23 +262,20 @@ fi
 
 ---
 
-#### Pattern D: Parallel Agent Consensus
+#### Pattern D: Risk-Gated Independent Review
 
 ```markdown
 **Success Criteria**:
-- [ ] Parallel agent consensus >= 80%
+- [ ] The applicable risk condition, review mode, and check evidence are recorded
 ```
 
-```bash
-result=$(~/.claude/scripts/parallel_agent.py --json --validate --review "$file")
-consensus=$(echo "$result" | jq -r '.cross_verification.consensus_score')
-
-if [[ $consensus -ge 80 ]]; then
-  phase_passed=true
-else
-  phase_passed=false
-fi
-```
+Use one capable reviewing agent by default. Add independent review only for a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+change, conflicting evidence or unresolved uncertainty, or a codebase-wide
+investigation with genuinely independent tracks. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review. An unavailable required check records `unavailable_reason`, never a
+passing result.
 
 ---
 
@@ -517,37 +514,23 @@ Some commands can partially succeed:
 
 ## Integration with Parallel Agents
 
-State machine commands often use parallel agents for validation phases:
+State machine commands may decompose genuinely independent workload units during
+validation. Independent review is separate:
 
 ```markdown
 ### Phase 3: Cross-Verify Changes
 
-**Parallel Agent Integration**: CONDITIONAL (only if >100 lines changed)
+**Parallel Agent Integration**: CONDITIONAL only for a trust-boundary change,
+destructive behavior, broad compatibility or deployment change, conflicting
+evidence or unresolved uncertainty, or a codebase-wide investigation with
+genuinely independent tracks.
 
-**Implementation**:
-```bash
-lines_changed=$(git diff --stat | tail -1 | awk '{print $4}')
-
-if [[ $lines_changed -gt 100 ]]; then
-  result=$(~/.claude/scripts/parallel_agent.py --json --validate \
-    --timeout 600 --review "$changed_file")
-
-  consensus=$(echo "$result" | jq -r '.cross_verification.consensus_score')
-
-  if [[ $consensus -ge 80 ]]; then
-    echo "✅ Cross-verification passed ($consensus%)"
-    phase_passed=true
-  else
-    echo "⚠️ Cross-verification low consensus ($consensus%)"
-    # Ask user whether to proceed
-  fi
-else
-  echo "Changes small (<100 lines), skipping cross-verification"
-  phase_passed=true
-fi
+**Implementation**: Keep one capable reviewer otherwise. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review. When the gate applies, record `review_mode`, `escalation_reason`, and
+each applicable command/result; record `unavailable_reason` if required
+capability is absent.
 ```
-
----
 
 ## Related Patterns
 

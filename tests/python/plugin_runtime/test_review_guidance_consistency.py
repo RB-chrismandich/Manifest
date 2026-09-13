@@ -14,6 +14,39 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+ACTIVE_INDEPENDENT_REVIEW_GUIDES = (
+    "configs/gemini/GEMINI.md",
+    "configs/claude/prompts/preflight_analysis.md",
+    "docs/commands/state-machines.md",
+    "docs/templates/README.md",
+    "docs/templates/orchestration_prompt.md",
+    "docs/templates/commands/issue-process.md",
+    "docs/templates/patterns/command-state-machine.md",
+)
+
+
+@pytest.mark.parametrize("relative_path", ACTIVE_INDEPENDENT_REVIEW_GUIDES)
+def test_active_independent_review_guides_use_only_the_five_condition_gate(
+    repo_root: Path, relative_path: str
+) -> None:
+    source = " ".join(
+        (repo_root / relative_path).read_text(encoding="utf-8").lower().split()
+    )
+
+    for condition in (
+        "trust-boundary change",
+        "destructive behavior",
+        "broad compatibility or deployment change",
+        "conflicting evidence or unresolved uncertainty",
+        "a codebase-wide investigation with genuinely independent tracks",
+    ):
+        assert condition in source
+    assert "independent-unit counts never trigger independent review" in source
+    assert ">100 lines changed" not in source
+    assert ">200 lines modified" not in source
+    assert "each modified file" not in source
+
+
 def test_validation_configs_do_not_duplicate_code_audit_activation(
     repo_root: Path,
 ) -> None:

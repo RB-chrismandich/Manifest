@@ -89,7 +89,7 @@ Phase 1: Run Tests
     ↓
 Phase 2: Build Artifacts
     ↓
-Phase 3: Validate Plan (parallel agents)
+Phase 3: Validate Plan (risk-gated independent review)
     ↓
 Phase 4: Deploy (with automatic rollback)
     ↓
@@ -151,41 +151,31 @@ Overall: SUCCESS (with warnings)
 
 ## Parallel Agent Integration
 
-Commands can use parallel agents for cross-verification and consensus scoring.
+risk-based independent review follows the five-condition gate below.
 
-### When to Use Parallel Agents
-
-Use risk-based independent cross-verification only when a risk condition is present:
-
-- A trust-boundary change or destructive behavior
-- Broad compatibility or deployment impact
-- Conflicting evidence, unresolved uncertainty, or incomplete context
-- A codebase-wide investigation with genuinely independent analysis tracks
-
-Counts of changed lines, files, packages, modules, and languages never trigger
-review escalation by themselves. Workload-oriented commands retain their own
-documented fan-out rules.
+Commands may use OMP to decompose genuinely independent workload units. That is
+not independent review. Use one capable reviewing agent by default; add
+independent review only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment change, conflicting evidence or unresolved
+uncertainty, or a codebase-wide investigation with genuinely independent
+tracks. File, package, module, language, keyword, and independent-unit counts
+never trigger independent review.
 
 ### Integration Pattern
 
 ````markdown
 ## Parallel Agent Integration
 
-This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
+This command uses workload fan-out only when ready units are genuinely
+independent. It uses independent review only when the five-condition risk gate
+above applies.
 
-When triggered, execute:
-```bash
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 \
-  --cursor-model [mini|flash|advanced] --claude-model [haiku|sonnet|opus] \
-  [--analyze|--review] "[prompt or file path]"
-```
-
-Consensus scoring:
-
-- >=80%: Auto-proceed with unified recommendation
-- 50-79%: Highlight disagreements to user
-- <50%: Block and escalate for human review
-
+When independently reviewing:
+1. Record `review_mode` and `escalation_reason`.
+2. Submit bounded review concerns in one OMP `task` call.
+3. Record one exact command/result for each applicable check; an unavailable
+   check records `unavailable_reason`, never a passing result.
+4. Validate and aggregate evidence in the parent. Keep mutations sequential.
 ````
 
 ### Model Selection

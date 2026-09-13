@@ -160,19 +160,15 @@ Once all sub-agents have completed their tasks:
 
 ### Step 4: Final Validation
 
-Once all tests pass:
-
-1. Run parallel agent validation on each modified file:
-
-   ```bash
-   ~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
-     --review /absolute/path/to/modified_file
-   ```
-
-2. Evaluate consensus:
-   - **>= 80%**: High confidence — proceed to Step 5 with status `processed`
-   - **50-79%**: Medium confidence — proceed to Step 5 with status `needs-review`, include disagreements
-   - **< 50%**: Low confidence — proceed to Step 5 with status `needs-review`, escalate to user
+Once all tests pass, have the parent evaluate the implementation and worker
+evidence. Add independent review only for a trust-boundary change, destructive
+behavior, broad compatibility or deployment change, conflicting evidence or
+unresolved uncertainty, or a codebase-wide investigation with genuinely
+independent tracks. File, package, module, language, keyword, and
+independent-unit counts never trigger independent review. When that gate
+applies, dispatch bounded concerns in one OMP `task` batch; record
+`review_mode`, `escalation_reason`, and every applicable command/result or an
+`unavailable_reason`. Otherwise proceed with the single-agent review.
 
 ### Step 5: Issue Update & Closure
 

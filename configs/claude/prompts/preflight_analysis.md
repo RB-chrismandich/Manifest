@@ -32,7 +32,7 @@ an identifier or keyword.
 Determine whether the change deletes, migrates, deploys, irreversibly mutates,
 or otherwise causes hard-to-reverse data or infrastructure effects.
 
-### Step 3: Broad compatibility or deployment impact
+### Step 3: Broad compatibility or deployment change
 
 Determine whether a public compatibility, platform, deployment, or operational
 change has broad impact. File, line, package, module, or language counts do
@@ -45,21 +45,16 @@ be resolved through a single capable review.
 
 ### Step 5: Genuinely independent codebase-wide tracks
 
-Determine whether a codebase-wide investigation has genuinely independent
-analysis tracks. The number of files, units, or languages is not evidence of
-independence.
+Determine whether a codebase-wide investigation with genuinely independent
+tracks exists. File, package, module, language, keyword, and independent-unit
+counts never trigger independent review.
 
 ## Confidence Calibration
 
-Rate your confidence in the pre-flight decision on a 0.0-1.0 scale:
-
-- **0.90-1.00**: Clear trigger or clear non-trigger; no ambiguity
-- **0.70-0.89**: Likely trigger/non-trigger but some edge cases
-- **0.50-0.69**: Uncertain; could go either way depending on context
-- **Below 0.50**: Insufficient information to decide; default to triggering review
-
-When confidence is below 0.70, default to triggering parallel review (false positives
-are cheaper than missed security issues).
+Rate confidence in the evidence assessment on a 0.0-1.0 scale. Low confidence
+does not independently trigger review. It triggers independent review only when
+the missing or conflicting evidence is material and remains unresolved after one
+capable review; record that fourth risk condition explicitly.
 
 ### Calibration Notes
 

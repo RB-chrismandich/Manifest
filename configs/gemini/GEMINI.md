@@ -64,19 +64,16 @@ tool list before routing to one.
 - *opt-in* **Apify MCP** — web scraping/crawling for structured external data
 - *opt-in* **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
+Run a cross-model review only after the independent-review gate opens: a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+change, conflicting evidence or unresolved uncertainty, or a codebase-wide
+investigation with genuinely independent tracks. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review.
+
 ```bash
-# Basic code review with JSON output (all 5 agents, 10 min timeout)
+# Use only after recording the concrete risk condition.
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
-
-# Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Generic prompt to all agents
-~/.claude/scripts/parallel_agent.py --json "Your question here"
-
-# Quick query with lightweight models
-~/.claude/scripts/parallel_agent.py --cursor-model mini --claude-model haiku "Quick question"
 ```
 
 ### Options
@@ -331,30 +328,26 @@ Files generated per run:
 
 ## Orchestrated Code Review Workflow
 
-One capable reviewer is the default. Add independent review only for a
+Use one capable reviewing agent by default. Add independent review only for a
 trust-boundary change, destructive behavior, broad compatibility or deployment
-impact, conflicting evidence or unresolved uncertainty, or genuinely
-independent codebase-wide tracks. Counts of files, lines, packages, modules,
-languages, keywords, and units do not independently escalate review.
+change, conflicting evidence or unresolved uncertainty, or a codebase-wide
+investigation with genuinely independent tracks. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review.
 
 ### Phase 1: Pre-flight Analysis
 
 Assess the five conditions in `~/.claude/prompts/preflight_analysis.md`
-(symlinked at `~/.gemini/prompts/preflight_analysis.md`) and return JSON with
-`needs_parallel_review`, `reason`, `triggered_criteria`, and `confidence`.
-Record concrete behavior evidence; a keyword or size measurement is not a
-trigger.
+(symlinked at `~/.gemini/prompts/preflight_analysis.md`). Record
+`review_mode`, `escalation_reason`, and concrete behavior evidence. A keyword or
+size measurement is not a trigger.
 
-### Phase 2: Parallel Agent Review
+### Phase 2: Independent Review
 
-If the risk gate opens and cross-model review is appropriate, execute:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 --review /absolute/path/to/file
-```
-
-If the review cannot run safely or a required capability is unavailable, report
-it as unavailable rather than as passing.
+When the risk gate opens and cross-model review is appropriate, execute the
+configured review command. Record one exact command/result for every applicable
+check. If a required capability is unavailable, record `unavailable_reason`;
+never report it as passing.
 
 ### Phase 3: Synthesis (on disagreement)
 
