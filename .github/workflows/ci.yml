@@ -788,7 +788,6 @@ jobs:
     name: Shadow Checks (structure)
     timeout-minutes: 15
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     outputs:
@@ -884,7 +883,6 @@ jobs:
     name: Shadow Checks (lint)
     timeout-minutes: 20
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     outputs:
@@ -980,7 +978,6 @@ jobs:
     # changes.
     timeout-minutes: 37
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     outputs:
@@ -1073,7 +1070,6 @@ jobs:
     name: Shadow Checks (security)
     timeout-minutes: 15
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     outputs:
@@ -1161,7 +1157,6 @@ jobs:
     name: Shadow Checks (package)
     timeout-minutes: 15
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     outputs:
@@ -1239,8 +1234,8 @@ jobs:
   checks-aggregate-full:
     # C6b renamed this from shadow-checks-aggregate. There is exactly one
     # aggregate job (profile `full`); `security` is a named registry subset.
-    # Keep it non-blocking until the underlying aggregate verdict is green.
-    name: Checks Aggregate (full, non-blocking)
+    # Required aggregate job for the full shared-check profile.
+    name: Checks Aggregate (full)
     timeout-minutes: 10
     needs:
       [
@@ -1252,7 +1247,6 @@ jobs:
       ]
     if: always()
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       actions: read
@@ -1356,7 +1350,6 @@ jobs:
 
       - name: Aggregate shared checks
         id: aggregate
-        continue-on-error: true
         run: |
           uv run manifest check-aggregate full \
             --project-config config/project-checks.json \
