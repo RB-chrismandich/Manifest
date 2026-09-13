@@ -1,4 +1,5 @@
 #!/bin/bash
+# help-coverage: exempt — sourced bootstrap helper library, not a user-facing entry point
 
 # Deployment, verification, and summary helpers for bootstrap.sh. This file is sourced, not executed.
 
@@ -549,20 +550,12 @@ configure_codex_skill_source() {
     create_symlink "$skills_dir" "$root" "Codex skills"
 }
 
-# manifest_uv_bin — echo a usable uv, or nothing when there is none.
-#
-# Separate from its two callers because they disagree about what a missing uv
-# MEANS: Codex reconciliation treats it as an error it must report, while the
-# cross-harness install treats it as a skip. Folding the message in here would
-# force one of those to lie.
+# manifest_uv_bin returns only this invocation's verified uv, never an ambient
+# fixed-path executable left by a failed or prior bootstrap.
 manifest_uv_bin() {
-    if command_exists uv; then
-        command -v uv
-    elif [[ -x "$HOME/.local/bin/uv" ]]; then
-        printf '%s\n' "$HOME/.local/bin/uv"
-    else
-        return 1
-    fi
+    local verified="${MANIFEST_VERIFIED_UV_BIN:-}"
+    [[ -n "$verified" && -x "$verified" ]] || return 1
+    printf '%s\n' "$verified"
 }
 
 sync_native_plugins() {

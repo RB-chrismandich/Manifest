@@ -819,58 +819,189 @@ check_devin() {
     fi
 }
 
-# Idempotent and existence-guarded (Principle V): no-op if uv is already available,
-# even when it lives at ~/.local/bin and is not yet on this shell's PATH. Prefers a
-# package manager, falling back to a portable pip --user install (Python is a prereq).
-check_uv() {
-    if command_exists uv || [[ -x "$HOME/.local/bin/uv" ]]; then
-        print_success "uv is installed"
-        return 0
-    fi
+# Pinned to the exact uv release already attested (real download, sha256-verified)
+# for the toolchain store at config/toolchain.lock.json's "uv" entry (C7). Bumping
+# this requires re-verifying the new release's published checksums, same as there.
+UV_INSTALLER_PINNED_VERSION="0.12.6"
 
-    print_step "Installing uv (Python tool installer)..."
+# This is deliberately invocation-scoped: a pathname is not evidence that its
+# bytes were verified during this bootstrap run.
+MANIFEST_VERIFIED_UV_BIN=""
 
-    case "$PLATFORM" in
-        macos)
-            if command_exists brew && brew install uv; then
-                print_success "uv installed via Homebrew"
-                return 0
-            fi
-            ;;
-        linux)
-            # Only pacman reliably packages uv; apt/dnf/yum/zypper do not, so those
-            # fall through to the portable pip path below.
-            if [[ "$PKG_MANAGER" == "pacman" ]] && sudo pacman -S --noconfirm uv; then
-                print_success "uv installed via pacman"
-                return 0
-            fi
-            ;;
+invalidate_verified_uv() {
+    MANIFEST_VERIFIED_UV_BIN=""
+    rm -f "$HOME/.local/bin/uv" "$HOME/.local/bin/uvx"
+}
+
+# GitHub release target triple for this host, or empty when uv publishes no
+# release for it (uname reports something this bootstrap does not recognize).
+_uv_release_target() {
+    local os arch
+    os="$(uname -s)"
+    arch="$(uname -m)"
+    case "$os-$arch" in
+        Darwin-arm64) echo "aarch64-apple-darwin" ;;
+        Darwin-x86_64) echo "x86_64-apple-darwin" ;;
+        Linux-x86_64) echo "x86_64-unknown-linux-gnu" ;;
+        Linux-aarch64 | Linux-arm64) echo "aarch64-unknown-linux-gnu" ;;
+        *) echo "" ;;
     esac
+}
 
-    # Portable fallback 1: official standalone installer. Drops a self-contained uv
-    # binary into ~/.local/bin (already on the framework PATH) with no Python/pip,
-    # so it works on PEP 668 externally-managed interpreters (default Debian/Ubuntu,
-    # Homebrew Python) where `pip install --user` is blocked. Same curl|sh idiom the
-    # framework already uses for cursor-agent.
-    if command_exists curl && curl -LsSf https://astral.sh/uv/install.sh | sh; then
-        if command_exists uv || [[ -x "$HOME/.local/bin/uv" ]]; then
-            print_success "uv installed via the official installer"
-            return 0
-        fi
+# Local archive and executable digests are the trust anchors. They are reviewed
+# alongside the toolchain lock; never obtain expected bytes from the mutable
+# release origin.
+_uv_archive_sha256() {
+    case "$1" in
+        x86_64-unknown-linux-gnu) echo "8681d8921e7d520fb368991dcf5f9c1905b80f5bf2a265a0ed085c8d8e342477" ;;
+        aarch64-apple-darwin) echo "14b459d51ea2e71eeba28c45a268c922bdf8607fc6455e3f40b4e082895d160d" ;;
+        *) echo "" ;;
+    esac
+}
+
+_uv_executable_sha256() {
+    case "$1" in
+        x86_64-unknown-linux-gnu) echo "d381f11517c66523211b0876552ff7dea5c1b4b0f13800571b35225761302fba" ;;
+        aarch64-apple-darwin) echo "e8929237934c8679686428f5a7736c7ae7a5fe7a33b0504d1b03446cdbc43c94" ;;
+        *) echo "" ;;
+    esac
+}
+
+_uv_archive_member() {
+    case "$1" in
+        x86_64-unknown-linux-gnu | aarch64-apple-darwin) printf 'uv-%s/uv\n' "$1" ;;
+        *) printf '\n' ;;
+    esac
+}
+
+# Download a pinned uv archive, inspect it before extraction, and install only
+# the exact executable locked for this platform. Archive member selection is
+# deliberately literal: no wildcard can make a symlink, hardlink, duplicate,
+# or a sibling platform binary look trusted.
+install_uv_verified_release() {
+    local target sha_tool expected archive member workdir actual members candidate_count metadata
+    target="$(_uv_release_target)"
+    if [[ -z "$target" ]]; then
+        print_warning "uv: no known release target for $(uname -s)/$(uname -m)"
+        return 1
+    fi
+    if command_exists sha256sum; then
+        sha_tool="sha256sum"
+    elif command_exists shasum; then
+        sha_tool="shasum -a 256"
+    else
+        print_warning "uv: cannot verify a checksum without sha256sum or shasum"
+        return 1
     fi
 
-    # Portable fallback 2: pip --user, for environments that have Python 3 but no
-    # curl. May fail on PEP 668 interpreters; callers handle the failure.
-    if check_python; then
-        local python_cmd="${PYTHON_CMD:-python3}"
-        if $python_cmd -m pip install --user --prefer-binary uv; then
-            print_success "uv installed via pip --user"
-            return 0
-        fi
+    expected="$(_uv_archive_sha256 "$target")"
+    member="$(_uv_archive_member "$target")"
+    if [[ -z "$expected" || -z "$member" ]]; then
+        print_warning "uv: no committed archive metadata for $target"
+        return 1
     fi
 
-    print_warning "Could not install uv automatically; see https://docs.astral.sh/uv/"
-    return 1
+    local base="https://github.com/astral-sh/uv/releases/download/${UV_INSTALLER_PINNED_VERSION}"
+    archive="uv-${target}.tar.gz"
+    workdir="$(mktemp -d)" || return 1
+    chmod 700 "$workdir"
+    # shellcheck disable=SC2064 # workdir is fixed at trap-set time, not runtime
+    trap "rm -rf '$workdir'" RETURN
+
+    if ! curl -fsSL -o "$workdir/$archive" "$base/$archive"; then
+        print_warning "uv: could not download $archive"
+        return 1
+    fi
+    actual="$(cd "$workdir" && $sha_tool "$archive" | awk '{print $1}')"
+    if [[ "$actual" != "$expected" ]]; then
+        print_warning "uv: checksum mismatch for $archive (want $expected, got $actual)"
+        return 1
+    fi
+
+    members="$(tar -tzf "$workdir/$archive")" || {
+        print_warning "uv: could not inspect $archive"
+        return 1
+    }
+    while IFS= read -r entry; do
+        case "$entry" in
+            /* | ../* | */../* | .. | */..)
+                print_warning "uv: archive contains unsafe member path"
+                return 1
+                ;;
+        esac
+    done <<< "$members"
+    candidate_count="$(printf '%s\n' "$members" | awk -v member="$member" '$0 == member { count++ } END { print count + 0 }')"
+    if [[ "$candidate_count" -ne 1 ]]; then
+        print_warning "uv: archive must contain exactly one expected executable member"
+        return 1
+    fi
+    metadata="$(tar -tvzf "$workdir/$archive" -- "$member")" || {
+        print_warning "uv: could not inspect expected executable member"
+        return 1
+    }
+    if [[ "${metadata:0:1}" != "-" ]]; then
+        print_warning "uv: expected regular executable member"
+        return 1
+    fi
+
+    mkdir -p "$workdir/extract"
+    chmod 700 "$workdir/extract"
+    if ! tar -xzf "$workdir/$archive" -C "$workdir/extract" -- "$member"; then
+        print_warning "uv: could not extract expected executable member"
+        return 1
+    fi
+    local extracted="$workdir/extract/$member"
+    if [[ ! -f "$extracted" || -L "$extracted" || ! -x "$extracted" ]]; then
+        print_warning "uv: expected regular executable member"
+        return 1
+    fi
+
+    local bin_dir="$HOME/.local/bin" installed temp_binary expected_binary
+    mkdir -p "$bin_dir"
+    temp_binary="$(mktemp "$bin_dir/.uv.XXXXXX")" || return 1
+    if ! install -m 755 "$extracted" "$temp_binary"; then
+        rm -f "$temp_binary"
+        print_warning "uv: could not stage verified executable"
+        return 1
+    fi
+    if ! mv -f "$temp_binary" "$bin_dir/uv"; then
+        rm -f "$temp_binary"
+        print_warning "uv: could not install verified executable"
+        return 1
+    fi
+    expected_binary="$(_uv_executable_sha256 "$target")"
+    installed="$($sha_tool "$bin_dir/uv" | awk '{print $1}')"
+    if [[ -n "$expected_binary" && "$installed" != "$expected_binary" ]]; then
+        rm -f "$bin_dir/uv"
+        print_warning "uv: executable checksum mismatch for $target"
+        return 1
+    fi
+    return 0
+}
+
+# Install the pinned release even when an ambient `uv` reports the expected
+# version: version strings do not attest executable bytes.
+check_uv() {
+    MANIFEST_VERIFIED_UV_BIN=""
+    print_step "Installing verified pinned uv release..."
+    if ! command_exists curl; then
+        invalidate_verified_uv
+        print_warning "uv: curl is required to download the verified pinned release"
+        return 1
+    fi
+    if ! install_uv_verified_release; then
+        invalidate_verified_uv
+        print_warning "Could not install verified pinned uv; see https://docs.astral.sh/uv/"
+        return 1
+    fi
+    if [[ ! -x "$HOME/.local/bin/uv" ]]; then
+        invalidate_verified_uv
+        print_warning "uv: verified install did not produce ~/.local/bin/uv"
+        return 1
+    fi
+    MANIFEST_VERIFIED_UV_BIN="$HOME/.local/bin/uv"
+    print_success "uv installed from verified pinned release bytes"
+    return 0
 }
 
 # The pinned-apm-wheel install path was removed by spec 674 Phase 5 (T5.4).
@@ -927,7 +1058,21 @@ def on(name: str) -> str:
 print(on("smoke"), on("browser_use"), on("claude"))
 PY
     done
-    return 1
+    awk '
+        /^services:[[:space:]]*$/ { services=1; next }
+        services && /^  (smoke|browser_use|claude):[[:space:]]*$/ { name=$1; sub(":", "", name); next }
+        services && /^  [A-Za-z_][A-Za-z0-9_]*:[[:space:]]*$/ { name=""; next }
+        services && /^    enabled:[[:space:]]*(true|false)[[:space:]]*$/ {
+            value=$2 == "true" ? 1 : 0
+            if (name == "smoke") smoke=value
+            if (name == "browser_use") browser=value
+            if (name == "claude") claude=value
+        }
+        END {
+            if (!services) exit 1
+            print smoke+0, browser+0, claude+0
+        }
+    ' "$services_yml"
 }
 
 # Recreate a venv whose interpreter no longer works. A Python upgrade (or a tree
@@ -1056,13 +1201,9 @@ write_runtime_stamp() {
 # runtime's own `manifest doctor` and env-check are the fail-closed gates.
 uv_sync_home_runtime() {
     local target_dir="${TARGET_DIR:-$HOME/.claude}"
-    local uv_bin=""
-    if command_exists uv; then
-        uv_bin="$(command -v uv)"
-    elif [[ -x "$HOME/.local/bin/uv" ]]; then
-        uv_bin="$HOME/.local/bin/uv"
-    else
-        print_warning "uv not found — skipping home runtime sync"
+    local uv_bin="${MANIFEST_VERIFIED_UV_BIN:-}"
+    if [[ -z "$uv_bin" || ! -x "$uv_bin" ]]; then
+        print_warning "verified uv was not established in this bootstrap invocation — skipping home runtime sync"
         return 0
     fi
 
