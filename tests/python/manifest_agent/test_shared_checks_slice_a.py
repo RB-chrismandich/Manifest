@@ -123,8 +123,9 @@ def test_selection_is_deterministic_and_base_is_resolved(tmp_path):
             "--json",
         ],
     )
-    assert result.exit_code in {2, 3}
-    assert json.loads(result.output)["base_sha"]
+    assert result.exit_code == 3
+    assert json.loads(result.output)["status"] == "BLOCKED"
+    assert "trust anchor" in json.loads(result.output)["diagnostics"][0]
 
 
 @pytest.mark.parametrize("honors,expected", [(True, "BLOCKED"), (False, "FAIL")])

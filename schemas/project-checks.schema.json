@@ -39,7 +39,8 @@
       "additionalProperties": false
     },
     "debt_baseline": {"$ref": "#/$defs/candidatePath"},
-    "preservation": {"$ref": "#/$defs/candidatePath"}
+    "preservation": {"$ref": "#/$defs/candidatePath"},
+    "toolchain_lock": {"$ref": "#/$defs/candidatePath"}
   },
   "$defs": {
     "candidatePath": {
