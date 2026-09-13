@@ -113,6 +113,23 @@ def test_environment_digests_normalize_only_generated_path_bearers(tmp_path: Pat
     (second_checkout / "src").mkdir(parents=True)
     first_root, first_console = _trusted_python_env(first_store, first_checkout)
     second_root, _second_console = _trusted_python_env(second_store, second_checkout)
+    for root, timestamp in ((first_root, 1), (second_root, 2)):
+        uv_cache = (
+            root
+            / "lib"
+            / "python3"
+            / "site-packages"
+            / "local.dist-info"
+            / "uv_cache.json"
+        )
+        uv_cache.parent.mkdir(parents=True)
+        uv_cache.write_text(
+            '{"timestamp":{"secs_since_epoch":'
+            f"{timestamp}"
+            ',"nanos_since_epoch":3},"directories":{"src":{"secs_since_epoch":'
+            f"{timestamp}"
+            ',"nanos_since_epoch":4}}}'
+        )
 
     first = toolchain_env.distribution_set_digest(
         first_root, "python-env", store=first_store, checkout_root=first_checkout

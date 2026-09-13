@@ -369,7 +369,9 @@ def _normalized_generated_path_bearers(
         try:
             document = json.loads(content)
             return json.dumps(
-                _normalize_json_paths(document, root, checkout_root),
+                _normalize_uv_cache_metadata(
+                    _normalize_json_paths(document, root, checkout_root)
+                ),
                 sort_keys=True,
                 separators=(",", ":"),
             ).encode()
@@ -389,6 +391,18 @@ def _normalized_generated_path_bearers(
     if suffix not in {b"", b"\n", b" ", b"\t"}:
         return content
     return b"#!<ENV>/bin/python" + content[len(prefix) :]
+
+
+def _normalize_uv_cache_metadata(value):
+    if isinstance(value, dict):
+        if set(value) == {"secs_since_epoch", "nanos_since_epoch"} and all(
+            isinstance(item, int) for item in value.values()
+        ):
+            return {"secs_since_epoch": 0, "nanos_since_epoch": 0}
+        return {key: _normalize_uv_cache_metadata(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_uv_cache_metadata(item) for item in value]
+    return value
 
 
 def _normalize_json_paths(value, root: Path, checkout_root: Path | None):
