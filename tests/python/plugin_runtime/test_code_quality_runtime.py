@@ -386,35 +386,52 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
     expected_trigger = " OR ".join(
         _review_config(repo_root)["review_escalation"]["conditions"]
     )
-    count_fanout = r"(?:>=|≥|\bthree or more\b).*(?:language|domain|unit)"
+    review_link = re.search(r"\[review escalation contract\]\(([^)]+)\)", routing)
+    dispatch_link = re.search(
+        r"\[dispatch mechanics\]\((references/[A-Za-z0-9_-]+-dispatch\.md)\)",
+        dispatch,
+    )
 
     assert "## Routing outcomes" not in source
     assert policy["parallel_agents"] == "conditional"
     assert policy["trigger_condition"] == expected_trigger
     assert policy["subagent_trigger"] == expected_trigger
-    link = re.search(r"\[review escalation contract\]\(([^)]+)\)", routing)
-    assert link is not None
-    assert (code_quality_bundle / "skills/refactor" / link.group(1)).resolve().is_file()
-    assert "one capable reviewer by default" in routing
-    assert "Python, Go, and\nShell remains single-agent" in routing
-    normalized_dispatch = " ".join(dispatch.split())
-    assert (
-        "When any one of the five conditions warrants escalation" in normalized_dispatch
+    assert review_link is not None
+    assert dispatch_link is not None
+    review_contract = (
+        code_quality_bundle / "skills/refactor" / review_link.group(1)
+    ).read_text(encoding="utf-8")
+    dispatch_contract = (
+        code_quality_bundle / "skills/refactor" / dispatch_link.group(1)
+    ).read_text(encoding="utf-8")
+    effective_routing = "\n".join(
+        (routing, dispatch, review_contract, dispatch_contract)
     )
-    assert "obtain an independent review" in normalized_dispatch
+
+    # A three-language target with no risk remains single-agent.
+    assert "Python, Go, and\nShell remains single-agent" in routing
+    assert "multi-language target remains single-agent" in review_contract
+
+    # Coupled risks require independent review, but only independent tracks
+    # justify partitioning the work among multiple reviewers.
+    assert "trust-boundary change" in review_contract
+    assert "obtain an independent review" in dispatch
     assert (
         "only when the investigation has genuinely independent analysis tracks"
-        in normalized_dispatch
+        in " ".join(dispatch.split())
     )
-    assert not re.search(count_fanout, routing + dispatch, flags=re.IGNORECASE)
 
-    restored_language_count_fanout = (
-        f"{dispatch}\nDispatch only when three or more language domains are present."
+    assert "pinned `sonnet` model" in dispatch
+    assert "does not re-dispatch" in " ".join(dispatch_contract.split())
+    forbidden_activation = (
+        "sub-agent-dispatch.md",
+        "architectural",
+        ">200-line",
+        "≥3 independent units",
+        "three or more language",
+        "independent_units >=",
     )
-    with pytest.raises(AssertionError):
-        assert not re.search(
-            count_fanout, restored_language_count_fanout, flags=re.IGNORECASE
-        )
+    assert not any(marker in effective_routing for marker in forbidden_activation)
 
 
 def test_refactor_policies_share_risk_gate_and_check_only_verification(

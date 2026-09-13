@@ -5,3 +5,7 @@ then merge the structured findings. Below that threshold, audit inline. Preserve
 this workflow-count rule because the workflow files are independently auditable.
 If structured output is unavailable, perform the review inline and report
 `DEGRADED`.
+
+For this security analysis, dispatch with `--security-analysis --validate`.
+Each dispatched reviewer completes its assigned workflow audit directly and
+does not re-dispatch.

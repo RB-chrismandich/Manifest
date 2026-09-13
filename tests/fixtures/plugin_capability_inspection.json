@@ -1,4 +1,5 @@
 {
+  "provenance": "synthetic-fixture",
   "harnesses": {
     "antigravity": {
       "capabilities": {

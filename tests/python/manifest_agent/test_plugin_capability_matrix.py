@@ -72,6 +72,19 @@ def test_matrix_checked_in_rendering_is_current() -> None:
     ) == renderer.render(inspection)
 
 
+def test_synthetic_fixture_evidence_is_not_rendered_as_live_native_inspection() -> None:
+    renderer = _renderer_module()
+    root = Path(__file__).resolve().parents[3]
+    inspection = renderer._load_inspection(
+        root / "tests/fixtures/plugin_capability_inspection.json"
+    )
+
+    assert inspection is not None
+    assert inspection["provenance"] == "synthetic-fixture"
+    rendered = renderer.render(inspection)
+    assert "synthetic fixture evidence; not live native inspection" in rendered
+
+
 def test_matrix_without_inspection_is_explicitly_blocked() -> None:
     renderer = _renderer_module()
 

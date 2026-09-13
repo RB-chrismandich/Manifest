@@ -1,8 +1,7 @@
 # Plugin Capability Matrix
 
-Generated from portable contracts and verified adapter inspection evidence; do not edit by hand.
-`READY` requires a native adapter inspection with a non-empty version.
-Matching installed plugin, component, and capability evidence is also required.
+Generated from portable contracts and synthetic fixture evidence; not live native inspection; do not edit by hand.
+`READY` requires matching installed plugin, component, and capability evidence.
 
 | Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin |
 | --- | --- | --- | --- | --- | --- | --- | --- |

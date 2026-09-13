@@ -306,3 +306,17 @@ def test_security_dispatch_links_are_skill_local(security_bundle: Path) -> None:
         target = (skill.parent / link.group(1)).resolve()
         assert target.name == reference_name
         assert target.is_file()
+
+
+def test_ci_audit_dispatch_keeps_validated_security_analysis(
+    security_bundle: Path,
+) -> None:
+    skill = security_bundle / "skills/ci-audit-triggers/SKILL.md"
+    source = skill.read_text(encoding="utf-8")
+    reference = skill.parent / "references/ci-audit-triggers-dispatch.md"
+
+    assert "configs%2Fclaude/references/sub-agent-dispatch.md" not in source
+    assert (
+        "`manifest-workspace:parallel-agent --security-analysis --validate`" in source
+    )
+    assert "`--security-analysis --validate`" in reference.read_text(encoding="utf-8")
