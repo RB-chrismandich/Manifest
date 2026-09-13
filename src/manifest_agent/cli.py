@@ -15,6 +15,7 @@ from manifest_agent.checks.cli import check, check_aggregate
 from manifest_agent.checks.toolchain_cli import provision
 from manifest_agent.hooks.cli import hook
 from manifest_agent.models import ResultState
+from manifest_agent.protection_cli import branch_protection
 from manifest_agent.service import HARNESS_ORDER, ManifestService, ServiceReport
 from manifest_agent.skill_run import SkillRunExecutionError, execute_skill_command
 
@@ -28,6 +29,7 @@ cli.add_command(check)
 cli.add_command(check_aggregate)
 cli.add_command(provision)
 cli.add_command(hook)
+cli.add_command(branch_protection)
 
 
 def _lifecycle_options(command: Callable[..., Any]) -> Callable[..., Any]:

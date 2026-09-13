@@ -219,23 +219,22 @@ class TestShadowGroupJobShape:
         ]
         assert upload["with"]["path"] == f"${{{{ runner.temp }}}}/shadow-{group}.json"
 
-    def test_shadow_job_not_gating(self, job_name: str, group: str) -> None:
-        # `needs:` on the pre-existing required jobs must remain untouched;
-        # a shadow job must not appear in another (legacy) job's `needs:`.
+    def test_producer_does_not_change_legacy_job_dependencies(
+        self, job_name: str, group: str
+    ) -> None:
         jobs = _jobs()
         for legacy in ("lint", "test", "validate"):
             needs = jobs[legacy].get("needs", [])
             needs = [needs] if isinstance(needs, str) else needs
             assert job_name not in needs, (
-                f"legacy job {legacy!r} must not depend on shadow job "
-                f"{job_name!r} — the shadow path must never gate the merge"
+                f"legacy job {legacy!r} must not depend on producer {job_name!r}"
             )
 
-    def test_job_level_continue_on_error(self, job_name: str, group: str) -> None:
+    def test_job_is_blocking_after_aggregate_promotion(
+        self, job_name: str, group: str
+    ) -> None:
         job = _jobs()[job_name]
-        assert job.get("continue-on-error") is True, (
-            f"{job_name}: must remain non-blocking before aggregate promotion"
-        )
+        assert "continue-on-error" not in job
 
 
 class TestShadowAggregateJob:
@@ -313,13 +312,12 @@ class TestShadowAggregateJob:
                 f"access, got {level!r}"
             )
 
-    def test_job_level_continue_on_error(self) -> None:
+    def test_job_and_verdict_step_are_blocking(self) -> None:
         job = _jobs()[SHADOW_AGGREGATE_JOB]
-        assert job.get("continue-on-error") is True, (
-            "aggregate must remain non-blocking until its verdict reaches PASS"
-        )
+        assert "continue-on-error" not in job
+        assert "non-blocking" not in job["name"].lower()
         aggregate_step = _step_with_run_matching(job, r"\bcheck-aggregate\b")
-        assert aggregate_step.get("continue-on-error") is True
+        assert "continue-on-error" not in aggregate_step
 
     def test_not_in_legacy_needs(self) -> None:
         jobs = _jobs()
