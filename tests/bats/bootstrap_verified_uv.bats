@@ -47,3 +47,33 @@ teardown() { rm -rf "$SANDBOX"; }
     assert_success
     assert_output "verified"
 }
+
+@test "check_uv removes a previously installed uv when verification fails" {
+    printf '#!/bin/sh\necho unverified\n' > "$HOME/.local/bin/uv"
+    chmod +x "$HOME/.local/bin/uv"
+    cat > "$SANDBOX/bin/curl" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+    chmod +x "$SANDBOX/bin/curl"
+
+    run env PATH="$SANDBOX/bin:/usr/bin:/bin" HOME="$HOME" bash -c '
+        print_step() { :; }; print_success() { :; }; print_warning() { :; }
+        command_exists() { command -v "$1" >/dev/null 2>&1; }
+        source "'"$INSTALL_LIB"'"
+        if check_uv; then exit 99; fi
+        test ! -e "$HOME/.local/bin/uv"
+    '
+    assert_success
+}
+
+@test "deploy consumers reject a fixed-path uv without this invocation's token" {
+    printf '#!/bin/sh\necho unverified\n' > "$HOME/.local/bin/uv"
+    chmod +x "$HOME/.local/bin/uv"
+
+    run env PATH="$SANDBOX/bin:/usr/bin:/bin" HOME="$HOME" bash -c '
+        source "'"$BATS_TEST_DIRNAME"'/../../bootstrap/lib/deploy.sh"
+        manifest_uv_bin
+    '
+    assert_failure
+}

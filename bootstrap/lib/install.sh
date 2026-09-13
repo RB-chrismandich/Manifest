@@ -824,6 +824,15 @@ check_devin() {
 # this requires re-verifying the new release's published checksums, same as there.
 UV_INSTALLER_PINNED_VERSION="0.12.6"
 
+# This is deliberately invocation-scoped: a pathname is not evidence that its
+# bytes were verified during this bootstrap run.
+MANIFEST_VERIFIED_UV_BIN=""
+
+invalidate_verified_uv() {
+    MANIFEST_VERIFIED_UV_BIN=""
+    rm -f "$HOME/.local/bin/uv" "$HOME/.local/bin/uvx"
+}
+
 # GitHub release target triple for this host, or empty when uv publishes no
 # release for it (uname reports something this bootstrap does not recognize).
 _uv_release_target() {
@@ -900,27 +909,38 @@ install_uv_verified_release() {
         print_warning "uv: verified archive did not contain uv/$target"
         return 1
     fi
-    install -m 755 "$extracted/uv" "$HOME/.local/bin/uv"
-    [[ -x "$extracted/uvx" ]] && install -m 755 "$extracted/uvx" "$HOME/.local/bin/uvx"
+    if ! install -m 755 "$extracted/uv" "$HOME/.local/bin/uv"; then
+        print_warning "uv: could not install verified executable"
+        return 1
+    fi
+    if [[ -x "$extracted/uvx" ]] && ! install -m 755 "$extracted/uvx" "$HOME/.local/bin/uvx"; then
+        print_warning "uv: could not install verified uvx executable"
+        return 1
+    fi
     return 0
 }
 
 # Install the pinned release even when an ambient `uv` reports the expected
 # version: version strings do not attest executable bytes.
 check_uv() {
+    MANIFEST_VERIFIED_UV_BIN=""
     print_step "Installing verified pinned uv release..."
     if ! command_exists curl; then
+        invalidate_verified_uv
         print_warning "uv: curl is required to download the verified pinned release"
         return 1
     fi
     if ! install_uv_verified_release; then
+        invalidate_verified_uv
         print_warning "Could not install verified pinned uv; see https://docs.astral.sh/uv/"
         return 1
     fi
     if [[ ! -x "$HOME/.local/bin/uv" ]]; then
+        invalidate_verified_uv
         print_warning "uv: verified install did not produce ~/.local/bin/uv"
         return 1
     fi
+    MANIFEST_VERIFIED_UV_BIN="$HOME/.local/bin/uv"
     print_success "uv installed from verified pinned release bytes"
     return 0
 }
@@ -979,7 +999,21 @@ def on(name: str) -> str:
 print(on("smoke"), on("browser_use"), on("claude"))
 PY
     done
-    return 1
+    awk '
+        /^services:[[:space:]]*$/ { services=1; next }
+        services && /^  (smoke|browser_use|claude):[[:space:]]*$/ { name=$1; sub(":", "", name); next }
+        services && /^  [A-Za-z_][A-Za-z0-9_]*:[[:space:]]*$/ { name=""; next }
+        services && /^    enabled:[[:space:]]*(true|false)[[:space:]]*$/ {
+            value=$2 == "true" ? 1 : 0
+            if (name == "smoke") smoke=value
+            if (name == "browser_use") browser=value
+            if (name == "claude") claude=value
+        }
+        END {
+            if (!services) exit 1
+            print smoke+0, browser+0, claude+0
+        }
+    ' "$services_yml"
 }
 
 # Recreate a venv whose interpreter no longer works. A Python upgrade (or a tree
@@ -1108,9 +1142,9 @@ write_runtime_stamp() {
 # runtime's own `manifest doctor` and env-check are the fail-closed gates.
 uv_sync_home_runtime() {
     local target_dir="${TARGET_DIR:-$HOME/.claude}"
-    local uv_bin="$HOME/.local/bin/uv"
-    if [[ ! -x "$uv_bin" ]]; then
-        print_warning "verified uv not found — skipping home runtime sync"
+    local uv_bin="${MANIFEST_VERIFIED_UV_BIN:-}"
+    if [[ -z "$uv_bin" || ! -x "$uv_bin" ]]; then
+        print_warning "verified uv was not established in this bootstrap invocation — skipping home runtime sync"
         return 0
     fi
 

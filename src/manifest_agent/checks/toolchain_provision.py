@@ -12,25 +12,21 @@ provision` invocations cannot interleave a torn `manifest.json`.
 from __future__ import annotations
 
 import hashlib
-import io
-import os
-import stat
-import tarfile
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import toolchain, toolchain_env, toolchain_npm_cache
+from . import toolchain, toolchain_npm_cache
 from . import toolchain_materialize as materialize
+from .toolchain_provision_env import provision_environment
+from .toolchain_provision_models import ProvisionContext, ProvisionOutcome
 from .toolchain_provision_store import (
     BinaryArtifacts,
-    _materialize_env,
-    _read_source_bytes,
     _record_bundle,
-    _record_env_bundle,
-    _SourceUnavailable,
+    archive_member_bytes,
+    staged_directory,
+    write_file,
 )
 
 Fetcher = Callable[[str], bytes]
@@ -40,6 +36,13 @@ _ENV_KINDS = frozenset({"python-env", "node-env"})
 
 
 _TRUSTED_DOWNLOAD_HOSTS = frozenset({"example.invalid", "github.com", "nodejs.org"})
+_TRUSTED_REDIRECT_HOSTS = frozenset(
+    {
+        "github-releases.githubusercontent.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+    }
+)
 
 
 def _safe_relative(value: str) -> bool:
@@ -126,31 +129,18 @@ def validate_lock(lock: Mapping) -> None:
                     raise ValueError(f"invalid {digest_field} for {bundle}/{platform}")
 
 
-@dataclass(frozen=True)
-class ProvisionOutcome:
-    """A single bundle's provision result and optional environment digest."""
-
-    bundle: str
-    status: str
-    reason: str = ""
-    digest: str | None = None
-
-
-@dataclass(frozen=True)
-class ProvisionContext:
-    """The immutable arguments shared by every provisioning operation."""
-
-    store: Path
-    lock: Mapping
-    platform: str
-    fetcher: Fetcher = None  # type: ignore[assignment]
-    repo_root: Path = field(default_factory=Path.cwd)
-    env: Mapping[str, str] = field(default_factory=dict)
-
-
 class _RejectRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
-        raise ValueError(f"toolchain download redirect rejected: {newurl}")
+        target = urllib.parse.urlsplit(newurl)
+        if (
+            target.scheme != "https"
+            or target.hostname not in _TRUSTED_REDIRECT_HOSTS
+            or target.port is not None
+            or target.username
+            or target.password
+        ):
+            raise ValueError(f"toolchain download redirect rejected: {newurl}")
+        return super().redirect_request(request, fp, code, msg, headers, newurl)
 
 
 def default_fetcher(url: str) -> bytes:  # pragma: no cover - exercised only live
@@ -168,108 +158,15 @@ def default_fetcher(url: str) -> bytes:  # pragma: no cover - exercised only liv
         return response.read()
 
 
-def _safe_store_destination(store: Path, destination: Path) -> None:
-    """Reject links/special files on the write path before mutating a store."""
-    root = store.resolve(strict=False)
-    candidate = destination.absolute()
-    if not candidate.is_relative_to(root):
-        raise ValueError("toolchain destination escapes store")
-    root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    current = root
-    for component in candidate.relative_to(root).parts[:-1]:
-        current /= component
-        if current.exists() or current.is_symlink():
-            mode = current.lstat().st_mode
-            if stat.S_ISLNK(mode) or not stat.S_ISDIR(mode):
-                raise ValueError("unsafe store destination")
-        else:
-            current.mkdir(mode=0o700)
-    if candidate.exists() or candidate.is_symlink():
-        mode = candidate.lstat().st_mode
-        if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
-            raise ValueError("unsafe store destination")
-
-
-def _write_store_file(
-    store: Path, destination: Path, content: bytes, mode: int
-) -> None:
-    _safe_store_destination(store, destination)
-    temporary = destination.with_name(f".{destination.name}.{os.getpid()}.tmp")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
-    with os.fdopen(os.open(temporary, flags, mode), "wb") as stream:
-        stream.write(content)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temporary, destination)
-    destination.chmod(mode)
-
-
-def _extract_one(
-    data: bytes, path_in_archive: str, store: Path, destination: Path
-) -> None:
-    """Write one verified archive member without following a store symlink."""
-    try:
-        with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
-            member = archive.extractfile(path_in_archive)
-            if member is None:
-                raise ValueError(f"{path_in_archive!r} not found in archive")
-            _write_store_file(store, destination, member.read(), 0o755)
-    except tarfile.ReadError:
-        _write_store_file(store, destination, data, 0o755)
-
-
 def _provision_env_entry(
     ctx: ProvisionContext, bundle: str, entry: Mapping
 ) -> ProvisionOutcome:
-    """Materialize a python-env/node-env bundle and record whatever the
-    materialization actually produced. This never gates on the lock's
-    `exe_sha256` matching -- exactly like `_provision_binary_entry`, the
-    check is `toolchain.resolve()`'s job on every later preflight, not
-    provisioning time; the store's own manifest is never the trust anchor."""
     platform_entry = _platform_entry(
         entry, bundle, ctx.platform, require_exe_sha256=False
     )
     if isinstance(platform_entry, ProvisionOutcome):
         return platform_entry
-    try:
-        source_bytes = _read_source_bytes(ctx, platform_entry["url"])
-    except _SourceUnavailable as error:
-        return ProvisionOutcome(bundle, "blocked", f"toolchain: {bundle} {error}")
-    source_sha256 = hashlib.sha256(source_bytes).hexdigest()
-    if source_sha256 != platform_entry["sha256"]:
-        return ProvisionOutcome(
-            bundle, "blocked", f"toolchain: {bundle} digest mismatch"
-        )
-    env_root = ctx.store / f"tools/{bundle}/{source_sha256[:16]}"
-    names = [Path(script).name for script in platform_entry.get("console_scripts", ())]
-    try:
-        scripts = _materialize_env(ctx, bundle, entry, env_root, names)
-    except materialize.MaterializationError as error:
-        return ProvisionOutcome(bundle, "blocked", str(error))
-    missing = sorted(set(names) - set(scripts))
-    if missing:
-        return ProvisionOutcome(
-            bundle,
-            "blocked",
-            f"toolchain: {bundle} missing console script(s) {missing}",
-        )
-    env_relative = env_root.relative_to(ctx.store)
-    store_relative_scripts = {
-        name: str(env_relative / relative) for name, relative in scripts.items()
-    }
-    try:
-        digest = toolchain_env.distribution_set_digest(
-            env_root,
-            entry["kind"],
-            store=ctx.store,
-            checkout_root=ctx.repo_root.resolve(),
-        )
-    except (OSError, ValueError, toolchain_env.UntrustedPthError) as error:
-        return ProvisionOutcome(
-            bundle, "blocked", f"toolchain: {bundle} attestation failed: {error}"
-        )
-    _record_env_bundle(ctx, bundle, source_sha256, store_relative_scripts)
-    return ProvisionOutcome(bundle, "provisioned", digest=digest)
+    return provision_environment(ctx, bundle, entry, platform_entry)
 
 
 def _platform_entry(
@@ -302,29 +199,34 @@ def _extract_extra_executables(
     platform_entry: Mapping,
     data: bytes,
 ) -> dict[str, tuple[str, str]] | ProvisionOutcome:
-    """Extract each `extra_executables` entry from the SAME already-hash-
-    verified archive bytes as the primary executable -- never a second
-    download -- and re-hash the extracted file against its OWN `exe_sha256`
-    (never the primary tool's). Returns `{name: (relative, exe_sha256)}`, or
-    a `ProvisionOutcome("blocked", ...)` on a digest mismatch."""
+    """Stage, verify, and replace each archive-derived extra executable."""
     extra: dict[str, tuple[str, str]] = {}
     for name, spec in (platform_entry.get("extra_executables") or {}).items():
-        subtree_root = ctx.store / f"tools/{bundle}/{entry['version']}/_{name}"
-        target = subtree_root / spec["executable_relative"]
-        if not target.is_file():
-            materialize.extract_subtree(data, spec["path_in_archive"], subtree_root)
-        if not target.is_file():
+        relative_root = f"tools/{bundle}/{entry['version']}/_{name}"
+        try:
+            with staged_directory(ctx.store, relative_root) as transaction:
+                subtree_root = transaction.path
+                target = subtree_root / spec["executable_relative"]
+                materialize.extract_subtree(data, spec["path_in_archive"], subtree_root)
+                if not target.is_file():
+                    return ProvisionOutcome(
+                        bundle,
+                        "blocked",
+                        f"toolchain: {bundle} extra executable {name!r} not found in archive",
+                    )
+                actual = toolchain.sha256_file(target)
+                if actual != spec.get("exe_sha256"):
+                    return ProvisionOutcome(
+                        bundle, "blocked", f"toolchain: {bundle} {name} digest mismatch"
+                    )
+                transaction.commit()
+        except (OSError, ValueError) as error:
             return ProvisionOutcome(
                 bundle,
                 "blocked",
-                f"toolchain: {bundle} extra executable {name!r} not found in archive",
+                f"toolchain: {bundle} extra extraction failed: {error}",
             )
-        actual = toolchain.sha256_file(target)
-        if actual != spec.get("exe_sha256"):
-            return ProvisionOutcome(
-                bundle, "blocked", f"toolchain: {bundle} {name} digest mismatch"
-            )
-        extra[name] = (str(target.relative_to(ctx.store)), actual)
+        extra[name] = (f"{relative_root}/{spec['executable_relative']}", actual)
     return extra
 
 
@@ -348,7 +250,12 @@ def _provision_binary_entry(
     relative = f"tools/{bundle}/{entry['version']}/bin/{bundle}"
     exe_path = ctx.store / relative
     try:
-        _extract_one(data, platform_entry["path_in_archive"], ctx.store, exe_path)
+        write_file(
+            ctx.store,
+            relative,
+            archive_member_bytes(data, platform_entry["path_in_archive"]),
+            0o755,
+        )
     except ValueError as error:
         return ProvisionOutcome(bundle, "blocked", f"toolchain: {bundle} {error}")
     exe_sha = toolchain.sha256_file(exe_path)
@@ -391,11 +298,15 @@ def import_binary(
             bundle, "blocked", f"toolchain: {bundle} digest mismatch"
         )
     relative = f"tools/{bundle}/{entry['version']}/bin/{bundle}"
-    exe_path = ctx.store / relative
-    exe_path.parent.mkdir(parents=True, exist_ok=True)
-    exe_path.write_bytes(source.read_bytes())
-    exe_path.chmod(0o755)
-    _record_bundle(ctx, bundle, BinaryArtifacts(actual_sha, relative, actual_sha))
+    try:
+        write_file(ctx.store, relative, source.read_bytes(), 0o755)
+    except (OSError, ValueError) as error:
+        return ProvisionOutcome(
+            bundle, "blocked", f"toolchain: {bundle} import failed: {error}"
+        )
+    # An imported executable has no archive provenance.  Do not lie by
+    # equating its executable hash with the lock's source archive hash.
+    _record_bundle(ctx, bundle, BinaryArtifacts(None, relative, actual_sha))
     return ProvisionOutcome(bundle, "provisioned")
 
 
@@ -416,7 +327,7 @@ def _relative_scripts(entry: Mapping, platform: str) -> list[str]:
 
 
 def validate_offline(
-    lock: Mapping, store: Path, platform: str
+    lock: Mapping, store: Path, platform: str, *, repo_root: Path
 ) -> tuple[bool, list[str]]:
     """Check the store against the lock without downloading anything.
 
@@ -433,10 +344,30 @@ def validate_offline(
         for relative in _relative_scripts(entry, platform):
             relative = relative.format(bundle=bundle)
             outcome = toolchain.resolve(
-                f"store:{bundle}/{relative}", lock=lock, store=store, platform=platform
+                f"store:{bundle}/{relative}",
+                lock=lock,
+                store=store,
+                platform=platform,
+                repo_root=repo_root,
             )
             if isinstance(outcome, toolchain.BlockedReason):
                 problems.append(outcome.reason)
+    manifest = toolchain.load_store_manifest(store) or {}
+    for cache_name, cache_entry in (lock.get("caches") or {}).items():
+        cache_platform = (cache_entry.get("platforms") or {}).get(platform, {})
+        expected_digest = cache_platform.get("digest")
+        cache_dir = store / "caches" / cache_name / platform
+        actual_digest = toolchain_npm_cache.index_digest(cache_dir)
+        recorded_cache = (manifest.get("caches") or {}).get(cache_name) or {}
+        recorded_platform = (recorded_cache.get("platforms") or {}).get(platform, {})
+        if (
+            expected_digest is None
+            or actual_digest != expected_digest
+            or recorded_platform.get("digest") != expected_digest
+        ):
+            problems.append(
+                f"toolchain: {cache_name} cache incomplete or digest mismatch"
+            )
     return not problems, problems
 
 
@@ -479,10 +410,16 @@ def provision(
                 )
             )
             continue
-        if entry.get("kind") in _ENV_KINDS:
-            outcomes.append(_provision_env_entry(ctx, bundle, entry))
-        else:
-            outcomes.append(_provision_binary_entry(ctx, bundle, entry))
+        try:
+            if entry.get("kind") in _ENV_KINDS:
+                outcome = _provision_env_entry(ctx, bundle, entry)
+            else:
+                outcome = _provision_binary_entry(ctx, bundle, entry)
+        except (OSError, ValueError) as error:
+            outcome = ProvisionOutcome(
+                bundle, "blocked", f"toolchain: {bundle} store mutation failed: {error}"
+            )
+        outcomes.append(outcome)
     outcomes.extend(  # caches.* (Correction 10 rule 2)
         ProvisionOutcome(bundle, *toolchain_npm_cache.provision(ctx, bundle))
         for bundle in (lock.get("caches") or {})

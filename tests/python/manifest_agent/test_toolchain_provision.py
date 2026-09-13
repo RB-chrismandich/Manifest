@@ -77,7 +77,11 @@ class TestProvisionBinary:
         # And resolve() now succeeds against exactly this store + lock,
         # anchored on the lock's exe_sha256 -- not the store manifest's.
         resolved = toolchain.resolve(
-            "store:demo/bin/demo", lock=lock, store=store, platform="linux-x64"
+            "store:demo/bin/demo",
+            lock=lock,
+            store=store,
+            platform="linux-x64",
+            repo_root=tmp_path,
         )
         assert isinstance(resolved, toolchain.ResolvedTool)
 
@@ -176,7 +180,11 @@ class TestImportBinary:
         )
         assert outcome == provision_mod.ProvisionOutcome("demo", "provisioned")
         resolved = toolchain.resolve(
-            "store:demo/bin/demo", lock=lock, store=store, platform="linux-x64"
+            "store:demo/bin/demo",
+            lock=lock,
+            store=store,
+            platform="linux-x64",
+            repo_root=tmp_path,
         )
         assert isinstance(resolved, toolchain.ResolvedTool)
 
@@ -290,11 +298,20 @@ class TestExtraExecutables:
         return lock, archive
 
     def _resolve_both(self, lock: dict, store):
+        repo_root = store.parent
         node = toolchain.resolve(
-            "store:node/bin/node", lock=lock, store=store, platform="linux-x64"
+            "store:node/bin/node",
+            lock=lock,
+            store=store,
+            platform="linux-x64",
+            repo_root=repo_root,
         )
         npm = toolchain.resolve(
-            "store:node/bin/npm", lock=lock, store=store, platform="linux-x64"
+            "store:node/bin/npm",
+            lock=lock,
+            store=store,
+            platform="linux-x64",
+            repo_root=repo_root,
         )
         return node, npm
 
@@ -382,7 +399,7 @@ class TestValidateOffline:
     def test_empty_store_against_attested_lock_is_incomplete(self, tmp_path):
         lock = _lock_for("demo", "b" * 64)
         complete, problems = provision_mod.validate_offline(
-            lock, tmp_path / "store", "linux-x64"
+            lock, tmp_path / "store", "linux-x64", repo_root=tmp_path
         )
         assert complete is False
         assert problems
@@ -397,14 +414,16 @@ class TestValidateOffline:
         provision_mod.provision(
             lock, store, platform="linux-x64", fetcher=lambda u: archive
         )
-        complete, problems = provision_mod.validate_offline(lock, store, "linux-x64")
+        complete, problems = provision_mod.validate_offline(
+            lock, store, "linux-x64", repo_root=tmp_path
+        )
         assert complete is True
         assert problems == []
 
     def test_unattested_entries_make_offline_store_incomplete(self, tmp_path):
         lock = _lock_for("demo", None, exe_sha256=None)
         complete, problems = provision_mod.validate_offline(
-            lock, tmp_path / "store", "linux-x64"
+            lock, tmp_path / "store", "linux-x64", repo_root=tmp_path
         )
         assert complete is False
         assert problems == ["toolchain: demo unattested for linux-x64"]
@@ -432,7 +451,9 @@ class TestValidateOffline:
             },
         }
         store = tmp_path / "store"
-        complete, problems = provision_mod.validate_offline(lock, store, "linux-x64")
+        complete, problems = provision_mod.validate_offline(
+            lock, store, "linux-x64", repo_root=tmp_path
+        )
         assert complete is False
         assert len(problems) == 2
         assert all(

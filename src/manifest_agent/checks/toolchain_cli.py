@@ -49,8 +49,12 @@ def _render(report: dict, as_json: bool) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _run_offline(lock: dict, store: Path, platform_id: str) -> tuple[dict, int]:
-    complete, problems = provision_mod.validate_offline(lock, store, platform_id)
+def _run_offline(
+    lock: dict, store: Path, platform_id: str, repo_root: Path
+) -> tuple[dict, int]:
+    complete, problems = provision_mod.validate_offline(
+        lock, store, platform_id, repo_root=repo_root
+    )
     status = "complete" if complete else "incomplete"
     return {"status": status, "problems": problems}, (0 if complete else 3)
 
@@ -133,8 +137,9 @@ def provision(context: click.Context, **options: Any) -> None:
         click.echo(_render(report, as_json), nl=False)
         context.exit(3)
         return
+    repo_root = options["lock"].resolve(strict=True).parent.parent
     if options["offline"]:
-        report, exit_code = _run_offline(lock, store, platform_id)
+        report, exit_code = _run_offline(lock, store, platform_id, repo_root)
         click.echo(_render(report, as_json), nl=False)
         context.exit(exit_code)
         return
@@ -148,7 +153,7 @@ def provision(context: click.Context, **options: Any) -> None:
             store,
             platform=platform_id,
             only=only,
-            repo_root=Path.cwd(),
+            repo_root=repo_root,
             env=dict(os.environ),
         )
     blocked = any(outcome.status == "blocked" for outcome in outcomes)

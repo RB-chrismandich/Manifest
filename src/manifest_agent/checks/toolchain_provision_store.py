@@ -1,12 +1,16 @@
-"""Store manifest recording and environment materialization for provisioning."""
+"""No-follow store mutations, manifest recording, and environment dispatch."""
 
 from __future__ import annotations
 
 import fcntl
+import io
 import json
 import os
+import stat
 import subprocess
-from collections.abc import Callable, Mapping
+import tarfile
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -19,14 +23,219 @@ def _safe_relative(value: str) -> bool:
     path = Path(value)
     return bool(value) and not path.is_absolute() and ".." not in path.parts
 
+
+def _open_directory_at(parent_fd: int, name: str, *, create: bool) -> int:
+    """Open one store-owned directory without ever resolving a link."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        return os.open(name, flags, dir_fd=parent_fd)
+    except FileNotFoundError:
+        if not create:
+            raise
+        os.mkdir(name, 0o700, dir_fd=parent_fd)
+        return os.open(name, flags, dir_fd=parent_fd)
+    except OSError as error:
+        raise ValueError("unsafe toolchain store ancestor") from error
+
+
+def _store_fd(store: Path) -> int:
+    """Open the canonical store root and reject an attacker-supplied link."""
+    try:
+        store.mkdir(mode=0o700, parents=True, exist_ok=True)
+    except OSError as error:
+        raise ValueError(f"unsafe toolchain store: {error}") from error
+    try:
+        return os.open(store, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as error:
+        raise ValueError("unsafe toolchain store") from error
+
+
+@dataclass(frozen=True, slots=True)
+class StorePath:
+    """A verified store-relative destination, addressed through live FDs."""
+
+    parent_fd: int
+    name: str
+
+    def close(self) -> None:
+        os.close(self.parent_fd)
+
+
+def store_destination(
+    store: Path, relative: str, *, create_parents: bool = True
+) -> StorePath:
+    """Resolve a relative store sink through no-follow directory descriptors."""
+    if not _safe_relative(relative):
+        raise ValueError("toolchain destination escapes store")
+    parts = Path(relative).parts
+    root_fd = _store_fd(store)
+    current_fd = root_fd
+    try:
+        for component in parts[:-1]:
+            next_fd = _open_directory_at(current_fd, component, create=create_parents)
+            os.close(current_fd)
+            current_fd = next_fd
+    except (OSError, ValueError):
+        os.close(current_fd)
+        raise
+    return StorePath(current_fd, parts[-1])
+
+
+def _existing_kind(destination: StorePath) -> int | None:
+    try:
+        return os.stat(
+            destination.name, dir_fd=destination.parent_fd, follow_symlinks=False
+        ).st_mode
+    except FileNotFoundError:
+        return None
+
+
+def _reject_existing(destination: StorePath, expected: int | None = None) -> None:
+    mode = _existing_kind(destination)
+    if mode is None:
+        return
+    if stat.S_ISLNK(mode) or (expected is not None and not expected(mode)):
+        raise ValueError("unsafe toolchain store destination")
+
+
+def archive_member_bytes(data: bytes, path_in_archive: str) -> bytes:
+    """Return one regular archive member without extracting its path."""
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
+            member = archive.extractfile(path_in_archive)
+            if member is None:
+                raise ValueError(f"{path_in_archive!r} not found in archive")
+            return member.read()
+    except tarfile.ReadError:
+        return data
+
+
+def write_file(store: Path, relative: str, content: bytes, mode: int) -> None:
+    """Verify then atomically replace one regular store file via `renameat`."""
+    destination = store_destination(store, relative)
+    temporary = f".{destination.name}.{os.getpid()}.tmp"
+    try:
+        _reject_existing(destination, stat.S_ISREG)
+        with suppress(FileNotFoundError):
+            os.unlink(temporary, dir_fd=destination.parent_fd)
+        fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            mode,
+            dir_fd=destination.parent_fd,
+        )
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(
+            temporary,
+            destination.name,
+            src_dir_fd=destination.parent_fd,
+            dst_dir_fd=destination.parent_fd,
+        )
+        os.chmod(
+            destination.name, mode, dir_fd=destination.parent_fd, follow_symlinks=False
+        )
+    finally:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary, dir_fd=destination.parent_fd)
+        destination.close()
+
+
+def _remove_tree_at(parent_fd: int, name: str) -> None:
+    """Delete an old store tree only through already-open no-follow FDs."""
+    fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
+    try:
+        for entry in os.listdir(fd):
+            mode = os.stat(entry, dir_fd=fd, follow_symlinks=False).st_mode
+            if stat.S_ISDIR(mode):
+                _remove_tree_at(fd, entry)
+            else:
+                os.unlink(entry, dir_fd=fd)
+    finally:
+        os.close(fd)
+    os.rmdir(name, dir_fd=parent_fd)
+
+
+@dataclass(slots=True)
+class StagedDirectory:
+    """A private stage which publishes only after its owner explicitly commits."""
+
+    path: Path
+    committed: bool = False
+
+    def commit(self) -> None:
+        self.committed = True
+
+    def __truediv__(self, other: str) -> Path:
+        return self.path / other
+
+
+@contextmanager
+def staged_directory(store: Path, relative: str) -> Iterator[StagedDirectory]:
+    """Build in a restrictive sibling stage, publishing only on `commit()`."""
+    destination = store_destination(store, relative)
+    stage = f".{destination.name}.{os.getpid()}.staging"
+    backup = f".{destination.name}.{os.getpid()}.previous"
+    stage_path = store.resolve(strict=True).joinpath(*Path(relative).parts[:-1], stage)
+    transaction = StagedDirectory(stage_path)
+    try:
+        _reject_existing(destination, stat.S_ISDIR)
+        with suppress(FileNotFoundError):
+            _remove_tree_at(destination.parent_fd, stage)
+        os.mkdir(stage, 0o700, dir_fd=destination.parent_fd)
+        yield transaction
+        if not transaction.committed:
+            return
+        _reject_existing(destination, stat.S_ISDIR)
+        if _existing_kind(destination) is not None:
+            with suppress(FileNotFoundError):
+                _remove_tree_at(destination.parent_fd, backup)
+            os.replace(
+                destination.name,
+                backup,
+                src_dir_fd=destination.parent_fd,
+                dst_dir_fd=destination.parent_fd,
+            )
+        os.replace(
+            stage,
+            destination.name,
+            src_dir_fd=destination.parent_fd,
+            dst_dir_fd=destination.parent_fd,
+        )
+        with suppress(FileNotFoundError):
+            _remove_tree_at(destination.parent_fd, backup)
+    finally:
+        with suppress(FileNotFoundError):
+            _remove_tree_at(destination.parent_fd, stage)
+        destination.close()
+
+
 def _with_store_lock(store: Path, body: Callable[[], dict]) -> dict:
-    store.mkdir(parents=True, exist_ok=True)
-    lock_path = store / ".provision.lock"
-    with os.fdopen(
-        os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600), "a"
-    ) as stream:
-        fcntl.flock(stream, fcntl.LOCK_EX)
-        return body()
+    """Serialize mutations after opening a no-follow store root."""
+    root_fd = _store_fd(store)
+    try:
+        fd = os.open(
+            ".provision.lock",
+            os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=root_fd,
+        )
+        with os.fdopen(fd, "a") as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            return body()
+    finally:
+        os.close(root_fd)
+
+
+def _write_manifest(store: Path, manifest: Mapping) -> None:
+    write_file(
+        store,
+        "manifest.json",
+        json.dumps(manifest, sort_keys=True).encode("utf-8"),
+        0o600,
+    )
 
 
 def _load_manifest(store: Path, lock: Mapping, platform: str) -> dict:
@@ -67,38 +276,27 @@ def _attestation_metadata(ctx: Any, bundle: str) -> dict[str, str | None]:
     }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BinaryArtifacts:
-    """The primary `bin/<bundle>` executable plus any `extra_executables`
-    extracted alongside it (e.g. `node`'s `bin/npm`) -- each entry carries
-    its OWN `sha256`; `toolchain.resolve()` looks up the one matching the
-    relative path it was asked to verify, never the primary tool's."""
-
-    source_sha256: str
+    source_sha256: str | None
     primary_relative: str
     primary_sha256: str
     extra: Mapping[str, tuple[str, str]] = field(default_factory=dict)
 
 
-def _record_bundle(
-    ctx: Any, bundle: str, artifacts: BinaryArtifacts
-) -> None:
+def _record_bundle(ctx: Any, bundle: str, artifacts: BinaryArtifacts) -> None:
     def body() -> dict:
         manifest = _load_manifest(ctx.store, ctx.lock, ctx.platform)
-        executables = {
+        executables: dict[str, dict[str, str]] = {
             f"bin/{bundle}": {
                 "path": artifacts.primary_relative,
                 "sha256": artifacts.primary_sha256,
             }
         }
-        for name, (extra_relative, extra_sha256) in artifacts.extra.items():
-            # `npm-cli.js` (and any future extra executable) runs via a
-            # `#!/usr/bin/env node`-style shebang -- it needs the primary
-            # `bin/<bundle>` executable (node) on its resolved PATH, exactly
-            # like a python-env console script needs its venv interpreter.
+        for name, (relative, digest) in artifacts.extra.items():
             executables[f"bin/{name}"] = {
-                "path": extra_relative,
-                "sha256": extra_sha256,
+                "path": relative,
+                "sha256": digest,
                 "interpreter": artifacts.primary_relative,
                 "interpreter_sha256": artifacts.primary_sha256,
             }
@@ -107,7 +305,7 @@ def _record_bundle(
             "source_sha256": artifacts.source_sha256,
             "executables": executables,
         }
-        (ctx.store / "manifest.json").write_text(json.dumps(manifest, sort_keys=True))
+        _write_manifest(ctx.store, manifest)
         return manifest
 
     _with_store_lock(ctx.store, body)
@@ -121,24 +319,21 @@ def _record_env_bundle(
         manifest["tools"][bundle] = {
             **_attestation_metadata(ctx, bundle),
             "source_sha256": source_sha256,
-            # Location metadata for `.pth` normalization (Correction 9).
-            "source_checkout": str(ctx.repo_root.resolve()),
             "executables": {
                 f"bin/{name}": {"path": relative} for name, relative in scripts.items()
             },
         }
-        (ctx.store / "manifest.json").write_text(json.dumps(manifest, sort_keys=True))
+        _write_manifest(ctx.store, manifest)
         return manifest
 
     _with_store_lock(ctx.store, body)
 
 
 class _SourceUnavailable(RuntimeError):
-    """A `file://` lock source could not be read; carries the reason text."""
+    pass
 
 
 def _read_source_bytes(ctx: Any, url: str) -> bytes:
-    """Read a lock-owned source file without letting the URL escape checkout."""
     if not url.startswith("file://"):
         raise _SourceUnavailable(f"source unavailable: unsupported local URL: {url}")
     relative = url.removeprefix("file://")
@@ -160,24 +355,13 @@ def _read_source_bytes(ctx: Any, url: str) -> bytes:
 def _materialize_env(
     ctx: Any, bundle: str, entry: Mapping, env_root: Path, names: list[str]
 ) -> dict[str, str]:
-    """Dispatch to the right materializer by bundle name/kind, and return
-    its console scripts. `project-env`/`config-env` are the two fixed
-    Correction 7 step 1 additions, each with its own real project dir;
-    every other `python-env`/`node-env` bundle keeps the original
-    kind-only dispatch."""
     ctx_m = materialize.MaterializeContext(
         ctx.lock, ctx.store, ctx.platform, ctx.repo_root, ctx.env
     )
     if bundle == "project-env":
-        # The ROOT project's dependency set ONLY -- never installs
-        # `manifest_agent` itself (Correction 7 step 1).
         materialize.materialize_project_env(ctx_m, env_root)
         return materialize.python_env_console_scripts(env_root, names)
     if bundle == "config-env":
-        # `configs/claude`'s OWN project, installed for real so its
-        # `[project.scripts] manifest` entry point exists at `bin/manifest`
-        # -- unlike project-env, this env IS meant to carry an installed
-        # project (Correction 7 step 1).
         materialize.materialize_python_env(
             ctx_m, env_root, project_relative="configs/claude"
         )
@@ -187,5 +371,3 @@ def _materialize_env(
         return materialize.python_env_console_scripts(env_root, names)
     materialize.materialize_node_env(ctx_m, env_root, ctx.fetcher)
     return materialize.node_env_console_scripts(env_root, names)
-
-

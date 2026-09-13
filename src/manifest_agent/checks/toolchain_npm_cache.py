@@ -36,11 +36,8 @@ independent of npm's internal directory sharding.
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
-import json
 import os
-import shutil
 import subprocess
 import tempfile
 from collections.abc import Mapping
@@ -49,6 +46,11 @@ from pathlib import Path
 from typing import Protocol
 
 from . import toolchain
+from .toolchain_provision_store import (
+    _with_store_lock,
+    _write_manifest,
+    staged_directory,
+)
 
 CACHE_BUNDLE = "node-cache"
 PROJECT_RELATIVE = "plugins/stitch-design/runtime/node"
@@ -61,23 +63,28 @@ class NpmCacheError(RuntimeError):
 
 
 def index_digest(cache_root: Path) -> str | None:
-    """sha256 over the sorted, cache-relative paths of every npm cache-index
-    entry under ``cache_root`` -- ``None`` if the cache has no index yet
-    (an empty or never-populated cache directory)."""
-    index_dir = cache_root / _INDEX_SUBDIR
-    if not index_dir.is_dir():
+    """Digest immutable npm content blobs with unambiguous framed records."""
+    content_root = cache_root / "_cacache" / "content-v2"
+    if not content_root.is_dir():
         return None
-    entries = sorted(
-        str(path.relative_to(cache_root))
-        for path in index_dir.rglob("*")
-        if path.is_file()
-    )
+    entries = sorted(path for path in content_root.rglob("*") if not path.is_dir())
     if not entries:
         return None
     hasher = hashlib.sha256()
-    for entry in entries:
-        hasher.update(entry.encode("utf-8"))
-        hasher.update(b"\n")
+    hasher.update(len(entries).to_bytes(8, "big"))
+    for path in entries:
+        relative = path.relative_to(cache_root).as_posix().encode()
+        mode = path.lstat().st_mode & 0o777
+        if path.is_symlink():
+            kind, payload = b"L", os.readlink(path).encode()
+        else:
+            kind, payload = b"F", path.read_bytes()
+        hasher.update(kind)
+        hasher.update(len(relative).to_bytes(8, "big"))
+        hasher.update(relative)
+        hasher.update(mode.to_bytes(2, "big"))
+        hasher.update(len(payload).to_bytes(8, "big"))
+        hasher.update(payload)
     return hasher.hexdigest()
 
 
@@ -90,18 +97,26 @@ def source_sha256(repo_root: Path) -> str:
 
 
 def _resolve_npm_for_materialize(
-    lock: Mapping, store: Path, platform: str
+    lock: Mapping, store: Path, platform: str, repo_root: Path
 ) -> toolchain.ResolvedTool:
     """`node` and `npm`, both store-resolved -- `npm-cli.js` runs via a
     `#!/usr/bin/env node` shebang, so `node` must resolve too even though
     only `npm`'s `ResolvedTool` is returned."""
     resolved_node = toolchain.resolve(
-        "store:node/bin/node", lock=lock, store=store, platform=platform
+        "store:node/bin/node",
+        lock=lock,
+        store=store,
+        platform=platform,
+        repo_root=repo_root,
     )
     if isinstance(resolved_node, toolchain.BlockedReason):
         raise NpmCacheError(resolved_node.reason)
     resolved_npm = toolchain.resolve(
-        "store:node/bin/npm", lock=lock, store=store, platform=platform
+        "store:node/bin/npm",
+        lock=lock,
+        store=store,
+        platform=platform,
+        repo_root=repo_root,
     )
     if isinstance(resolved_npm, toolchain.BlockedReason):
         raise NpmCacheError(resolved_npm.reason)
@@ -152,16 +167,10 @@ def materialize(
     lock: Mapping,
     platform: str,
     env: Mapping[str, str],
+    expected_digest: str | None = None,
 ) -> tuple[Path, str]:
-    """`npm ci --ignore-scripts` a scratch copy of the stitch-design node
-    project's lockfile with `npm_config_cache` pointed at a fresh store
-    subdirectory -- network-permitted (this function is only ever reached
-    from `manifest provision`, never `manifest check`, mirroring
-    `toolchain_provision.py`'s own network boundary). Returns
-    `(cache_dir, digest)`; raises `NpmCacheError` on any failure -- never a
-    partial or unverifiable cache.
-    """
-    resolved_npm = _resolve_npm_for_materialize(lock, store, platform)
+    """Materialize a verified npm cache."""
+    resolved_npm = _resolve_npm_for_materialize(lock, store, platform, repo_root)
     project = repo_root / PROJECT_RELATIVE
     try:
         package_json_bytes = (project / "package.json").read_bytes()
@@ -169,22 +178,26 @@ def materialize(
     except OSError as error:
         raise NpmCacheError(f"node-cache source unavailable: {error}") from error
 
-    cache_dir = store / "caches" / CACHE_BUNDLE / platform
-    if cache_dir.exists():
-        shutil.rmtree(cache_dir)
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    _npm_ci_into_cache(
-        resolved_npm=resolved_npm,
-        package_json_bytes=package_json_bytes,
-        package_lock_bytes=package_lock_bytes,
-        cache_dir=cache_dir,
-        env=env,
-    )
-
-    digest = index_digest(cache_dir)
-    if digest is None:
-        raise NpmCacheError("node-cache: npm ci produced an empty cache index")
-    return cache_dir, digest
+    relative = f"caches/{CACHE_BUNDLE}/{platform}"
+    try:
+        with staged_directory(store, relative) as transaction:
+            stage = transaction.path
+            _npm_ci_into_cache(
+                resolved_npm=resolved_npm,
+                package_json_bytes=package_json_bytes,
+                package_lock_bytes=package_lock_bytes,
+                cache_dir=stage,
+                env=env,
+            )
+            digest = index_digest(stage)
+            if digest is None:
+                raise NpmCacheError("node-cache: npm ci produced an empty cache index")
+            if expected_digest is not None and digest != expected_digest:
+                raise NpmCacheError("node-cache: digest mismatch")
+            transaction.commit()
+    except (OSError, ValueError) as error:
+        raise NpmCacheError(f"node-cache store mutation failed: {error}") from error
+    return store / relative, digest
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,16 +296,15 @@ def _record(ctx: _ProvisionContext, bundle: str, digest: str) -> None:
     same `fcntl.flock` serialization `toolchain_provision.py` uses for
     every other bundle -- so a `node-cache` write can never interleave with
     a concurrent `manifest provision` writing `manifest.json`."""
-    ctx.store.mkdir(parents=True, exist_ok=True)
-    lock_path = ctx.store / ".provision.lock"
-    with os.fdopen(
-        os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600), "a"
-    ) as stream:
-        fcntl.flock(stream, fcntl.LOCK_EX)
+
+    def write() -> dict:
         manifest = _load_manifest(ctx.store, ctx.lock)
         platforms = manifest.setdefault("caches", {}).setdefault(bundle, {})
         platforms.setdefault("platforms", {})[ctx.platform] = {"digest": digest}
-        (ctx.store / "manifest.json").write_text(json.dumps(manifest, sort_keys=True))
+        _write_manifest(ctx.store, manifest)
+        return manifest
+
+    _with_store_lock(ctx.store, write)
 
 
 def provision(ctx: _ProvisionContext, bundle: str) -> tuple[str, str, str | None]:
@@ -303,15 +315,24 @@ def provision(ctx: _ProvisionContext, bundle: str) -> tuple[str, str, str | None
             f"toolchain: {bundle} has no cache materializer",
             None,
         )
+    cache_entry = (ctx.lock.get("caches") or {}).get(bundle) or {}
+    platform_entry = (cache_entry.get("platforms") or {}).get(ctx.platform, {})
+    expected_digest = platform_entry.get("digest")
+    expected_source = cache_entry.get("source_sha256")
     try:
+        if expected_digest is None or source_sha256(ctx.repo_root) != expected_source:
+            return "blocked", f"toolchain: {bundle} cache is unattested or stale", None
         _cache_dir, digest = materialize(
             repo_root=ctx.repo_root,
             store=ctx.store,
             lock=ctx.lock,
             platform=ctx.platform,
             env=ctx.env,
+            expected_digest=expected_digest,
         )
-    except NpmCacheError as error:
+        if digest != expected_digest:
+            return "blocked", f"toolchain: {bundle} cache digest mismatch", None
+        _record(ctx, bundle, digest)
+    except (NpmCacheError, OSError, ValueError) as error:
         return "blocked", str(error), None
-    _record(ctx, bundle, digest)
     return "provisioned", "", digest

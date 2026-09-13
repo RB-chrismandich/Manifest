@@ -193,22 +193,9 @@ def _safe_relative(value: str) -> bool:
 
 
 def resolve(
-    store_reference: str, *, lock: Mapping, store: Path, platform: str
+    store_reference: str, *, lock: Mapping, store: Path, platform: str, repo_root: Path
 ) -> ResolvedTool | BlockedReason:
-    """Resolve a `store:<bundle>/<relative>` reference to a verified executable.
-
-    Implements the failure-semantics table from phase-3-5-decisions.md 3a
-    exactly: every BLOCKED path below returns one of its distinct reason
-    strings, and nothing here can return PASS -- callers still run the
-    existing version probe once resolution succeeds.
-
-    Trust boundary: the lock is trusted, the store is not. The executable's
-    hash is verified against the lock's `exe_sha256` -- never against the
-    store's own `manifest.json`, which a store-writer fully controls and
-    could rewrite consistently with a swapped binary. The store manifest is
-    consulted only to *locate* the file and for `source_sha256`/staleness
-    bookkeeping; it never supplies a security-relevant hash.
-    """
+    """Resolve a store reference only when its executable matches the lock."""
     parsed = parse_store_executable(store_reference)
     if parsed is None:
         raise ValueError(f"not a store executable reference: {store_reference!r}")
@@ -240,7 +227,8 @@ def resolve(
         or bundle_manifest.get("source") != platform_entry.get("url")
     ):
         return BlockedReason("toolchain: store stale (attestation changed)")
-    if bundle_manifest.get("source_sha256") != platform_entry.get("sha256"):
+    source_sha256 = bundle_manifest.get("source_sha256")
+    if source_sha256 is not None and source_sha256 != platform_entry.get("sha256"):
         return BlockedReason("toolchain: store stale (lock changed)")
 
     exe_info = (bundle_manifest.get("executables") or {}).get(relative)
@@ -250,7 +238,9 @@ def resolve(
         )
     if entry.get("kind") in ("python-env", "node-env"):
         inputs = _EnvExeInputs(bundle, entry, exe_info, bundle_manifest, exe_sha256)
-        return _resolve_env_exe(inputs, lock=lock, store=store, platform=platform)
+        return _resolve_env_exe(
+            inputs, lock=lock, store=store, platform=platform, repo_root=repo_root
+        )
     return _verify_exe(bundle, exe_info, store, exe_sha256)
 
 
@@ -268,23 +258,26 @@ class _EnvExeInputs:
 
 
 def _resolve_env_exe(
-    inputs: _EnvExeInputs, *, lock: Mapping, store: Path, platform: str
+    inputs: _EnvExeInputs,
+    *,
+    lock: Mapping,
+    store: Path,
+    platform: str,
+    repo_root: Path,
 ):
     """The `python-env`/`node-env` branch of `resolve()`, split out to keep
     `resolve()` itself under the Code Constitution's line ceiling."""
     node_result = None
     if inputs.entry["kind"] == "node-env" and inputs.bundle != "node":
         node_result = resolve(
-            "store:node/bin/node", lock=lock, store=store, platform=platform
+            "store:node/bin/node",
+            lock=lock,
+            store=store,
+            platform=platform,
+            repo_root=repo_root,
         )
-    # `source_checkout` (Correction 9): purely location metadata `manifest
-    # provision` recorded for THIS materialization -- used only to
-    # recognize a `.pth` line pointing at it, never a security-relevant
-    # hash (see toolchain_env.EnvTrust).
-    source_checkout = inputs.bundle_manifest.get("source_checkout")
-    env_trust = toolchain_env.EnvTrust(
-        store, Path(source_checkout) if source_checkout else None
-    )
+    # Repository context is supplied by the caller; cwd is never trust input.
+    env_trust = toolchain_env.EnvTrust(store, repo_root.resolve(strict=True))
     return toolchain_env.verify_env_exe(
         inputs.bundle,
         inputs.entry["kind"],

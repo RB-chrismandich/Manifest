@@ -67,7 +67,11 @@ def resolve_tool(store_ref: str, root: Path) -> tuple[Path, str]:
     except toolchain.UnsafeStoreLocationError as error:
         raise ToolchainBlocked(str(error)) from error
     outcome = toolchain.resolve(
-        store_ref, lock=lock, store=store, platform=toolchain.current_platform()
+        store_ref,
+        lock=lock,
+        store=store,
+        platform=toolchain.current_platform(),
+        repo_root=root,
     )
     if isinstance(outcome, toolchain.BlockedReason):
         raise ToolchainBlocked(outcome.reason)

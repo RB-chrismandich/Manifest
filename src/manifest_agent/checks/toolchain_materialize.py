@@ -15,8 +15,11 @@ import hashlib
 import io
 import json
 import os
+import shutil
+import stat
 import subprocess
 import tarfile
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,7 +76,11 @@ def _run(argv: list[str], *, cwd: Path, env: Mapping[str, str]) -> None:
 
 def _resolved_uv(ctx: MaterializeContext) -> Path:
     resolved_uv = toolchain.resolve(
-        "store:uv/bin/uv", lock=ctx.lock, store=ctx.store, platform=ctx.platform
+        "store:uv/bin/uv",
+        lock=ctx.lock,
+        store=ctx.store,
+        platform=ctx.platform,
+        repo_root=ctx.repo_root,
     )
     if isinstance(resolved_uv, toolchain.BlockedReason):
         raise MaterializationError(resolved_uv.reason)
@@ -156,31 +163,96 @@ def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
     )
 
 
+def relocate_python_launchers(env_root: Path, final_root: Path) -> None:
+    """Replace the private staging prefix in generated text launchers."""
+    staged = os.fsencode(env_root)
+    final = os.fsencode(final_root)
+    for path in env_root.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        data = path.read_bytes()
+        if staged in data:
+            path.write_bytes(data.replace(staged, final))
+
+
+def _subtree_parent(root_fd: int, parts: tuple[str, ...]) -> int:
+    """Open/create a no-follow parent for a verified archive member."""
+    current_fd = os.dup(root_fd)
+    for component in parts:
+        try:
+            next_fd = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=current_fd,
+            )
+        except FileNotFoundError:
+            os.mkdir(component, 0o700, dir_fd=current_fd)
+            next_fd = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=current_fd,
+            )
+        os.close(current_fd)
+        current_fd = next_fd
+    return current_fd
+
+
+def _extract_member(
+    archive: tarfile.TarFile, member: tarfile.TarInfo, root_fd: int, relative: Path
+) -> None:
+    """Write one regular archive member through descriptor-relative paths."""
+    parent_fd = _subtree_parent(root_fd, relative.parts[:-1])
+    try:
+        if member.isdir():
+            try:
+                os.mkdir(relative.name, 0o700, dir_fd=parent_fd)
+            except FileExistsError as error:
+                mode = os.stat(
+                    relative.name, dir_fd=parent_fd, follow_symlinks=False
+                ).st_mode
+                if not stat.S_ISDIR(mode):
+                    raise MaterializationError(
+                        "archive extraction encountered a non-directory"
+                    ) from error
+            return
+        if not member.isfile():
+            return
+        extracted = archive.extractfile(member)
+        if extracted is None:
+            return
+        try:
+            fd = os.open(
+                relative.name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                member.mode | 0o200,
+                dir_fd=parent_fd,
+            )
+            with os.fdopen(fd, "wb") as output:
+                shutil.copyfileobj(extracted, output)
+        finally:
+            extracted.close()
+    finally:
+        os.close(parent_fd)
+
+
 def extract_subtree(data: bytes, prefix: str, destination: Path) -> None:
-    """Extract every archive member under `prefix` into `destination`,
-    stripping `prefix` itself -- used to pull `lib/node_modules/npm` (which
-    embeds `npm-cli.js` and every one of npm's own bundled dependencies) out
-    of the already-hash-verified node archive without a second download."""
-    destination.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
-        for member in archive.getmembers():
-            if not member.name.startswith(prefix) or member.name == prefix:
-                continue
-            relative = member.name[len(prefix) :].lstrip("/")
-            if not relative or ".." in Path(relative).parts:
-                continue
-            target = destination / relative
-            if member.isdir():
-                target.mkdir(parents=True, exist_ok=True)
-                continue
-            if not member.isfile():
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            extracted = archive.extractfile(member)
-            if extracted is None:
-                continue
-            target.write_bytes(extracted.read())
-            target.chmod(member.mode | 0o200)
+    """Extract regular members below `prefix` through no-follow descriptors."""
+    destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+    root_fd = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
+            for member in archive.getmembers():
+                if not member.name.startswith(prefix) or member.name == prefix:
+                    continue
+                relative = Path(member.name[len(prefix) :].lstrip("/"))
+                if (
+                    relative.parts
+                    and not relative.is_absolute()
+                    and ".." not in relative.parts
+                ):
+                    _extract_member(archive, member, root_fd, relative)
+    finally:
+        os.close(root_fd)
 
 
 def materialize_node_env(ctx: MaterializeContext, env_root: Path, fetcher) -> None:
@@ -189,7 +261,11 @@ def materialize_node_env(ctx: MaterializeContext, env_root: Path, fetcher) -> No
     from the SAME hash-verified node archive `node`'s own bundle already
     trusts -- never an ambient `node`/`npm` on `PATH`."""
     resolved_node = toolchain.resolve(
-        "store:node/bin/node", lock=ctx.lock, store=ctx.store, platform=ctx.platform
+        "store:node/bin/node",
+        lock=ctx.lock,
+        store=ctx.store,
+        platform=ctx.platform,
+        repo_root=ctx.repo_root,
     )
     if isinstance(resolved_node, toolchain.BlockedReason):
         raise MaterializationError(resolved_node.reason)
@@ -202,25 +278,32 @@ def materialize_node_env(ctx: MaterializeContext, env_root: Path, fetcher) -> No
     if hashlib.sha256(archive).hexdigest() != node_platform.get("sha256"):
         raise MaterializationError("toolchain: node digest mismatch")
     node_exe_prefix = node_platform["path_in_archive"].rsplit("/bin/node", 1)[0]
-    npm_root = ctx.store / f"tools/node-env/_npm-cli/{node_entry.get('version')}"
-    if not (npm_root / "bin" / "npm-cli.js").is_file():
-        extract_subtree(archive, f"{node_exe_prefix}/lib/node_modules/npm/", npm_root)
     env_root.mkdir(parents=True, exist_ok=True)
-    project = ctx.repo_root / "config" / "toolchain"
-    for name in ("package.json", "package-lock.json"):
-        try:
-            data = (project / name).read_bytes()
-        except OSError as error:
+    npm_root = Path(tempfile.mkdtemp(prefix=".npm-cli-", dir=env_root))
+    try:
+        extract_subtree(archive, f"{node_exe_prefix}/lib/node_modules/npm/", npm_root)
+        npm_cli = npm_root / "bin" / "npm-cli.js"
+        if not npm_cli.is_file():
             raise MaterializationError(
-                f"node-env project file unavailable: {name}: {error}"
-            ) from error
-        (env_root / name).write_bytes(data)
-    run_env = _engine_env(ctx.env, resolved_node.executable.parent)
-    _run(
-        [str(resolved_node.executable), str(npm_root / "bin" / "npm-cli.js"), "ci"],
-        cwd=env_root,
-        env=run_env,
-    )
+                "toolchain: verified node archive lacks npm-cli.js"
+            )
+        project = ctx.repo_root / "config" / "toolchain"
+        for name in ("package.json", "package-lock.json"):
+            try:
+                data = (project / name).read_bytes()
+            except OSError as error:
+                raise MaterializationError(
+                    f"node-env project file unavailable: {name}: {error}"
+                ) from error
+            (env_root / name).write_bytes(data)
+        run_env = _engine_env(ctx.env, resolved_node.executable.parent)
+        _run(
+            [str(resolved_node.executable), str(npm_cli), "ci"],
+            cwd=env_root,
+            env=run_env,
+        )
+    finally:
+        shutil.rmtree(npm_root)
 
 
 def node_env_console_scripts(env_root: Path, names: list[str]) -> dict[str, str]:
