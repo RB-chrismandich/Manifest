@@ -8,16 +8,12 @@ description: Security, architecture, and quality analysis for Go codebases with 
 Analyze a Go codebase against best practices, security principles, and idiomatic Go
 standards. Generate a comprehensive refactoring report with prioritized recommendations.
 
-## Parallel Agent Integration
+## Review routing
 
-This command ALWAYS uses parallel agents (security-critical).
-Executes: `manifest-workspace:parallel-agent --json --full-output --validate --analyze`
-
-Consensus scoring:
-
-- >=80%: Auto-proceed with unified recommendation
-- 50-79%: Highlight disagreements to user
-- <50%: Escalate for human review
+Use one capable reviewer by default. Add independent review only when a
+condition in the [review escalation contract](../refactor/references/review-escalation.md)
+is present; file, package, module, language, keyword, and unit counts do not
+independently escalate review.
 
 ## Task
 
@@ -166,6 +162,15 @@ linters:
 **Modules:** N packages
 **Overall Score:** XX/100
 
+**review_mode**: `single-agent` | `escalated`
+**escalation_reason**: `none` | concrete risk condition(s)
+
+## Checks
+
+| Command | Result | unavailable_reason |
+|---------|--------|--------------------|
+| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
+
 ---
 
 ## Executive Summary
@@ -293,20 +298,6 @@ After completing the analysis, capture the most significant findings:
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.
-
-## Review report metadata
-
-Use the [review escalation contract](../refactor/references/review-escalation.md).
-Every explicit report adds:
-
-```markdown
-**review_mode**: `single-agent` | `escalated`
-**escalation_reason**: `none` | concrete risk condition(s)
-
-| Command | Result | Unavailable reason |
-|---------|--------|--------------------|
-| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
-```
 
 ## Sub-agent dispatch
 

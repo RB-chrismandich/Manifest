@@ -28,6 +28,7 @@ Shell remains single-agent unless it presents one of those conditions.
 
 ## Sub-agent dispatch
 
-When escalation is warranted, dispatch independent reviewers only for genuinely
-independent analysis tracks, then synthesize their findings. Otherwise analyze
-inline. Dispatched reviewers do not re-dispatch.
+When any one of the five conditions warrants escalation, obtain an independent
+review. Partition work among multiple reviewers only when the investigation has
+genuinely independent analysis tracks; otherwise the second review examines the
+same target independently. Dispatched reviewers do not re-dispatch.

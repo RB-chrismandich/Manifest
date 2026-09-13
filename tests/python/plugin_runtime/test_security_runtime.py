@@ -276,10 +276,15 @@ def test_installed_code_audit_discloses_review_and_check_outcomes(
     shutil.copytree(security_bundle, installed)
     source = (installed / "skills/code-audit/SKILL.md").read_text(encoding="utf-8")
 
-    assert "**review_mode**:" in source
-    assert "**escalation_reason**:" in source
-    assert "| Command | Result | Unavailable reason |" in source
-    assert "`unavailable`" in source
+    template = source.split("## Output Format", 1)[1].split("```", 1)[1].split(
+        "```", 1
+    )[0]
+    assert "**review_mode**:" in template
+    assert "**escalation_reason**:" in template
+    assert "| Command | Result | unavailable_reason |" in template
+    assert "`unavailable`" in template
+    assert "manifest-workspace:learning-capture query --language <detected-language>" in source
+    assert "if it fails or returns empty, continue" in source
     assert not re.search(r"(?:>=|≥)\s*3.*dispatch", source, flags=re.IGNORECASE)
 
 

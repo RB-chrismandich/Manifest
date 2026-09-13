@@ -24,9 +24,18 @@ metrics alone are not activation conditions.
 
 When triggered, this skill:
 
-1. Scans the affected behavior and its boundary for security and quality risks.
-2. Reviews inline by default with one capable reviewing agent.
-3. Adds independent review only when at least one escalation condition is
+1. Consult the bundle-local learning capture knowledge base before scanning:
+
+   ```bash
+   manifest-workspace:learning-capture query --language <detected-language> --format llm
+   ```
+
+   Include relevant antipattern entries as additional check items. This query is
+   advisory and non-blocking: if it fails or returns empty, continue with the
+   standard review.
+2. Scan the affected behavior and its boundary for security and quality risks.
+3. Review inline by default with one capable reviewing agent.
+4. Add independent review only when at least one escalation condition is
    present:
    - authentication, authorization, cryptography, secret handling, or another
      trust-boundary change;
@@ -34,7 +43,7 @@ When triggered, this skill:
    - a public compatibility or deployment change with broad impact;
    - conflicting evidence or unresolved reviewer uncertainty; or
    - a codebase-wide investigation with genuinely independent analysis tracks.
-4. Reports findings inline without blocking user workflow.
+5. Report findings inline without blocking user workflow.
 
 Use the [bundle-local dispatch selection rules](references/code-audit-dispatch.md).
 File, package, module, language, keyword, and independent-unit counts never
@@ -122,7 +131,7 @@ When triggered, report findings in this format:
 
 ### Checks
 
-| Command | Result | Unavailable reason |
+| Command | Result | unavailable_reason |
 |---------|--------|--------------------|
 | `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
 

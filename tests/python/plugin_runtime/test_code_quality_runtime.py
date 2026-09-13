@@ -366,25 +366,43 @@ def _review_config(repo_root: Path) -> dict:
     )
 
 
+CANONICAL_RISK_CONDITIONS = (
+    "trust_boundary_change",
+    "destructive_behavior",
+    "broad_compatibility_or_deployment_change",
+    "conflicting_evidence_or_unresolved_uncertainty",
+    "codebase_wide_independent_tracks",
+)
+
+
+def _review_mode(policy: dict, observed_conditions: set[str]) -> str:
+    """Consumer-facing routing decision represented by the command policy."""
+    return (
+        "escalated"
+        if observed_conditions & set(policy["conditions"])
+        else policy["default_mode"]
+    )
+
+
 @pytest.mark.parametrize(
-    ("signals", "expected"),
+    ("observed_conditions", "expected_mode"),
     [
-        ({"file_size", "language", "generic_keyword", "independent_unit_count"}, False),
-        ({"trust_boundary_change"}, True),
-        ({"destructive_behavior"}, True),
-        ({"broad_compatibility_or_deployment_change"}, True),
-        ({"conflicting_evidence_or_unresolved_uncertainty"}, True),
-        ({"codebase_wide_independent_tracks"}, True),
+        ({"language:python", "language:go", "language:shell"}, "single-agent"),
+        ({"file_size", "package_count", "module_count", "generic_keyword"}, "single-agent"),
+        ({"trust_boundary_change"}, "escalated"),
+        ({"destructive_behavior"}, "escalated"),
+        ({"broad_compatibility_or_deployment_change"}, "escalated"),
+        ({"conflicting_evidence_or_unresolved_uncertainty"}, "escalated"),
+        ({"codebase_wide_independent_tracks"}, "escalated"),
     ],
 )
-def test_refactor_review_escalation_classifies_only_canonical_risks(
-    repo_root: Path, signals: set[str], expected: bool
+def test_refactor_review_mode_follows_the_consumer_visible_risk_contract(
+    repo_root: Path, observed_conditions: set[str], expected_mode: str
 ) -> None:
     escalation = _review_config(repo_root)["review_escalation"]
 
-    assert escalation["default_mode"] == "single-agent"
-    assert bool(signals & set(escalation["conditions"])) is expected
-    assert set(escalation["non_triggers"]).isdisjoint(escalation["conditions"])
+    assert escalation["conditions"] == list(CANONICAL_RISK_CONDITIONS)
+    assert _review_mode(escalation, observed_conditions) == expected_mode
 
 
 def test_refactor_policies_share_risk_gate_and_check_only_verification(
@@ -407,15 +425,10 @@ def test_refactor_policies_share_risk_gate_and_check_only_verification(
         assert "Bash" not in policy["forbidden"]
 
 
-def test_three_language_refactor_remains_single_agent_without_risk(
-    repo_root: Path,
-) -> None:
-    config = _review_config(repo_root)
-    policy = config["tool_policies"]["refactor"]
-    three_language_signals = {"language:python", "language:go", "language:shell"}
-
-    assert not (three_language_signals & set(config["review_escalation"]["conditions"]))
-    assert policy["parallel_agents"] == "conditional"
+def _output_template(source: str) -> str:
+    return source.split("## Output Format", 1)[1].split("```", 1)[1].split(
+        "```", 1
+    )[0]
 
 
 def test_refactor_skills_link_to_the_same_installed_review_contract(
@@ -447,6 +460,9 @@ def test_refactor_report_templates_disclose_review_and_check_outcomes(
         source = (code_quality_bundle / f"skills/{skill_name}/SKILL.md").read_text(
             encoding="utf-8"
         )
-        assert "**review_mode**:" in source
-        assert "**escalation_reason**:" in source
-        assert "| Command | Result | Unavailable reason |" in source
+        template = _output_template(source)
+        assert "**review_mode**:" in template
+        assert "**escalation_reason**:" in template
+        assert "| Command | Result | unavailable_reason |" in template
+        assert "`unavailable`" in template
+        assert "ALWAYS uses parallel agents" not in source
