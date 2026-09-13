@@ -290,7 +290,6 @@ class ValidationEngine:
         concerns = []
         total_weight = 0
         score = 0
-
         # Bug detection
         if "bug_detection" in criteria:
             weight = criteria["bug_detection"]["weight"]
