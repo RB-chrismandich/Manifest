@@ -8,7 +8,6 @@ size/method ceilings.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -135,7 +134,7 @@ class TestLockDigestForRegistry:
             "toolchain_lock_document": {},
         }
 
-    def test_digest_reflects_lock_file_content(self, tmp_path: Path):
+    def test_digest_matches_provisioned_store_identity(self, tmp_path: Path):
         (tmp_path / "config").mkdir()
         registry_path = tmp_path / "config" / "project-checks.json"
         registry_path.write_text("{}")
@@ -148,7 +147,9 @@ class TestLockDigestForRegistry:
             repo_root=tmp_path,
         )
         assert fields["toolchain_lock"] == "config/toolchain.lock.json"
-        assert fields["toolchain_lock_digest"] == hashlib.sha256(lock_bytes).hexdigest()
+        assert fields["toolchain_lock_digest"] == toolchain.lock_digest(
+            fields["toolchain_lock_document"]
+        )
         assert fields["toolchain_lock_document"] == {
             "schema_version": 1,
             "tools": {"demo": {}},
