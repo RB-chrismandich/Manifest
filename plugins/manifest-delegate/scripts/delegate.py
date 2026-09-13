@@ -254,24 +254,6 @@ if __name__ == "__main__":
 # it. Direct module imports in tests skip the executable-only trust gate.
 
 from manifest_delegate import *  # noqa: E402,F403  (documented compatibility facade)
-from manifest_delegate import (  # noqa: E402,F401  (`import *` skips submodules)
-    backend,
-    cli,
-    config,
-    constants,
-    envelope,
-    gate,
-    jobs_cli,
-    jobstore,
-    process,
-    readiness,
-    registry,
-    review,
-    setup,
-    task,
-    transfer,
-    worker,
-)
 from manifest_delegate.cli import main  # noqa: E402
 
 if __name__ == "__main__":

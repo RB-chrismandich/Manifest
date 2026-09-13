@@ -1,11 +1,24 @@
 """Retention pruning for terminal delegate job directories."""
 
 import fcntl
+import json
 import logging
 import os
+import time
 
-from . import constants
+from . import constants, containment
+from .jobstore_files import _atomic_write_0600, _fsync_directory
 from .jobstore_states import TERMINAL_STATES
+
+
+def _mark_containment_cleaned(record_path, record):
+    containment_state = dict(record.get("containment") or {})
+    containment_state["state"] = containment.STATE_CLEANED
+    record["containment"] = containment_state
+    record["updated_at"] = time.time()
+    record["version"] = record.get("version", 1) + 1
+    _atomic_write_0600(record_path, json.dumps(record, indent=2))
+    _fsync_directory(os.path.dirname(record_path))
 
 
 class JobPruneMixin:
@@ -60,16 +73,7 @@ class JobPruneMixin:
             self._delete_job_locked(job_id)
 
     def _delete_job_locked(self, job_id):
-        """Delete a job dir under its own flock, re-checking terminal state.
-
-        Guards against a race where the job transitioned to non-terminal
-        between the prune scan and this call.
-
-        Returns True if the job dir (and its lock file) was fully removed,
-        False if any part of the cleanup was skipped — a job dir that can't
-        be read/locked/removed is simply left in place, not pruned, and the
-        reason is logged at debug level.
-        """
+        """Delete a terminal job only after containment cleanup is confirmed."""
         job_dir = self.job_dir(job_id)
         lock_path = self._lock_path(job_id)
         lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
@@ -79,41 +83,33 @@ class JobPruneMixin:
                 record = self.read(job_id)
             except (OSError, ValueError):
                 record = None
+            record_path = os.path.join(job_dir, "record.json")
             if record is not None and record.get("state") not in TERMINAL_STATES:
-                return
+                return False
+            if not containment.cleanup(
+                job_dir,
+                required=containment.is_contained(record or {}),
+                on_cgroup_removed=lambda: _mark_containment_cleaned(
+                    record_path, record
+                ),
+            ):
+                return False
             try:
                 for root, dirs, files in os.walk(job_dir, topdown=False):
                     for name in files:
-                        if os.path.join(root, name) == lock_path:
-                            continue
-                        os.unlink(os.path.join(root, name))
+                        if os.path.join(root, name) != lock_path:
+                            os.unlink(os.path.join(root, name))
                     for name in dirs:
                         os.rmdir(os.path.join(root, name))
             except OSError:
-                return
+                return False
         finally:
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
             os.close(lock_fd)
         try:
             os.unlink(lock_path)
-        except OSError as exc:
-            logging.debug(
-                "delegate: prune: could not remove lock file %s for job %s, "
-                "leaving job dir in place: %s",
-                lock_path,
-                job_id,
-                exc,
-            )
-            return False
-        try:
             os.rmdir(job_dir)
         except OSError as exc:
-            logging.debug(
-                "delegate: prune: job dir %s not empty/removable for job %s, "
-                "not pruned: %s",
-                job_dir,
-                job_id,
-                exc,
-            )
+            logging.debug("delegate: prune: could not remove job %s: %s", job_id, exc)
             return False
         return True

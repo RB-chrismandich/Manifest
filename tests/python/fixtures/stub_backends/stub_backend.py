@@ -56,12 +56,16 @@ def _simulate_process_behavior(control):
         # recorded pgid — the realistic runaway-child case. Default True keeps a
         # fully-detached holder (start_new_session) for the pure no-hang test.
         in_group = bool(control.get("holder_in_group"))
+        holder_code = (
+            "import os,sys,time\n"
+            "pidfile=os.environ.get('STUB_DETACHED_PIDFILE')\n"
+            "pidfile and open(pidfile,'w').write(str(os.getpid()))\n"
+            "os.environ.get('STUB_DETACHED_CLOSE_STREAMS') and "
+            "[os.close(fd) for fd in (0,1,2)]\n"
+            f"time.sleep({int(detached_holder_secs)})"
+        )
         subprocess.Popen(
-            [
-                sys.executable,
-                "-c",
-                f"import time,sys; time.sleep({int(detached_holder_secs)})",
-            ],
+            [sys.executable, "-c", holder_code],
             start_new_session=not in_group,
         )  # inherits stdout; not waited on
 

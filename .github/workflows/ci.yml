@@ -300,6 +300,35 @@ jobs:
           pip install -e ./configs/claude/scripts/manifest_model_policy
           pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
 
+      - name: Provision delegated cgroup v2 containment venue
+        run: |
+          set -euo pipefail
+          root=/sys/fs/cgroup
+          venue="$root/manifest-ci"
+          runner_user="$(id -un)"
+          runner_group="$(id -gn)"
+          test -f "$root/cgroup.controllers"
+          sudo mkdir -p "$venue"
+          sudo chown "$runner_user:$runner_group" "$venue" "$venue/cgroup.procs" "$venue/cgroup.kill"
+          test -w "$venue"
+          test -w "$venue/cgroup.procs"
+          test -w "$venue/cgroup.kill"
+          if grep -Fqx "MANIFEST_CGROUP_ROOT=$venue" "$GITHUB_ENV"; then
+            echo "delegated cgroup root must remain scoped to the native test" >&2
+            exit 1
+          fi
+
+      - name: Run Linux cgroup containment venue
+        run: |
+          set -euo pipefail
+          venue=/sys/fs/cgroup/manifest-ci
+          runner_user="$(id -un)"
+          sudo bash -c '
+            echo $$ > "$1/cgroup.procs"
+            exec runuser -u "$2" -- env \
+              "PATH=$3" MANIFEST_CGROUP_ROOT="$1" CI=true \
+              pytest -vv tests/python/test_delegate_containment.py -m native
+          ' bash "$venue" "$runner_user" "$PATH"
       - name: Run Python tests (if any exist)
         run: |
           if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then

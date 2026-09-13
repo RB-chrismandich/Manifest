@@ -3,7 +3,7 @@
 import json
 import time
 
-from . import process
+from . import containment, process
 from .jobstore_states import NON_TERMINAL_STATES
 
 _DISPATCH_OWNERSHIP_PHASES = {"spawned", "worker_owned", "backend_started"}
@@ -16,10 +16,33 @@ class JobReaperMixin:
         """Recover a job whose worker lock disappeared, or fail it closed."""
         record = self.read(job_id)
         if record.get("state") not in NON_TERMINAL_STATES:
-            self._reap_cancelled_orphan(job_id, record)
-            return record
+            if record.get(
+                "state"
+            ) == "cancelled" and not process._reap_cancelled_orphan(
+                self, job_id, record
+            ):
+
+                def _containment_pending(current):
+                    current["containment_cleanup_failed"] = True
+                    return current
+
+                _containment_pending.allow_terminal_reentry = True
+                return self.mutate(job_id, _containment_pending)
+            return self.read(job_id)
         if process._worker_alive(self, job_id, record):
             return record
+        if (
+            containment.reap(
+                self.job_dir(job_id), required=containment.is_contained(record)
+            )
+            is False
+        ):
+
+            def _containment_pending(current):
+                current["containment_cleanup_failed"] = True
+                return current
+
+            return self.mutate(job_id, _containment_pending)
         age = time.time() - record.get("created_at", 0)
         if age < process.WORKER_STARTUP_GRACE_SECONDS:
             return record
@@ -41,9 +64,7 @@ class JobReaperMixin:
         return self._mark_failed(job_id)
 
     def _reap_cancelled_orphan(self, job_id, record):
-        if record.get("state") == "cancelled" and process._has_pgid_tracking(
-            self, job_id, record
-        ):
+        if record.get("state") == "cancelled":
             process._reap_cancelled_orphan(self, job_id, record)
 
     def _resolve_launch_exclusion(self, job_id, record):
@@ -80,6 +101,9 @@ class JobReaperMixin:
         )
 
     def _reap_backend_orphan(self, job_id, record):
+        containment.reap(
+            self.job_dir(job_id), required=containment.is_contained(record)
+        )
         pgid = record.get("pgid") or process._read_pgid_file(self.job_dir(job_id))
         if pgid and process._backend_alive(self, job_id):
             process._kill_pgid(self, job_id, pgid)

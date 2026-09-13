@@ -10,7 +10,7 @@ import tempfile
 import threading
 from dataclasses import dataclass
 
-from . import backend, constants
+from . import backend, constants, containment
 from .process_capture import (
     DRAIN_GRACE_SECONDS,
     MAX_CAPTURED_OUTPUT_BYTES,
@@ -145,16 +145,12 @@ def _worker_alive(store, job_id, record):
 
 
 def _backend_preexec(job_dir):
-    """Return a child preexec_fn that starts a new session (so the backend gets
-    its own process group for clean timeout kills) AND writes that group id to
-    <job_dir>/backend.pgid before exec. The write happens in the forked child,
-    so the pgid is recoverable even if the parent worker is SIGKILLed in the
-    window between Popen() returning and the parent's on_pgid persist — closing
-    the pre-persist orphan race. Runs post-fork/pre-exec: uses only raw syscalls
-    (async-signal-safe-ish), reports nothing (no stdio) and never raises out."""
     pgid_path = os.path.join(job_dir, BACKEND_PGID_FILENAME)
+    join = containment.join_hook(job_dir)
 
     def _preexec():
+        if join is not None:
+            join()
         os.setsid()
         fd = os.open(pgid_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
         os.write(fd, str(os.getpgid(0)).encode("ascii"))
@@ -280,27 +276,17 @@ def _launch_backend(argv, transport, job_dir):
 
 
 def _kill_stdout_holder(pgid, proc, job_dir):
-    """SIGKILL the descendant still holding stdout after the drain grace.
-
-    Without this, a write-capable orphan outlives its job with NO cancellation
-    path — the job becomes terminal `timeout`, which cancel/reap treat as a
-    no-op. This is the one place that can still reach it.
-
-    LIMITATION: reaches only descendants that stayed in the backend's process
-    group (the realistic runaway child). One that setsid()s into its own group
-    escapes killpg, like any daemon a subprocess can spawn; fully containing it
-    needs an OS-level lifetime boundary (Linux cgroup / PID namespace) — a
-    cross-platform design decision tracked separately, not expressible here.
-    """
+    """Kill a stdout holder through containment and the degraded PGID fallback."""
+    contained = containment.reap(job_dir)
     try:
         os.killpg(pgid, signal.SIGKILL)
     except OSError as exc:
         constants.err(
-            f"job dir {job_dir}: failed to kill stdout-holding descendant "
-            f"pgid {pgid}: {exc}"
+            f"job dir {job_dir}: failed to kill stdout-holding descendant pgid {pgid}: {exc}"
         )
-    else:
-        proc.wait()
+        return False
+    proc.wait()
+    return contained is not False
 
 
 @dataclass
@@ -412,16 +398,14 @@ def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
 
 
 def _kill_pgid(store, job_id, pgid):
-    """Best-effort SIGKILL of a backend process group. Shared by the cancel
-    path, the reaper, and the worker's cancel-during-fork guard so there is one
-    killpg call site with one error-reporting convention."""
+    """Terminate containment first; process-group kill is degraded fallback."""
+    contained = containment.reap(store.job_dir(job_id))
     try:
         os.killpg(pgid, signal.SIGKILL)
-        return True
     except OSError as exc:
-        # pgid may have exited between a liveness check and this call.
         constants.err(f"job {job_id}: failed to kill pgid {pgid}: {exc}")
         return False
+    return contained is not False
 
 
 def _has_pgid_tracking(store, job_id, record):
@@ -453,13 +437,18 @@ def _clear_pgid_tracking(store, job_id):
 
 
 def _reap_cancelled_orphan(store, job_id, record):
-    """Kill the orphaned backend group of a cancelled job (if still alive), then
-    clear all pgid tracking so this runs at most once and no later pass can
-    re-probe a (possibly recycled) pgid."""
+    """Reap containment even when PID/PGID bookkeeping is absent."""
+    containment_ok = containment.reap(
+        store.job_dir(job_id), required=containment.is_contained(record)
+    )
+    if containment_ok is False:
+        return False
     pgid = record.get("pgid") or _read_pgid_file(store.job_dir(job_id))
+    pgid_ok = True
     if pgid and _backend_alive(store, job_id):
-        _kill_pgid(store, job_id, pgid)
+        pgid_ok = _kill_pgid(store, job_id, pgid)
     _clear_pgid_tracking(store, job_id)
+    return pgid_ok
 
 
 def _make_pgid_persister(store, job_id):
