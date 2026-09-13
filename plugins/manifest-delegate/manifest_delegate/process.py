@@ -437,18 +437,17 @@ def _clear_pgid_tracking(store, job_id):
 
 
 def _reap_cancelled_orphan(store, job_id, record):
-    """Reap containment even when PID/PGID bookkeeping is absent."""
+    """Attempt every fallback kill even when required containment has failed."""
     containment_ok = containment.reap(
         store.job_dir(job_id), required=containment.is_contained(record)
     )
-    if containment_ok is False:
-        return False
     pgid = record.get("pgid") or _read_pgid_file(store.job_dir(job_id))
     pgid_ok = True
     if pgid and _backend_alive(store, job_id):
         pgid_ok = _kill_pgid(store, job_id, pgid)
-    _clear_pgid_tracking(store, job_id)
-    return pgid_ok
+    if containment_ok is not False:
+        _clear_pgid_tracking(store, job_id)
+    return containment_ok is not False and pgid_ok
 
 
 def _make_pgid_persister(store, job_id):

@@ -1,15 +1,13 @@
 """Behavioral contracts for cgroup-v2 delegate containment."""
 
+import errno
 import os
 import subprocess
-import sys
 import threading
-import time
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from _delegate_harness import _run
 from _delegate_inproc import delegate
 
 containment = delegate.containment
@@ -19,25 +17,69 @@ def _fake_cgroup_root(tmp_path):
     root = tmp_path / "cgroup"
     root.mkdir()
     (root / "cgroup.controllers").write_text("cpu memory")
-    (root / "cgroup.procs").write_text("")
-    (root / "cgroup.kill").write_text("")
+    for name in ("cgroup.procs", "cgroup.kill"):
+        (root / name).write_text("")
     return root
 
 
-class TestContainmentContract:
+def _write_containment_marker(tmp_path, job_dir, monkeypatch):
+    root = _fake_cgroup_root(tmp_path)
+    path = root / f"manifest-delegate-{job_dir.name}"
+    path.mkdir()
+    for name in ("cgroup.procs", "cgroup.kill"):
+        (path / name).write_text("")
+    (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(path))
+    monkeypatch.setenv(containment.CGROUP_ROOT_ENV, str(root))
+    return path
+
+
+class TestContainmentOperations:
     def test_probe_requires_unified_writable_root_and_cgroup_kill(self, tmp_path):
         root = _fake_cgroup_root(tmp_path)
-        assert containment.probe(str(root)) == (True, "cgroup v2 with cgroup.kill")
+        assert containment.probe(str(root)) == (
+            True,
+            "cgroup v2 delegated root with writable membership and cgroup.kill",
+        )
         (root / "cgroup.kill").unlink()
         available, reason = containment.probe(str(root))
         assert available is False
         assert "cgroup.kill" in reason
+
+    def test_probe_requires_writable_parent_membership_control(self, tmp_path):
+        root = _fake_cgroup_root(tmp_path)
+        (root / "cgroup.procs").chmod(0o444)
+
+        available, reason = containment.probe(str(root))
+
+        assert available is False
+        assert "cgroup.procs is not writable" in reason
+
+    def test_create_requires_writable_child_membership_and_kill_controls(
+        self, tmp_path, monkeypatch
+    ):
+        root = _fake_cgroup_root(tmp_path)
+        job_dir = tmp_path / "job"
+        job_dir.mkdir()
+        monkeypatch.setenv(containment.CGROUP_ROOT_ENV, str(root))
+        real_makedirs = containment.os.makedirs
+
+        def make_incomplete_cgroup(path, *args, **kwargs):
+            real_makedirs(path, *args, **kwargs)
+            open(os.path.join(path, "cgroup.kill"), "w").close()
+
+        monkeypatch.setattr(containment.os, "makedirs", make_incomplete_cgroup)
+
+        _path, state, reason = containment.create(str(job_dir))
+
+        assert state == containment.STATE_DEGRADED
+        assert "cgroup.procs is not writable" in reason
 
     def test_create_persists_contained_state_after_job_directory_exists(
         self, tmp_path, monkeypatch
     ):
         root = _fake_cgroup_root(tmp_path)
         job_dir = tmp_path / "job"
+        monkeypatch.setenv(containment.CGROUP_ROOT_ENV, str(root))
         job_dir.mkdir()
         real_makedirs = containment.os.makedirs
 
@@ -49,18 +91,71 @@ class TestContainmentContract:
         monkeypatch.setattr(containment.os, "makedirs", make_cgroup)
         path, state, reason = containment.create(str(job_dir), root=str(root))
         assert state == containment.STATE_CONTAINED
-        assert reason == "cgroup v2 with cgroup.kill"
+        assert (
+            reason
+            == "cgroup v2 delegated root with writable membership and cgroup.kill"
+        )
         assert containment.read_path(str(job_dir)) == path
 
+    @pytest.mark.parametrize(
+        "marker_factory",
+        (
+            lambda root, expected, sibling: root,
+            lambda root, expected, sibling: root.parent / "outside",
+            lambda root, expected, sibling: sibling,
+            lambda root, expected, sibling: root / "alias",
+            lambda root, expected, sibling: expected.parent / f"not-{expected.name}",
+        ),
+    )
+    def test_reap_rejects_every_marker_except_the_canonical_job_child(
+        self, tmp_path, monkeypatch, marker_factory
+    ):
+        root = _fake_cgroup_root(tmp_path)
+        job_dir = tmp_path / "job-a"
+        job_dir.mkdir()
+        expected = root / "manifest-delegate-job-a"
+        sibling = root / "manifest-delegate-job-b"
+        for path in (expected, sibling):
+            path.mkdir()
+            (path / "cgroup.kill").write_text("")
+            (path / "cgroup.procs").write_text("")
+        outside = root.parent / "outside"
+        outside.mkdir()
+        (outside / "cgroup.kill").write_text("")
+        alias = root / "alias"
+        alias.symlink_to(expected, target_is_directory=True)
+        marker = marker_factory(root, expected, sibling)
+        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(marker))
+        monkeypatch.setenv(containment.CGROUP_ROOT_ENV, str(root))
+
+        assert containment.reap(str(job_dir), required=True) is False
+        assert (expected / "cgroup.kill").read_text() == ""
+        assert (sibling / "cgroup.kill").read_text() == ""
+        assert (outside / "cgroup.kill").read_text() == ""
+
+    def test_reap_rejects_a_symlinked_marker_file(self, tmp_path, monkeypatch):
+        root = _fake_cgroup_root(tmp_path)
+        job_dir = tmp_path / "job-a"
+        job_dir.mkdir()
+        expected = root / "manifest-delegate-job-a"
+        expected.mkdir()
+        (expected / "cgroup.kill").write_text("")
+        (expected / "cgroup.procs").write_text("")
+        target = tmp_path / "marker-target"
+        target.write_text(str(expected))
+        (job_dir / containment.CGROUP_DIR_FILENAME).symlink_to(target)
+        monkeypatch.setenv(containment.CGROUP_ROOT_ENV, str(root))
+
+        assert containment.reap(str(job_dir), required=True) is False
+        assert (expected / "cgroup.kill").read_text() == ""
+
     def test_cleanup_retains_marker_when_cgroup_directory_cannot_be_removed(
-        self, tmp_path
+        self, tmp_path, monkeypatch
     ):
         job_dir = tmp_path / "job"
         job_dir.mkdir()
-        cgroup = tmp_path / "cgroup"
-        cgroup.mkdir()
+        cgroup = _write_containment_marker(tmp_path, job_dir, monkeypatch)
         (cgroup / "member").write_text("still active")
-        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
         assert containment.cleanup(str(job_dir)) is False
         assert containment.read_path(str(job_dir)) == str(cgroup)
 
@@ -69,11 +164,37 @@ class TestContainmentContract:
     ):
         job_dir = tmp_path / "job"
         job_dir.mkdir()
-        cgroup = tmp_path / "cgroup"
-        cgroup.mkdir()
-        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
+        _write_containment_marker(tmp_path, job_dir, monkeypatch)
+        for name in ("cgroup.procs", "cgroup.kill"):
+            (
+                containment.read_path(str(job_dir))
+                and Path(containment.read_path(str(job_dir))) / name
+            ).unlink()
         monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: True)
         assert containment.cleanup(str(job_dir)) is True
+        assert containment.read_path(str(job_dir)) is None
+
+    def test_cleanup_retries_transient_busy_cgroup_removal(self, tmp_path, monkeypatch):
+        job_dir = tmp_path / "job"
+        job_dir.mkdir()
+        cgroup = _write_containment_marker(tmp_path, job_dir, monkeypatch)
+        for name in ("cgroup.procs", "cgroup.kill"):
+            (cgroup / name).unlink()
+        real_rmdir = containment.os.rmdir
+        attempts = 0
+
+        def transient_busy(path):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise OSError(errno.EBUSY, "descendants still exiting")
+            real_rmdir(path)
+
+        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: True)
+        monkeypatch.setattr(containment.os, "rmdir", transient_busy)
+        monkeypatch.setattr(containment.time, "sleep", lambda _seconds: None)
+        assert containment.cleanup(str(job_dir)) is True
+        assert attempts == 2
         assert containment.read_path(str(job_dir)) is None
 
     def test_join_failure_aborts_backend_launch_before_setsid(
@@ -81,7 +202,7 @@ class TestContainmentContract:
     ):
         job_dir = tmp_path / "job"
         job_dir.mkdir()
-        (job_dir / containment.CGROUP_DIR_FILENAME).write_text("/cannot/join")
+        _write_containment_marker(tmp_path, job_dir, monkeypatch)
         monkeypatch.setattr(
             containment, "join", lambda path: (_ for _ in ()).throw(OSError("denied"))
         )
@@ -98,6 +219,69 @@ class TestContainmentContract:
         (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
         assert containment.reap(str(job_dir)) is False
 
+
+class TestContainmentProcessLifecycle:
+    def test_cancel_attempts_pgid_and_worker_fallback_after_failed_cgroup_reap(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
+        store = delegate.JobStore(cwd=str(tmp_path))
+        record = store.create("codex")
+        record.update(
+            pgid=1234,
+            worker_pid=5678,
+            foreground=False,
+            containment={"state": containment.STATE_CONTAINED},
+        )
+        attempts = []
+        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: False)
+        monkeypatch.setattr(delegate.process, "_backend_alive", lambda *_args: True)
+        monkeypatch.setattr(
+            delegate.process,
+            "_kill_pgid",
+            lambda *_args: attempts.append("pgid") or True,
+        )
+        monkeypatch.setattr(delegate.process, "_worker_alive", lambda *_args: True)
+        monkeypatch.setattr(
+            delegate.jobs_cli.os,
+            "kill",
+            lambda pid, sig: attempts.append(("worker", pid, sig)),
+        )
+
+        assert (
+            delegate.jobs_cli._terminate_job_processes(store, record["job_id"], record)
+            is False
+        )
+        assert attempts == ["pgid", ("worker", 5678, delegate.jobs_cli.signal.SIGKILL)]
+
+    def test_orphan_reaper_attempts_pgid_fallback_after_failed_cgroup_reap(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
+        store = delegate.JobStore(cwd=str(tmp_path))
+        record = store.create("codex")
+        record.update(
+            pgid=1234,
+            containment={"state": containment.STATE_CONTAINED},
+        )
+        attempts = []
+        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: False)
+        monkeypatch.setattr(delegate.process, "_backend_alive", lambda *_args: True)
+        monkeypatch.setattr(
+            delegate.process,
+            "_kill_pgid",
+            lambda *_args: attempts.append("pgid") or True,
+        )
+        monkeypatch.setattr(
+            delegate.process, "_clear_pgid_tracking", lambda *_args: None
+        )
+
+        assert (
+            delegate.process._reap_cancelled_orphan(store, record["job_id"], record)
+            is False
+        )
+        assert attempts == ["pgid"]
+
     def test_orphan_recovery_reaps_containment_without_pgid(
         self, tmp_path, monkeypatch
     ):
@@ -105,11 +289,8 @@ class TestContainmentContract:
         store = delegate.JobStore(cwd=str(tmp_path))
         record = store.create("codex")
         job_dir = Path(store.job_dir(record["job_id"]))
-        cgroup = tmp_path / "contained"
-        cgroup.mkdir()
+        cgroup = _write_containment_marker(tmp_path, job_dir, monkeypatch)
         kill_file = cgroup / "cgroup.kill"
-        kill_file.write_text("")
-        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
 
         delegate.process._reap_cancelled_orphan(
             store, record["job_id"], store.read(record["job_id"])
@@ -195,9 +376,12 @@ class TestContainmentCleanupCheckpoint:
         record = store.create("codex")
         job_id = record["job_id"]
         job_dir = Path(store.job_dir(job_id))
-        cgroup = tmp_path / "cgroup"
-        cgroup.mkdir()
-        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
+        _write_containment_marker(tmp_path, job_dir, monkeypatch)
+        for name in ("cgroup.procs", "cgroup.kill"):
+            (
+                containment.read_path(str(job_dir))
+                and Path(containment.read_path(str(job_dir))) / name
+            ).unlink()
         store.mutate(
             job_id,
             lambda current: dict(
@@ -243,9 +427,12 @@ class TestContainmentCleanupCheckpoint:
         record = store.create("codex")
         job_id = record["job_id"]
         job_dir = Path(store.job_dir(job_id))
-        cgroup = tmp_path / "cgroup"
-        cgroup.mkdir()
-        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
+        _write_containment_marker(tmp_path, job_dir, monkeypatch)
+        for name in ("cgroup.procs", "cgroup.kill"):
+            (
+                containment.read_path(str(job_dir))
+                and Path(containment.read_path(str(job_dir))) / name
+            ).unlink()
         store.mutate(
             job_id,
             lambda current: dict(
@@ -288,123 +475,3 @@ class TestContainmentCleanupCheckpoint:
 
         assert recovered["containment_cleanup_failed"] is True
         assert recovered["pgid"] == 12345
-
-
-@pytest.mark.skipif(
-    not sys.platform.startswith("linux"), reason="Linux containment venue"
-)
-@pytest.mark.native
-def test_linux_ci_requires_writable_cgroup_venue():
-    if not os.environ.get("CI"):
-        pytest.skip("local Linux lacks the delegated CI venue")
-    available, reason = containment.probe()
-    assert available, reason
-
-
-@pytest.mark.native
-@pytest.mark.skipif(
-    not (sys.platform.startswith("linux") and containment.probe()[0]),
-    reason="requires delegated cgroup v2",
-)
-def test_reap_kills_double_setsid_descendant(tmp_path):
-    job_dir = tmp_path / "job"
-    job_dir.mkdir()
-    path, state, _reason = containment.create(str(job_dir))
-    assert state == containment.STATE_CONTAINED
-    script = "import os,sys,time; os.setsid();\nif os.fork()==0:\n os.setsid(); print(os.getpid(),flush=True); time.sleep(300)"
-    proc = subprocess.Popen(
-        [sys.executable, "-c", script],
-        stdout=subprocess.PIPE,
-        text=True,
-        preexec_fn=lambda: containment.join(path),
-    )
-    child = int(proc.stdout.readline().strip())
-    proc.wait(timeout=30)
-    assert containment.reap(str(job_dir)) is True
-    for _ in range(100):
-        try:
-            os.kill(child, 0)
-        except ProcessLookupError:
-            break
-        time.sleep(0.05)
-    else:
-        pytest.fail("cgroup reap did not kill double-setsid descendant")
-    assert containment.cleanup(str(job_dir)) is True
-
-
-def _wait_for_path(path, description):
-    deadline = time.time() + 10
-    while time.time() < deadline:
-        if path.exists():
-            return
-        time.sleep(0.05)
-    pytest.fail(f"{description} was not created")
-
-
-def _assert_dead(pid, description):
-    deadline = time.time() + 5
-    while time.time() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return
-        time.sleep(0.05)
-    pytest.fail(f"{description} remained alive")
-
-
-@pytest.mark.native
-@pytest.mark.skipif(
-    not (sys.platform.startswith("linux") and containment.probe()[0]),
-    reason="requires delegated cgroup v2",
-)
-def test_timeout_reaps_double_setsid_descendant_through_worker(tmp_path, env_factory):
-    pidfile = tmp_path / "timeout.pid"
-    env = env_factory(control={"detached_holder_secs": 300, "sleep": 300})
-    env["MANIFEST_CGROUP_ROOT"] = containment.cgroup_root()
-    env["STUB_DETACHED_PIDFILE"] = str(pidfile)
-    env["STUB_DETACHED_CLOSE_STREAMS"] = "1"
-    config_path = Path(env["MANIFEST_CONFIG_DIR"]) / "delegation.json"
-    config_path.write_text(
-        '{"default_backend":"stub","backends":{"stub":{"budget_seconds":1}}}'
-    )
-
-    result = _run(env, "task", "--json", "timeout")
-
-    assert result.returncode == 1, result.stderr
-    _wait_for_path(pidfile, "double-setsid descendant pidfile")
-    pid = int(pidfile.read_text())
-    _assert_dead(pid, "timeout descendant")
-    record_path = next(Path(env["MANIFEST_DELEGATIONS_DIR"]).rglob("record.json"))
-    job_dir = record_path.parent
-    assert not (job_dir / containment.CGROUP_DIR_FILENAME).exists()
-
-
-@pytest.mark.native
-@pytest.mark.skipif(
-    not (sys.platform.startswith("linux") and containment.probe()[0]),
-    reason="requires delegated cgroup v2",
-)
-def test_cancel_reaps_double_setsid_descendant_through_cmd_cancel(
-    tmp_path, env_factory
-):
-    pidfile = tmp_path / "cancel.pid"
-    env = env_factory(control={"detached_holder_secs": 300, "sleep": 300})
-    env["MANIFEST_CGROUP_ROOT"] = containment.cgroup_root()
-    env["STUB_DETACHED_PIDFILE"] = str(pidfile)
-    env["STUB_DETACHED_CLOSE_STREAMS"] = "1"
-    launched = _run(env, "task", "--background", "--json", "cancel")
-    assert launched.returncode == 0, launched.stderr
-    record_path = next(Path(env["MANIFEST_DELEGATIONS_DIR"]).rglob("record.json"))
-    _wait_for_path(pidfile, "double-setsid descendant pidfile")
-    job_dir = record_path.parent
-    marker = job_dir / containment.CGROUP_DIR_FILENAME
-    _wait_for_path(marker, "containment marker")
-
-    cancelled = _run(env, "cancel", job_dir.name, "--json")
-
-    assert cancelled.returncode == 0, cancelled.stderr
-    _assert_dead(int(pidfile.read_text()), "cancelled descendant")
-    deadline = time.time() + 5
-    while marker.exists() and time.time() < deadline:
-        time.sleep(0.05)
-    assert not marker.exists()

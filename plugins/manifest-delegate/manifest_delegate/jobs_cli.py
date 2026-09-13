@@ -129,13 +129,9 @@ def _terminate_job_processes(store, job_id, record):
     transition state and call _reap_raced_pgid for a pgid that may have been
     persisted after this initial read."""
     killed = False
-    if (
-        containment.reap(
-            store.job_dir(job_id), required=containment.is_contained(record)
-        )
-        is False
-    ):
-        return False
+    containment_ok = containment.reap(
+        store.job_dir(job_id), required=containment.is_contained(record)
+    )
     pgid = record.get("pgid")
     if pgid and process._backend_alive(store, job_id):
         process._kill_pgid(store, job_id, pgid)
@@ -153,7 +149,7 @@ def _terminate_job_processes(store, job_id, record):
                     job_id, record["worker_pid"], exc
                 )
             )
-    return killed
+    return containment_ok is not False and killed
 
 
 # How long to wait for a forked-but-not-yet-published backend pgid to appear

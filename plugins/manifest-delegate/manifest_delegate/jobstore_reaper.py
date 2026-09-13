@@ -31,18 +31,21 @@ class JobReaperMixin:
             return self.read(job_id)
         if process._worker_alive(self, job_id, record):
             return record
-        if (
+        containment_failed = (
             containment.reap(
                 self.job_dir(job_id), required=containment.is_contained(record)
             )
             is False
-        ):
+        )
+        if containment_failed:
 
             def _containment_pending(current):
                 current["containment_cleanup_failed"] = True
                 return current
 
-            return self.mutate(job_id, _containment_pending)
+            record = self.mutate(job_id, _containment_pending)
+            self._reap_backend_orphan(job_id, record)
+            return self.read(job_id)
         age = time.time() - record.get("created_at", 0)
         if age < process.WORKER_STARTUP_GRACE_SECONDS:
             return record
