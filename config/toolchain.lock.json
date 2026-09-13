@@ -62,8 +62,13 @@
         "linux-x64": {
           "url": "file://config/toolchain/uv.lock",
           "sha256": "42d573143665e273fe24fbfc65ac6495ec9a6139619d0bc211005484e0bbbc6d",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "342f1c8746a7914254fee84eddaaa8a082413fb0895002623c84e4a7228459a7",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Jul 15 2026 23:46:41",
+            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",
@@ -187,7 +192,7 @@
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "36aa4e1f7e2768d9c8fc12e2130325ac1f23e3995437f4c5364fd8d7668a5758",
           "package_json_sha256": "27822a98d26861485d5798099cd7564fa1b36c801d084607a4dff8c1b8730496",
-          "exe_sha256": null,
+          "exe_sha256": "05232e13fa6caabbf555abe1a574eff363d9a654504cabfa9d6b62f459f35464",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -218,7 +223,13 @@
         "linux-x64": {
           "url": "file://uv.lock",
           "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
-          "exe_sha256": null,
+          "exe_sha256": "521cf82933329bd227ab7caa435682977037ecf7eb04255cb40db84465abf2c3",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Jul 15 2026 23:46:41",
+            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python"
@@ -242,7 +253,13 @@
         "linux-x64": {
           "url": "file://configs/claude/uv.lock",
           "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
-          "exe_sha256": null,
+          "exe_sha256": "b6a3f912922140b5e6385fa2b61353519b0416350d9f8849098b275e46835290",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Jul 15 2026 23:46:41",
+            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/manifest"
@@ -268,7 +285,7 @@
           "digest": null
         },
         "linux-x64": {
-          "digest": null
+          "digest": "12f405b5fc334ec74d92ef7ced304a3bb679564a3bbc09dcc39313d86030a925"
         }
       }
     }
