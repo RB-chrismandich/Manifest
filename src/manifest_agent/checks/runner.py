@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from dataclasses import asdict
 from typing import Any
 
@@ -12,9 +13,25 @@ from .candidate_integrity import identity_error
 from .debt import evaluate_findings
 from .models import Candidate, CheckResult, CheckSpec
 from .preservation import evaluate_invariants, load_invariants
-from .process import run_argv
+from .process import ProcessResult, run_argv
 from .registry import resolve_checks
 from .status import executed_status
+
+_HOOK_DEADLINE_ENV = "MANIFEST_HOOK_DEADLINE_MONOTONIC"
+_HOOK_DEADLINE_GRACE_SECONDS = 0.25
+
+
+def _execution_timeout(configured: float, env: dict[str, str]) -> float:
+    raw = env.get(_HOOK_DEADLINE_ENV)
+    if raw is None:
+        return configured
+    try:
+        remaining = float(raw) - time.monotonic() - _HOOK_DEADLINE_GRACE_SECONDS
+    except ValueError as error:
+        raise ValueError("invalid hook deadline") from error
+    if remaining <= 0:
+        raise ValueError("hook deadline exhausted")
+    return min(configured, remaining)
 
 
 def _policy_errors(
@@ -92,6 +109,21 @@ def _resolved_execution(
     return toolchain.rewrite_argv(check.argv, resolved), resolved_env
 
 
+def _blocked_execution(
+    check: CheckSpec, completed: ProcessResult
+) -> CheckResult | None:
+    if not completed.error and not completed.timed_out:
+        return None
+    return CheckResult(
+        check.id,
+        "BLOCKED",
+        None,
+        completed.duration_seconds,
+        completed.error or "check timed out",
+        check.inputs,
+    )
+
+
 def execute_check(
     check: CheckSpec,
     candidate: Candidate,
@@ -101,17 +133,14 @@ def execute_check(
     try:
         argv, execution_env = _resolved_execution(check, candidate, env, registry)
         completed = run_argv(
-            argv, candidate.root / check.cwd, execution_env, check.timeout_seconds
+            argv,
+            candidate.root / check.cwd,
+            execution_env,
+            _execution_timeout(check.timeout_seconds, execution_env),
         )
-        if completed.timed_out:
-            return CheckResult(
-                check.id,
-                "BLOCKED",
-                None,
-                completed.duration_seconds,
-                "check timed out",
-                check.inputs,
-            )
+        blocked = _blocked_execution(check, completed)
+        if blocked is not None:
+            return blocked
         code = completed.returncode
         assert code is not None
         status = executed_status(code, check.honors_status_contract)
