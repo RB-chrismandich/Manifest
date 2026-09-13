@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "checks": [
+    {
+      "id": "check.mark",
+      "category": "test",
+      "group": "test",
+      "argv": ["__PYTHON__", "tools/marker_check.py"],
+      "cwd": ".",
+      "inputs": ["a.txt"],
+      "dependencies": [],
+      "timeout_seconds": 10,
+      "selection": "project",
+      "tool": "python",
+      "version": "__PYVERSION__",
+      "honors_status_contract": false
+    }
+  ],
+  "profiles": {
+    "quick": ["check.mark"],
+    "full": ["check.mark"],
+    "security": ["check.mark"],
+    "release": ["check.mark"]
+  },
+  "debt_baseline": "config/debt-baseline.json",
+  "preservation": "config/check-preservation.json"
+}

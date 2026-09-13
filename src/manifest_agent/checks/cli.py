@@ -15,6 +15,29 @@ from .registry import load_registry
 from .runner import run_profile
 
 _EXITS = {"PASS": 0, "FAIL": 2, "BLOCKED": 3}
+_ENVIRONMENT_KEYS = (
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "MANIFEST_HOOK_ACTIVE",
+    "MANIFEST_HOOK_RUNTIME_ROOT",
+    "MANIFEST_HOOK_DEADLINE_MONOTONIC",
+    "PYTHONPATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONPYCACHEPREFIX",
+    "TMPDIR",
+    "XDG_STATE_HOME",
+)
+
+
+def _execution_env() -> dict[str, str]:
+    import os
+
+    env = {key: os.environ[key] for key in _ENVIRONMENT_KEYS if key in os.environ}
+    runtime_root = env.pop("MANIFEST_HOOK_RUNTIME_ROOT", None)
+    if runtime_root:
+        env["PYTHONPATH"] = runtime_root
+    return env
 
 
 def _emit(report: dict, output: Path | None) -> None:
@@ -50,6 +73,7 @@ def _git_tree(revision: str) -> str:
     return result.stdout.strip()
 
 
+# constitution: exempt C-SIZE -- Click passes one value per declared command option.
 @click.command("check")
 @click.argument("profile")
 @click.option(
@@ -82,7 +106,7 @@ def check(
                 tree_sha=tree_sha,
                 base_sha=base_sha,
             )
-            report = run_profile(registry, profile, group, candidate, {})
+            report = run_profile(registry, profile, group, candidate, _execution_env())
     except (OSError, ValueError, RuntimeError) as error:
         report = {
             "schema_version": 1,
@@ -94,6 +118,7 @@ def check(
     raise click.exceptions.Exit(_EXITS[report["status"]])
 
 
+# constitution: exempt C-SIZE -- Click passes one value per declared command option.
 @click.command("check-aggregate")
 @click.argument("profile")
 @click.option(
