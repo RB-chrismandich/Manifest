@@ -223,8 +223,13 @@
         "linux-x64": {
           "url": "file://uv.lock",
           "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "81a900ac03486b2651a0fe9e0b3a65340936abe20116db762366de0d7a3cb4bb",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Jul 15 2026 23:46:41",
+            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python"
@@ -248,8 +253,13 @@
         "linux-x64": {
           "url": "file://configs/claude/uv.lock",
           "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "4ea7863852f861f59c23b612ca2406f473757c560acc921064efad86fd096c30",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Jul 15 2026 23:46:41",
+            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/manifest"
