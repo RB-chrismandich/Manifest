@@ -382,3 +382,35 @@ def test_uncommitted_stage_is_discarded_instead_of_published(tmp_path: Path):
         (transaction.path / "payload").write_text("unverified")
 
     assert not (store / relative).exists()
+
+
+@pytest.mark.parametrize(
+    ("materialize", "expected_flag"),
+    [
+        (toolchain_materialize.materialize_python_env, "--locked"),
+        (toolchain_materialize.materialize_project_env, "--frozen"),
+    ],
+)
+def test_python_materializers_install_local_dependencies_non_editably(
+    tmp_path: Path, monkeypatch, materialize, expected_flag: str
+):
+    """Both uv sync paths must materialize path dependencies, never link them."""
+    repo_root = tmp_path / "repo"
+    (repo_root / "config/toolchain").mkdir(parents=True)
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        toolchain_materialize, "_resolved_uv", lambda _ctx: tmp_path / "uv"
+    )
+    monkeypatch.setattr(
+        toolchain_materialize, "_run", lambda argv, **_kwargs: calls.append(argv)
+    )
+
+    materialize(
+        toolchain_materialize.MaterializeContext(
+            {}, tmp_path / "store", "linux-x64", repo_root, {}
+        ),
+        tmp_path / "env",
+    )
+
+    assert expected_flag in calls[0]
+    assert "--no-editable" in calls[0]

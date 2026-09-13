@@ -848,8 +848,9 @@ _uv_release_target() {
     esac
 }
 
-# Local archive digests are the trust anchor.  They are reviewed alongside the
-# toolchain lock; never obtain expected bytes from the mutable release origin.
+# Local archive and executable digests are the trust anchors. They are reviewed
+# alongside the toolchain lock; never obtain expected bytes from the mutable
+# release origin.
 _uv_archive_sha256() {
     case "$1" in
         x86_64-unknown-linux-gnu) echo "8681d8921e7d520fb368991dcf5f9c1905b80f5bf2a265a0ed085c8d8e342477" ;;
@@ -858,9 +859,27 @@ _uv_archive_sha256() {
     esac
 }
 
-# Download a pinned uv archive and verify it against the committed digest.
+_uv_executable_sha256() {
+    case "$1" in
+        x86_64-unknown-linux-gnu) echo "d381f11517c66523211b0876552ff7dea5c1b4b0f13800571b35225761302fba" ;;
+        aarch64-apple-darwin) echo "e8929237934c8679686428f5a7736c7ae7a5fe7a33b0504d1b03446cdbc43c94" ;;
+        *) echo "" ;;
+    esac
+}
+
+_uv_archive_member() {
+    case "$1" in
+        x86_64-unknown-linux-gnu | aarch64-apple-darwin) printf 'uv-%s/uv\n' "$1" ;;
+        *) printf '\n' ;;
+    esac
+}
+
+# Download a pinned uv archive, inspect it before extraction, and install only
+# the exact executable locked for this platform. Archive member selection is
+# deliberately literal: no wildcard can make a symlink, hardlink, duplicate,
+# or a sibling platform binary look trusted.
 install_uv_verified_release() {
-    local target sha_tool expected
+    local target sha_tool expected archive member workdir actual members candidate_count metadata
     target="$(_uv_release_target)"
     if [[ -z "$target" ]]; then
         print_warning "uv: no known release target for $(uname -s)/$(uname -m)"
@@ -875,10 +894,17 @@ install_uv_verified_release() {
         return 1
     fi
 
+    expected="$(_uv_archive_sha256 "$target")"
+    member="$(_uv_archive_member "$target")"
+    if [[ -z "$expected" || -z "$member" ]]; then
+        print_warning "uv: no committed archive metadata for $target"
+        return 1
+    fi
+
     local base="https://github.com/astral-sh/uv/releases/download/${UV_INSTALLER_PINNED_VERSION}"
-    local archive="uv-${target}.tar.gz"
-    local workdir
+    archive="uv-${target}.tar.gz"
     workdir="$(mktemp -d)" || return 1
+    chmod 700 "$workdir"
     # shellcheck disable=SC2064 # workdir is fixed at trap-set time, not runtime
     trap "rm -rf '$workdir'" RETURN
 
@@ -886,35 +912,68 @@ install_uv_verified_release() {
         print_warning "uv: could not download $archive"
         return 1
     fi
-    expected="$(_uv_archive_sha256 "$target")"
-    if [[ -z "$expected" ]]; then
-        print_warning "uv: no committed archive digest for $target"
-        return 1
-    fi
-
-    local actual
     actual="$(cd "$workdir" && $sha_tool "$archive" | awk '{print $1}')"
     if [[ "$actual" != "$expected" ]]; then
         print_warning "uv: checksum mismatch for $archive (want $expected, got $actual)"
         return 1
     fi
 
-    if ! tar -xzf "$workdir/$archive" -C "$workdir"; then
-        print_warning "uv: could not extract $archive"
+    members="$(tar -tzf "$workdir/$archive")" || {
+        print_warning "uv: could not inspect $archive"
+        return 1
+    }
+    while IFS= read -r entry; do
+        case "$entry" in
+            /* | ../* | */../* | .. | */..)
+                print_warning "uv: archive contains unsafe member path"
+                return 1
+                ;;
+        esac
+    done <<< "$members"
+    candidate_count="$(printf '%s\n' "$members" | awk -v member="$member" '$0 == member { count++ } END { print count + 0 }')"
+    if [[ "$candidate_count" -ne 1 ]]; then
+        print_warning "uv: archive must contain exactly one expected executable member"
         return 1
     fi
-    mkdir -p "$HOME/.local/bin"
-    local extracted="$workdir/uv-${target}"
-    if [[ ! -x "$extracted/uv" ]]; then
-        print_warning "uv: verified archive did not contain uv/$target"
+    metadata="$(tar -tvzf "$workdir/$archive" -- "$member")" || {
+        print_warning "uv: could not inspect expected executable member"
+        return 1
+    }
+    if [[ "${metadata:0:1}" != "-" ]]; then
+        print_warning "uv: expected regular executable member"
         return 1
     fi
-    if ! install -m 755 "$extracted/uv" "$HOME/.local/bin/uv"; then
+
+    mkdir -p "$workdir/extract"
+    chmod 700 "$workdir/extract"
+    if ! tar -xzf "$workdir/$archive" -C "$workdir/extract" -- "$member"; then
+        print_warning "uv: could not extract expected executable member"
+        return 1
+    fi
+    local extracted="$workdir/extract/$member"
+    if [[ ! -f "$extracted" || -L "$extracted" || ! -x "$extracted" ]]; then
+        print_warning "uv: expected regular executable member"
+        return 1
+    fi
+
+    local bin_dir="$HOME/.local/bin" installed temp_binary expected_binary
+    mkdir -p "$bin_dir"
+    temp_binary="$(mktemp "$bin_dir/.uv.XXXXXX")" || return 1
+    if ! install -m 755 "$extracted" "$temp_binary"; then
+        rm -f "$temp_binary"
+        print_warning "uv: could not stage verified executable"
+        return 1
+    fi
+    if ! mv -f "$temp_binary" "$bin_dir/uv"; then
+        rm -f "$temp_binary"
         print_warning "uv: could not install verified executable"
         return 1
     fi
-    if [[ -x "$extracted/uvx" ]] && ! install -m 755 "$extracted/uvx" "$HOME/.local/bin/uvx"; then
-        print_warning "uv: could not install verified uvx executable"
+    expected_binary="$(_uv_executable_sha256 "$target")"
+    installed="$($sha_tool "$bin_dir/uv" | awk '{print $1}')"
+    if [[ -n "$expected_binary" && "$installed" != "$expected_binary" ]]; then
+        rm -f "$bin_dir/uv"
+        print_warning "uv: executable checksum mismatch for $target"
         return 1
     fi
     return 0

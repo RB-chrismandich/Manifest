@@ -14,6 +14,7 @@ import tarfile
 from pathlib import Path
 
 from click.testing import CliRunner, Result
+from pytest import MonkeyPatch
 
 from manifest_agent.cli import cli
 
@@ -52,7 +53,8 @@ def _write_lock(
             }
         },
     }
-    lock_path = tmp_path / "toolchain.lock.json"
+    lock_path = tmp_path / "repo" / "config" / "toolchain.lock.json"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(json.dumps(lock))
     return lock_path
 
@@ -73,7 +75,8 @@ def _invoke(lock_path: Path, store: Path, *extra: str) -> Result:
     )
 
 
-def test_offline_against_empty_store_exits_3(tmp_path):
+def test_offline_against_empty_store_exits_3(tmp_path: Path) -> None:
+    """Offline validation reports a missing provisioned store as incomplete."""
     archive_path = tmp_path / "demo.tar.gz"
     archive_path.write_bytes(_tar_gz_with("demo", b"content"))
     lock_path = _write_lock(tmp_path, sha256="a" * 64, archive_path=archive_path)
@@ -85,7 +88,8 @@ def test_offline_against_empty_store_exits_3(tmp_path):
     assert payload["problems"]
 
 
-def test_provision_then_offline_check_succeeds(tmp_path):
+def test_provision_then_offline_check_succeeds(tmp_path: Path) -> None:
+    """A verified provision enables a subsequent offline completeness check."""
     content = b"#!/bin/sh\necho demo\n"
     archive_bytes = _tar_gz_with("demo", content)
     archive_path = tmp_path / "demo.tar.gz"
@@ -108,7 +112,8 @@ def test_provision_then_offline_check_succeeds(tmp_path):
     assert json.loads(offline_result.output)["status"] == "complete"
 
 
-def test_provision_digest_mismatch_exits_3(tmp_path):
+def test_provision_digest_mismatch_exits_3(tmp_path: Path) -> None:
+    """A downloaded archive with the wrong digest blocks provisioning."""
     archive_bytes = _tar_gz_with("demo", b"content")
     archive_path = tmp_path / "demo.tar.gz"
     archive_path.write_bytes(archive_bytes)
@@ -121,7 +126,7 @@ def test_provision_digest_mismatch_exits_3(tmp_path):
     assert "digest mismatch" in payload["outcomes"][0]["reason"]
 
 
-def test_provision_refuses_when_exe_sha256_is_unset(tmp_path):
+def test_provision_refuses_when_exe_sha256_is_unset(tmp_path: Path) -> None:
     """Archive `sha256` alone is not enough: `exe_sha256: null` must still
     BLOCK as unattested, matching the committed real lock's current state."""
     archive_bytes = _tar_gz_with("demo", b"content")
@@ -139,7 +144,8 @@ def test_provision_refuses_when_exe_sha256_is_unset(tmp_path):
     assert "unattested" in payload["outcomes"][0]["reason"]
 
 
-def test_import_wrong_hash_is_refused(tmp_path):
+def test_import_wrong_hash_is_refused(tmp_path: Path) -> None:
+    """Import refuses bytes that differ from the locked executable digest."""
     archive_path = tmp_path / "demo.tar.gz"
     archive_path.write_bytes(_tar_gz_with("demo", b"irrelevant"))
     lock_path = _write_lock(tmp_path, sha256="f" * 64, archive_path=archive_path)
@@ -154,7 +160,8 @@ def test_import_wrong_hash_is_refused(tmp_path):
     assert not (store / "tools").exists()
 
 
-def test_import_combined_with_offline_is_a_usage_error(tmp_path):
+def test_import_combined_with_offline_is_a_usage_error(tmp_path: Path) -> None:
+    """Import and offline validation are mutually exclusive CLI modes."""
     archive_path = tmp_path / "demo.tar.gz"
     archive_path.write_bytes(_tar_gz_with("demo", b"irrelevant"))
     lock_path = _write_lock(tmp_path, sha256="f" * 64, archive_path=archive_path)
@@ -168,7 +175,8 @@ def test_import_combined_with_offline_is_a_usage_error(tmp_path):
     assert "cannot be combined" in result.output
 
 
-def test_import_combined_with_only_is_a_usage_error(tmp_path):
+def test_import_combined_with_only_is_a_usage_error(tmp_path: Path) -> None:
+    """Import and bundle filtering are mutually exclusive CLI modes."""
     archive_path = tmp_path / "demo.tar.gz"
     archive_path.write_bytes(_tar_gz_with("demo", b"irrelevant"))
     lock_path = _write_lock(tmp_path, sha256="f" * 64, archive_path=archive_path)
@@ -182,7 +190,8 @@ def test_import_combined_with_only_is_a_usage_error(tmp_path):
     assert "cannot be combined" in result.output
 
 
-def test_store_inside_repo_cwd_is_refused(tmp_path):
+def test_store_inside_repo_cwd_is_refused(tmp_path: Path) -> None:
+    """The CLI refuses a toolchain store rooted in its current checkout."""
     archive_path = tmp_path / "demo.tar.gz"
     archive_path.write_bytes(_tar_gz_with("demo", b"content"))
     lock_path = _write_lock(tmp_path, sha256="a" * 64, archive_path=archive_path)
@@ -192,3 +201,21 @@ def test_store_inside_repo_cwd_is_refused(tmp_path):
     payload = json.loads(result.output)
     assert payload["status"] == "blocked"
     assert "must not resolve inside" in payload["problems"][0]
+
+
+def test_store_inside_lock_repository_is_refused_outside_repository_cwd(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """The lock's repository, not the CLI process cwd, is the forbidden root."""
+    archive_path = tmp_path / "demo.tar.gz"
+    archive_path.write_bytes(_tar_gz_with("demo", b"content"))
+    lock_path = _write_lock(tmp_path, sha256="a" * 64, archive_path=archive_path)
+    repo_root = lock_path.parent.parent
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    result = _invoke(lock_path, repo_root / ".toolchain-store", "--offline", "--json")
+
+    assert result.exit_code == 3, result.output
+    assert "must not resolve inside" in json.loads(result.output)["problems"][0]

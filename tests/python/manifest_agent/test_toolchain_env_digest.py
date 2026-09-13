@@ -56,21 +56,26 @@ def _record_row(path: str, content: bytes) -> str:
 
 
 def _record_environment(root: Path, checkout: Path) -> None:
-    package = root / "lib" / "python3" / "site-packages" / "demo.py"
+    site_packages = root / "lib" / "python3" / "site-packages"
+    package = site_packages / "demo.py"
     package.parent.mkdir(parents=True)
     package.write_text("value = 'trusted'\n")
-    direct_url = package.parent / "demo-1.0.dist-info" / "direct_url.json"
+    tool = root / "bin" / "tool"
+    tool.parent.mkdir()
+    tool.write_text("#!/bin/sh\n")
+    direct_url = site_packages / "demo-1.0.dist-info" / "direct_url.json"
     direct_url.parent.mkdir()
     direct_url.write_text(f'{{"url":"file://{checkout}/demo"}}')
     record = direct_url.parent / "RECORD"
     record.write_text(
         "\n".join(
             (
-                _record_row(package.relative_to(root).as_posix(), package.read_bytes()),
+                _record_row("demo.py", package.read_bytes()),
                 _record_row(
-                    direct_url.relative_to(root).as_posix(), direct_url.read_bytes()
+                    "demo-1.0.dist-info/direct_url.json", direct_url.read_bytes()
                 ),
-                f"{record.relative_to(root).as_posix()},,",
+                _record_row("../../../bin/tool", tool.read_bytes()),
+                "demo-1.0.dist-info/RECORD,,",
             )
         )
         + "\n"
@@ -80,6 +85,7 @@ def _record_environment(root: Path, checkout: Path) -> None:
 def test_distribution_digest_canonicalizes_record_metadata_across_roots(
     tmp_path: Path,
 ):
+    """RECORD metadata normalizes environment- and checkout-specific paths."""
     first_root, second_root = tmp_path / "first-env", tmp_path / "second-env"
     _record_environment(first_root, tmp_path / "first-checkout")
     _record_environment(second_root, tmp_path / "second-checkout")
@@ -95,6 +101,7 @@ def test_distribution_digest_canonicalizes_record_metadata_across_roots(
 
 
 def test_distribution_digest_detects_record_owned_payload_mutation(tmp_path: Path):
+    """Changing a RECORD-owned payload changes the environment attestation."""
     root = tmp_path / "env"
     checkout = tmp_path / "checkout"
     _record_environment(root, checkout)
@@ -110,3 +117,79 @@ def test_distribution_digest_detects_record_owned_payload_mutation(tmp_path: Pat
         )
         != before
     )
+
+
+def test_distribution_digest_accepts_unhashed_record_targets(tmp_path: Path) -> None:
+    """PyPA permits blank hash and size fields for installed RECORD rows."""
+    root = tmp_path / "env"
+    checkout = tmp_path / "checkout"
+    _record_environment(root, checkout)
+    record = root / "lib/python3/site-packages/demo-1.0.dist-info/RECORD"
+    record.write_text(
+        "demo.py,,\ndemo-1.0.dist-info/direct_url.json,,\n"
+        "../../../bin/tool,,\ndemo-1.0.dist-info/RECORD,,\n"
+    )
+
+    assert toolchain_env_digest.distribution_set_digest(
+        root, "python-env", checkout_root=checkout
+    )
+
+
+def test_distribution_digest_rejects_record_target_collisions(
+    tmp_path: Path,
+) -> None:
+    """Equivalent RECORD target paths cannot appear more than once."""
+    root = tmp_path / "env"
+    checkout = tmp_path / "checkout"
+    _record_environment(root, checkout)
+    record = root / "lib/python3/site-packages/demo-1.0.dist-info/RECORD"
+    package = root / "lib/python3/site-packages/demo.py"
+    record.write_text(
+        "\n".join(
+            (
+                _record_row("demo.py", package.read_bytes()),
+                _record_row("./demo.py", package.read_bytes()),
+                "demo-1.0.dist-info/RECORD,,",
+            )
+        )
+    )
+    try:
+        toolchain_env_digest.distribution_set_digest(
+            root, "python-env", checkout_root=checkout
+        )
+    except ValueError as error:
+        assert "duplicate RECORD path" in str(error)
+    else:
+        raise AssertionError("colliding RECORD entries were accepted")
+
+
+def test_distribution_digest_rejects_record_escape_and_unsupported_hash(
+    tmp_path: Path,
+) -> None:
+    """RECORD validation rejects both path traversal and non-SHA256 hashes."""
+    root = tmp_path / "env"
+    checkout = tmp_path / "checkout"
+    _record_environment(root, checkout)
+    record = root / "lib/python3/site-packages/demo-1.0.dist-info/RECORD"
+
+    record.write_text(
+        "../../../../../outside,sha256=abc,1\ndemo-1.0.dist-info/RECORD,,\n"
+    )
+    try:
+        toolchain_env_digest.distribution_set_digest(
+            root, "python-env", checkout_root=checkout
+        )
+    except ValueError as error:
+        assert "unsafe RECORD path" in str(error)
+    else:
+        raise AssertionError("escaping RECORD entry was accepted")
+
+    record.write_text("demo.py,sha512=abc,1\ndemo-1.0.dist-info/RECORD,,\n")
+    try:
+        toolchain_env_digest.distribution_set_digest(
+            root, "python-env", checkout_root=checkout
+        )
+    except ValueError as error:
+        assert "untrusted RECORD hash" in str(error)
+    else:
+        raise AssertionError("unsupported RECORD hash was accepted")

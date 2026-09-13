@@ -20,9 +20,10 @@ import stat
 import subprocess
 import tarfile
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from . import toolchain
 
@@ -113,7 +114,15 @@ def materialize_python_env(
     run_env = _engine_env(ctx.env, uv_executable.parent)
     run_env["UV_PROJECT_ENVIRONMENT"] = str(env_root)
     _run(
-        [str(uv_executable), "sync", "--locked", "--no-dev", "--project", str(project)],
+        [
+            str(uv_executable),
+            "sync",
+            "--locked",
+            "--no-dev",
+            "--no-editable",
+            "--project",
+            str(project),
+        ],
         cwd=project,
         env=run_env,
     )
@@ -155,6 +164,7 @@ def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
             "--frozen",
             "--all-groups",
             "--no-install-project",
+            "--no-editable",
             "--project",
             str(ctx.repo_root),
         ],
@@ -255,7 +265,9 @@ def extract_subtree(data: bytes, prefix: str, destination: Path) -> None:
         os.close(root_fd)
 
 
-def materialize_node_env(ctx: MaterializeContext, env_root: Path, fetcher) -> None:
+def materialize_node_env(
+    ctx: MaterializeContext, env_root: Path, fetcher: Callable[[str], bytes]
+) -> None:
     """`npm ci` a node-env bundle into `env_root`, driven entirely by
     store-attested tools: `node` from the store, and `npm-cli.js` extracted
     from the SAME hash-verified node archive `node`'s own bundle already
@@ -328,5 +340,9 @@ def python_env_console_scripts(env_root: Path, names: list[str]) -> dict[str, st
     return scripts
 
 
-def load_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_json(path: Path) -> dict[str, Any]:
+    """Load one UTF-8 JSON document whose top-level value is an object."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise MaterializationError(f"JSON object required: {path}")
+    return document

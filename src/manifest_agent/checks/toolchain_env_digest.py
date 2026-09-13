@@ -12,9 +12,20 @@ import re
 import shlex
 import stat
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from .toolchain_pth import canonical_pth_bytes
+
+
+@dataclass(frozen=True)
+class _DigestContext:
+    """The immutable environment locations that every digest operation shares."""
+
+    root: Path
+    canonical_root: Path
+    store: Path | None
+    checkout_root: Path | None
 
 
 def distribution_set_digest(
@@ -31,9 +42,9 @@ def distribution_set_digest(
     root = env_root.resolve(strict=True)
     if not root.is_dir():
         raise ValueError("environment root is not a directory")
-    canonical_root = canonical_env_root or root
+    context = _DigestContext(root, canonical_env_root or root, store, checkout_root)
     hasher = hashlib.sha256()
-    _attest_tree(root, root, canonical_root, hasher, store, checkout_root)
+    _attest_tree(context, root, hasher)
     return hasher.hexdigest()
 
 
@@ -46,49 +57,31 @@ def _frame(hasher, kind: bytes, relative: str, payload: bytes = b"") -> None:
     hasher.update(payload)
 
 
-def _attest_tree(
-    root: Path,
-    directory: Path,
-    canonical_root: Path,
-    hasher,
-    store: Path | None,
-    checkout_root: Path | None,
-) -> None:
+def _attest_tree(context: _DigestContext, directory: Path, hasher) -> None:
     for entry in sorted(os.scandir(directory), key=lambda item: item.name):
         path = Path(entry.path)
-        relative = path.relative_to(root).as_posix()
+        relative = path.relative_to(context.root).as_posix()
         mode = entry.stat(follow_symlinks=False).st_mode
         if stat.S_ISDIR(mode):
             _frame(hasher, b"D", relative, (mode & 0o777).to_bytes(2, "big"))
-            _attest_tree(root, path, canonical_root, hasher, store, checkout_root)
+            _attest_tree(context, path, hasher)
         elif stat.S_ISREG(mode):
-            _attest_regular_file(
-                root, canonical_root, path, relative, mode, hasher, store, checkout_root
-            )
+            _attest_regular_file(context, path, relative, mode, hasher)
         elif stat.S_ISLNK(mode):
-            _attest_symlink(root, path, relative, hasher)
+            _attest_symlink(context.root, path, relative, hasher)
         else:
             raise ValueError(f"special environment file: {relative}")
 
 
 def _attest_regular_file(
-    root: Path,
-    canonical_root: Path,
-    path: Path,
-    relative: str,
-    mode: int,
-    hasher,
-    store: Path | None,
-    checkout_root: Path | None,
+    context: _DigestContext, path: Path, relative: str, mode: int, hasher
 ) -> None:
     stat_result = path.stat(follow_symlinks=False)
     if stat_result.st_nlink != 1:
         raise ValueError(f"hardlinked environment file: {relative}")
     with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as stream:
         content = stream.read()
-    content = _canonical_file_bytes(
-        root, canonical_root, path, relative, content, store, checkout_root
-    )
+    content = _canonical_file_bytes(context, path, relative, content)
     encoded = relative.encode("utf-8", "surrogateescape")
     hasher.update(b"F")
     hasher.update(len(encoded).to_bytes(8, "big"))
@@ -99,87 +92,96 @@ def _attest_regular_file(
 
 
 def _canonical_file_bytes(
-    root: Path,
-    canonical_root: Path,
-    path: Path,
-    relative: str,
-    content: bytes,
-    store: Path | None,
-    checkout_root: Path | None,
+    context: _DigestContext, path: Path, relative: str, content: bytes
 ) -> bytes:
     if relative.endswith(".dist-info/RECORD"):
-        return _canonical_record_bytes(
-            root, canonical_root, path, relative, content, store, checkout_root
-        )
-    return _normalized_generated_path_bearers(
-        root, canonical_root, path, relative, content, store, checkout_root
-    )
+        return _canonical_record_bytes(context, path, relative, content)
+    return _normalized_generated_path_bearers(context, path, relative, content)
+
+
+def _record_rows(content: bytes, record_relative: str) -> list[list[str]]:
+    try:
+        text = content.decode("utf-8", "surrogateescape")
+        return list(csv.reader(io.StringIO(text, newline=""), strict=True))
+    except csv.Error as error:
+        raise ValueError(f"malformed RECORD: {record_relative}") from error
 
 
 def _canonical_record_bytes(
-    root: Path,
-    canonical_root: Path,
-    record_path: Path,
-    record_relative: str,
-    content: bytes,
-    store: Path | None,
-    checkout_root: Path | None,
+    context: _DigestContext, record_path: Path, record_relative: str, content: bytes
 ) -> bytes:
-    try:
-        text = content.decode("utf-8", "surrogateescape")
-        rows = list(csv.reader(io.StringIO(text, newline="")))
-    except csv.Error as error:
-        raise ValueError(f"malformed RECORD: {record_relative}") from error
+    """Canonicalize RECORD metadata while validating each owned target."""
     rendered: list[list[str]] = []
     seen: set[str] = set()
-    for row in rows:
-        if len(row) < 3 or not row[0]:
-            raise ValueError(f"malformed RECORD: {record_relative}")
-        target_relative = _safe_record_path(row[0], record_relative)
-        if target_relative in seen:
-            raise ValueError(f"duplicate RECORD path: {target_relative}")
-        seen.add(target_relative)
-        digest, size = row[1], row[2]
-        if target_relative == record_relative:
-            if digest or size:
-                raise ValueError(f"self-hashed RECORD: {record_relative}")
-            rendered.append(row)
-            continue
-        if not digest or not size or not digest.startswith("sha256="):
-            raise ValueError(f"untrusted RECORD hash: {target_relative}")
-        encoded_digest = digest.removeprefix("sha256=")
-        try:
-            decoded_digest = base64.b64decode(
-                encoded_digest + "=" * (-len(encoded_digest) % 4),
-                altchars=b"-_",
-                validate=True,
-            )
-            if len(decoded_digest) != 32:
-                raise ValueError
-            int(size)
-        except ValueError as error:
-            raise ValueError(f"malformed RECORD metadata: {target_relative}") from error
-        canonical = _canonical_record_target(
-            root, canonical_root, target_relative, store, checkout_root
+    for row in _record_rows(content, record_relative):
+        rendered.append(
+            _canonical_record_row(context, record_path, record_relative, row, seen)
         )
-        row[1] = "sha256=" + base64.urlsafe_b64encode(
-            hashlib.sha256(canonical).digest()
-        ).rstrip(b"=").decode("ascii")
-        row[2] = str(len(canonical))
-        rendered.append(row)
     output = io.StringIO(newline="")
     csv.writer(output, lineterminator="\n").writerows(rendered)
     return output.getvalue().encode("utf-8", "surrogateescape")
 
 
+def _canonical_record_row(
+    context: _DigestContext,
+    record_path: Path,
+    record_relative: str,
+    row: list[str],
+    seen: set[str],
+) -> list[str]:
+    if len(row) != 3 or not row[0]:
+        raise ValueError(f"malformed RECORD: {record_relative}")
+    target, target_relative = _record_target_path(context.root, record_path, row[0])
+    if target_relative in seen:
+        raise ValueError(f"duplicate RECORD path: {target_relative}")
+    seen.add(target_relative)
+    if target_relative == record_relative:
+        if row[1] or row[2]:
+            raise ValueError(f"self-hashed RECORD: {record_relative}")
+        return ["RECORD", "", ""]
+    _validate_record_metadata(row[1], row[2], target_relative)
+    canonical = _canonical_record_target(context, target, target_relative)
+    canonical_row = os.path.relpath(target, record_path.parent.parent).replace(
+        os.sep, "/"
+    )
+    digest = base64.urlsafe_b64encode(hashlib.sha256(canonical).digest()).rstrip(b"=")
+    return [canonical_row, f"sha256={digest.decode('ascii')}", str(len(canonical))]
+
+
+def _validate_record_metadata(digest: str, size: str, target_relative: str) -> None:
+    if bool(digest) != bool(size):
+        raise ValueError(f"malformed RECORD metadata: {target_relative}")
+    if not digest:
+        return
+    if not digest.startswith("sha256="):
+        raise ValueError(f"untrusted RECORD hash: {target_relative}")
+    try:
+        value = digest.removeprefix("sha256=")
+        decoded = base64.b64decode(
+            value + "=" * (-len(value) % 4), altchars=b"-_", validate=True
+        )
+        if len(decoded) != 32 or int(size) < 0:
+            raise ValueError
+    except ValueError as error:
+        raise ValueError(f"malformed RECORD metadata: {target_relative}") from error
+
+
+def _record_target_path(root: Path, record_path: Path, value: str) -> tuple[Path, str]:
+    """Resolve a PyPA RECORD row from its containing site-packages directory."""
+    path = Path(value)
+    if path.is_absolute() or not path.parts:
+        raise ValueError(f"unsafe RECORD path: {value!r}")
+    try:
+        target = (record_path.parent.parent / path).resolve(strict=False)
+        target_relative = target.relative_to(root).as_posix()
+    except (OSError, ValueError) as error:
+        raise ValueError(f"unsafe RECORD path: {value!r}") from error
+    return target, target_relative
+
+
 def _canonical_record_target(
-    root: Path,
-    canonical_root: Path,
-    target_relative: str,
-    store: Path | None,
-    checkout_root: Path | None,
+    context: _DigestContext, target: Path, target_relative: str
 ) -> bytes:
-    target = root / target_relative
     try:
         target_stat = target.lstat()
     except OSError as error:
@@ -189,24 +191,8 @@ def _canonical_record_target(
     with os.fdopen(os.open(target, os.O_RDONLY | os.O_NOFOLLOW), "rb") as stream:
         target_bytes = stream.read()
     return _normalized_generated_path_bearers(
-        root,
-        canonical_root,
-        target,
-        target_relative,
-        target_bytes,
-        store,
-        checkout_root,
+        context, target, target_relative, target_bytes
     )
-
-
-def _safe_record_path(value: str, record_relative: str) -> str:
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts or not path.parts:
-        raise ValueError(f"unsafe RECORD path: {value!r}")
-    relative = path.as_posix()
-    if relative != record_relative and relative.endswith("/RECORD"):
-        raise ValueError(f"nested RECORD target: {relative}")
-    return relative
 
 
 def _canonical_pyvenv_bytes(content: bytes, env_root: Path) -> bytes:
@@ -268,15 +254,12 @@ def _canonical_pyvenv_command(value: str, provider: Path, env_root: Path) -> byt
 
 
 def _normalized_generated_path_bearers(
-    env_root: Path,
-    root: Path,
-    path: Path,
-    relative: str,
-    content: bytes,
-    store: Path | None,
-    checkout_root: Path | None,
+    context: _DigestContext, path: Path, relative: str, content: bytes
 ) -> bytes:
     """Normalize only structurally known generated path-bearing fields."""
+    env_root = context.root
+    root = context.canonical_root
+    checkout_root = context.checkout_root
     if relative.endswith(".pth"):
         return canonical_pth_bytes(path, env_root)
     if relative == "pyvenv.cfg":

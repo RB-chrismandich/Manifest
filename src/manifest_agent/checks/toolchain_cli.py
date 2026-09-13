@@ -78,13 +78,12 @@ def _run_imports(
     return outcomes
 
 
-def _resolve_safe_store(store_option: Path | None) -> Path:
-    """Resolve the store location through the enforced safety check, whether
-    it came from `--store` or the documented environment-variable precedence."""
+def _resolve_safe_store(store_option: Path | None, *, repo_root: Path) -> Path:
+    """Resolve the store while rejecting any location inside ``repo_root``."""
     env = dict(os.environ)
     if store_option is not None:
         env["MANIFEST_TOOLCHAIN_STORE"] = str(store_option)
-    return toolchain.store_root(env)
+    return toolchain.store_root(env, repo_root)
 
 
 @click.command("provision")
@@ -124,20 +123,20 @@ def provision(context: click.Context, **options: Any) -> None:
     if options["imports"] and (options["offline"] or options["only"]):
         raise click.UsageError("--import cannot be combined with --offline or --only")
     try:
-        store = _resolve_safe_store(options["store"])
-    except toolchain.UnsafeStoreLocationError as error:
-        report = {"status": "blocked", "problems": [str(error)]}
-        click.echo(_render(report, as_json), nl=False)
-        context.exit(3)
-        return
-    try:
         lock = _load_lock(options["lock"])
+        repo_root = options["lock"].resolve(strict=True).parent.parent
     except (OSError, ValueError) as error:
         report = {"status": "blocked", "problems": [str(error)]}
         click.echo(_render(report, as_json), nl=False)
         context.exit(3)
         return
-    repo_root = options["lock"].resolve(strict=True).parent.parent
+    try:
+        store = _resolve_safe_store(options["store"], repo_root=repo_root)
+    except toolchain.UnsafeStoreLocationError as error:
+        report = {"status": "blocked", "problems": [str(error)]}
+        click.echo(_render(report, as_json), nl=False)
+        context.exit(3)
+        return
     if options["offline"]:
         report, exit_code = _run_offline(lock, store, platform_id, repo_root)
         click.echo(_render(report, as_json), nl=False)

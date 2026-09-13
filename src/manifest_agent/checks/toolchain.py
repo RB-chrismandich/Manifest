@@ -25,6 +25,7 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from . import (
     toolchain_cache,
@@ -125,11 +126,12 @@ def store_root(env: Mapping[str, str], *forbidden_roots: Path) -> Path:
 
 
 def sha256_file(path: Path) -> str:
+    """Return the SHA-256 digest of the complete regular file at `path`."""
     with open(path, "rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def lock_digest(lock: Mapping) -> str:
+def lock_digest(lock: Mapping[str, Any]) -> str:
     """A stable content digest of an in-memory lock document."""
     serialized = json.dumps(
         lock, sort_keys=True, separators=(",", ":"), ensure_ascii=False
@@ -138,7 +140,7 @@ def lock_digest(lock: Mapping) -> str:
 
 
 def lock_digest_for_registry(
-    document: Mapping, registry_path: Path
+    document: Mapping[str, Any], registry_path: Path
 ) -> dict[str, object]:
     """Compute the (`toolchain_lock`, `toolchain_lock_digest`,
     `toolchain_lock_document`) registry fields.
@@ -169,11 +171,13 @@ def lock_digest_for_registry(
     }
 
 
-def load_lock_file(path: Path) -> dict:
+def load_lock_file(path: Path) -> dict[str, Any]:
+    """Load a UTF-8 JSON toolchain lock document from `path`."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_store_manifest(store: Path) -> dict | None:
+def load_store_manifest(store: Path) -> dict[str, Any] | None:
+    """Load the store manifest, returning `None` when it is absent or invalid."""
     manifest_path = store / "manifest.json"
     if not manifest_path.is_file():
         return None
@@ -193,7 +197,12 @@ def _safe_relative(value: str) -> bool:
 
 
 def resolve(
-    store_reference: str, *, lock: Mapping, store: Path, platform: str, repo_root: Path
+    store_reference: str,
+    *,
+    lock: Mapping[str, Any],
+    store: Path,
+    platform: str,
+    repo_root: Path,
 ) -> ResolvedTool | BlockedReason:
     """Resolve a store reference only when its executable matches the lock."""
     parsed = parse_store_executable(store_reference)
@@ -376,12 +385,14 @@ scratch_home_environment = toolchain_cache.scratch_home_environment
 # `fingerprint_for` wrap it with this module's own `sha256_file`/`store_root`
 # so callers keep their original signature.
 def fingerprint(store: Path, resolved: Mapping[str, ResolvedTool]) -> dict[str, str]:
+    """Return file-identity evidence for a resolved store tool set."""
     return toolchain_fingerprint.fingerprint(store, resolved, sha256_file)
 
 
 def fingerprint_for(
     resolved: ResolvedTool | None, env: Mapping[str, str]
 ) -> dict[str, str]:
+    """Return resolution evidence for one tool under the supplied environment."""
     return toolchain_fingerprint.fingerprint_for(resolved, env, store_root, sha256_file)
 
 
@@ -402,7 +413,10 @@ _PREFLIGHT_CTX = toolchain_path_prepend.Context(
 
 
 def resolve_for_preflight(
-    tool: Mapping, env: Mapping[str, str], lock: Mapping, candidate_root: Path
+    tool: Mapping[str, Any],
+    env: Mapping[str, str],
+    lock: Mapping[str, Any],
+    candidate_root: Path,
 ) -> tuple[ResolvedTool | None, tuple[str, ...], dict[str, str], str | None]:
     """Resolve every `store:` reference a tool's preflight touches.
 
@@ -431,15 +445,18 @@ def resolve_for_preflight(
     except UnsafeStoreLocationError as error:
         return None, (), env, f"toolchain: {error}"
     platform = current_platform()
+    inputs = toolchain_path_prepend.ResolutionInputs(
+        lock, store, platform, candidate_root
+    )
     engine_outcome = toolchain_path_prepend.resolve_engine_refs(
-        tool, lock, store, platform, _PREFLIGHT_CTX
+        tool, _PREFLIGHT_CTX, inputs
     )
     if isinstance(engine_outcome, BlockedReason):
         return None, (), env, engine_outcome.reason
     merged, version_argv = engine_outcome
     if path_prepend:
         prepend_outcome = toolchain_path_prepend.resolve_dirs(
-            path_prepend, _PREFLIGHT_CTX, lock, store, platform
+            path_prepend, _PREFLIGHT_CTX, inputs
         )
         if isinstance(prepend_outcome, BlockedReason):
             return None, (), env, prepend_outcome.reason
