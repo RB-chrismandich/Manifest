@@ -7,6 +7,7 @@ crash cannot turn a contained launch into an unreapable orphan.
 from __future__ import annotations
 
 import os
+import time
 
 from . import constants
 
@@ -16,6 +17,8 @@ CGROUP_DIR_FILENAME = "backend.cgroup"
 STATE_CONTAINED = "contained"
 STATE_DEGRADED = "degraded"
 STATE_CLEANED = "cleaned"
+_REAP_DRAIN_TIMEOUT_SECONDS = 5.0
+_REAP_DRAIN_POLL_INTERVAL_SECONDS = 0.05
 
 
 def cgroup_root() -> str:
@@ -93,6 +96,26 @@ def join_hook(job_dir):
     return _join
 
 
+def _cgroup_member_pids(path: str) -> list[int]:
+    try:
+        with open(os.path.join(path, "cgroup.procs"), encoding="utf-8") as procs:
+            return [int(line) for line in procs if line.strip()]
+    except (OSError, ValueError):
+        return []
+
+
+def _wait_cgroup_empty(
+    path: str, timeout: float = _REAP_DRAIN_TIMEOUT_SECONDS
+) -> bool:
+    """Wait for cgroup.kill to reap every member before rmdir."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _cgroup_member_pids(path):
+            return True
+        time.sleep(_REAP_DRAIN_POLL_INTERVAL_SECONDS)
+    return not _cgroup_member_pids(path)
+
+
 def reap(job_dir, required: bool = False) -> bool | None:
     """Reap descendants; a required but unreadable marker is a failed reap."""
     marker = os.path.join(job_dir, CGROUP_DIR_FILENAME)
@@ -134,6 +157,11 @@ def cleanup(job_dir, required: bool = False, on_cgroup_removed=None) -> bool:
             return False
         return True
     if reap(job_dir, required=required) is False:
+        return False
+    if not _wait_cgroup_empty(path):
+        constants.err(
+            f"job dir {job_dir}: cgroup {path} still has members after reap"
+        )
         return False
     try:
         os.rmdir(path)

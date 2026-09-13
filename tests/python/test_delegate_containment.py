@@ -64,6 +64,29 @@ class TestContainmentContract:
         assert containment.cleanup(str(job_dir)) is False
         assert containment.read_path(str(job_dir)) == str(cgroup)
 
+    def test_cleanup_waits_for_cgroup_procs_to_drain_before_rmdir(
+        self, tmp_path, monkeypatch
+    ):
+        job_dir = tmp_path / "job"
+        job_dir.mkdir()
+        cgroup = tmp_path / "cgroup"
+        cgroup.mkdir()
+        procs = cgroup / "cgroup.procs"
+        procs.write_text("12345\n")
+        (cgroup / "cgroup.kill").write_text("")
+        (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
+        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: True)
+
+        def drain_then_empty(path, timeout=containment._REAP_DRAIN_TIMEOUT_SECONDS):
+            if procs.read_text().strip():
+                procs.write_text("")
+            return containment._wait_cgroup_empty(path, timeout)
+
+        monkeypatch.setattr(containment, "_wait_cgroup_empty", drain_then_empty)
+        assert containment.cleanup(str(job_dir)) is True
+        assert containment.read_path(str(job_dir)) is None
+        assert not cgroup.exists()
+
     def test_cleanup_removes_marker_only_after_cgroup_directory_is_gone(
         self, tmp_path, monkeypatch
     ):
