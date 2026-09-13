@@ -91,5 +91,5 @@ structured output is unavailable, perform the same review inline and report
 `DEGRADED`.
 
 When dispatching three or more workflows, invoke
-`manifest-workspace:parallel-agent --security-analysis --validate` with one workflow
-per review unit and merge its structured findings. Dispatched reviewers do not re-dispatch.
+`manifest-workspace:parallel-agent --analyze <workflow> --validate` once per workflow
+and merge its structured findings. Dispatched reviewers do not re-dispatch.

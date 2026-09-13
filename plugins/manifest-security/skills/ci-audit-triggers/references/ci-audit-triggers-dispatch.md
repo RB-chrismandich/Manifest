@@ -6,6 +6,7 @@ this workflow-count rule because the workflow files are independently auditable.
 If structured output is unavailable, perform the review inline and report
 `DEGRADED`.
 
-For this security analysis, dispatch with `--security-analysis --validate`.
+For this security analysis, dispatch each workflow with
+`manifest-workspace:parallel-agent --analyze <workflow> --validate`.
 Each dispatched reviewer completes its assigned workflow audit directly and
 does not re-dispatch.
