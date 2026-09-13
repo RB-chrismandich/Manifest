@@ -14,8 +14,8 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-
 import yaml
+
 from manifest_agent.contracts import CapabilityTier, load_contract
 
 
@@ -349,6 +349,7 @@ def test_code_quality_skills_do_not_call_legacy_shared_runtimes(
         for marker in forbidden:
             assert marker not in source, f"{skill}: forbidden runtime marker {marker}"
 
+
 REFACTOR_SKILLS = (
     "python-refactor",
     "node-refactor",
@@ -371,12 +372,8 @@ def _router_sections(code_quality_bundle: Path) -> tuple[str, str, str]:
     source = (code_quality_bundle / "skills/refactor/SKILL.md").read_text(
         encoding="utf-8"
     )
-    routing = re.search(
-        r"(?ms)^## Review routing\s*$\n(.*?)(?=^## |\Z)", source
-    )
-    dispatch = re.search(
-        r"(?ms)^## Sub-agent dispatch\s*$\n(.*?)(?=^## |\Z)", source
-    )
+    routing = re.search(r"(?ms)^## Review routing\s*$\n(.*?)(?=^## |\Z)", source)
+    dispatch = re.search(r"(?ms)^## Sub-agent dispatch\s*$\n(.*?)(?=^## |\Z)", source)
     assert routing is not None and dispatch is not None
     return source, routing.group(1), dispatch.group(1)
 
@@ -397,14 +394,15 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
     assert policy["subagent_trigger"] == expected_trigger
     link = re.search(r"\[review escalation contract\]\(([^)]+)\)", routing)
     assert link is not None
-    assert (
-        code_quality_bundle / "skills/refactor" / link.group(1)
-    ).resolve().is_file()
+    assert (code_quality_bundle / "skills/refactor" / link.group(1)).resolve().is_file()
     assert "one capable reviewer by default" in routing
     assert "Python, Go, and\nShell remains single-agent" in routing
     assert "When any one of the five conditions warrants escalation" in dispatch
     assert "obtain an independent\nreview" in dispatch
-    assert "only when the investigation has\ngenuinely independent analysis tracks" in dispatch
+    assert (
+        "only when the investigation has\ngenuinely independent analysis tracks"
+        in dispatch
+    )
     assert not re.search(count_fanout, routing + dispatch, flags=re.IGNORECASE)
 
     restored_language_count_fanout = (
@@ -414,6 +412,8 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
         assert not re.search(
             count_fanout, restored_language_count_fanout, flags=re.IGNORECASE
         )
+
+
 def test_refactor_policies_share_risk_gate_and_check_only_verification(
     repo_root: Path,
 ) -> None:
@@ -435,9 +435,7 @@ def test_refactor_policies_share_risk_gate_and_check_only_verification(
 
 
 def _output_template(source: str) -> str:
-    return source.split("## Output Format", 1)[1].split("```", 1)[1].split(
-        "```", 1
-    )[0]
+    return source.split("## Output Format", 1)[1].split("```", 1)[1].split("```", 1)[0]
 
 
 def test_refactor_skills_link_to_the_same_installed_review_contract(
