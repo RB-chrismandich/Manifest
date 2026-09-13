@@ -26,6 +26,24 @@ only when at least one of that contract's five risk conditions is present;
 this overrides any count or size threshold. A target covering Python, Go, and
 Shell remains single-agent unless it presents one of those conditions.
 
+## Routing outcomes
+
+```yaml
+routing_outcomes:
+  three_language_no_risk:
+    target_languages: [python, go, shell]
+    observed_conditions: []
+    review_mode: single-agent
+    independent_review: false
+    partition_review: false
+  coupled_trust_boundary:
+    target_languages: [python, go, shell]
+    observed_conditions: [trust_boundary_change]
+    review_mode: escalated
+    independent_review: true
+    partition_review: false
+```
+
 ## Sub-agent dispatch
 
 When any one of the five conditions warrants escalation, obtain an independent

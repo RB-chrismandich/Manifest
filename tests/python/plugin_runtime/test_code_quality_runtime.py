@@ -366,45 +366,47 @@ def _review_config(repo_root: Path) -> dict:
     )
 
 
-CANONICAL_RISK_CONDITIONS = (
-    "trust_boundary_change",
-    "destructive_behavior",
-    "broad_compatibility_or_deployment_change",
-    "conflicting_evidence_or_unresolved_uncertainty",
-    "codebase_wide_independent_tracks",
-)
-
-
-def _review_mode(policy: dict, observed_conditions: set[str]) -> str:
-    """Consumer-facing routing decision represented by the command policy."""
-    return (
-        "escalated"
-        if observed_conditions & set(policy["conditions"])
-        else policy["default_mode"]
+def _router_outcomes(code_quality_bundle: Path) -> dict[str, dict]:
+    """Read the installed /refactor consumer's declared routing outcomes."""
+    source = (code_quality_bundle / "skills/refactor/SKILL.md").read_text(
+        encoding="utf-8"
     )
+    match = re.search(
+        r"(?s)^## Routing outcomes\s*\n\n```yaml\n(.*?)^```",
+        source,
+        flags=re.MULTILINE,
+    )
+    assert match is not None, "/refactor must publish routing outcomes"
+    return yaml.safe_load(match.group(1))["routing_outcomes"]
 
 
 @pytest.mark.parametrize(
-    ("observed_conditions", "expected_mode"),
+    ("scenario", "expected"),
     [
-        ({"language:python", "language:go", "language:shell"}, "single-agent"),
-        ({"file_size", "package_count", "module_count", "generic_keyword"}, "single-agent"),
-        ({"trust_boundary_change"}, "escalated"),
-        ({"destructive_behavior"}, "escalated"),
-        ({"broad_compatibility_or_deployment_change"}, "escalated"),
-        ({"conflicting_evidence_or_unresolved_uncertainty"}, "escalated"),
-        ({"codebase_wide_independent_tracks"}, "escalated"),
+        (
+            "three_language_no_risk",
+            {
+                "review_mode": "single-agent",
+                "independent_review": False,
+                "partition_review": False,
+            },
+        ),
+        (
+            "coupled_trust_boundary",
+            {
+                "review_mode": "escalated",
+                "independent_review": True,
+                "partition_review": False,
+            },
+        ),
     ],
 )
-def test_refactor_review_mode_follows_the_consumer_visible_risk_contract(
-    repo_root: Path, observed_conditions: set[str], expected_mode: str
+def test_refactor_router_publishes_observable_routing_outcomes(
+    code_quality_bundle: Path, scenario: str, expected: dict[str, object]
 ) -> None:
-    escalation = _review_config(repo_root)["review_escalation"]
+    outcome = _router_outcomes(code_quality_bundle)[scenario]
 
-    assert escalation["conditions"] == list(CANONICAL_RISK_CONDITIONS)
-    assert _review_mode(escalation, observed_conditions) == expected_mode
-
-
+    assert {key: outcome[key] for key in expected} == expected
 def test_refactor_policies_share_risk_gate_and_check_only_verification(
     repo_root: Path,
 ) -> None:
