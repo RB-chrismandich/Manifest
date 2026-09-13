@@ -15,10 +15,15 @@ body states the concrete trigger and links here.
 | **`parallel_agent.py`** | External multi-CLI cross-verification (Gemini/Cursor/Codex/Antigravity) with consensus scoring | Independent cross-model verification of one artifact/decision | Cross-platform |
 | **Headless CLI invoke** (`cddl_invoke.py`, `EVOLVE_CLI`, `SYNTH_CLI`) | Single-provider subprocess using `cli_agents` config | CDDL critics on Gemini/Codex/Agy; synthesis; SkillClaw evolve | Cross-platform (CLI on PATH) |
 
-## Selection and escalation rules
+## Review and cross-verification escalation
+
+This risk gate governs **review and cross-verification only**. It does not
+replace a skill's workload-decomposition trigger: `/docs-all`, `/docs-improve`,
+and `/issue-prioritize` retain their documented fan-out rules for independent
+documents, analysis items, or issues.
 
 Use a single capable reviewer by default. Add independent review only when the
-work has at least one of these conditions:
+review work has at least one of these conditions:
 
 - a trust-boundary change;
 - destructive behavior;
@@ -27,10 +32,16 @@ work has at least one of these conditions:
 - a codebase-wide investigation with genuinely independent analysis tracks.
 
 Counts of files, packages, modules, languages, keywords, and units never
-escalate review by themselves. A skill may choose its mechanism after this
-risk gate opens: native Task/Agent sub-agents for independent work, or
-`parallel_agent.py` for cross-model verification. If none of the conditions is
-present, review inline.
+escalate review by themselves. A skill may choose its cross-verification
+mechanism after this risk gate opens: native Task/Agent sub-agents for
+independent review work, or `parallel_agent.py` for cross-model verification.
+If none of the conditions is present, review inline.
+
+## workload decomposition
+
+For work other than review and cross-verification, follow each skill's own
+documented fan-out trigger. Those workload triggers may use counts or other
+scale signals and remain independent of the risk gate.
 
 ## Model selection (measured — the one cache-safe cost lever)
 

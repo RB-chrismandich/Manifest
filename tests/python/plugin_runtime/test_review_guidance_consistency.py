@@ -46,6 +46,8 @@ def test_validation_configs_do_not_duplicate_code_audit_activation(
         "configs/cursor/rules/orchestration.mdc",
         "docs/commands/builtin.md",
         "docs/configuration/commands.md",
+        "docs/getting-started/using-commands.md",
+        "docs/diagrams/validation.md",
     ),
 )
 def test_active_guides_use_semantic_risk_routing(
@@ -72,6 +74,55 @@ def test_shared_dispatch_guidance_has_only_the_risk_gate(repo_root: Path) -> Non
     assert "≥3 independent units" not in source
     assert "trust-boundary change" in source
     assert "Counts of files" in source
+
+
+def test_shared_dispatch_scopes_risk_gate_to_review(
+    repo_root: Path,
+) -> None:
+    source = (repo_root / "configs/claude/references/sub-agent-dispatch.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "review and cross-verification" in source
+    assert "workload decomposition" in source
+    for skill_name in ("docs-all", "docs-improve", "issue-prioritize"):
+        assert skill_name in source
+
+
+def test_refactor_dispatches_every_detected_ecosystem_sequentially(
+    repo_root: Path,
+) -> None:
+    source = (
+        repo_root / "plugins/manifest-code-quality/skills/refactor/SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    assert "every matching engine sequentially" in source
+    assert "aggregate" in source
+
+
+@pytest.mark.parametrize("command", ("python-refactor", "shell-refactor"))
+def test_refactor_cross_verification_is_conditional_on_escalation(
+    repo_root: Path, command: str
+) -> None:
+    config = yaml.safe_load(
+        (repo_root / "configs/claude/config/validation_criteria.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    policy = config["command_overrides"][command]
+    assert "cross_verification" not in policy["tier1_checks"]
+    assert policy["conditional_tier1_checks"]["review_mode"]["escalated"] == [
+        "cross_verification"
+    ]
+    assert "consensus_threshold" not in policy
+    assert policy["conditional_consensus"]["review_mode"]["escalated"] == {
+        "threshold": 0.80 if command == "python-refactor" else 0.75,
+        "action": {
+            "high": "auto_proceed",
+            "medium": "show_disagreements",
+            "low": "block_and_escalate",
+        },
+    }
 
 
 def test_shell_refactor_review_never_installs_or_executes_checkout_code(

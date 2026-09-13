@@ -20,11 +20,14 @@ matching language-specific refactoring engine.
 
 ## Review routing
 
-Use the [review escalation contract](references/review-escalation.md). Route a
-target to its language engine with one capable reviewer by default. Escalate
-only when at least one of that contract's five risk conditions is present;
-this overrides any count or size threshold. A target covering Python, Go, and
-Shell remains single-agent unless it presents one of those conditions.
+Use the [review escalation contract](references/review-escalation.md). For
+every detected ecosystem, invoke every matching engine sequentially with one
+capable reviewer by default, then aggregate the engine reports into one
+prioritized cross-stack roadmap. Escalate to independent review only when at
+least one of that contract's five risk conditions is present; counts and size
+thresholds never escalate review by themselves. A target covering Python, Go,
+and Shell therefore remains single-agent while still running all three engines
+and aggregating their results unless a risk condition is present.
 
 ## Sub-agent dispatch
 
