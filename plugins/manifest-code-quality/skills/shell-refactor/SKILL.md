@@ -453,14 +453,23 @@ After completing the analysis, capture the most significant findings:
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.
 
+## Review report metadata
+
+Use the [review escalation contract](../refactor/references/review-escalation.md).
+Every explicit report adds:
+
+```markdown
+**review_mode**: `single-agent` | `escalated`
+**escalation_reason**: `none` | concrete risk condition(s)
+
+| Command | Result | Unavailable reason |
+|---------|--------|--------------------|
+| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
+```
+
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
-
-When ≥3 independent scripts exist, dispatch one sub-agent per script to analyze it, then merge findings; below
-that, analyze inline. Use native Task sub-agents on Claude, or `manifest-workspace:parallel-agent` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
-
-Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+Use one capable reviewer by default. Add independent review only when at least
+one of that contract's five risk conditions is present; this overrides any
+count or size threshold. Check commands are check-only. Unavailable checks are
+reported as `unavailable`, never pass.

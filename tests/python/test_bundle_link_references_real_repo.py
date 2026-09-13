@@ -25,11 +25,6 @@ def test_real_repo_catches_sub_agent_dispatch_true_positives() -> None:
         "sub-agent-dispatch.md",
     ) in found
     assert (
-        "plugins/manifest-code-quality/skills/refactor/SKILL.md",
-        "home-tree-path",
-        "~/.claude/references/sub-agent-dispatch.md",
-    ) in found
-    assert (
         "plugins/stitch-design/skills/ux-review/SKILL.md",
         "missing-bundled-reference",
         "sub-agent-dispatch.md",
@@ -37,15 +32,10 @@ def test_real_repo_catches_sub_agent_dispatch_true_positives() -> None:
 
 
 def test_real_repo_catches_bare_command_config_yml_true_positives() -> None:
-    # 12 occurrences / 11 skills / 3 bundles.
+    # code-audit now owns its dispatch reference.
     found = real_repo_violation_tuples()
     assert (
         "plugins/manifest-forge/skills/pr-review/SKILL.md",
-        "missing-bundled-reference",
-        "command_config.yml",
-    ) in found
-    assert (
-        "plugins/manifest-security/skills/code-audit/SKILL.md",
         "missing-bundled-reference",
         "command_config.yml",
     ) in found
@@ -105,6 +95,19 @@ def test_real_repo_does_not_flag_the_documented_non_defects() -> None:
         assert ("plugins/manifest-security/skills/code-audit/SKILL.md", value) not in {
             (path, val) for path, _kind, val in found
         }
+
+
+def test_real_repo_accepts_pr883_skill_local_dispatch_links() -> None:
+    found = real_repo_violation_tuples()
+    flagged_paths = {path for path, _kind, _value in found}
+
+    assert not flagged_paths & {
+        "plugins/manifest-code-quality/skills/refactor/SKILL.md",
+        "plugins/manifest-security/skills/code-audit/SKILL.md",
+        "plugins/manifest-security/skills/ci-audit-triggers/SKILL.md",
+        "plugins/manifest-security/skills/security-refute-findings/SKILL.md",
+        "plugins/manifest-security/skills/security-triage-findings/SKILL.md",
+    }
 
 
 def test_real_repo_excludes_generated_data_files_from_scanning() -> None:

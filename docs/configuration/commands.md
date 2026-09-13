@@ -48,12 +48,17 @@ tool_policies:
       - Read
       - Glob
       - Grep
+      - Bash  # Check-only verification
     forbidden:
-      - Bash
       - Write
       - Edit  # Read-only analysis
-    parallel_agents: always
+    bash_mode: check-only
+    parallel_agents: conditional
+    trigger_condition: trust_boundary_change OR destructive_behavior OR broad_compatibility_or_deployment_change OR conflicting_evidence_or_unresolved_uncertainty OR codebase_wide_independent_tracks
     validation_tier: 1
+    subagents: conditional
+    subagent_trigger: trust_boundary_change OR destructive_behavior OR broad_compatibility_or_deployment_change OR conflicting_evidence_or_unresolved_uncertainty OR codebase_wide_independent_tracks
+    subagent_model: sonnet
 
   docs-generate-diagrams:
     allowed:
@@ -69,9 +74,9 @@ tool_policies:
 
 **Parallel agent modes:**
 
-- `always`: Always run parallel agents
+- `always`: Always run parallel agents (reserved for explicit high-assurance workflows)
 - `never`: Never run parallel agents (single-agent mode)
-- `conditional`: Run based on trigger_condition
+- `conditional`: Run only when its stated risk condition is present
 
 ### Model Selection Defaults
 

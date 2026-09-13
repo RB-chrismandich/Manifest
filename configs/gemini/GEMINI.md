@@ -10,6 +10,14 @@ point back to their canonical locations under `~/.claude/`. Only this guide
 and ensures both agents always operate from the same orchestration rules and
 validation criteria.
 
+## Risk-based review routing
+
+Use a single capable reviewer by default. Independent review is risk-based:
+escalate only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment impact, conflicting evidence or unresolved
+uncertainty, or genuinely independent codebase-wide tracks. Counts of files,
+packages, modules, languages, keywords, and units do not independently escalate.
+
 ## Token Economy (always on)
 
 Apply at all times, in every session:
@@ -194,26 +202,11 @@ Detection methods:
 
 ## Proactive Decision Framework
 
-### ALWAYS Use Parallel Agents For
-
-1. **Security-sensitive changes**: authN/authZ, input validation/sanitization, crypto, secret handling
-2. **Architectural decisions**: new components, API design, DB schema, service integration
-3. **Large file mods (>200 lines)**: complex refactoring, major features, performance-critical code
-4. **Critical business logic**: payment processing, user-data handling, compliance
-
-### CONSIDER Parallel Agents For
-
-- Complex refactoring with multiple affected files
-- New feature implementation
-- Performance optimization
-- Debugging difficult issues
-
-### SKIP Parallel Agents For
-
-- Typo fixes, comments, formatting
-- Single-line changes
-- Documentation updates
-- Simple variable renames
+Use risk-based review routing. One capable reviewer is the default. Escalate
+only for a trust-boundary change, destructive behavior, broad compatibility or
+deployment impact, conflicting evidence or unresolved uncertainty, or genuinely
+independent codebase-wide tracks. File, package, module, language, keyword, and
+independent-unit counts are not escalation conditions.
 
 ---
 
@@ -488,11 +481,11 @@ These integrate with the parallel agent orchestration framework.
 | `/performance-check` | Core Web Vitals and bundle analysis | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
 | `/git-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/go-refactor` | Go codebase security and quality analysis | ALWAYS |
-| `/node-refactor` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/python-refactor` | Python codebase security and quality analysis | ALWAYS |
-| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/terraform-refactor` | Terraform IaC security and modularity analysis | ALWAYS |
+| `/go-refactor` | Go codebase security and quality analysis | CONDITIONAL (risk-based) |
+| `/node-refactor` | Node.js/TypeScript security and quality analysis | CONDITIONAL (risk-based) |
+| `/python-refactor` | Python codebase security and quality analysis | CONDITIONAL (risk-based) |
+| `/shell-refactor` | Bash/Shell script security and quality analysis | CONDITIONAL (risk-based) |
+| `/terraform-refactor` | Terraform IaC security and modularity analysis | CONDITIONAL (risk-based) |
 | `/project-scaffold` | Initialize new project with quality gates and Manifest integration | NO |
 | `/config-audit` | Detect cross-platform config drift | NO |
 | `/ux-review` | UX/accessibility/performance audit | NO |

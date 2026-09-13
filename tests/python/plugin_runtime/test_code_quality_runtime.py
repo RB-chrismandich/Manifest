@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -14,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+import yaml
 from manifest_agent.contracts import CapabilityTier, load_contract
 
 
@@ -318,6 +320,7 @@ def test_code_quality_contract_declares_every_runtime_asset(
         "skills/smoke-manage/vendor",
         "skills/project-scaffold/templates",
         "skills/code-audit/references",
+        "skills/refactor/references/review-escalation.md",
     }
     assert set(contract.capabilities.executables[CapabilityTier.OPTIONAL]) == {
         "browser-use",
@@ -345,3 +348,105 @@ def test_code_quality_skills_do_not_call_legacy_shared_runtimes(
         source = skill.read_text(encoding="utf-8")
         for marker in forbidden:
             assert marker not in source, f"{skill}: forbidden runtime marker {marker}"
+
+REFACTOR_SKILLS = (
+    "python-refactor",
+    "node-refactor",
+    "go-refactor",
+    "shell-refactor",
+    "terraform-refactor",
+)
+
+
+def _review_config(repo_root: Path) -> dict:
+    return yaml.safe_load(
+        (repo_root / "configs/claude/config/command_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("signals", "expected"),
+    [
+        ({"file_size", "language", "generic_keyword", "independent_unit_count"}, False),
+        ({"trust_boundary_change"}, True),
+        ({"destructive_behavior"}, True),
+        ({"broad_compatibility_or_deployment_change"}, True),
+        ({"conflicting_evidence_or_unresolved_uncertainty"}, True),
+        ({"codebase_wide_independent_tracks"}, True),
+    ],
+)
+def test_refactor_review_escalation_classifies_only_canonical_risks(
+    repo_root: Path, signals: set[str], expected: bool
+) -> None:
+    escalation = _review_config(repo_root)["review_escalation"]
+
+    assert escalation["default_mode"] == "single-agent"
+    assert bool(signals & set(escalation["conditions"])) is expected
+    assert set(escalation["non_triggers"]).isdisjoint(escalation["conditions"])
+
+
+def test_refactor_policies_share_risk_gate_and_check_only_verification(
+    repo_root: Path,
+) -> None:
+    config = _review_config(repo_root)
+    expected_trigger = " OR ".join(config["review_escalation"]["conditions"])
+
+    for skill_name in ("refactor", *REFACTOR_SKILLS):
+        policy = config["tool_policies"][skill_name]
+        assert policy["parallel_agents"] == "conditional"
+        assert policy["trigger_condition"] == expected_trigger
+        assert policy["subagent_trigger"] == expected_trigger
+
+    for skill_name in REFACTOR_SKILLS:
+        policy = config["tool_policies"][skill_name]
+        assert policy["bash_mode"] == "check-only"
+        assert "Bash" in policy["allowed"]
+        assert {"Write", "Edit"}.issubset(policy["forbidden"])
+        assert "Bash" not in policy["forbidden"]
+
+
+def test_three_language_refactor_remains_single_agent_without_risk(
+    repo_root: Path,
+) -> None:
+    config = _review_config(repo_root)
+    policy = config["tool_policies"]["refactor"]
+    three_language_signals = {"language:python", "language:go", "language:shell"}
+
+    assert not (three_language_signals & set(config["review_escalation"]["conditions"]))
+    assert policy["parallel_agents"] == "conditional"
+
+
+def test_refactor_skills_link_to_the_same_installed_review_contract(
+    code_quality_bundle: Path, tmp_path: Path
+) -> None:
+    installed = tmp_path / "installed/manifest-code-quality"
+    shutil.copytree(code_quality_bundle, installed)
+    reference = installed / "skills/refactor/references/review-escalation.md"
+
+    assert reference.is_file()
+    contract = load_contract(installed / "manifest-capabilities.yml")
+    assert reference.relative_to(installed).as_posix() in {
+        component.path for component in contract.components.runtime
+    }
+    for skill_name in ("refactor", *REFACTOR_SKILLS):
+        skill = installed / f"skills/{skill_name}/SKILL.md"
+        source = skill.read_text(encoding="utf-8")
+        link = re.search(
+            r"\[review escalation contract\]\(([^)]+)\)", source, re.IGNORECASE
+        )
+        assert link is not None, f"{skill_name}: missing review escalation link"
+        assert (skill.parent / link.group(1)).resolve() == reference.resolve()
+
+
+def test_refactor_report_templates_disclose_review_and_check_outcomes(
+    code_quality_bundle: Path,
+) -> None:
+    for skill_name in REFACTOR_SKILLS:
+        source = (code_quality_bundle / f"skills/{skill_name}/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        assert "**review_mode**:" in source
+        assert "**escalation_reason**:" in source
+        assert "| Command | Result | Unavailable reason |" in source
