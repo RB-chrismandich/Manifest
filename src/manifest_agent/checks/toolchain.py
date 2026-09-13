@@ -243,7 +243,9 @@ def resolve(
         return _resolve_env_exe(
             inputs, lock=lock, store=store, platform=platform, repo_root=repo_root
         )
-    return _verify_exe(bundle, exe_info, store, exe_sha256)
+    return _verify_exe(
+        bundle, exe_info, store, (exe_sha256, platform_entry.get("exe_sha256"))
+    )
 
 
 def _manifest_executable(
@@ -326,9 +328,11 @@ def _checked_relative_path(store: Path, relative_path: str) -> Path | None:
     return toolchain_env._checked_relative_path(store, relative_path)
 
 
-def _verify_exe(bundle: str, exe_info: Mapping, store: Path, exe_sha256: str):
-    """Re-hash the store's file at the path it claims -- against the lock's
-    `exe_sha256`, never the store manifest's own recorded hash."""
+def _verify_exe(
+    bundle: str, exe_info: Mapping, store: Path, locked_digests: tuple[str, object]
+):
+    """Re-hash executable and companion interpreter against lock digests."""
+    exe_sha256, interpreter_sha256 = locked_digests
     exe_path = _checked_relative_path(store, exe_info.get("path", ""))
     if exe_path is None:
         return toolchain_env._not_provisioned(bundle)
@@ -342,7 +346,7 @@ def _verify_exe(bundle: str, exe_info: Mapping, store: Path, exe_sha256: str):
         interpreter_path = _checked_relative_path(store, interpreter_relative)
         if interpreter_path is None:
             return toolchain_env._not_provisioned(bundle)
-        if sha256_file(interpreter_path) != exe_info.get("interpreter_sha256"):
+        if sha256_file(interpreter_path) != interpreter_sha256:
             return BlockedReason(f"toolchain: {bundle} digest mismatch")
 
     bin_dirs = (exe_path.parent,)

@@ -361,6 +361,27 @@ class TestExtraExecutables:
         )
         assert isinstance(node_resolved, toolchain.ResolvedTool)
 
+    def test_npm_interpreter_is_rehashed_against_the_lock(self, tmp_path: Path):
+        """A mutable manifest cannot bless a substituted node interpreter."""
+        npm_sha = hashlib.sha256(self._NPM_CONTENT).hexdigest()
+        lock, archive = self._fixture(npm_sha)
+        store = tmp_path / "store"
+        provision_mod.provision(
+            lock, store, platform="linux-x64", fetcher=lambda url: archive
+        )
+        replaced = store / "tools/node/24.9.0/bin/node"
+        replaced.write_bytes(b"attacker-controlled node")
+        manifest_path = store / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["tools"]["node"]["executables"]["bin/npm"]["interpreter_sha256"] = (
+            hashlib.sha256(replaced.read_bytes()).hexdigest()
+        )
+        manifest_path.write_text(json.dumps(manifest))
+
+        _node, npm = self._resolve_both(lock, store)
+
+        assert npm == toolchain.BlockedReason("toolchain: node digest mismatch")
+
     def test_extra_executable_digest_mismatch_at_provision_time_blocks(self, tmp_path):
         """The lock's declared `npm` hash is wrong for the archive's real
         `npm-cli.js` bytes -- provisioning itself must BLOCK, not silently
