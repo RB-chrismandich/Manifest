@@ -20,7 +20,13 @@ from pathlib import Path
 from . import toolchain, toolchain_npm_cache
 from . import toolchain_materialize as materialize
 from .toolchain_provision_env import provision_environment
-from .toolchain_provision_models import ProvisionContext, ProvisionOutcome
+from .toolchain_provision_models import (
+    OfflineValidationContext,
+    ProvisionContext,
+    ProvisionOutcome,
+    ProvisionPlan,
+    ProvisionRequest,
+)
 from .toolchain_provision_store import (
     BinaryArtifacts,
     _record_bundle,
@@ -76,57 +82,18 @@ def _safe_artifact_url(url: object) -> bool:
 
 
 def validate_lock(lock: Mapping) -> None:
-    """Reject malformed or unpinned lock records before touching the store."""
-    if lock.get("schema_version") != 1 or not isinstance(lock.get("tools"), Mapping):
-        raise ValueError("invalid toolchain lock schema")
-    for bundle, entry in lock["tools"].items():
-        if not isinstance(bundle, str) or not toolchain._STORE_EXECUTABLE.match(
-            f"store:{bundle}/bin/{bundle}"
-        ):
-            raise ValueError(f"invalid toolchain bundle name: {bundle!r}")
-        if not isinstance(entry, Mapping) or not isinstance(
-            entry.get("platforms"), Mapping
-        ):
-            raise ValueError(f"invalid toolchain entry: {bundle}")
-        version = entry.get("version")
-        if version is not None:
-            version_is_safe = (
-                _safe_relative(version)
-                if entry.get("kind") in _ENV_KINDS
-                else _safe_component(version)
-            )
-            if not version_is_safe:
-                raise ValueError(f"invalid expected version for {bundle}")
-        for platform, artifact in entry["platforms"].items():
-            if not _safe_component(platform) or not isinstance(artifact, Mapping):
-                raise ValueError(f"invalid platform record for {bundle}")
-            if not _safe_artifact_url(artifact.get("url")):
-                raise ValueError(f"invalid artifact URL for {bundle}/{platform}")
-            if not _safe_relative(str(artifact.get("path_in_archive", ""))):
-                raise ValueError(f"unsafe archive path for {bundle}/{platform}")
-            extra = artifact.get("extra_executables") or {}
-            if not isinstance(extra, Mapping):
-                raise ValueError(f"invalid extra executables for {bundle}/{platform}")
-            for name, spec in extra.items():
-                if not _safe_component(name) or not isinstance(spec, Mapping):
-                    raise ValueError(
-                        f"invalid extra executable for {bundle}/{platform}"
-                    )
-                if not all(
-                    _safe_relative(str(spec.get(path_field, "")))
-                    for path_field in ("path_in_archive", "executable_relative")
-                ):
-                    raise ValueError(
-                        f"unsafe extra executable path for {bundle}/{platform}"
-                    )
-            for digest_field in ("sha256", "exe_sha256"):
-                digest = artifact.get(digest_field)
-                if digest is not None and (
-                    not isinstance(digest, str)
-                    or len(digest) != 64
-                    or any(char not in "0123456789abcdef" for char in digest)
-                ):
-                    raise ValueError(f"invalid {digest_field} for {bundle}/{platform}")
+    """Reject malformed lock records before touching the store."""
+    from .toolchain_lock_validation import validate_lock as validate
+
+    validate(lock)
+
+
+def _valid_digest(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(char in "0123456789abcdef" for char in value)
+    )
 
 
 class _RejectRedirects(urllib.request.HTTPRedirectHandler):
@@ -256,7 +223,7 @@ def _provision_binary_entry(
             archive_member_bytes(data, platform_entry["path_in_archive"]),
             0o755,
         )
-    except ValueError as error:
+    except (KeyError, ValueError) as error:
         return ProvisionOutcome(bundle, "blocked", f"toolchain: {bundle} {error}")
     exe_sha = toolchain.sha256_file(exe_path)
     if exe_sha != platform_entry["exe_sha256"]:
@@ -329,46 +296,90 @@ def _relative_scripts(entry: Mapping, platform: str) -> list[str]:
 def validate_offline(
     lock: Mapping, store: Path, platform: str, *, repo_root: Path
 ) -> tuple[bool, list[str]]:
-    """Check the store against the lock without downloading anything.
-
-    Returns `(complete, problems)`; `complete` is False if any attested tool
-    for `platform` is missing, mismatched, or the store is stale.
-    """
+    """Check the store against the lock without downloading anything."""
     validate_lock(lock)
-    problems: list[str] = []
-    for bundle, entry in (lock.get("tools") or {}).items():
-        platform_entry = _platform_entry(entry, bundle, platform)
+    ctx = OfflineValidationContext(lock, store, platform, repo_root)
+    _verify_tool_store(ctx)
+    _verify_cache_store(ctx)
+    return not ctx.problems, ctx.problems
+
+
+def _verify_tool_store(ctx: OfflineValidationContext) -> None:
+    for bundle, entry in ctx.lock["tools"].items():
+        platform_entry = _platform_entry(entry, bundle, ctx.platform)
         if isinstance(platform_entry, ProvisionOutcome):
-            problems.append(platform_entry.reason)
+            ctx.problems.append(platform_entry.reason)
             continue
-        for relative in _relative_scripts(entry, platform):
-            relative = relative.format(bundle=bundle)
+        for relative in _relative_scripts(entry, ctx.platform):
             outcome = toolchain.resolve(
-                f"store:{bundle}/{relative}",
-                lock=lock,
-                store=store,
-                platform=platform,
-                repo_root=repo_root,
+                f"store:{bundle}/{relative.format(bundle=bundle)}",
+                lock=ctx.lock,
+                store=ctx.store,
+                platform=ctx.platform,
+                repo_root=ctx.repo_root,
             )
             if isinstance(outcome, toolchain.BlockedReason):
-                problems.append(outcome.reason)
-    manifest = toolchain.load_store_manifest(store) or {}
-    for cache_name, cache_entry in (lock.get("caches") or {}).items():
-        cache_platform = (cache_entry.get("platforms") or {}).get(platform, {})
-        expected_digest = cache_platform.get("digest")
-        cache_dir = store / "caches" / cache_name / platform
-        actual_digest = toolchain_npm_cache.index_digest(cache_dir)
-        recorded_cache = (manifest.get("caches") or {}).get(cache_name) or {}
-        recorded_platform = (recorded_cache.get("platforms") or {}).get(platform, {})
-        if (
-            expected_digest is None
-            or actual_digest != expected_digest
-            or recorded_platform.get("digest") != expected_digest
-        ):
-            problems.append(
-                f"toolchain: {cache_name} cache incomplete or digest mismatch"
-            )
-    return not problems, problems
+                ctx.problems.append(outcome.reason)
+
+
+def _verify_cache_store(ctx: OfflineValidationContext) -> None:
+    caches = ctx.lock.get("caches") or {}
+    if not isinstance(caches, Mapping):
+        ctx.problems.append("toolchain: invalid caches")
+        return
+    manifest = toolchain.load_store_manifest(ctx.store)
+    if not isinstance(manifest, Mapping) and caches:
+        ctx.problems.append("toolchain: store manifest missing or invalid")
+    manifest = manifest if isinstance(manifest, Mapping) else {}
+    for cache_name, cache_entry in caches.items():
+        _verify_cache_record(ctx, manifest, cache_name, cache_entry)
+
+
+def _verify_cache_record(
+    ctx: OfflineValidationContext,
+    manifest: Mapping,
+    cache_name: str,
+    cache_entry: object,
+) -> None:
+    if not isinstance(cache_entry, Mapping):
+        ctx.problems.append(f"toolchain: {cache_name} cache invalid")
+        return
+    platforms = cache_entry.get("platforms")
+    cache_platform = (
+        platforms.get(ctx.platform) if isinstance(platforms, Mapping) else None
+    )
+    if not isinstance(cache_platform, Mapping):
+        ctx.problems.append(
+            f"toolchain: {cache_name} cache unattested for {ctx.platform}"
+        )
+        return
+    expected_digest = cache_platform.get("digest")
+    actual_digest = toolchain_npm_cache.index_digest(
+        ctx.store / "caches" / cache_name / ctx.platform
+    )
+    recorded_caches = manifest.get("caches")
+    recorded_cache = (
+        recorded_caches.get(cache_name)
+        if isinstance(recorded_caches, Mapping)
+        else None
+    )
+    recorded_platforms = (
+        recorded_cache.get("platforms") if isinstance(recorded_cache, Mapping) else None
+    )
+    recorded_platform = (
+        recorded_platforms.get(ctx.platform)
+        if isinstance(recorded_platforms, Mapping)
+        else None
+    )
+    if (
+        not _valid_digest(expected_digest)
+        or actual_digest != expected_digest
+        or not isinstance(recorded_platform, Mapping)
+        or recorded_platform.get("digest") != expected_digest
+    ):
+        ctx.problems.append(
+            f"toolchain: {cache_name} cache incomplete or digest mismatch"
+        )
 
 
 def provision(
@@ -380,27 +391,61 @@ def provision(
     fetcher: Fetcher | None = None,
     repo_root: Path | None = None,
     env: Mapping[str, str] | None = None,
+    attest_missing: bool = False,
 ) -> list[ProvisionOutcome]:
-    """Provision every (or `only`-selected) lock tool/cache for `platform`;
-    binaries provision first so `python-env`/`node-env`/`caches.*` can
-    resolve `uv`/`node`, regardless of the lock's own key order."""
+    """Provision reviewed entries, or observe missing pins in acquisition mode."""
+    request = ProvisionRequest(
+        lock, store, platform, only, fetcher, repo_root, env, attest_missing
+    )
+    plan = _plan_provision(request)
+    if isinstance(plan, list):
+        return plan
+    outcomes = _execute_tool_plan(plan)
+    outcomes.extend(_execute_cache_plan(plan))
+    return outcomes
+
+
+def _plan_provision(
+    request: ProvisionRequest,
+) -> ProvisionPlan | list[ProvisionOutcome]:
+    lock = request.lock
+    only = request.only
     validate_lock(lock)
-    ctx = ProvisionContext(
-        store,
+    known = set(lock["tools"]) | set(lock.get("caches") or {})
+    if only is not None:
+        unknown = sorted(only - known)
+        if unknown:
+            return [
+                ProvisionOutcome(name, "blocked", f"toolchain: {name} unknown to lock")
+                for name in unknown
+            ]
+    context = ProvisionContext(
+        request.store,
         lock,
-        platform,
-        fetcher or default_fetcher,
-        repo_root or Path.cwd(),
-        env or {},
+        request.platform,
+        request.fetcher or default_fetcher,
+        (request.repo_root or Path.cwd()).resolve(strict=False),
+        request.env or {},
+        request.attest_missing,
     )
-    items = sorted(
-        (lock.get("tools") or {}).items(),
-        key=lambda item: item[1].get("kind") in _ENV_KINDS,
+    tools = tuple(
+        (bundle, entry)
+        for bundle, entry in sorted(
+            lock["tools"].items(), key=lambda item: item[1].get("kind") in _ENV_KINDS
+        )
+        if only is None or bundle in only
     )
+    caches = tuple(
+        bundle
+        for bundle in (lock.get("caches") or {})
+        if only is None or bundle in only
+    )
+    return ProvisionPlan(context, tools, caches)
+
+
+def _execute_tool_plan(plan: ProvisionPlan) -> list[ProvisionOutcome]:
     outcomes: list[ProvisionOutcome] = []
-    for bundle, entry in items:
-        if only is not None and bundle not in only:
-            continue
+    for bundle, entry in plan.tools:
         if entry.get("kind") not in _IMPLEMENTED_KINDS:
             outcomes.append(
                 ProvisionOutcome(
@@ -411,18 +456,21 @@ def provision(
             )
             continue
         try:
-            if entry.get("kind") in _ENV_KINDS:
-                outcome = _provision_env_entry(ctx, bundle, entry)
-            else:
-                outcome = _provision_binary_entry(ctx, bundle, entry)
+            outcome = (
+                _provision_env_entry(plan.context, bundle, entry)
+                if entry.get("kind") in _ENV_KINDS
+                else _provision_binary_entry(plan.context, bundle, entry)
+            )
         except (OSError, ValueError) as error:
             outcome = ProvisionOutcome(
                 bundle, "blocked", f"toolchain: {bundle} store mutation failed: {error}"
             )
         outcomes.append(outcome)
-    outcomes.extend(  # caches.* (Correction 10 rule 2)
-        ProvisionOutcome(bundle, *toolchain_npm_cache.provision(ctx, bundle))
-        for bundle in (lock.get("caches") or {})
-        if only is None or bundle in only
-    )
     return outcomes
+
+
+def _execute_cache_plan(plan: ProvisionPlan) -> list[ProvisionOutcome]:
+    return [
+        ProvisionOutcome(bundle, *toolchain_npm_cache.provision(plan.context, bundle))
+        for bundle in plan.caches
+    ]

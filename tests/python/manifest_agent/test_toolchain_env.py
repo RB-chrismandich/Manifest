@@ -30,6 +30,10 @@ def _trusted_python_env(
     return env_root, console
 
 
+def _executable(path: str, digest: str) -> toolchain_env.EnvExecutable:
+    return toolchain_env.EnvExecutable("python-env", "python-env", path, digest)
+
+
 def test_verify_env_exe_accepts_only_the_attested_python_launcher_role(
     tmp_path: Path,
 ):
@@ -43,20 +47,10 @@ def test_verify_env_exe_accepts_only_the_attested_python_launcher_role(
     trust = toolchain_env.EnvTrust(store, checkout)
 
     python = toolchain_env.verify_env_exe(
-        "python-env",
-        "python-env",
-        {"path": "tools/python-env/fixture/bin/python"},
-        trust,
-        digest,
-        None,
+        _executable("tools/python-env/fixture/bin/python", digest), trust, None
     )
     ordinary_console = toolchain_env.verify_env_exe(
-        "python-env",
-        "python-env",
-        {"path": "tools/python-env/fixture/bin/demo"},
-        trust,
-        digest,
-        None,
+        _executable("tools/python-env/fixture/bin/demo", digest), trust, None
     )
 
     assert isinstance(python, toolchain_env.ResolvedTool)
@@ -76,11 +70,8 @@ def test_verify_env_exe_rejects_an_external_python_substitution(tmp_path: Path):
     )
 
     result = toolchain_env.verify_env_exe(
-        "python-env",
-        "python-env",
-        {"path": "tools/python-env/fixture/bin/demo"},
+        _executable("tools/python-env/fixture/bin/demo", digest),
         toolchain_env.EnvTrust(store, checkout),
-        digest,
         None,
     )
 
@@ -102,11 +93,8 @@ def test_verify_env_exe_rejects_relocated_python_with_identical_bytes(tmp_path: 
             env_root, "python-env", store=store, checkout_root=checkout
         )
     result = toolchain_env.verify_env_exe(
-        "python-env",
-        "python-env",
-        {"path": "tools/python-env/fixture/bin/python"},
+        _executable("tools/python-env/fixture/bin/python", "0" * 64),
         toolchain_env.EnvTrust(store, checkout),
-        "0" * 64,
         None,
     )
 
@@ -203,7 +191,7 @@ def test_environment_digest_rejects_changed_pyvenv_provider(tmp_path: Path):
 @pytest.mark.parametrize(
     ("pinned_digest", "reason"),
     [
-        (None, "toolchain: env unattested for linux-x64"),
+        (None, "UNPINNED: toolchain: env unattested for linux-x64"),
         ("0" * 64, "toolchain: env digest mismatch"),
     ],
 )
@@ -256,3 +244,51 @@ def test_environment_provision_never_passes_missing_or_stale_digest_pins(
     assert outcome.reason == reason
     assert outcome.digest is not None
     assert len(outcome.digest) == 64
+
+
+def test_environment_attestation_observes_unpinned_digest_without_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = b"environment lock bytes"
+    (tmp_path / "source.lock").write_bytes(source)
+    lock = {
+        "schema_version": 1,
+        "tools": {
+            "env": {
+                "kind": "node-env",
+                "version": "config/toolchain/package.json",
+                "platforms": {
+                    "linux-x64": {
+                        "url": "file://source.lock",
+                        "sha256": hashlib.sha256(source).hexdigest(),
+                        "exe_sha256": None,
+                        "path_in_archive": ".",
+                        "console_scripts": ["bin/demo"],
+                    }
+                },
+            }
+        },
+    }
+
+    def materialize(_ctx, _bundle, _entry, env_root, _names):
+        lock_file = env_root / "node_modules" / ".package-lock.json"
+        lock_file.parent.mkdir(parents=True)
+        lock_file.write_text('{"packages":{"node_modules/demo":{"version":"1"}}}')
+        console = env_root / "node_modules" / ".bin" / "demo"
+        console.parent.mkdir()
+        console.write_text("#!/usr/bin/env node\n")
+        console.chmod(0o755)
+        return {"demo": Path("node_modules/.bin/demo")}
+
+    monkeypatch.setattr(toolchain_provision_env, "_materialize_env", materialize)
+    outcomes = provision.provision(
+        lock,
+        tmp_path / "store",
+        platform="linux-x64",
+        repo_root=tmp_path,
+        attest_missing=True,
+    )
+
+    assert outcomes[0].status == "UNPINNED"
+    assert outcomes[0].digest is not None
+    assert not (tmp_path / "store" / "manifest.json").exists()

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict
 from typing import Any
 
+from . import toolchain
 from .candidate_integrity import identity_error
 from .debt import evaluate_findings
 from .models import Candidate, CheckResult, CheckSpec
@@ -56,12 +58,50 @@ def _findings(stdout: str) -> tuple[dict[str, str], ...]:
     return tuple({"id": item["id"]} for item in findings)
 
 
+def _resolved_execution(
+    check: CheckSpec,
+    candidate: Candidate,
+    env: dict[str, str],
+    registry: dict[str, Any] | None,
+) -> tuple[tuple[str, ...], dict[str, str]]:
+    """Resolve a declared store tool before the check body can execute it."""
+    executable = check.argv[0]
+    lock = registry.get("toolchain_lock_document") if registry else None
+    if registry is None:
+        return check.argv, env
+    if toolchain.parse_store_executable(executable) is None:
+        if not (
+            toolchain.is_legal_plain_executable(executable)
+            or executable == sys.executable
+        ):
+            raise ValueError(f"check executable is not store-attested: {executable}")
+        return toolchain.resolve_interpreter_argv(check.argv), {
+            **env,
+            "PATH": ":".join(toolchain.OS_BASELINE_PATH),
+        }
+    if not isinstance(lock, dict) or not registry.get("toolchain_lock_digest"):
+        raise ValueError("toolchain lock unavailable for declared store executable")
+    resolved, _version_argv, resolved_env, blocked = toolchain.resolve_for_preflight(
+        {"executable": executable, "version_argv": check.argv},
+        env,
+        lock,
+        candidate.root,
+    )
+    if blocked:
+        raise ValueError(blocked)
+    return toolchain.rewrite_argv(check.argv, resolved), resolved_env
+
+
 def execute_check(
-    check: CheckSpec, candidate: Candidate, env: dict[str, str]
+    check: CheckSpec,
+    candidate: Candidate,
+    env: dict[str, str],
+    registry: dict[str, Any] | None = None,
 ) -> CheckResult:
     try:
+        argv, execution_env = _resolved_execution(check, candidate, env, registry)
         completed = run_argv(
-            check.argv, candidate.root / check.cwd, env, check.timeout_seconds
+            argv, candidate.root / check.cwd, execution_env, check.timeout_seconds
         )
         if completed.timed_out:
             return CheckResult(
@@ -135,7 +175,7 @@ def run_profile(
         return _blocked_report(profile, group, policy_errors)
     results = []
     for check in checks:
-        results.append(execute_check(check, candidate, env))
+        results.append(execute_check(check, candidate, env, registry))
         mutation = identity_error(candidate)
         if mutation:
             policy_errors.append(mutation)

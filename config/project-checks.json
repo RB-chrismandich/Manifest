@@ -21,5 +21,6 @@
     "release": ["structure.compile-manifest-agent"]
   },
   "debt_baseline": "config/debt-baseline.json",
-  "preservation": "config/check-preservation.json"
+  "preservation": "config/check-preservation.json",
+  "toolchain_lock": "config/toolchain.lock.json"
 }

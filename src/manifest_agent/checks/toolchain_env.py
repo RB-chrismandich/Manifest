@@ -47,6 +47,17 @@ class BlockedReason:
 
 
 @dataclass(frozen=True)
+class EnvExecutable:
+    """The environment executable and its lock-attested tree digest."""
+
+    bundle: str
+    kind: str
+    relative_path: str
+    digest: str
+    python_provider: dict[str, str] | None = None
+
+
+@dataclass(frozen=True)
 class LauncherTarget:
     """Where a console script runs from, and whether that path already went
     through real filesystem symlink resolution (`os.path.realpath`) or is
@@ -186,15 +197,13 @@ def _not_provisioned(bundle: str) -> BlockedReason:
 
 
 def _checked_relative_path(
-    store: Path, relative_path: str, *, allow_external_python: bool = False
+    store: Path,
+    relative_path: str,
+    *,
+    allow_external_python: bool = False,
+    python_provider: dict[str, str] | None = None,
 ) -> Path | None:
-    """Return a regular store-contained file, resolving links before trust.
-
-    The sole exception is the Python environment's own `bin/python*`
-    launcher. A venv deliberately links it to the interpreter executing this
-    process; its resolved provider identity is attested here at the first
-    path boundary. All other link escapes are rejected.
-    """
+    """Return a store-contained file, allowing only the pinned Python launcher."""
     if not relative_path or Path(relative_path).is_absolute():
         return None
     if ".." in Path(relative_path).parts:
@@ -206,8 +215,6 @@ def _checked_relative_path(
     except OSError:
         return None
     if candidate.is_relative_to(root) and candidate.is_file():
-        # Keep the verified logical launcher path: venv `bin/python` and npm's
-        # `.bin/*` scripts calculate their environment from this layout.
         return logical_path
     relative_parts = Path(relative_path).parts
     if (
@@ -216,7 +223,7 @@ def _checked_relative_path(
         and _is_python_launcher_role("/".join(relative_parts[-2:]))
     ):
         try:
-            _external_python_identity(candidate)
+            _external_python_identity(candidate, python_provider)
         except (OSError, ValueError):
             return None
         return logical_path
@@ -230,33 +237,27 @@ def with_default_path(bin_dirs: tuple[Path, ...]) -> tuple[Path, ...]:
     return path_entries + tuple(Path(part) for part in OS_BASELINE_PATH)
 
 
-def _env_digest(
-    bundle: str, exe_path: Path, kind: str, exe_sha256: str, env_trust: EnvTrust
-):
-    """Steps (b): the distribution-set digest, computed and compared. Returns
-    the digest on success, or a `BlockedReason`: untrusted `.pth` content
-    (Correction 9) is distinct from never-provisioned -- there IS something
-    there, it just cannot be trusted -- so it is checked first."""
-    # python-env console scripts sit at `<env_root>/bin/NAME` (2 segments);
-    # node-env's are npm's own `<env_root>/node_modules/.bin/NAME` (3).
+def _env_digest(executable: EnvExecutable, exe_path: Path, env_trust: EnvTrust):
+    """Compute the selected executable's environment digest."""
     env_root = (
         exe_path.parent.parent
-        if kind == "python-env"
+        if executable.kind == "python-env"
         else exe_path.parent.parent.parent
     )
     try:
         digest = distribution_set_digest(
             env_root,
-            kind,
+            executable.kind,
             store=env_trust.store,
             checkout_root=env_trust.repo_root,
+            python_provider=executable.python_provider,
         )
     except UntrustedPthError:
-        return BlockedReason(f"toolchain: {bundle} untrusted .pth")
+        return BlockedReason(f"toolchain: {executable.bundle} untrusted .pth")
     except (OSError, ValueError):
-        return _not_provisioned(bundle)
-    if digest != exe_sha256:
-        return BlockedReason(f"toolchain: {bundle} digest mismatch")
+        return _not_provisioned(executable.bundle)
+    if digest != executable.digest:
+        return BlockedReason(f"toolchain: {executable.bundle} digest mismatch")
     return digest
 
 
@@ -274,62 +275,47 @@ def _is_environment_python_launcher(exe_path: Path) -> bool:
 
 
 def verify_env_exe(
-    bundle: str,
-    kind: str,
-    exe_info: Mapping,
+    executable: EnvExecutable,
     env_trust: EnvTrust,
-    exe_sha256: str,
     node_result: ResolvedTool | BlockedReason | None,
 ):
-    """`python-env`/`node-env` trust anchor (Correction 3, rule 3): `exe_sha256`
-    is the digest of the *installed distribution set*, not of this one
-    console script's bytes -- its bytes embed an absolute, store-location-
-    dependent interpreter path and can never match a committed lock. Verifies
-    (b) the distribution-set digest, (c) the requested console script exists,
-    and (d) its launcher resolves to somewhere inside `env_trust.store` -- a
-    launcher pointing anywhere else is `digest mismatch`, same as a swapped
-    binary.
-
-    Every `node-env` console script gets the store's `store:node/bin/node`
-    as its `interpreter`, unconditionally -- most of npm's own generated
-    `node_modules/.bin/*` launchers ultimately exec via `#!/usr/bin/env
-    node`, which is the OS's shebang mechanism, not something this function
-    inspects at rest: without `node`'s bin dir first on the child `PATH`,
-    that exec fails with "no such file" regardless of how the launcher
-    itself verified. `node_result` is the caller's ALREADY-resolved
-    `store:node/bin/node` -- resolving it here would need
-    `toolchain.resolve()` itself, which would import this module back and
-    create a cycle.
-    """
+    """Resolve one typed environment executable after tree attestation."""
     store = env_trust.store
     exe_path = _checked_relative_path(
         store,
-        exe_info.get("path", ""),
-        allow_external_python=kind == "python-env",
+        executable.relative_path,
+        allow_external_python=executable.kind == "python-env",
+        python_provider=executable.python_provider,
     )
     if exe_path is None:
-        return _not_provisioned(bundle)
-    digest = _env_digest(bundle, exe_path, kind, exe_sha256, env_trust)
+        return _not_provisioned(executable.bundle)
+    digest = _env_digest(executable, exe_path, env_trust)
     if isinstance(digest, BlockedReason):
         return digest
     # The environment's own `bin/python*` launcher is the only allowed
     # external interpreter symlink. `_checked_relative_path()` has already
     # verified it resolves to this process's trusted provider and bound its
     # byte+mode identity before this digest check.
-    if kind == "python-env" and _is_environment_python_launcher(exe_path):
+    if executable.kind == "python-env" and _is_environment_python_launcher(exe_path):
         return ResolvedTool(
-            bundle, exe_path, None, with_default_path((exe_path.parent,)), digest
+            executable.bundle,
+            exe_path,
+            None,
+            with_default_path((exe_path.parent,)),
+            digest,
         )
-    if kind == "node-env" and (
+    if executable.kind == "node-env" and (
         isinstance(node_result, BlockedReason) or node_result is None
     ):
         return node_result or _not_provisioned("node")
     target = launcher_target(exe_path)
-    if not _launcher_ok(kind, target, store):
-        return BlockedReason(f"toolchain: {bundle} digest mismatch")
-    if kind == "node-env":
+    if not _launcher_ok(executable.kind, target, store):
+        return BlockedReason(f"toolchain: {executable.bundle} digest mismatch")
+    if executable.kind == "node-env":
         entries = with_default_path((exe_path.parent, node_result.executable.parent))
-        return ResolvedTool(bundle, exe_path, node_result.executable, entries, digest)
+        return ResolvedTool(
+            executable.bundle, exe_path, node_result.executable, entries, digest
+        )
     return ResolvedTool(
-        bundle, exe_path, None, with_default_path((exe_path.parent,)), digest
+        executable.bundle, exe_path, None, with_default_path((exe_path.parent,)), digest
     )

@@ -18,13 +18,17 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from . import toolchain
+from .toolchain_cache import OS_BASELINE_PATH
+from .toolchain_env_digest import trusted_python_provider
 
 _SYNC_TIMEOUT_SECONDS = 600.0
 
@@ -42,13 +46,14 @@ class MaterializeContext:
     platform: str
     repo_root: Path
     env: Mapping[str, str]
+    python_provider: Mapping[str, str] | None = None
+    attest_missing: bool = False
 
 
-def _engine_env(base_env: Mapping[str, str], *bin_dirs: Path) -> dict[str, str]:
-    path = os.pathsep.join(
-        [*(str(d) for d in bin_dirs), *(base_env.get("PATH", "").split(os.pathsep))]
-    )
-    return {**base_env, "PATH": path}
+def _engine_env(_base_env: Mapping[str, str], *bin_dirs: Path) -> dict[str, str]:
+    """Use only verified tool directories and the fixed OS command baseline."""
+    path = os.pathsep.join([*(str(d) for d in bin_dirs), *OS_BASELINE_PATH])
+    return {"PATH": path}
 
 
 def _run(argv: list[str], *, cwd: Path, env: Mapping[str, str]) -> None:
@@ -75,6 +80,25 @@ def _run(argv: list[str], *, cwd: Path, env: Mapping[str, str]) -> None:
 
 
 def _resolved_uv(ctx: MaterializeContext) -> Path:
+    if ctx.attest_missing:
+        path = Path(ctx.env.get("MANIFEST_VERIFIED_UV_BIN", ""))
+        token = ctx.env.get("MANIFEST_VERIFIED_UV_TOKEN", "")
+        expected = (
+            ctx.lock.get("tools", {})
+            .get("uv", {})
+            .get("platforms", {})
+            .get(ctx.platform, {})
+            .get("exe_sha256")
+        )
+        if (
+            not path.is_file()
+            or not os.access(path, os.X_OK)
+            or not isinstance(expected, str)
+            or token != f"sha256:{expected}"
+            or toolchain.sha256_file(path) != expected
+        ):
+            raise MaterializationError("verified uv acquisition token is invalid")
+        return path.resolve(strict=True)
     resolved_uv = toolchain.resolve(
         "store:uv/bin/uv",
         lock=ctx.lock,
@@ -85,6 +109,45 @@ def _resolved_uv(ctx: MaterializeContext) -> Path:
     if isinstance(resolved_uv, toolchain.BlockedReason):
         raise MaterializationError(resolved_uv.reason)
     return resolved_uv.executable
+
+
+def _trusted_python(ctx: MaterializeContext) -> Path:
+    """Authenticate the active provider before invoking uv."""
+    provider = trusted_python_provider()
+    if not ctx.attest_missing and not provider.matches(ctx.python_provider):
+        state = "is absent" if ctx.python_provider is None else "does not match"
+        raise MaterializationError(
+            f"Python provider pin {state}: {provider.lock_record()}"
+        )
+    return Path(sys.executable).resolve(strict=True)
+
+
+def _python_sync_env(
+    ctx: MaterializeContext, env_root: Path, uv_executable: Path, provider: Path
+) -> dict[str, str]:
+    env_root.mkdir(parents=True, exist_ok=True)
+    run_env = _engine_env(ctx.env, uv_executable.parent)
+    run_env.update(
+        {
+            "UV_PROJECT_ENVIRONMENT": str(env_root),
+            "UV_NO_MANAGED_PYTHON": "1",
+            "UV_PYTHON_DOWNLOADS": "never",
+            "UV_PYTHON": str(provider),
+            "UV_LINK_MODE": "copy",
+        }
+    )
+    return run_env
+
+
+def _remove_virtualenv_bootstrap_pth(env_root: Path) -> None:
+    for path in env_root.rglob("_virtualenv.pth"):
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or path.read_bytes() not in {b"import _virtualenv", b"import _virtualenv\n"}
+        ):
+            raise MaterializationError("unexpected virtualenv bootstrap .pth")
+        path.unlink()
 
 
 def materialize_python_env(
@@ -108,15 +171,25 @@ def materialize_python_env(
     `PATH`-found `uv`.
     """
     uv_executable = _resolved_uv(ctx)
-    env_root.mkdir(parents=True, exist_ok=True)
+    provider = _trusted_python(ctx)
     project = ctx.repo_root / project_relative
-    run_env = _engine_env(ctx.env, uv_executable.parent)
-    run_env["UV_PROJECT_ENVIRONMENT"] = str(env_root)
+    run_env = _python_sync_env(ctx, env_root, uv_executable, provider)
     _run(
-        [str(uv_executable), "sync", "--locked", "--no-dev", "--project", str(project)],
+        [
+            str(uv_executable),
+            "sync",
+            "--locked",
+            "--no-dev",
+            "--no-editable",
+            "--python",
+            str(provider),
+            "--project",
+            str(project),
+        ],
         cwd=project,
         env=run_env,
     )
+    _remove_virtualenv_bootstrap_pth(env_root)
 
 
 def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
@@ -145,9 +218,8 @@ def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
     provision time.
     """
     uv_executable = _resolved_uv(ctx)
-    env_root.mkdir(parents=True, exist_ok=True)
-    run_env = _engine_env(ctx.env, uv_executable.parent)
-    run_env["UV_PROJECT_ENVIRONMENT"] = str(env_root)
+    provider = _trusted_python(ctx)
+    run_env = _python_sync_env(ctx, env_root, uv_executable, provider)
     _run(
         [
             str(uv_executable),
@@ -155,12 +227,16 @@ def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
             "--frozen",
             "--all-groups",
             "--no-install-project",
+            "--no-editable",
+            "--python",
+            str(provider),
             "--project",
             str(ctx.repo_root),
         ],
         cwd=ctx.repo_root,
         env=run_env,
     )
+    _remove_virtualenv_bootstrap_pth(env_root)
 
 
 def relocate_python_launchers(env_root: Path, final_root: Path) -> None:
@@ -255,7 +331,33 @@ def extract_subtree(data: bytes, prefix: str, destination: Path) -> None:
         os.close(root_fd)
 
 
-def materialize_node_env(ctx: MaterializeContext, env_root: Path, fetcher) -> None:
+def _copy_attested_node_project(ctx: MaterializeContext, env_root: Path) -> None:
+    project = ctx.repo_root / "config" / "toolchain"
+    env_entry = (ctx.lock.get("tools") or {}).get("node-env") or {}
+    env_platform = (env_entry.get("platforms") or {}).get(ctx.platform) or {}
+    expected = {
+        "package.json": env_platform.get("package_json_sha256"),
+        "package-lock.json": env_platform.get("sha256"),
+    }
+    for name, expected_digest in expected.items():
+        if not isinstance(expected_digest, str):
+            raise MaterializationError(
+                f"toolchain: node-env unattested {name} for {ctx.platform}"
+            )
+        try:
+            data = (project / name).read_bytes()
+        except OSError as error:
+            raise MaterializationError(
+                f"node-env project file unavailable: {name}: {error}"
+            ) from error
+        if hashlib.sha256(data).hexdigest() != expected_digest:
+            raise MaterializationError(f"toolchain: node-env {name} digest mismatch")
+        (env_root / name).write_bytes(data)
+
+
+def materialize_node_env(
+    ctx: MaterializeContext, env_root: Path, fetcher: Callable[[str], bytes]
+) -> None:
     """`npm ci` a node-env bundle into `env_root`, driven entirely by
     store-attested tools: `node` from the store, and `npm-cli.js` extracted
     from the SAME hash-verified node archive `node`'s own bundle already
@@ -287,18 +389,10 @@ def materialize_node_env(ctx: MaterializeContext, env_root: Path, fetcher) -> No
             raise MaterializationError(
                 "toolchain: verified node archive lacks npm-cli.js"
             )
-        project = ctx.repo_root / "config" / "toolchain"
-        for name in ("package.json", "package-lock.json"):
-            try:
-                data = (project / name).read_bytes()
-            except OSError as error:
-                raise MaterializationError(
-                    f"node-env project file unavailable: {name}: {error}"
-                ) from error
-            (env_root / name).write_bytes(data)
+        _copy_attested_node_project(ctx, env_root)
         run_env = _engine_env(ctx.env, resolved_node.executable.parent)
         _run(
-            [str(resolved_node.executable), str(npm_cli), "ci"],
+            [str(resolved_node.executable), str(npm_cli), "ci", "--ignore-scripts"],
             cwd=env_root,
             env=run_env,
         )
@@ -328,5 +422,9 @@ def python_env_console_scripts(env_root: Path, names: list[str]) -> dict[str, st
     return scripts
 
 
-def load_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_json(path: Path) -> dict[str, Any]:
+    """Load one UTF-8 JSON document whose top-level value is an object."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise MaterializationError(f"JSON object required: {path}")
+    return document

@@ -21,24 +21,39 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
+
+ResolveFn: TypeAlias = Callable[..., Any]
+ParseFn: TypeAlias = Callable[[str], tuple[str, str] | None]
+RewriteArgvFn: TypeAlias = Callable[..., tuple[str, ...]]
+ResolvedToolMap: TypeAlias = Mapping[str, Any]
 
 
 @dataclass(frozen=True)
 class Context:
-    """The caller's (`toolchain.py`) own functions/classes this module needs
-    -- bundled as one object so no function here both avoids a circular
-    import AND exceeds the Code Constitution's 5-parameter ceiling."""
+    """The caller's (`toolchain.py`) resolution collaborators."""
 
-    resolve_fn: Callable[..., Any]
-    parse_fn: Callable[[str], tuple[str, str] | None]
-    rewrite_argv_fn: Callable[..., Any]
-    with_default_path_fn: Callable[..., Any]
+    resolve_fn: ResolveFn
+    parse_fn: ParseFn
+    rewrite_argv_fn: RewriteArgvFn
+    with_default_path_fn: Callable[..., tuple[Path, ...]]
     resolved_tool_cls: type
     blocked_reason_cls: type
 
 
-def bundle_primary_relative(lock: Mapping, bundle: str, relative: str) -> str | None:
+@dataclass(frozen=True)
+class ResolutionInputs:
+    """Explicit trust and store context for nested store resolution."""
+
+    lock: Mapping[str, Any]
+    store: Path
+    platform: str
+    repo_root: Path
+
+
+def bundle_primary_relative(
+    lock: Mapping[str, Any], bundle: str, relative: str
+) -> str | None:
     """The specific executable a `path_prepend` bin-dir reference (e.g.
     `"store:project-env/bin"`) must fully resolve and hash-verify to prove
     the bundle itself is attested and provisioned -- `path_prepend` names a
@@ -55,7 +70,9 @@ def bundle_primary_relative(lock: Mapping, bundle: str, relative: str) -> str | 
     return f"bin/{bundle}"
 
 
-def resolve_dirs(entries, ctx: Context, lock: Mapping, store: Path, platform: str):
+def resolve_dirs(
+    entries: tuple[str, ...], ctx: Context, inputs: ResolutionInputs
+) -> tuple[Path, ...] | Any:
     """Every `path_prepend` bundle, hash-verified via `ctx.resolve_fn` (the
     caller's `toolchain.resolve`), reduced to just its bin directory -- in
     declaration order, de-duplicated. A bundle that fails to resolve BLOCKs
@@ -67,13 +84,17 @@ def resolve_dirs(entries, ctx: Context, lock: Mapping, store: Path, platform: st
         if parsed is None:
             return _blocked(f"toolchain: invalid path_prepend entry {entry!r}")
         bundle, relative = parsed
-        primary = bundle_primary_relative(lock, bundle, relative)
+        primary = bundle_primary_relative(inputs.lock, bundle, relative)
         if primary is None:
             return _blocked(
                 f"toolchain: path_prepend for {bundle} needs a specific executable"
             )
         outcome = ctx.resolve_fn(
-            f"store:{bundle}/{primary}", lock=lock, store=store, platform=platform
+            f"store:{bundle}/{primary}",
+            lock=inputs.lock,
+            store=inputs.store,
+            platform=inputs.platform,
+            repo_root=inputs.repo_root,
         )
         if isinstance(outcome, ctx.blocked_reason_cls):
             return outcome
@@ -87,7 +108,7 @@ def _blocked(reason: str):
     return BlockedReason(reason)
 
 
-def store_refs(tool: Mapping, parse_fn) -> tuple[str, ...]:
+def store_refs(tool: Mapping[str, Any], parse_fn: ParseFn) -> tuple[str, ...]:
     """Every distinct literal `store:` token in a tool's `executable` or
     `version_argv`, in first-seen order.
 
@@ -109,7 +130,9 @@ def store_refs(tool: Mapping, parse_fn) -> tuple[str, ...]:
     return tuple(seen)
 
 
-def merged_resolution(primary_ref: str, resolved_by_ref, resolved_tool_cls):
+def merged_resolution(
+    primary_ref: str, resolved_by_ref: ResolvedToolMap, resolved_tool_cls: type
+) -> Any:
     """One `ResolvedTool` standing in for every ref a preflight touched.
 
     Its `executable`/`interpreter`/`tool_sha256` describe `primary_ref`
@@ -137,7 +160,9 @@ def merged_resolution(primary_ref: str, resolved_by_ref, resolved_tool_cls):
     )
 
 
-def with_prepend(merged, prepend_dirs: tuple[Path, ...], resolved_tool_cls):
+def with_prepend(
+    merged: Any, prepend_dirs: tuple[Path, ...], resolved_tool_cls: type
+) -> Any:
     """`merged` with `prepend_dirs` spliced FIRST on `path_entries`, ahead of
     the executable's own bin dir and the OS baseline PATH (Correction 17) --
     de-duplicated."""
@@ -153,18 +178,19 @@ def with_prepend(merged, prepend_dirs: tuple[Path, ...], resolved_tool_cls):
     )
 
 
-def resolve_engine_refs(tool: Mapping, lock: Mapping, store: Path, platform: str, ctx):
-    """`tool["executable"]`/`version_argv`'s own store refs, merged into one
-    `ResolvedTool` plus the rewritten `version_argv` -- or the tool's bare
-    plain-name executable, unresolved, when it names no store ref at all (a
-    `path_prepend`-only tool, e.g. a repo-relative script). `ctx` bundles the
-    caller's `toolchain` functions/classes this needs (`resolve_fn`,
-    `parse_fn`, `rewrite_argv_fn`, `with_default_path_fn`, `resolved_tool_cls`,
-    `blocked_reason_cls`) -- injected as one object to avoid both a circular
-    import and a too-many-parameters finding."""
+def resolve_engine_refs(
+    tool: Mapping[str, Any], ctx: Context, inputs: ResolutionInputs
+) -> Any:
+    """Resolve a tool's store references or propagate the first blocked result."""
     resolved_by_ref: dict[str, object] = {}
     for ref in store_refs(tool, ctx.parse_fn):
-        outcome = ctx.resolve_fn(ref, lock=lock, store=store, platform=platform)
+        outcome = ctx.resolve_fn(
+            ref,
+            lock=inputs.lock,
+            store=inputs.store,
+            platform=inputs.platform,
+            repo_root=inputs.repo_root,
+        )
         if isinstance(outcome, ctx.blocked_reason_cls):
             return outcome
         resolved_by_ref[ref] = outcome

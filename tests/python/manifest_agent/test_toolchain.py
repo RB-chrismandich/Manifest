@@ -126,7 +126,9 @@ class TestLockDigestForRegistry:
         registry_path = tmp_path / "config" / "project-checks.json"
         registry_path.parent.mkdir(parents=True)
         registry_path.write_text("{}")
-        fields = toolchain.lock_digest_for_registry({}, registry_path)
+        fields = toolchain.lock_digest_for_registry(
+            {}, registry_path, repo_root=tmp_path
+        )
         assert fields == {
             "toolchain_lock": "",
             "toolchain_lock_digest": "",
@@ -141,7 +143,9 @@ class TestLockDigestForRegistry:
         lock_bytes = b'{"schema_version": 1, "tools": {"demo": {}}}'
         lock_path.write_bytes(lock_bytes)
         fields = toolchain.lock_digest_for_registry(
-            {"toolchain_lock": "config/toolchain.lock.json"}, registry_path
+            {"toolchain_lock": "config/toolchain.lock.json"},
+            registry_path,
+            repo_root=tmp_path,
         )
         assert fields["toolchain_lock"] == "config/toolchain.lock.json"
         assert fields["toolchain_lock_digest"] == hashlib.sha256(lock_bytes).hexdigest()
@@ -150,12 +154,29 @@ class TestLockDigestForRegistry:
             "tools": {"demo": {}},
         }
 
-    def test_digest_empty_when_lock_file_missing(self, tmp_path: Path):
+    def test_missing_declared_lock_blocks(self, tmp_path: Path):
         (tmp_path / "config").mkdir()
         registry_path = tmp_path / "config" / "project-checks.json"
         registry_path.write_text("{}")
-        fields = toolchain.lock_digest_for_registry(
-            {"toolchain_lock": "config/does-not-exist.json"}, registry_path
-        )
-        assert fields["toolchain_lock_digest"] == ""
-        assert fields["toolchain_lock_document"] == {}
+
+        with pytest.raises(ValueError, match="trust anchor"):
+            toolchain.lock_digest_for_registry(
+                {"toolchain_lock": "config/does-not-exist.json"},
+                registry_path,
+                repo_root=tmp_path,
+            )
+
+    def test_registry_lock_symlink_cannot_escape_checkout(self, tmp_path: Path):
+        registry_path = tmp_path / "config" / "project-checks.json"
+        registry_path.parent.mkdir(parents=True)
+        registry_path.write_text("{}")
+        outside = tmp_path / "outside-lock.json"
+        outside.write_text('{"schema_version":1,"tools":{}}')
+        (tmp_path / "config" / "toolchain.lock.json").symlink_to(outside)
+
+        with pytest.raises(ValueError, match="trust anchor"):
+            toolchain.lock_digest_for_registry(
+                {"toolchain_lock": "config/toolchain.lock.json"},
+                registry_path,
+                repo_root=tmp_path,
+            )

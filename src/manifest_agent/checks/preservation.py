@@ -12,10 +12,11 @@ from .status import executed_status
 _SUPPORTED = frozenset({"shared-checks.exit-status"})
 
 
-def load_invariants(path: Path) -> tuple[str, ...]:
+def load_invariants_bytes(payload: bytes) -> tuple[str, ...]:
+    """Validate a preservation policy read through a verified handle."""
     try:
-        document: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+        document: Any = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"preservation is unavailable or invalid: {error}") from error
     invariants = document.get("invariants") if isinstance(document, dict) else None
     if (
@@ -35,6 +36,13 @@ def load_invariants(path: Path) -> tuple[str, ...]:
     ):
         raise ValueError("preservation has malformed invariants")
     return tuple(ids)
+
+
+def load_invariants(path: Path) -> tuple[str, ...]:
+    try:
+        return load_invariants_bytes(path.read_bytes())
+    except OSError as error:
+        raise ValueError(f"preservation is unavailable or invalid: {error}") from error
 
 
 def evaluate_invariants(

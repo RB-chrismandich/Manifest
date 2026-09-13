@@ -63,6 +63,7 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "42d573143665e273fe24fbfc65ac6495ec9a6139619d0bc211005484e0bbbc6d",
           "exe_sha256": null,
+          "python_provider": null,
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",
@@ -90,6 +91,7 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "42d573143665e273fe24fbfc65ac6495ec9a6139619d0bc211005484e0bbbc6d",
           "exe_sha256": null,
+          "python_provider": null,
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",
@@ -125,11 +127,23 @@
           "exe_sha256": "d381f11517c66523211b0876552ff7dea5c1b4b0f13800571b35225761302fba",
           "path_in_archive": "uv-x86_64-unknown-linux-gnu/uv"
         },
+        "linux-arm64": {
+          "url": "https://github.com/astral-sh/uv/releases/download/0.12.6/uv-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "d58030acd26159499ac82f32da12d1b3c12a3a1bfc414232d9082070c03e128d",
+          "exe_sha256": "bbefb544cf8398f079cee46dc051a60b132139a3cc0b0cf19fab2984d98ece1f",
+          "path_in_archive": "uv-aarch64-unknown-linux-gnu/uv"
+        },
         "darwin-arm64": {
           "url": "https://github.com/astral-sh/uv/releases/download/0.12.6/uv-aarch64-apple-darwin.tar.gz",
           "sha256": "14b459d51ea2e71eeba28c45a268c922bdf8607fc6455e3f40b4e082895d160d",
           "exe_sha256": "e8929237934c8679686428f5a7736c7ae7a5fe7a33b0504d1b03446cdbc43c94",
           "path_in_archive": "uv-aarch64-apple-darwin/uv"
+        },
+        "darwin-x64": {
+          "url": "https://github.com/astral-sh/uv/releases/download/0.12.6/uv-x86_64-apple-darwin.tar.gz",
+          "sha256": "2a26ea71bbeff1c7e12c2cc40245c96a041deff276bc921e7038e304d5d3e04c",
+          "exe_sha256": "08b4ee2e5f04250ffe2231ffc07ed6961568c81c2e7f275b71b379a5bd06fb1e",
+          "path_in_archive": "uv-x86_64-apple-darwin/uv"
         }
       }
     },
@@ -172,6 +186,7 @@
         "linux-x64": {
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "36aa4e1f7e2768d9c8fc12e2130325ac1f23e3995437f4c5364fd8d7668a5758",
+          "package_json_sha256": "27822a98d26861485d5798099cd7564fa1b36c801d084607a4dff8c1b8730496",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -184,6 +199,7 @@
         "darwin-arm64": {
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "36aa4e1f7e2768d9c8fc12e2130325ac1f23e3995437f4c5364fd8d7668a5758",
+          "package_json_sha256": "27822a98d26861485d5798099cd7564fa1b36c801d084607a4dff8c1b8730496",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -201,7 +217,7 @@
       "platforms": {
         "linux-x64": {
           "url": "file://uv.lock",
-          "sha256": "32c5ad8f97f3d295091044f23e84209d0ddf9ac2bfbbd618786185c301a6b717",
+          "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -210,7 +226,7 @@
         },
         "darwin-arm64": {
           "url": "file://uv.lock",
-          "sha256": "32c5ad8f97f3d295091044f23e84209d0ddf9ac2bfbbd618786185c301a6b717",
+          "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -225,7 +241,7 @@
       "platforms": {
         "linux-x64": {
           "url": "file://configs/claude/uv.lock",
-          "sha256": "11b3b09e1670ab758e18fec8619d6413374b6a2b8e207d646a8a9a7e9d3c4056",
+          "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -234,7 +250,7 @@
         },
         "darwin-arm64": {
           "url": "file://configs/claude/uv.lock",
-          "sha256": "11b3b09e1670ab758e18fec8619d6413374b6a2b8e207d646a8a9a7e9d3c4056",
+          "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -246,7 +262,7 @@
   },
   "caches": {
     "node-cache": {
-      "source_sha256": "ede85f4e101605b98a85fd5f32dc6e35556ff68988987d5b1a26b2e1f4db272a",
+      "source_sha256": "594308ed7cae2fda5de738bd5017ab1ba02b815a6ab82f759a074859b31fde1d",
       "platforms": {
         "darwin-arm64": {
           "digest": null
