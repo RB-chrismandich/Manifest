@@ -38,10 +38,12 @@ for each). An empty `survived` means every candidate was refuted.
 
 ## Sub-agent dispatch
 
-Follow the [finding triage dispatch rules](references/security-triage-findings-dispatch.md).
-For three or more candidate findings, triage one finding per review unit and
-aggregate structured verdicts. Below that threshold, triage inline; if
-structured output is unavailable, report `DEGRADED`.
+Follow the shared selection rules documented at
+https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md
+and the [finding triage dispatch rules](references/security-triage-findings-dispatch.md).
+Use the pinned `opus` model. For three or more candidate findings, triage one
+finding per review unit and aggregate structured verdicts. Below that threshold,
+triage inline; if structured output is unavailable, report `DEGRADED`.
 
 When dispatching, invoke `manifest-workspace:parallel-agent` with one candidate
 per review unit and aggregate its structured verdicts.

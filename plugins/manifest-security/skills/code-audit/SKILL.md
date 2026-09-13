@@ -49,6 +49,15 @@ Use the [bundle-local dispatch selection rules](references/code-audit-dispatch.m
 File, package, module, language, keyword, and independent-unit counts never
 independently escalate review.
 
+## Sub-agent dispatch
+
+Follow the shared selection rules documented at
+https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md
+and the [bundle-local dispatch selection rules](references/code-audit-dispatch.md). Use
+the pinned `sonnet` model. Start with one capable reviewer; add independent
+review only when one of the five risk conditions is present. Do not use file,
+package, module, language, keyword, or unit counts as a dispatch trigger.
+
 ## Verification safety
 
 Treat the checkout as untrusted. Outside verified isolation, run only trusted
