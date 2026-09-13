@@ -194,7 +194,7 @@
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "84a73ece3ded3ea42c13632285da890a3ba9e13124b78e05dd3069f55aa5e112",
           "package_json_sha256": "d0e607197f3ff6e6e21a86bef08272024b7a559cb44fd3391b6f19a0d6721173",
-          "exe_sha256": null,
+          "exe_sha256": "e522c3fa23b0d8c2f29ca304231764de0b595a7cb668807b1353425369aa976d",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
