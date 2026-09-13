@@ -366,47 +366,54 @@ def _review_config(repo_root: Path) -> dict:
     )
 
 
-def _router_outcomes(code_quality_bundle: Path) -> dict[str, dict]:
-    """Read the installed /refactor consumer's declared routing outcomes."""
+def _router_sections(code_quality_bundle: Path) -> tuple[str, str, str]:
+    """Extract the installed /refactor routing and dispatch guidance."""
     source = (code_quality_bundle / "skills/refactor/SKILL.md").read_text(
         encoding="utf-8"
     )
-    match = re.search(
-        r"(?s)^## Routing outcomes\s*\n\n```yaml\n(.*?)^```",
-        source,
-        flags=re.MULTILINE,
+    routing = re.search(
+        r"(?ms)^## Review routing\s*$\n(.*?)(?=^## |\Z)", source
     )
-    assert match is not None, "/refactor must publish routing outcomes"
-    return yaml.safe_load(match.group(1))["routing_outcomes"]
+    dispatch = re.search(
+        r"(?ms)^## Sub-agent dispatch\s*$\n(.*?)(?=^## |\Z)", source
+    )
+    assert routing is not None and dispatch is not None
+    return source, routing.group(1), dispatch.group(1)
 
 
-@pytest.mark.parametrize(
-    ("scenario", "expected"),
-    [
-        (
-            "three_language_no_risk",
-            {
-                "review_mode": "single-agent",
-                "independent_review": False,
-                "partition_review": False,
-            },
-        ),
-        (
-            "coupled_trust_boundary",
-            {
-                "review_mode": "escalated",
-                "independent_review": True,
-                "partition_review": False,
-            },
-        ),
-    ],
-)
-def test_refactor_router_publishes_observable_routing_outcomes(
-    code_quality_bundle: Path, scenario: str, expected: dict[str, object]
+def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
+    code_quality_bundle: Path, repo_root: Path
 ) -> None:
-    outcome = _router_outcomes(code_quality_bundle)[scenario]
+    source, routing, dispatch = _router_sections(code_quality_bundle)
+    policy = _review_config(repo_root)["tool_policies"]["refactor"]
+    expected_trigger = " OR ".join(
+        _review_config(repo_root)["review_escalation"]["conditions"]
+    )
+    count_fanout = r"(?:>=|≥|\bthree or more\b).*(?:language|domain|unit)"
 
-    assert {key: outcome[key] for key in expected} == expected
+    assert "## Routing outcomes" not in source
+    assert policy["parallel_agents"] == "conditional"
+    assert policy["trigger_condition"] == expected_trigger
+    assert policy["subagent_trigger"] == expected_trigger
+    link = re.search(r"\[review escalation contract\]\(([^)]+)\)", routing)
+    assert link is not None
+    assert (
+        code_quality_bundle / "skills/refactor" / link.group(1)
+    ).resolve().is_file()
+    assert "one capable reviewer by default" in routing
+    assert "Python, Go, and\nShell remains single-agent" in routing
+    assert "When any one of the five conditions warrants escalation" in dispatch
+    assert "obtain an independent\nreview" in dispatch
+    assert "only when the investigation has\ngenuinely independent analysis tracks" in dispatch
+    assert not re.search(count_fanout, routing + dispatch, flags=re.IGNORECASE)
+
+    restored_language_count_fanout = (
+        f"{dispatch}\nDispatch only when three or more language domains are present."
+    )
+    with pytest.raises(AssertionError):
+        assert not re.search(
+            count_fanout, restored_language_count_fanout, flags=re.IGNORECASE
+        )
 def test_refactor_policies_share_risk_gate_and_check_only_verification(
     repo_root: Path,
 ) -> None:
