@@ -99,6 +99,8 @@ class TestValidationEngine:
         assert any("agent1" in issue for issue in result["issues"])
         assert not any("agent2" in issue for issue in result["issues"])
 
+
+class TestConditionalReviewValidation:
     def test_command_conditions_require_cross_verification_only_when_escalated(
         self, tmp_path
     ):
