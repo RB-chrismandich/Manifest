@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "checks": [{
+    "id": "structure.compile-manifest-agent",
+    "group": "structure",
+    "category": "syntax",
+    "argv": ["python3", "-m", "compileall", "-q", "src/manifest_agent"],
+    "cwd": ".",
+    "inputs": ["src/manifest_agent"],
+    "dependencies": [],
+    "timeout_seconds": 30,
+    "selection": "project",
+    "tool": "python3",
+    "version": "runtime",
+    "honors_status_contract": false
+  }],
+  "profiles": {
+    "quick": ["structure.compile-manifest-agent"],
+    "full": ["structure.compile-manifest-agent"],
+    "security": ["structure.compile-manifest-agent"],
+    "release": ["structure.compile-manifest-agent"]
+  },
+  "debt_baseline": "config/debt-baseline.json",
+  "preservation": "config/check-preservation.json"
+}

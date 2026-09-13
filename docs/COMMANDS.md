@@ -19,6 +19,15 @@
 | [Error Handling & Testing](commands/reliability.md) | How does a command fail safely, and how do I test it? |
 | [Best Practices & Templates](commands/practices.md) | What are the conventions, and where is the full template? |
 
+## Shared check CLI
+
+Run the committed registry locally:
+`manifest check full --project-config config/project-checks.json --base HEAD --json`.
+Aggregate producer receipts with
+`manifest check-aggregate full --project-config config/project-checks.json --results-dir <dir>
+--context <context.json> --json`. JSON status maps to exit codes `PASS=0`, `FAIL=2`,
+and `BLOCKED=3`; aggregation fails closed when receipt provenance is incomplete.
+
 The table below is generated from the skill catalog — do not edit it by hand.
 
 ## Command Reference
