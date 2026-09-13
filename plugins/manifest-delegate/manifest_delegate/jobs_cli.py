@@ -6,7 +6,7 @@ import signal
 import sys
 import time
 
-from . import backend, constants, jobstore, process, task
+from . import backend, constants, containment, jobstore, process, task
 
 
 def cmd_status(args):
@@ -129,6 +129,9 @@ def _terminate_job_processes(store, job_id, record):
     transition state and call _reap_raced_pgid for a pgid that may have been
     persisted after this initial read."""
     killed = False
+    containment_ok = containment.reap(
+        store.job_dir(job_id), required=containment.is_contained(record)
+    )
     pgid = record.get("pgid")
     if pgid and process._backend_alive(store, job_id):
         process._kill_pgid(store, job_id, pgid)
@@ -146,7 +149,7 @@ def _terminate_job_processes(store, job_id, record):
                     job_id, record["worker_pid"], exc
                 )
             )
-    return killed
+    return containment_ok is not False and killed
 
 
 # How long to wait for a forked-but-not-yet-published backend pgid to appear
@@ -255,6 +258,27 @@ def _render_cancelled(args, resolved, record, was_alive):
     print(f"process_was_alive: {was_alive}")
 
 
+def _record_containment_failure(store, job_id):
+    def _containment_failed(current):
+        current["containment_cleanup_failed"] = True
+        return current
+
+    _containment_failed.allow_terminal_reentry = True
+    store.mutate(job_id, _containment_failed)
+    return 1
+
+
+def _mark_containment_cleaned(store, job_id):
+    def _cleaned(current):
+        containment_state = dict(current.get("containment") or {})
+        containment_state["state"] = containment.STATE_CLEANED
+        current["containment"] = containment_state
+        return current
+
+    _cleaned.allow_terminal_reentry = True
+    store.mutate(job_id, _cleaned)
+
+
 def _cancel_active(store, resolved, record, args, expected):
     before_pgid = record.get("pgid")
 
@@ -295,6 +319,19 @@ def _cancel_active(store, resolved, record, args, expected):
     was_alive = _terminate_job_processes(store, resolved, record)
     if _reap_raced_pgid(store, resolved, before_pgid):
         was_alive = True
+    if (
+        containment.reap(
+            store.job_dir(resolved), required=containment.is_contained(record)
+        )
+        is False
+    ):
+        return _record_containment_failure(store, resolved)
+    if not containment.cleanup(
+        store.job_dir(resolved),
+        required=containment.is_contained(record),
+        on_cgroup_removed=lambda: _mark_containment_cleaned(store, resolved),
+    ):
+        return _record_containment_failure(store, resolved)
     process._clear_pgid_tracking(store, resolved)
     _render_cancelled(args, resolved, record, was_alive)
     return 0
@@ -315,6 +352,33 @@ def cmd_cancel(args):
     if fallback_result is not None:
         return fallback_result
     if record.get("state") in jobstore.TERMINAL_STATES:
+        job_dir = store.job_dir(resolved)
+        contained = containment.is_contained(record)
+        if (
+            record.get("containment_cleanup_failed")
+            or contained
+            or containment.read_path(job_dir)
+        ):
+            if not containment.cleanup(
+                job_dir,
+                required=contained,
+                on_cgroup_removed=lambda: _mark_containment_cleaned(store, resolved),
+            ):
+
+                def _containment_failed(current):
+                    current["containment_cleanup_failed"] = True
+                    return current
+
+                _containment_failed.allow_terminal_reentry = True
+                store.mutate(resolved, _containment_failed)
+                return 1
+
+            def _clear_containment_failure(current):
+                current.pop("containment_cleanup_failed", None)
+                return current
+
+            _clear_containment_failure.allow_terminal_reentry = True
+            record = store.mutate(resolved, _clear_containment_failure)
         if args.json:
             print(json.dumps(record))
         else:

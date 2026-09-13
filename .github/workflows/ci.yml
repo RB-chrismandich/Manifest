@@ -300,6 +300,34 @@ jobs:
           pip install -e ./configs/claude/scripts/manifest_model_policy
           pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
 
+      - name: Provision delegated cgroup v2 containment venue
+        run: |
+          set -euo pipefail
+          root=/sys/fs/cgroup
+          venue="$root/manifest-ci"
+          runner_user="$(id -un)"
+          runner_group="$(id -gn)"
+          test -f "$root/cgroup.controllers"
+          sudo mkdir -p "$venue"
+          # cgroup v2 migration requires write access to the source/destination
+          # common ancestor. This venue contains cooperative descendants; it is
+          # not a hostile same-UID sandbox.
+          sudo chown "$runner_user:$runner_group" "$venue" "$venue/cgroup.procs" "$venue/cgroup.kill"
+          test -w "$venue"
+          test -w "$venue/cgroup.procs"
+          test -w "$venue/cgroup.kill"
+
+      - name: Run Linux cgroup containment venue
+        run: |
+          set -euo pipefail
+          venue=/sys/fs/cgroup/manifest-ci
+          runner_user="$(id -un)"
+          sudo bash -c '
+            echo $$ > "$1/cgroup.procs"
+            exec runuser -u "$2" -- env \
+              "PATH=$3" MANIFEST_CGROUP_ROOT="$1" CI=true \
+              pytest -vv tests/python/test_delegate_containment_native.py -m native
+          ' bash "$venue" "$runner_user" "$PATH"
       - name: Run Python tests (if any exist)
         run: |
           if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then
