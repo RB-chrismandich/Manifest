@@ -10,6 +10,14 @@ point back to their canonical locations under `~/.claude/`. Only this guide
 and ensures both agents always operate from the same orchestration rules and
 validation criteria.
 
+## Risk-based review routing
+
+Use a single capable reviewer by default. Independent review is risk-based:
+escalate only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment impact, conflicting evidence or unresolved
+uncertainty, or genuinely independent codebase-wide tracks. Counts of files,
+packages, modules, languages, keywords, and units do not independently escalate.
+
 ## Token Economy (always on)
 
 Apply at all times, in every session:
@@ -56,19 +64,16 @@ tool list before routing to one.
 - *opt-in* **Apify MCP** — web scraping/crawling for structured external data
 - *opt-in* **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
+Run a cross-model review only after the independent-review gate opens: a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+change, conflicting evidence or unresolved uncertainty, or a codebase-wide
+investigation with genuinely independent tracks. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review.
+
 ```bash
-# Basic code review with JSON output (all 5 agents, 10 min timeout)
+# Use only after recording the concrete risk condition.
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
-
-# Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Generic prompt to all agents
-~/.claude/scripts/parallel_agent.py --json "Your question here"
-
-# Quick query with lightweight models
-~/.claude/scripts/parallel_agent.py --cursor-model mini --claude-model haiku "Quick question"
 ```
 
 ### Options
@@ -194,26 +199,11 @@ Detection methods:
 
 ## Proactive Decision Framework
 
-### ALWAYS Use Parallel Agents For
-
-1. **Security-sensitive changes**: authN/authZ, input validation/sanitization, crypto, secret handling
-2. **Architectural decisions**: new components, API design, DB schema, service integration
-3. **Large file mods (>200 lines)**: complex refactoring, major features, performance-critical code
-4. **Critical business logic**: payment processing, user-data handling, compliance
-
-### CONSIDER Parallel Agents For
-
-- Complex refactoring with multiple affected files
-- New feature implementation
-- Performance optimization
-- Debugging difficult issues
-
-### SKIP Parallel Agents For
-
-- Typo fixes, comments, formatting
-- Single-line changes
-- Documentation updates
-- Simple variable renames
+Use risk-based review routing. One capable reviewer is the default. Escalate
+only for a trust-boundary change, destructive behavior, broad compatibility or
+deployment impact, conflicting evidence or unresolved uncertainty, or genuinely
+independent codebase-wide tracks. File, package, module, language, keyword, and
+independent-unit counts are not escalation conditions.
 
 ---
 
@@ -292,22 +282,13 @@ enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.
 
 ---
 
-## Workflow Integration
+### Before or After Making Changes
 
-### Before Making Changes
-
-```bash
-# Get multi-agent review of proposed changes
-~/.claude/scripts/parallel_agent.py --json --validate \
-  "Review this planned change: [description]. Files affected: [list]"
-```
-
-### After Making Changes
-
-```bash
-# Validate the implementation (use absolute path, 10 min timeout)
-~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 --review /absolute/path/to/modified_file
-```
+Use one capable reviewer by default. Invoke multi-agent validation only when a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+impact, unresolved uncertainty, or genuinely independent codebase-wide tracks
+are present. Record the reason and run the escalated command with `--command`
+and `--review-mode escalated`; otherwise do not invoke `parallel_agent.py`.
 
 ### For Complex Decisions
 
@@ -347,55 +328,26 @@ Files generated per run:
 
 ## Orchestrated Code Review Workflow
 
-When modifying code, the orchestrating agent spawns subagents for analysis, synthesis, and validation.
-
-### Workflow Overview
-
-```text
-+---------------------------------------------------------------+
-|                     Orchestrator                                |
-+---------------------------------------------------------------+
-|  1. Receive code modification task                              |
-|  2. Pre-flight analysis                                         |
-|  3. If criteria met -> Bash: parallel_agent.py --json --validate|
-|  4. Parse JSON output from agents                               |
-|  5. If disagreement -> Synthesis                                |
-|  6. Validation against criteria                                 |
-|  7. Report final result to user                                 |
-+---------------------------------------------------------------+
-```
+Use one capable reviewing agent by default. Add independent review only for a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+change, conflicting evidence or unresolved uncertainty, or a codebase-wide
+investigation with genuinely independent tracks. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review.
 
 ### Phase 1: Pre-flight Analysis
 
-Before making significant code changes, determine if parallel review is needed by
-analyzing files/changes against the criteria in `~/.claude/prompts/preflight_analysis.md`
-(symlinked at `~/.gemini/prompts/preflight_analysis.md`).
+Assess the five conditions in `~/.claude/prompts/preflight_analysis.md`
+(symlinked at `~/.gemini/prompts/preflight_analysis.md`). Record
+`review_mode`, `escalation_reason`, and concrete behavior evidence. A keyword or
+size measurement is not a trigger.
 
-Return JSON with `needs_parallel_review`, `reason`, `triggered_criteria`, `confidence`.
+### Phase 2: Independent Review
 
-**Trigger Criteria**:
-
-- Security-sensitive: auth, crypto, secrets, input validation
-- Architectural: new services, API changes, schema modifications
-- Large changes: >200 lines modified
-- Critical logic: payments, user data, compliance
-
-### Phase 2: Parallel Agent Review
-
-If pre-flight triggers review, execute:
-
-```bash
-# Always use absolute paths and large timeout for file arguments
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 --review /absolute/path/to/file
-```
-
-Parse the JSON output to extract:
-
-- `agents.gemini.output` - Gemini's analysis
-- `agents.cursor.output` - Cursor's analysis
-- `agents.claude.output` - Claude's analysis
-- `agents.*.status` - Agent completion status
-- `cross_verification.consensus_score` - Agreement percentage
+When the risk gate opens and cross-model review is appropriate, execute the
+configured review command. Record one exact command/result for every applicable
+check. If a required capability is unavailable, record `unavailable_reason`;
+never report it as passing.
 
 ### Phase 3: Synthesis (on disagreement)
 
@@ -488,11 +440,11 @@ These integrate with the parallel agent orchestration framework.
 | `/performance-check` | Core Web Vitals and bundle analysis | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
 | `/git-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/go-refactor` | Go codebase security and quality analysis | ALWAYS |
-| `/node-refactor` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/python-refactor` | Python codebase security and quality analysis | ALWAYS |
-| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/terraform-refactor` | Terraform IaC security and modularity analysis | ALWAYS |
+| `/go-refactor` | Go codebase security and quality analysis | CONDITIONAL (risk-based) |
+| `/node-refactor` | Node.js/TypeScript security and quality analysis | CONDITIONAL (risk-based) |
+| `/python-refactor` | Python codebase security and quality analysis | CONDITIONAL (risk-based) |
+| `/shell-refactor` | Bash/Shell script security and quality analysis | CONDITIONAL (risk-based) |
+| `/terraform-refactor` | Terraform IaC security and modularity analysis | CONDITIONAL (risk-based) |
 | `/project-scaffold` | Initialize new project with quality gates and Manifest integration | NO |
 | `/config-audit` | Detect cross-platform config drift | NO |
 | `/ux-review` | UX/accessibility/performance audit | NO |
@@ -516,9 +468,10 @@ Skills are invoked as slash commands in Gemini CLI. Representative examples:
 ### Auto-Triggered Skill
 
 The `code-audit` skill (symlinked from `~/.claude/skills/code-audit/SKILL.md`)
-auto-triggers on security-sensitive patterns (auth, crypto, secrets, input
-validation) or complexity (>500 lines, >10 functions, or >5 classes per file),
-giving inline feedback without blocking the workflow.
+activates only for an explicit security review request or confirmed changed
+behavior at a security boundary. Keywords, file size, function/class counts,
+and complexity metrics alone do not activate it; feedback remains inline and
+non-blocking.
 
 ---
 

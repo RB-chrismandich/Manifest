@@ -9,8 +9,7 @@ sub-agents, parallel tools, and complex workflows.
 
 - Multiple services/modules requiring coordination
 - Complex multi-step workflows
-- Need for parallel agent validation
-- Sub-agent delegation patterns
+- Genuinely independent work that benefits from bounded delegation
 
 ---
 
@@ -61,13 +60,8 @@ Process [WHAT] into [DESIRED OUTCOME]. You act as the Orchestrator, coordinating
 ### Step 1: Analysis & Planning
 
 1. [First analysis step]
-2. [Run parallel agents if needed]:
-
-   ```bash
-   ~/.claude/scripts/parallel_agent.py --json --timeout 600 \
-     --analyze "[ANALYSIS TASK]"
-   ```
-
+2. Decompose genuinely independent work only when it has no shared mutable
+   state. This workload fan-out is separate from independent review.
 3. [Break down into subtasks]
 
 ### Step 2: Implementation (Sub-Agent Delegation)
@@ -94,19 +88,15 @@ Once all sub-agents have completed:
 
 ### Step 4: Final Validation
 
-Once all tests pass:
-
-1. Run parallel agent validation on each modified file:
-
-   ```bash
-   ~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
-     --review /absolute/path/to/modified_file
-   ```
-
-2. Evaluate consensus:
-   - **>= 80%**: High confidence — proceed
-   - **50-79%**: Medium confidence — flag disagreements
-   - **< 50%**: Low confidence — escalate to user
+Once all tests pass, use one capable reviewing agent by default. Add
+independent review only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment change, conflicting evidence or unresolved
+uncertainty, or a codebase-wide investigation with genuinely independent
+tracks. File, package, module, language, keyword, and independent-unit counts
+never trigger independent review. When the gate applies, dispatch bounded
+review concerns in one OMP `task` batch, record `review_mode` and
+`escalation_reason`, and record every applicable command/result or an
+`unavailable_reason`.
 
 ---
 
@@ -209,7 +199,7 @@ echo "Test orchestration with a simple cross-component change"
 
 - Validate after analysis (is the plan sound?)
 - Validate after implementation (do tests pass?)
-- Validate with parallel agents (cross-verification)
+- Add independent reviewers only when the Step 4 risk gate applies.
 
 ### Error Recovery
 

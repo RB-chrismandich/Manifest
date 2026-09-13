@@ -35,27 +35,13 @@
       "tier2_threshold": 0.6
     },
     "code-audit": {
-      "auto_trigger": true,
       "tier1_checks": [
         "security",
         "error_handling"
       ],
       "tier1_required": true,
       "tier2_required": true,
-      "tier2_threshold": 0.6,
-      "trigger_patterns": {
-        "complexity": {
-          "class_count": 5,
-          "file_lines": 500,
-          "function_count": 10
-        },
-        "security": [
-          "auth|login|session|jwt",
-          "crypto|encrypt|hash|secret",
-          "api_key|password|token|credential",
-          "sanitize|validate|escape"
-        ]
-      }
+      "tier2_threshold": 0.6
     },
     "docs-all": {
       "parallel_agents": false,
@@ -145,38 +131,76 @@
       ],
       "tier2_required": true
     },
+    "go-refactor": {
+      "conditional_consensus": {"review_mode": {"escalated": {"threshold": 0.8}}},
+      "conditional_tier1_checks": {"review_mode": {"escalated": ["cross_verification"]}},
+      "tier1_checks": ["security", "error_handling", "breaking_changes"],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
+    },
+    "node-refactor": {
+      "conditional_consensus": {"review_mode": {"escalated": {"threshold": 0.8}}},
+      "conditional_tier1_checks": {"review_mode": {"escalated": ["cross_verification"]}},
+      "tier1_checks": ["security", "error_handling", "breaking_changes"],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
+    },
     "python-refactor": {
-      "consensus_action": {
-        "high": "auto_proceed",
-        "low": "block_and_escalate",
-        "medium": "show_disagreements"
+      "conditional_consensus": {
+        "review_mode": {
+          "escalated": {
+            "threshold": 0.8
+          }
+        }
       },
-      "consensus_threshold": 0.8,
+      "conditional_tier1_checks": {
+        "review_mode": {
+          "escalated": [
+            "cross_verification"
+          ]
+        }
+      },
       "tier1_checks": [
         "security",
         "error_handling",
-        "breaking_changes",
-        "cross_verification"
+        "breaking_changes"
       ],
       "tier1_required": true,
       "tier2_required": true,
       "tier2_threshold": 0.8
     },
     "shell-refactor": {
-      "consensus_action": {
-        "high": "auto_proceed",
-        "low": "block_and_escalate",
-        "medium": "show_disagreements"
+      "conditional_consensus": {
+        "review_mode": {
+          "escalated": {
+            "threshold": 0.75
+          }
+        }
       },
-      "consensus_threshold": 0.75,
+      "conditional_tier1_checks": {
+        "review_mode": {
+          "escalated": [
+            "cross_verification"
+          ]
+        }
+      },
       "tier1_checks": [
         "security",
-        "error_handling",
-        "cross_verification"
+        "error_handling"
       ],
       "tier1_required": true,
       "tier2_required": true,
       "tier2_threshold": 0.7
+    },
+    "terraform-refactor": {
+      "conditional_consensus": {"review_mode": {"escalated": {"threshold": 0.8}}},
+      "conditional_tier1_checks": {"review_mode": {"escalated": ["cross_verification"]}},
+      "tier1_checks": ["security", "error_handling", "breaking_changes"],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
     },
     "version-pin": {
       "consensus_threshold": 0.8,
