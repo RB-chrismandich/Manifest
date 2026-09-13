@@ -62,6 +62,7 @@
         "linux-x64": {
           "url": "file://config/toolchain/uv.lock",
           "sha256": "42d573143665e273fe24fbfc65ac6495ec9a6139619d0bc211005484e0bbbc6d",
+          "project_sha256": "b897a1d705b8f20eee2b7c0942cc44b975a995bb8954c3eb349e769382bc4e69",
           "exe_sha256": "342f1c8746a7914254fee84eddaaa8a082413fb0895002623c84e4a7228459a7",
           "python_provider": {
             "implementation": "cpython",
@@ -95,6 +96,7 @@
         "darwin-arm64": {
           "url": "file://config/toolchain/uv.lock",
           "sha256": "42d573143665e273fe24fbfc65ac6495ec9a6139619d0bc211005484e0bbbc6d",
+          "project_sha256": "b897a1d705b8f20eee2b7c0942cc44b975a995bb8954c3eb349e769382bc4e69",
           "exe_sha256": null,
           "python_provider": null,
           "path_in_archive": ".",
@@ -223,6 +225,7 @@
         "linux-x64": {
           "url": "file://uv.lock",
           "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
+          "project_sha256": "35b3baf96979567555b5d08db0c667b58193d00aa47d0b80752242130b5a3f8e",
           "exe_sha256": "81a900ac03486b2651a0fe9e0b3a65340936abe20116db762366de0d7a3cb4bb",
           "python_provider": {
             "implementation": "cpython",
@@ -238,6 +241,7 @@
         "darwin-arm64": {
           "url": "file://uv.lock",
           "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
+          "project_sha256": "35b3baf96979567555b5d08db0c667b58193d00aa47d0b80752242130b5a3f8e",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
@@ -253,6 +257,7 @@
         "linux-x64": {
           "url": "file://configs/claude/uv.lock",
           "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
+          "project_sha256": "33d86b82838f425560b7fd3fff7a039333c280ea46f616a2517c596f73b0719e",
           "exe_sha256": "4ea7863852f861f59c23b612ca2406f473757c560acc921064efad86fd096c30",
           "python_provider": {
             "implementation": "cpython",
@@ -268,6 +273,7 @@
         "darwin-arm64": {
           "url": "file://configs/claude/uv.lock",
           "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
+          "project_sha256": "33d86b82838f425560b7fd3fff7a039333c280ea46f616a2517c596f73b0719e",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [

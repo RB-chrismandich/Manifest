@@ -35,6 +35,23 @@ def provision_environment(
         return ProvisionOutcome(
             bundle, "blocked", f"toolchain: {bundle} digest mismatch"
         )
+    if entry["kind"] == "python-env":
+        try:
+            project_sha256 = materialize.python_project_metadata_digest(
+                ctx.repo_root, bundle
+            )
+        except (OSError, ValueError, materialize.MaterializationError) as error:
+            return ProvisionOutcome(
+                bundle,
+                "blocked",
+                f"toolchain: {bundle} project metadata attestation failed: {error}",
+            )
+        if project_sha256 != platform_entry.get("project_sha256"):
+            return ProvisionOutcome(
+                bundle,
+                "blocked",
+                f"toolchain: {bundle} project metadata digest mismatch",
+            )
     relative = f"tools/{bundle}/{source_sha256[:16]}"
     names = [Path(script).name for script in platform_entry.get("console_scripts", ())]
     attested = _materialize_attested(

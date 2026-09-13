@@ -136,6 +136,10 @@
           "$ref": "#/$defs/sha256OrNull",
           "description": "node-env only: sha256 of exact package.json bytes copied beside package-lock.json before npm ci; null is unattested."
         },
+        "project_sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "python-env only: framed SHA-256 of effective local project/workspace metadata, including absent intermediate workspace candidates; provisioning verifies it before invoking uv. Null is unattested."
+        },
         "python_provider": {
           "description": "python-env only: exact external interpreter implementation, version, build, and executable SHA-256. Null means no portable provider was attested and provisioning must BLOCK with observed evidence.",
           "type": [

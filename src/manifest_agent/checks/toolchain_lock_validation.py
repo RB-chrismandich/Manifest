@@ -74,6 +74,12 @@ def _validate_environment_pins(
         and not _valid_digest(artifact["package_json_sha256"])
     ):
         raise ValueError(f"invalid package_json_sha256 for {bundle}/{platform}")
+    if (
+        entry.get("kind") == "python-env"
+        and artifact.get("project_sha256") is not None
+        and not _valid_digest(artifact["project_sha256"])
+    ):
+        raise ValueError(f"invalid project_sha256 for {bundle}/{platform}")
     provider = artifact.get("python_provider")
     valid_provider = (
         isinstance(provider, Mapping)

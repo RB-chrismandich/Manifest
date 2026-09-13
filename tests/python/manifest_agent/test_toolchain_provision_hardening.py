@@ -453,6 +453,7 @@ def test_python_materializers_install_local_dependencies_non_editably(
     )
 
     assert expected_flag in calls[0]
+    assert "--no-config" in calls[0]
     assert "--no-editable" in calls[0]
     assert environments[0]["UV_LINK_MODE"] == "copy"
     assert not virtualenv_pth.exists()

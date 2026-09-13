@@ -31,6 +31,76 @@ from .toolchain_cache import OS_BASELINE_PATH
 from .toolchain_env_digest import trusted_python_provider
 
 _SYNC_TIMEOUT_SECONDS = 600.0
+_PYTHON_PROJECT_METADATA = {
+    "project-env": (
+        "pyproject.toml",
+        "configs/claude/scripts/manifest_model_policy/pyproject.toml",
+    ),
+    "config-env": (
+        "pyproject.toml",
+        "uv.lock",
+        "configs/pyproject.toml",
+        "configs/uv.lock",
+        "configs/claude/pyproject.toml",
+        "configs/claude/scripts/manifest_model_policy/pyproject.toml",
+    ),
+    "python-env": (
+        "pyproject.toml",
+        "uv.lock",
+        "config/pyproject.toml",
+        "config/uv.lock",
+        "config/toolchain/pyproject.toml",
+    ),
+}
+
+
+def python_project_metadata_digest(repo_root: Path, bundle: str) -> str:
+    """Hash every local project file that can select uv/Hatch build behavior."""
+    relative_paths = _PYTHON_PROJECT_METADATA.get(bundle)
+    if relative_paths is None:
+        raise MaterializationError(f"unknown python environment bundle: {bundle}")
+    root = repo_root.resolve(strict=True)
+    hasher = hashlib.sha256()
+    for relative in relative_paths:
+        candidate = root / relative
+        cursor = root
+        for component in Path(relative).parts:
+            cursor /= component
+            if cursor.is_symlink():
+                raise MaterializationError(f"unsafe project metadata: {relative}")
+        content = None
+        if candidate.exists():
+            path = candidate.resolve(strict=True)
+            if not path.is_relative_to(root):
+                raise MaterializationError(f"unsafe project metadata: {relative}")
+            nofollow = getattr(os, "O_NOFOLLOW", 0)
+            try:
+                with open(
+                    path,
+                    "rb",
+                    opener=lambda name, flags, nofollow=nofollow: os.open(
+                        name, flags | nofollow
+                    ),
+                ) as stream:
+                    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                        raise MaterializationError(
+                            f"unsafe project metadata: {relative}"
+                        )
+                    content = stream.read()
+            except OSError as error:
+                raise MaterializationError(
+                    f"unreadable project metadata: {relative}: {error}"
+                ) from error
+        name = relative.encode()
+        hasher.update(len(name).to_bytes(8, "big"))
+        hasher.update(name)
+        if content is None:
+            hasher.update(b"M")
+            continue
+        hasher.update(b"F")
+        hasher.update(len(content).to_bytes(8, "big"))
+        hasher.update(content)
+    return hasher.hexdigest()
 
 
 class MaterializationError(ValueError):
@@ -178,6 +248,7 @@ def materialize_python_env(
         [
             str(uv_executable),
             "sync",
+            "--no-config",
             "--locked",
             "--no-dev",
             "--no-editable",
@@ -196,19 +267,12 @@ def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
     """`uv sync --frozen --all-groups --no-install-project` the ROOT
     project's dependency set into `env_root` -- Correction 7 step 1.
 
-    `--frozen` is the trust anchor: it forbids uv from ever regenerating
-    or even re-resolving the lock, so this ALWAYS installs exactly the
-    packages the committed `uv.lock` -- whose bytes `_provision_env_entry`
-    already hashed against the lock's `sha256` before calling here --
-    pins, never whatever `pyproject.toml` alone would currently resolve
-    to. A plain COPY of just `pyproject.toml` + `uv.lock` (isolated from
-    the rest of the tree) was tried and rejected: the root project has a
-    local path dependency (`configs/claude/scripts/manifest_model_policy`)
-    that `uv sync` must find on disk relative to the project root
-    regardless of `--no-install-project`, so the sync has to run against
-    the real checkout `manifest provision` is invoked from -- `--frozen`
-    is what keeps that checkout-relative sync pinned to the verified lock
-    instead of trusting the live tree's current dependency graph.
+    `--frozen` forbids lock regeneration; `--no-config` disables discovery of
+    ambient or ancestor uv configuration. The committed root `uv.lock` bytes
+    are verified against the lock's `sha256` before this call, and the root
+    `pyproject.toml` plus the local path dependency's build metadata are bound
+    by `project_sha256`. The sync still runs against the real checkout because
+    `manifest-model-policy` is a checkout-relative path dependency.
 
     `--no-install-project` is deliberate: this env carries the project's
     DEPENDENCIES only, never a baked-in copy of `manifest_agent` itself --
@@ -224,6 +288,7 @@ def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
         [
             str(uv_executable),
             "sync",
+            "--no-config",
             "--frozen",
             "--all-groups",
             "--no-install-project",
