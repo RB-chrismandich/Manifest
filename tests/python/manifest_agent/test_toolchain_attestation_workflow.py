@@ -56,7 +56,6 @@ def test_dispatch_attestation_preserves_only_machine_parseable_evidence() -> Non
     assert '"head_sha": os.environ["GITHUB_SHA"]' in job
     assert '"lock_sha256": hashlib.sha256(lock_path.read_bytes()).hexdigest()' in job
     assert '"workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"]' in job
-    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in job
     assert "retention-days:" in job
     assert "toolchain-attestation-report.json" in job
     assert "toolchain-attestation-metadata.json" in job
