@@ -111,4 +111,5 @@ Return ONLY the following JSON object. Do not include commentary outside the JSO
 | Criteria Triggered | Decision |
 |--------------------|----------|
 | Any of Steps 1-5 | REVIEW; record the concrete condition and evidence |
-| None | Single-agent inline review |
+| None, confidence >= 0.70 with complete context | Single-agent inline review |
+| None, confidence < 0.70 or incomplete context | REVIEW for conflicting evidence or unresolved uncertainty; record the missing context |

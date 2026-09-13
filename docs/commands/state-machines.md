@@ -155,22 +155,16 @@ Commands can use parallel agents for cross-verification and consensus scoring.
 
 ### When to Use Parallel Agents
 
-**ALWAYS use** for:
+Use risk-based independent cross-verification only when a risk condition is present:
 
-- Security-sensitive operations (deployments, migrations)
-- Architectural decisions (schema changes, API changes)
-- Code with high impact (>200 lines changed)
+- A trust-boundary change or destructive behavior
+- Broad compatibility or deployment impact
+- Conflicting evidence, unresolved uncertainty, or incomplete context
+- A codebase-wide investigation with genuinely independent analysis tracks
 
-**CONDITIONALLY use** for:
-
-- Moderate complexity changes
-- When confidence is low
-
-**SKIP** for:
-
-- Read-only analysis
-- Simple queries
-- Documentation generation
+Counts of changed lines, files, packages, modules, and languages never trigger
+review escalation by themselves. Workload-oriented commands retain their own
+documented fan-out rules.
 
 ### Integration Pattern
 

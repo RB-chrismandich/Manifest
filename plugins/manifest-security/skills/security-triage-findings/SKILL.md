@@ -43,5 +43,5 @@ Use the pinned `opus` model. For three or more candidate findings, triage one
 finding per review unit and aggregate structured verdicts. Below that threshold,
 triage inline; if structured output is unavailable, report `DEGRADED`.
 
-When dispatching, invoke `manifest-workspace:parallel-agent` with one candidate
-per review unit and aggregate its structured verdicts.
+When dispatching, invoke `manifest-workspace:parallel-agent --json` with one
+candidate per review unit and aggregate its structured verdicts.

@@ -1,7 +1,7 @@
 # Code Audit Dispatch Selection
 
 Use one capable reviewer by default. Add an independent reviewer only when the
-review crosses a trust boundary, covers destructive behavior, has broad
+review includes a trust-boundary change, covers destructive behavior, has broad
 compatibility or deployment impact, contains conflicting evidence or unresolved
 uncertainty, or requires genuinely independent codebase-wide analysis tracks.
 

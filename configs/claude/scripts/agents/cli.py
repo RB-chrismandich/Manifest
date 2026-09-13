@@ -74,6 +74,16 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("prompt", nargs="?", help="Prompt to send to agents")
     parser.add_argument("--json", action="store_true", help="Output JSON format")
     parser.add_argument("--validate", action="store_true", help="Validate results")
+    parser.add_argument(
+        "--command",
+        help="Command policy name used for command-specific validation",
+    )
+    parser.add_argument(
+        "--review-mode",
+        choices=("single-agent", "escalated"),
+        default="single-agent",
+        help="Review routing mode used for conditional validation",
+    )
     parser.add_argument("--review", metavar="FILE", help="Code review mode")
     parser.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
     parser.add_argument(
@@ -166,9 +176,9 @@ async def main() -> None:
     )
     _run_status_check(args)
     await _run_credit_check(args, config, runtime.logger)
-    mode, prompt, command = _resolve_mode(args, parser)
+    mode, prompt, _ = _resolve_mode(args, parser)
     runtime.timeout = _resolve_timeout(args, config, mode)
     agents = _build_agents(runtime, roster)
     _apply_model_policy(runtime, agents)
     _require_agents(runtime, agents)
-    await _execute(runtime, agents, prompt, mode, command)
+    await _execute(runtime, agents, prompt, mode, args.command)

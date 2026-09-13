@@ -47,6 +47,7 @@ def test_validation_configs_do_not_duplicate_code_audit_activation(
         "docs/commands/builtin.md",
         "docs/configuration/commands.md",
         "docs/getting-started/using-commands.md",
+        "docs/commands/state-machines.md",
         "docs/diagrams/validation.md",
     ),
 )

@@ -54,7 +54,8 @@ Work through each category; the sequence within and across categories does not m
 
 - Read package.json, tsconfig.json, .eslintrc.*or eslint.config.*, .prettierrc
 - Check for existing tooling: Vitest/Jest, ESLint flat config, Prettier, Biome
-- Inspect dependency tree for known vulnerabilities: `npm audit --json`
+- For an untrusted checkout, do not run `npm audit`; report dependency audit
+  `unavailable` unless verified isolation is available.
 - Check Node.js engine requirements and ECMAScript target
 
 **Architecture**:
@@ -71,8 +72,9 @@ Work through each category; the sequence within and across categories does not m
   `eval()`, `Function()` constructor, `vm.runInNewContext()`;
   `child_process.exec()` with unsanitized input (use `execFile` instead);
   Regex DoS (ReDoS) patterns
-- Dependency security: `npm audit` findings, outdated packages with known
-  CVEs, prototype pollution-prone dependencies, supply chain risk
+- Dependency security: verified-isolation audit findings when available;
+  otherwise report the dependency audit as `unavailable`; outdated packages
+  with known CVEs, prototype pollution-prone dependencies, supply chain risk
   (typosquatting, etc.)
 - Secrets handling: hardcoded API keys, tokens, credentials; `.env` files
   committed to git; secrets in error messages or logs
@@ -214,7 +216,8 @@ export default tseslint.config(
 - **Be ecosystem-aware**: Recommend modern Node.js patterns (ESM, native fetch, etc.)
 - **Be specific**: Every finding must have exact file:line location
 - **Be actionable**: Every finding must have a concrete fix
-- **Check dependencies**: npm audit is a first-class security check
+- **Check dependencies**: run dependency auditing only in verified isolation;
+  otherwise report it as `unavailable`
 - **Prefer TypeScript strict mode**: `any` is a code smell, not a feature
 
 ---
