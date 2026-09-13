@@ -62,12 +62,7 @@ def _config_dict(workflow: str = "workflow.yml") -> dict[str, Any]:
             "jobs": ["lint", "test", "validate", "checks-aggregate-full"],
         },
         "enforce_admins": True,
-        "required_pull_request_reviews": {
-            "dismiss_stale_reviews": True,
-            "require_code_owner_reviews": True,
-            "required_approving_review_count": 1,
-            "require_last_push_approval": True,
-        },
+        "required_pull_request_reviews": None,
         "required_conversation_resolution": True,
         "allow_force_pushes": False,
         "allow_deletions": False,
@@ -135,14 +130,18 @@ def _raw_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "checks": checks["checks"],
         },
         "enforce_admins": {"enabled": payload["enforce_admins"]},
-        "required_pull_request_reviews": {
-            "dismiss_stale_reviews": reviews["dismiss_stale_reviews"],
-            "require_code_owner_reviews": reviews["require_code_owner_reviews"],
-            "required_approving_review_count": reviews[
-                "required_approving_review_count"
-            ],
-            "require_last_push_approval": reviews["require_last_push_approval"],
-        },
+        "required_pull_request_reviews": (
+            None
+            if reviews is None
+            else {
+                "dismiss_stale_reviews": reviews["dismiss_stale_reviews"],
+                "require_code_owner_reviews": reviews["require_code_owner_reviews"],
+                "required_approving_review_count": reviews[
+                    "required_approving_review_count"
+                ],
+                "require_last_push_approval": reviews["require_last_push_approval"],
+            }
+        ),
         "required_conversation_resolution": {
             "enabled": payload["required_conversation_resolution"]
         },

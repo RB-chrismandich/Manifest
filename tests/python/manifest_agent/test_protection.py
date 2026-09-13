@@ -52,6 +52,23 @@ def test_duplicate_resolved_check_names_are_blocked() -> None:
         protection.resolve_contexts(config, jobs)
 
 
+def test_build_payload_supports_disabled_reviews() -> None:
+    """Checks-only solo mode sends null instead of an unattainable review gate."""
+    config = protection.load_config(protection.DEFAULT_CONFIG_PATH)
+    config["required_pull_request_reviews"] = None
+
+    payload = protection.build_payload(config, ("Test",))
+
+    assert payload["required_pull_request_reviews"] is None
+
+
+def test_normalize_live_preserves_disabled_reviews() -> None:
+    """An absent live review gate normalizes to null for idempotent comparison."""
+    normalized = protection.normalize_live({"required_pull_request_reviews": None})
+
+    assert normalized["required_pull_request_reviews"] is None
+
+
 def test_non_404_error_mentioning_not_protected_is_blocked() -> None:
     """Incidental wording cannot make a non-404 API failure look absent."""
 

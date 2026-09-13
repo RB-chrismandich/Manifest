@@ -52,7 +52,8 @@
     },
     "enforce_admins": { "type": "boolean" },
     "required_pull_request_reviews": {
-      "type": "object",
+      "type": ["object", "null"],
+      "description": "Review requirements, or null for checks-only solo-maintainer mode.",
       "additionalProperties": false,
       "required": [
         "dismiss_stale_reviews",
