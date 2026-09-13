@@ -77,7 +77,10 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
     assert policy["subagent_trigger"] == expected_trigger
     assert review_link is not None
     assert dispatch_link is not None
-    assert "Python, Go, and\nShell remains single-agent" in routing.group(1)
+    normalized_routing = " ".join(routing.group(1).split())
+    assert re.search(r"Python,\s+Go,\s+and\s+Shell.*?single-agent", normalized_routing)
+    assert "every matching engine sequentially" in normalized_routing
+    assert "aggregate the engine reports" in normalized_routing
     assert "multi-language target remains single-agent" in references[0]
     assert "trust-boundary change" in references[0]
     assert "obtain an independent review" in dispatch.group(1)
