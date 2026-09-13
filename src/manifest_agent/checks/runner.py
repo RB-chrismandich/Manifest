@@ -186,6 +186,18 @@ def _blocked_report(
     }
 
 
+def _receipt_identity(env: dict[str, str]) -> tuple[int, str]:
+    raw_attempt = env.get("GITHUB_RUN_ATTEMPT", "1")
+    artifact_id = env.get("MANIFEST_RECEIPT_ARTIFACT_ID", "local")
+    try:
+        run_attempt = int(raw_attempt)
+    except ValueError as error:
+        raise ValueError("invalid receipt run attempt") from error
+    if run_attempt < 1 or not artifact_id:
+        raise ValueError("invalid receipt provenance")
+    return run_attempt, artifact_id
+
+
 def run_profile(
     registry: dict[str, Any],
     profile: str,
@@ -196,6 +208,10 @@ def run_profile(
     checks = resolve_checks(registry, profile, group)
     if not checks:
         return _blocked_report(profile, group, ["selection has no executable checks"])
+    try:
+        run_attempt, artifact_id = _receipt_identity(env)
+    except ValueError as error:
+        return _blocked_report(profile, group, [str(error)])
     policy_errors, invariants = _policy_errors(registry, candidate)
     before = identity_error(candidate)
     if before:
@@ -236,7 +252,7 @@ def run_profile(
         "required_ids": [check.id for check in checks],
         "results": [asdict(result) for result in results],
         "status": status,
-        "run_attempt": 1,
-        "artifact_id": "local",
+        "run_attempt": run_attempt,
+        "artifact_id": artifact_id,
         "diagnostics": [*policy_errors, *debt_diagnostics],
     }

@@ -22,7 +22,8 @@ def _entries(root: Path) -> list[Path]:
     for directory, directories, files in os.walk(root, followlinks=False):
         directory_path = Path(directory)
         directories[:] = sorted(name for name in directories if name not in ignored)
-        for name in sorted([*directories, *files]):
+        files = sorted(name for name in files if name not in ignored)
+        for name in [*directories, *files]:
             path = directory_path / name
             relative = path.relative_to(root)
             if relative.parts[0] in ignored:

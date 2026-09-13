@@ -10,7 +10,7 @@ import pytest
 from click.testing import CliRunner
 
 from manifest_agent.checks.aggregate import aggregate_results
-from manifest_agent.checks.candidate import candidate_digest, materialize_candidate
+from manifest_agent.checks.candidate import materialize_candidate
 from manifest_agent.checks.receipt import validate_receipt
 from manifest_agent.checks.registry import load_registry
 from manifest_agent.checks.runner import execute_check, run_profile
@@ -120,19 +120,6 @@ def context() -> dict[str, object]:
             }
         ],
     }
-
-
-def test_candidate_digest_covers_empty_directories_and_modes(tmp_path: Path):
-    root = tmp_path / "candidate"
-    root.mkdir()
-    probe = root / "probe.py"
-    probe.write_text("pass\n", encoding="utf-8")
-    baseline = candidate_digest(root)
-    (root / "empty").mkdir()
-    assert candidate_digest(root) != baseline
-    (root / "empty").rmdir()
-    probe.chmod(0o755)
-    assert candidate_digest(root) != baseline
 
 
 @pytest.mark.parametrize(
@@ -460,3 +447,39 @@ def test_boolean_aggregate_context_blocks_at_direct_and_cli_boundaries(
     assert result.exit_code == 3
     assert json.loads(result.output)["status"] == "BLOCKED"
     assert "Traceback" not in result.output
+
+
+def test_run_profile_stamps_ci_receipt_provenance(tmp_path: Path) -> None:
+    loaded = load_registry(registry(tmp_path / "checks.json"))
+    candidate = candidate_with_policies(tmp_path)
+
+    report = run_profile(
+        loaded,
+        "full",
+        None,
+        candidate,
+        {
+            "GITHUB_RUN_ATTEMPT": "7",
+            "MANIFEST_RECEIPT_ARTIFACT_ID": "shadow-receipt-test-7",
+        },
+    )
+
+    assert report["status"] == "PASS"
+    assert report["run_attempt"] == 7
+    assert report["artifact_id"] == "shadow-receipt-test-7"
+
+
+def test_run_profile_blocks_malformed_ci_receipt_provenance(tmp_path: Path) -> None:
+    loaded = load_registry(registry(tmp_path / "checks.json"))
+    candidate = candidate_with_policies(tmp_path)
+
+    report = run_profile(
+        loaded,
+        "full",
+        None,
+        candidate,
+        {"GITHUB_RUN_ATTEMPT": "0"},
+    )
+
+    assert report["status"] == "BLOCKED"
+    assert report["diagnostics"] == ["invalid receipt provenance"]

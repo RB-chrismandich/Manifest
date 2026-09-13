@@ -135,9 +135,9 @@ def lock_digest_for_registry(
     if relative:
         try:
             raw = read_trust_anchor(repo_root, repo_root / relative)
-            digest = hashlib.sha256(raw).hexdigest()
             parsed = json.loads(raw)
             lock_document = parsed if isinstance(parsed, dict) else {}
+            digest = lock_digest(lock_document)
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise ValueError(
                 f"toolchain lock trust anchor unavailable: {error}"
