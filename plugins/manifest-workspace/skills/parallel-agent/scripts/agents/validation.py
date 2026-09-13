@@ -74,9 +74,7 @@ class ValidationEngine:
         if "tier1_checks" not in overrides:
             return None
         required = set(overrides["tier1_checks"])
-        for _condition, checks in overrides.get(
-            "conditional_tier1_checks", {}
-        ).items():
+        for _condition, checks in overrides.get("conditional_tier1_checks", {}).items():
             required.update(checks.get(review_mode, []))
         return required
 
