@@ -179,10 +179,25 @@ class ValidationEngine:
             else:
                 failures.extend(breaking_result.get("issues", []))
 
+        completed_reviews = [
+            name
+            for name, result in agent_results.items()
+            if result.get("status") == "complete"
+        ]
+        if not completed_reviews:
+            checks["review_execution"] = {
+                "passed": False,
+                "completed_agents": [],
+                "non_completed_agents": {
+                    name: result.get("status", "unavailable")
+                    for name, result in agent_results.items()
+                },
+            }
+            failures.append("No completed successful review")
+
         # Overall tier1 pass/fail
         passed = len(failures) == 0
         final_score = score / total_weight if total_weight > 0 else 0
-
         return {
             "passed": passed,
             "score": final_score,
