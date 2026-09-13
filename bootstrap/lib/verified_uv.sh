@@ -68,7 +68,7 @@ install_uv_verified_release() {
     archive="uv-${target}.tar.gz"
     workdir="$(mktemp -d)" || return 1
     chmod 700 "$workdir"
-    trap 'rm -rf "$workdir"' RETURN
+    trap "rm -rf -- $(printf '%q' "$workdir")" RETURN
     if ! curl -fsSL -o "$workdir/$archive" "$base/$archive"; then
         print_warning "uv: could not download $archive"
         return 1
