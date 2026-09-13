@@ -49,12 +49,25 @@ class ValidationEngine:
         consensus: dict,
         mode: str,
         command: str | None = None,
-        review_mode: str = "single-agent",
+        review_mode: str | None = None,
     ) -> dict:
         """Validate results against tier1 and tier2 criteria."""
         overrides = {}
         if command and "command_overrides" in self.criteria:
             overrides = self.criteria["command_overrides"].get(command, {})
+
+        if overrides.get("conditional_tier1_checks") and review_mode is None:
+            return {
+                "tier1": {
+                    "passed": False,
+                    "score": 0,
+                    "checks": {},
+                    "failures": ["Review mode is required"],
+                },
+                "tier2": {"score": 0, "checks": {}, "concerns": []},
+                "verdict": "BLOCKED",
+                "command_overrides_applied": True,
+            }
 
         tier1_result = self._validate_tier1(
             agent_results, consensus, overrides, review_mode
@@ -70,7 +83,9 @@ class ValidationEngine:
         }
 
     @staticmethod
-    def _required_tier1_checks(overrides: dict, review_mode: str) -> set[str] | None:
+    def _required_tier1_checks(
+        overrides: dict, review_mode: str | None
+    ) -> set[str] | None:
         if "tier1_checks" not in overrides:
             return None
         required = set(overrides["tier1_checks"])

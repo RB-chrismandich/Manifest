@@ -179,6 +179,33 @@ command_overrides:
             high: auto_proceed         # >=80%: Use unified recommendation
             medium: show_disagreements  # 50-79%: Highlight to user
             low: block_and_escalate     # <50%: Human review required
+  node-refactor:
+    tier1_required: true
+    tier1_checks: [security, error_handling, breaking_changes]
+    conditional_tier1_checks:
+      review_mode: {escalated: [cross_verification]}
+    tier2_required: true
+    tier2_threshold: 0.80
+    conditional_consensus:
+      review_mode: {escalated: {threshold: 0.80}}
+  go-refactor:
+    tier1_required: true
+    tier1_checks: [security, error_handling, breaking_changes]
+    conditional_tier1_checks:
+      review_mode: {escalated: [cross_verification]}
+    tier2_required: true
+    tier2_threshold: 0.80
+    conditional_consensus:
+      review_mode: {escalated: {threshold: 0.80}}
+  terraform-refactor:
+    tier1_required: true
+    tier1_checks: [security, error_handling, breaking_changes]
+    conditional_tier1_checks:
+      review_mode: {escalated: [cross_verification]}
+    tier2_required: true
+    tier2_threshold: 0.80
+    conditional_consensus:
+      review_mode: {escalated: {threshold: 0.80}}
   docs-improve-readme:
     tier1_required: false
     tier2_required: true

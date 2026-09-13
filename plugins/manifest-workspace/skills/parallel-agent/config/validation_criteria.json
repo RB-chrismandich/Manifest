@@ -131,6 +131,22 @@
       ],
       "tier2_required": true
     },
+    "go-refactor": {
+      "conditional_consensus": {"review_mode": {"escalated": {"threshold": 0.8}}},
+      "conditional_tier1_checks": {"review_mode": {"escalated": ["cross_verification"]}},
+      "tier1_checks": ["security", "error_handling", "breaking_changes"],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
+    },
+    "node-refactor": {
+      "conditional_consensus": {"review_mode": {"escalated": {"threshold": 0.8}}},
+      "conditional_tier1_checks": {"review_mode": {"escalated": ["cross_verification"]}},
+      "tier1_checks": ["security", "error_handling", "breaking_changes"],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
+    },
     "python-refactor": {
       "conditional_consensus": {
         "review_mode": {
@@ -177,6 +193,14 @@
       "tier1_required": true,
       "tier2_required": true,
       "tier2_threshold": 0.7
+    },
+    "terraform-refactor": {
+      "conditional_consensus": {"review_mode": {"escalated": {"threshold": 0.8}}},
+      "conditional_tier1_checks": {"review_mode": {"escalated": ["cross_verification"]}},
+      "tier1_checks": ["security", "error_handling", "breaking_changes"],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
     },
     "version-pin": {
       "consensus_threshold": 0.8,

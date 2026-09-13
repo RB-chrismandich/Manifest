@@ -157,3 +157,21 @@ class TestValidationEngine:
         assert result["tier1"]["passed"] is False
         assert result["verdict"] == "BLOCKED"
         assert result["tier1"]["failures"] == ["No completed successful review"]
+
+    def test_conditional_command_requires_explicit_review_mode(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.criteria = {
+            "tier1": {},
+            "tier2": {},
+            "command_overrides": {
+                "python-refactor": {
+                    "tier1_checks": [],
+                    "conditional_tier1_checks": {"review_mode": {"escalated": []}},
+                }
+            },
+        }
+
+        result = engine.validate({}, {}, "review", "python-refactor")
+
+        assert result["verdict"] == "BLOCKED"
+        assert result["tier1"]["failures"] == ["Review mode is required"]

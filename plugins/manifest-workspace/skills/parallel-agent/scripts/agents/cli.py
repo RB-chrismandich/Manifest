@@ -150,7 +150,7 @@ def build_parser(roster: dict) -> argparse.ArgumentParser:
     parser.add_argument(
         "--review-mode",
         choices=("single-agent", "escalated"),
-        default="single-agent",
+        default=None,
         help="Review routing mode used for conditional validation",
     )
     parser.add_argument("--review", metavar="FILE", help="Code review mode")

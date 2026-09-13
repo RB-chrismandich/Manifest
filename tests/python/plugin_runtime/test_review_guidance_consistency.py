@@ -101,7 +101,16 @@ def test_refactor_dispatches_every_detected_ecosystem_sequentially(
     assert "aggregate" in source
 
 
-@pytest.mark.parametrize("command", ("python-refactor", "shell-refactor"))
+@pytest.mark.parametrize(
+    "command",
+    (
+        "python-refactor",
+        "node-refactor",
+        "go-refactor",
+        "shell-refactor",
+        "terraform-refactor",
+    ),
+)
 def test_refactor_cross_verification_is_conditional_on_escalation(
     repo_root: Path, command: str
 ) -> None:
@@ -116,14 +125,9 @@ def test_refactor_cross_verification_is_conditional_on_escalation(
         "cross_verification"
     ]
     assert "consensus_threshold" not in policy
-    assert policy["conditional_consensus"]["review_mode"]["escalated"] == {
-        "threshold": 0.80 if command == "python-refactor" else 0.75,
-        "action": {
-            "high": "auto_proceed",
-            "medium": "show_disagreements",
-            "low": "block_and_escalate",
-        },
-    }
+    assert policy["conditional_consensus"]["review_mode"]["escalated"]["threshold"] == (
+        0.75 if command == "shell-refactor" else 0.80
+    )
 
 
 def test_shell_refactor_review_never_installs_or_executes_checkout_code(

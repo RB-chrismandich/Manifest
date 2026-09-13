@@ -81,7 +81,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--review-mode",
         choices=("single-agent", "escalated"),
-        default="single-agent",
+        default=None,
         help="Review routing mode used for conditional validation",
     )
     parser.add_argument("--review", metavar="FILE", help="Code review mode")
