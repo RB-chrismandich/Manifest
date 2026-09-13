@@ -35,6 +35,34 @@ def test_committed_config_validates_against_schema() -> None:
     jsonschema.validate(instance, schema)
 
 
+def test_schema_accepts_checks_only_solo_mode() -> None:
+    """The declared schema represents an explicitly disabled review gate."""
+    import jsonschema
+
+    schema = json.loads(
+        (REPO_ROOT_MARKER / "schemas" / "branch-protection.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    instance = json.loads(
+        (REPO_ROOT_MARKER / "config" / "branch-protection.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    instance["required_pull_request_reviews"] = None
+
+    jsonschema.validate(instance, schema)
+
+
+def test_committed_policy_disables_reviews_for_solo_maintenance() -> None:
+    """The sole maintainer is not blocked by an impossible self-review gate."""
+    config = protection.load_config(
+        REPO_ROOT_MARKER / "config" / "branch-protection.json"
+    )
+
+    assert config["required_pull_request_reviews"] is None
+
+
 def test_committed_config_jobs_exist_and_resolve_to_real_ci_names() -> None:
     """Every required job id exists in the real workflow, and the resolved
     contexts are exactly the four expected job display names -- read from

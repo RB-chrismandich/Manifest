@@ -181,20 +181,25 @@ def build_payload(config: dict[str, Any], contexts: Sequence[str]) -> dict[str, 
     status_checks = config["required_status_checks"]
     reviews = config["required_pull_request_reviews"]
     app_id = status_checks["app_id"]
-    return {
-        "required_status_checks": {
-            "strict": status_checks["strict"],
-            "checks": [{"context": context, "app_id": app_id} for context in contexts],
-        },
-        "enforce_admins": config["enforce_admins"],
-        "required_pull_request_reviews": {
+    review_payload = (
+        None
+        if reviews is None
+        else {
             "dismiss_stale_reviews": reviews["dismiss_stale_reviews"],
             "require_code_owner_reviews": reviews["require_code_owner_reviews"],
             "required_approving_review_count": reviews[
                 "required_approving_review_count"
             ],
             "require_last_push_approval": reviews["require_last_push_approval"],
+        }
+    )
+    return {
+        "required_status_checks": {
+            "strict": status_checks["strict"],
+            "checks": [{"context": context, "app_id": app_id} for context in contexts],
         },
+        "enforce_admins": config["enforce_admins"],
+        "required_pull_request_reviews": review_payload,
         "required_conversation_resolution": config["required_conversation_resolution"],
         "allow_force_pushes": config["allow_force_pushes"],
         "allow_deletions": config["allow_deletions"],
@@ -207,12 +212,7 @@ def build_payload(config: dict[str, Any], contexts: Sequence[str]) -> dict[str, 
 ABSENT_LIVE: dict[str, Any] = {
     "required_status_checks": {"strict": None, "checks": []},
     "enforce_admins": None,
-    "required_pull_request_reviews": {
-        "dismiss_stale_reviews": None,
-        "require_code_owner_reviews": None,
-        "required_approving_review_count": None,
-        "require_last_push_approval": None,
-    },
+    "required_pull_request_reviews": None,
     "required_conversation_resolution": None,
     "allow_force_pushes": None,
     "allow_deletions": None,
@@ -223,7 +223,7 @@ ABSENT_LIVE: dict[str, Any] = {
 def normalize_live(raw: dict[str, Any]) -> dict[str, Any]:
     """Reshape a live GET body into the same shape `build_payload` emits."""
     checks = raw.get("required_status_checks") or {}
-    reviews = raw.get("required_pull_request_reviews") or {}
+    reviews = raw.get("required_pull_request_reviews")
     conversation = raw.get("required_conversation_resolution") or {}
     force_pushes = raw.get("allow_force_pushes") or {}
     deletions = raw.get("allow_deletions") or {}
@@ -237,14 +237,18 @@ def normalize_live(raw: dict[str, Any]) -> dict[str, Any]:
             ],
         },
         "enforce_admins": (raw.get("enforce_admins") or {}).get("enabled"),
-        "required_pull_request_reviews": {
-            "dismiss_stale_reviews": reviews.get("dismiss_stale_reviews"),
-            "require_code_owner_reviews": reviews.get("require_code_owner_reviews"),
-            "required_approving_review_count": reviews.get(
-                "required_approving_review_count"
-            ),
-            "require_last_push_approval": reviews.get("require_last_push_approval"),
-        },
+        "required_pull_request_reviews": (
+            None
+            if reviews is None
+            else {
+                "dismiss_stale_reviews": reviews.get("dismiss_stale_reviews"),
+                "require_code_owner_reviews": reviews.get("require_code_owner_reviews"),
+                "required_approving_review_count": reviews.get(
+                    "required_approving_review_count"
+                ),
+                "require_last_push_approval": reviews.get("require_last_push_approval"),
+            }
+        ),
         "required_conversation_resolution": conversation.get("enabled"),
         "allow_force_pushes": force_pushes.get("enabled"),
         "allow_deletions": deletions.get("enabled"),
