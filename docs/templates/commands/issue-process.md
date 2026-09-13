@@ -207,13 +207,15 @@ gh api repos/{owner}/{repo}/issues/comments/{comment_id} -X PATCH --field body="
 
 #### 5b. Determine final status
 
-Based on Step 4 consensus and test results:
+Base the outcome on the Step 4 review mode, applicable check evidence, and test
+results:
 
 | Condition | Label | Meaning |
 |-----------|-------|---------|
-| All tests pass AND consensus >= 80% | `processed` | Fully implemented, validated, ready to merge |
-| Tests pass but consensus 50-79%, OR minor items unresolved | `needs-review` | Implemented but requires human review |
-| Any test failure, consensus < 50%, or blocked items | `needs-review` | Partial implementation, issues documented |
+| `single-agent`, all applicable checks pass, and all acceptance items are complete | `processed` | Fully implemented, validated, ready to merge |
+| `independent-review`, all applicable checks pass, consensus >= 80%, and all acceptance items are complete | `processed` | Fully implemented, independently reviewed, ready to merge |
+| Any applicable check fails, an item is blocked, or escalated-review consensus is below 80% | `needs-review` | Implemented or partial work requires review |
+| A required check is unavailable or evidence remains unresolved | `needs-review` | Verification cannot be represented as passing |
 
 #### 5c. Build the checklist status report
 
@@ -243,7 +245,6 @@ Post a structured comment on the issue using `~/.claude/scripts/git_ops.sh issue
 ## Implementation Update
 
 **Status**: `processed` | `needs-review`
-**Consensus Score**: [X]%
 **Branch**: `<branch-name>` (if applicable)
 
 ### Summary
@@ -268,8 +269,11 @@ Post a structured comment on the issue using `~/.claude/scripts/git_ops.sh issue
 
 ### Validation
 
-- **Parallel agent consensus**: [X]% ([High/Medium/Low] confidence)
-- **Disagreements**: [list any, or "None"]
+- **Review mode**: `single-agent` | `independent-review`
+- **Escalation reason**: [canonical risk condition, or `not-applicable`]
+- **Applicable checks**: [exact command/result records, or `unavailable_reason`]
+- **Independent-review consensus**: [X]% or `not-applicable`
+- **Disagreements**: [list any, or `not-applicable`]
 
 ### Follow-up Items
 

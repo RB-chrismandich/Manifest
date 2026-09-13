@@ -47,6 +47,21 @@ def test_active_independent_review_guides_use_only_the_five_condition_gate(
     assert "each modified file" not in source
 
 
+def test_issue_process_template_requires_consensus_only_when_escalated(
+    repo_root: Path,
+) -> None:
+    source = (repo_root / "docs/templates/commands/issue-process.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "`single-agent`, all applicable checks pass" in source
+    assert (
+        "`independent-review`, all applicable checks pass, consensus >= 80%" in source
+    )
+    assert "All tests pass AND consensus >= 80%" not in source
+    assert "**Independent-review consensus**: [X]% or `not-applicable`" in source
+
+
 def test_validation_configs_do_not_duplicate_code_audit_activation(
     repo_root: Path,
 ) -> None:
