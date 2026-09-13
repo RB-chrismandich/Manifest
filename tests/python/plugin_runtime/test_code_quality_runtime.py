@@ -398,7 +398,9 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
     assert "one capable reviewer by default" in routing
     assert "Python, Go, and\nShell remains single-agent" in routing
     normalized_dispatch = " ".join(dispatch.split())
-    assert "When any one of the five conditions warrants escalation" in normalized_dispatch
+    assert (
+        "When any one of the five conditions warrants escalation" in normalized_dispatch
+    )
     assert "obtain an independent review" in normalized_dispatch
     assert (
         "only when the investigation has genuinely independent analysis tracks"

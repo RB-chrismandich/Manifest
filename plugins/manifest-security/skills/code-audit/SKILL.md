@@ -52,7 +52,7 @@ independently escalate review.
 ## Sub-agent dispatch
 
 Follow the shared selection rules documented at
-https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md
+<https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md>
 and the [bundle-local dispatch selection rules](references/code-audit-dispatch.md). Use
 the pinned `sonnet` model. Start with one capable reviewer; add independent
 review only when one of the five risk conditions is present. Do not use file,

@@ -303,7 +303,7 @@ After completing the analysis, capture the most significant findings:
 ## Sub-agent dispatch
 
 Follow the shared selection rules documented at
-https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md
+<https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md>
 and the [review escalation contract](../refactor/references/review-escalation.md). Use
 the pinned `sonnet` model. Start with one capable reviewer; add independent
 review only when at least one of that contract's five risk conditions is

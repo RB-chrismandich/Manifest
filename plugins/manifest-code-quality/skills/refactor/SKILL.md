@@ -29,7 +29,7 @@ Shell remains single-agent unless it presents one of those conditions.
 ## Sub-agent dispatch
 
 Follow the shared selection rules documented at
-https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md
+<https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md>
 as well as the [review escalation contract](references/review-escalation.md). When any one of
 the five conditions warrants escalation, obtain an independent review using the
 pinned `sonnet` model. Partition work among multiple reviewers only when the

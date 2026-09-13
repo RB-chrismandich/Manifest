@@ -40,7 +40,7 @@ refuted one, each reason citing concrete `file:line` evidence. An empty survived
 ## Sub-agent dispatch
 
 Follow the shared selection rules documented at
-https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md
+<https://github.com/RB-chrismandich/Manifest/blob/main/configs%2Fclaude/references/sub-agent-dispatch.md>
 and the [finding refutation dispatch rules](references/security-refute-findings-dispatch.md).
 Use the pinned `opus` model. For three or more candidate findings, refute one
 finding per review unit and aggregate structured verdicts. Below that threshold,
