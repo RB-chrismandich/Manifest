@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -63,6 +63,66 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   assert.ok(!calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, '.ui-results/unit.json') && !mount.readOnly));
   assert.ok(!calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, 'src/Card.tsx') && !mount.readOnly));
   assert.deepEqual(result.argv, recipe.argv);
+});
+
+test('resolves the approved node runtime from the extension process PATH', async () => {
+  const repo = await fixture();
+  const manager = await mkdtemp(join(tmpdir(), 'ui-delivery-nvm-'));
+  const node = join(manager, 'node');
+  await writeFile(node, '#!/bin/sh\n');
+  await chmod(node, 0o755);
+  const previousPath = process.env.PATH;
+  process.env.PATH = manager;
+  try {
+    const calls = [];
+    await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+    assert.ok(calls[0].argv.includes(`EXEC=${await realpath(node)}`));
+  } finally {
+    process.env.PATH = previousPath;
+    await rm(manager, { recursive: true, force: true });
+  }
+});
+
+test('skips a repository PATH shadow for the approved node runtime', async () => {
+  const repo = await fixture();
+  const shadow = join(repo, 'node');
+  const manager = await mkdtemp(join(tmpdir(), 'ui-delivery-asdf-'));
+  const node = join(manager, 'node');
+  await Promise.all([
+    writeFile(shadow, '#!/bin/sh\n'),
+    writeFile(node, '#!/bin/sh\n'),
+  ]);
+  await Promise.all([chmod(shadow, 0o755), chmod(node, 0o755)]);
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${repo}:${manager}`;
+  try {
+    const calls = [];
+    await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+    assert.ok(calls[0].argv.includes(`EXEC=${await realpath(node)}`));
+  } finally {
+    process.env.PATH = previousPath;
+    await rm(manager, { recursive: true, force: true });
+  }
+});
+
+test('rejects unapproved sandbox executable basenames', async () => {
+  const repo = await fixture();
+  await assert.rejects(
+    () => runCheck({
+      repo, task: task({ approved_check_recipes: [{ ...recipe, argv: ['evil', verifier.path] }] }),
+      checkId: 'unit', executor: executor([]), backends: mockBackends,
+    }),
+    /approved executable/,
+  );
+});
+
+test('grants the sandbox read and write access to its scratch directory', async () => {
+  const repo = await fixture();
+  const calls = [];
+  await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+  const profile = calls[0].argv[calls[0].argv.indexOf('-p') + 1];
+  assert.equal(profile.match(/\(subpath \(param "SCRATCH"\)\)/g)?.length, 2);
+  assert.match(profile, /\(allow file-write\* \(literal "\/dev\/null"\) \(subpath \(param "SCRATCH"\)\)\)/);
 });
 
 test('parameterizes SBPL paths and permits required runtime and system reads without network access', async () => {
@@ -143,6 +203,18 @@ test('rejects verifier bytes that differ from its approved digest', async () => 
     /trusted verifier digest/,
   );
   assert.equal(calls.length, 0);
+});
+
+test('rejects a verifier directory symlink that escapes the repository', async () => {
+  const repo = await fixture();
+  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-verifier-outside-'));
+  await writeFile(join(outside, 'verify.mjs'), 'trusted verifier\n');
+  await rm(join(repo, '.omp/ui-delivery/verifiers'), { recursive: true, force: true });
+  await symlink(outside, join(repo, '.omp/ui-delivery/verifiers'));
+  await assert.rejects(
+    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends }),
+    /trusted verifier/,
+  );
 });
 
 test('constructs Docker with fixed non-secret environment forwarded to the workload', async () => {
