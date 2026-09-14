@@ -120,3 +120,41 @@ test('keeps comma-bearing declared outputs out of Docker mount options', async (
   });
   assert.equal(calls[0].argv.filter((argument) => argument.includes(resultPath)).length, 0);
 });
+
+test('denies Docker dispatch for missing, invalid, or root host identities', async () => {
+  for (const hostIdentity of [
+    { getgid: () => 20 },
+    { getuid: () => 501 },
+    { getuid: () => -1, getgid: () => 20 },
+    { getuid: () => 501, getgid: () => Number.NaN },
+    { getuid: () => 0, getgid: () => 20 },
+    { getuid: () => 501, getgid: () => 0 },
+  ]) {
+    const repo = await fixture();
+    let executorCalled = false;
+    await assert.rejects(
+      runCheck({
+        repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
+        checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, hostIdentity,
+        executor: async () => {
+          executorCalled = true;
+          return { exitCode: 0, stdout: verifierOutput(), stderr: '' };
+        },
+      }),
+      /Docker requires non-root POSIX user IDs/,
+    );
+    assert.equal(executorCalled, false);
+  }
+});
+
+test('uses the injected non-root host identity for Docker', async () => {
+  const repo = await fixture();
+  const calls = [];
+  await runCheck({
+    repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+    hostIdentity: { getuid: () => 501, getgid: () => 20 }, executor: executor(calls),
+  });
+  const userIndex = calls[0].argv.indexOf('--user');
+  assert.equal(calls[0].argv[userIndex + 1], '501:20');
+});

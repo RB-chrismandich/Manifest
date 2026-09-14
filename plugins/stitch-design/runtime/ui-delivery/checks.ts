@@ -210,7 +210,7 @@ function executeInjected(executor: (command: Command) => Promise<Execution>, com
   return promise;
 }
 
-export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir() }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string }): Promise<CheckResult> {
+export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir(), hostIdentity = process }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string; hostIdentity?: Pick<typeof process, 'getuid' | 'getgid'> }): Promise<CheckResult> {
   if (signal?.aborted) throw new Error('check aborted');
   if (command !== undefined) throw new Error('raw commands are not accepted');
   const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; result_path: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
@@ -258,9 +258,9 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     if (recipe.backend === 'docker') for (const mount of mounts) { safeDockerMountPath(mount.source); safeDockerMountPath(mount.target); }
     const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
-    const dockerUid = recipe.backend === 'docker' ? process.getuid?.() : undefined;
-    const dockerGid = recipe.backend === 'docker' ? process.getgid?.() : undefined;
-    if (recipe.backend === 'docker' && (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! < 0 || dockerGid! < 0)) throw new Error('Docker requires POSIX user IDs');
+    const dockerUid = recipe.backend === 'docker' ? hostIdentity.getuid?.() : undefined;
+    const dockerGid = recipe.backend === 'docker' ? hostIdentity.getgid?.() : undefined;
+    if (recipe.backend === 'docker' && (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! <= 0 || dockerGid! <= 0)) throw new Error('Docker requires non-root POSIX user IDs');
     const deniedReads = protectedPaths.map((path, index) => ['-D', `DENY_${index}=${resolve(root, path)}`] as string[]).flat();
     const extraParameters = runtime ? runtime.extras.flatMap((entry, index) => ['-D', `EXTRA_EXEC_${index}=${entry.executable}`, '-D', `EXTRA_RUNTIME_${index}=${entry.runtime}`]) : [];
     const verifierParameters = runtime ? ['-D', `VERIFIER=${verifier.path}`, '-D', `VERIFIER_ROOT=${verifier.root}`] : [];
