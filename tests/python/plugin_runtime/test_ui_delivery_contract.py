@@ -62,6 +62,16 @@ def _assert_valid(validator: Draft202012Validator, instance: dict[str, Any]) -> 
 def _assert_invalid(validator: Draft202012Validator, instance: dict[str, Any]) -> None:
     assert list(validator.iter_errors(instance))
 
+def _assert_no_response_format_conditionals(schema: Any) -> None:
+    if isinstance(schema, dict):
+        assert not {"allOf", "if", "then"} & schema.keys()
+        for value in schema.values():
+            _assert_no_response_format_conditionals(value)
+    elif isinstance(schema, list):
+        for value in schema:
+            _assert_no_response_format_conditionals(value)
+
+
 
 def test_lifecycle_skills_are_portable_agent_skills_with_namespaced_handoffs(
     repo_root: Path,
@@ -402,8 +412,14 @@ def test_agent_output_schemas_are_strict_and_match_the_review_contract(
     reviewer_output = _frontmatter(
         repo_root / "plugins/stitch-design/agents/ui-reviewer.md"
     )["output"]
+    for schema in (review_schema, reviewer_output):
+        assert schema["additionalProperties"] is False
+        assert set(schema["required"]) == set(schema["properties"])
+        _assert_no_response_format_conditionals(schema)
     assert set(reviewer_output["properties"]) == set(review_schema["properties"])
     assert set(reviewer_output["required"]) == set(review_schema["required"])
+    assert "outcome" not in reviewer_output["properties"]
+    assert "outcome" not in review_schema["properties"]
     for field in ("findings", "reviewer_model_route", "verdict", "repair_cycles"):
         assert field in reviewer_output["properties"]
         assert field in reviewer_output["required"]
@@ -412,13 +428,12 @@ def test_agent_output_schemas_are_strict_and_match_the_review_contract(
         output = _frontmatter(
             repo_root / f"plugins/stitch-design/agents/{agent_name}.md"
         )["output"]
+        assert output["additionalProperties"] is False
+        assert set(output["required"]) == set(output["properties"])
+        _assert_no_response_format_conditionals(output)
         for field in ("task_id", "candidate_revision", "candidate_hash"):
             assert output["properties"][field]["minLength"] == 1
         assert output["properties"]["evidence_refs"]["minItems"] == 1
-        assert {
-            "if": {"properties": {"outcome": {"const": "verified"}}},
-            "then": {"required": ["evidence_refs"]},
-        } in output["allOf"]
 
 
 def test_a11y_reports_evidence_categories_without_conformance_claims(
@@ -469,7 +484,6 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
         "findings": ["No blocking findings."],
         "repair_cycles": 2,
         "evidence_refs": ["artifact://ui-delivery-17/capture.png"],
-        "outcome": "verified",
     }
 
     _assert_valid(validator, review)
@@ -477,7 +491,7 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
     _assert_invalid(validator, {key: value for key, value in review.items() if key != "candidate_hash"})
     _assert_invalid(validator, {key: value for key, value in review.items() if key != "evidence_refs"})
     _assert_invalid(validator, {**review, "repair_cycles": 3})
-    _assert_invalid(validator, {**review, "verdict": "accepted", "outcome": "unverified"})
+    _assert_invalid(validator, {**review, "outcome": "verified"})
     _assert_invalid(
         validator,
         {**review, "changed_paths": ["src/components/CheckoutCard.tsx"]},
