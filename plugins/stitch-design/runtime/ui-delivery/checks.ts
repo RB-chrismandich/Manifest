@@ -57,7 +57,8 @@ async function trustedVerifier(root: string, allowedPaths: string[], recipe: { a
   if (!under(verifierRoot, actual)) throw new Error('trusted verifier escapes protected root');
   const digest = `sha256:${createHash('sha256').update(await readFile(actual)).digest('hex')}`;
   if (digest !== verifier.sha256.toLowerCase()) throw new Error('trusted verifier digest mismatch');
-  const verifierArgument = recipe.argv.some((argument) => {
+  const verifierArgument = recipe.argv.some((argument, index) => {
+    if (index > 1) return false;
     const path = argument.startsWith('/repo/') ? join(root, argument.slice('/repo/'.length)) : resolve(root, argument);
     return path === requested || path === actual;
   });

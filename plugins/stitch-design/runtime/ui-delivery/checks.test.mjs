@@ -112,6 +112,21 @@ test('rejects a candidate executable even when its recipe claims a trusted verif
   assert.equal(calls.length, 0);
 });
 
+test('rejects a candidate entrypoint placed before the trusted verifier', async () => {
+  const repo = await fixture();
+  const calls = [];
+  await assert.rejects(
+    () => runCheck({
+      repo,
+      task: task({ approved_check_recipes: [{ ...recipe, argv: ['node', 'src/Card.tsx', verifier.path] }] }),
+      checkId: 'unit',
+      executor: executor(calls),
+    }),
+    /trusted verifier/,
+  );
+  assert.equal(calls.length, 0);
+});
+
 test('rejects verifier bytes that differ from its approved digest', async () => {
   const repo = await fixture();
   await writeFile(join(repo, verifier.path), 'tampered verifier\n');
