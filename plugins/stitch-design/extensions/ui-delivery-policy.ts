@@ -214,7 +214,8 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
       const input = event.input;
       const projectId = input && typeof input === 'object' && (typeof input.projectId === 'string' ? input.projectId : typeof input.project_id === 'string' ? input.project_id : undefined);
-      await stitch.policy.authorize({ projectId, toolName: event.toolName, input });
+      if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
+      await stitch.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
       return undefined;
     } catch (error) {
       return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
@@ -226,13 +227,14 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
     const details = event.details;
     const projectId = details && typeof details === 'object' && (typeof details.projectId === 'string' ? details.projectId : typeof details.project_id === 'string' ? details.project_id : undefined);
+    if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
     if (stitch.policy.classify(event.toolName) === 'mutation') {
-      if (event.isError) await stitch.policy.recordDispatchFailed();
-      else await stitch.policy.recordMutationResult({ toolName: event.toolName, projectId, succeeded: true }).catch(() => undefined);
+      if (event.isError) await stitch.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
+      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, succeeded: true }).catch(() => undefined);
     }
     if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.state() === 'mutation_unknown') {
       if (!projectId) throw new Error('Stitch project binding is required');
-      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, reconciled: !event.isError });
+      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError });
     }
     return undefined;
   });
