@@ -108,6 +108,20 @@ test('constructs Docker with fixed non-secret environment forwarded to the workl
   assert.ok(!command.argv.includes('CI=attacker-selected'));
 });
 
+test('passes fixed Docker workload argv through without resolving its container executable on the host', async () => {
+  const repo = await fixture();
+  const calls = [];
+  const containerArgv = ['ui-check-in-container', '--verify'];
+  await runCheck({
+    repo, task: task({ approved_check_recipes: [{ ...recipe, argv: containerArgv, backend: 'docker' }] }),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].executable, 'docker');
+  assert.deepEqual(calls[0].recipeArgv, containerArgv);
+  assert.deepEqual(calls[0].argv.slice(-containerArgv.length), containerArgv);
+});
+
 test('terminates the workload and removes scratch on timeout or abort before returning', async () => {
   const repo = await fixture();
   const scratchRoot = await mkdtemp(join(tmpdir(), 'ui-delivery-scratch-root-'));

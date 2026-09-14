@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { appendFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -136,6 +136,18 @@ test('applies a same-path regular diff with standard index metadata', async () =
   assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 2;\n');
 });
 
+test('applies an absolute task file patch and updates that validated task', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const taskFile = join(repo, '.omp/ui-delivery/tasks/task.json');
+  await withApproval(definition, () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile,
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+  }, repo));
+  assert.equal(JSON.parse(await readFile(taskFile, 'utf8')).state, 'candidate_ready');
+});
+
 test('applies a standard new regular-file diff', async () => {
   const definition = task({ allowed_paths: ['src/New.tsx'] });
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
@@ -158,6 +170,21 @@ function policyWithCheckRunner(api, runCheck) {
 
 function success() {
   return { exitCode: 0, stdout: { hash: 'sha256:stdout' }, stderr: { hash: 'sha256:stderr' } };
+}
+
+function evidenceRecord(definition, { attemptId, attemptPhase, operation = 'ui_run_check', outcome, artifacts = [], ...extra }) {
+  return {
+    taskId: definition.task_id, approvedDesignHash: definition.design_revision,
+    candidateRevision: definition.candidate_revision, candidateHash: definition.candidate_hash,
+    modelRoute: definition.model_route, authorizationDigest: digest(definition),
+    attemptId, attemptPhase, operation, outcome, elapsedMs: 0, artifacts,
+    stdoutHash: 'sha256:stdout', stderrHash: 'sha256:stderr', ...extra,
+  };
+}
+
+async function appendAttempt(evidenceFile, definition, { attemptId, operation, outcome, artifacts = [], ...extra }) {
+  await appendFile(evidenceFile, `${JSON.stringify(evidenceRecord(definition, { attemptId, attemptPhase: 'started', operation, outcome: 'pending', ...extra }))}\n`);
+  await appendFile(evidenceFile, `${JSON.stringify(evidenceRecord(definition, { attemptId, attemptPhase: 'completed', operation, outcome, artifacts, ...extra }))}\n`);
 }
 
 test('patch atomically binds the candidate, preserves authorization, records evidence, and enables its check', async () => {
@@ -248,20 +275,100 @@ test('status requires candidate-bound evidence for every approved check and capt
   await writeFile(join(repo, '.ui-results/visual.json'), '{"prior":true}\n');
   await bindCandidate(repo, definition);
   const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
-  const record = (operation, extra = {}) => ({
-    taskId: definition.task_id, approvedDesignHash: definition.design_revision,
-    candidateRevision: definition.candidate_revision, candidateHash: definition.candidate_hash,
-    modelRoute: definition.model_route, operation,
-    outcome: operation === 'ui_capture' ? 'captured' : 'verified',
-    elapsedMs: 0, artifacts: [], stdoutHash: 'sha256:stdout', stderrHash: 'sha256:stderr',
-    ...extra,
-  });
-  await appendFile(evidenceFile, `${JSON.stringify(record('ui_run_check', { checkId: 'unit' }))}\n`);
+  await appendAttempt(evidenceFile, definition, { attemptId: 'unit-1', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified' });
   const status = tools.find((entry) => entry.name === 'ui_delivery_status');
   assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
-  await appendFile(evidenceFile, `${JSON.stringify(record('ui_run_check', { checkId: 'visual' }))}\n`);
-  await appendFile(evidenceFile, `${JSON.stringify(record('ui_capture', { recipeId: 'capture', artifacts: [{ path: 'evidence/page.png', hash: 'sha256:artifact' }] }))}\n`);
+  await appendAttempt(evidenceFile, definition, { attemptId: 'visual-1', operation: 'ui_run_check', checkId: 'visual', outcome: 'verified' });
+  const page = await readFile(join(repo, 'evidence/page.png'));
+  await appendAttempt(evidenceFile, definition, {
+    attemptId: 'capture-1', operation: 'ui_capture', recipeId: 'capture', outcome: 'captured',
+    artifacts: [{ path: 'evidence/page.png', hash: `sha256:${createHash('sha256').update(page).digest('hex')}` }],
+  });
   assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+});
+
+test('status invalidates historical check success after the latest rerun is unfinished or failed', async () => {
+  const definition = task({
+    state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], capture_recipes: [],
+  });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+  const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  await appendAttempt(evidenceFile, definition, { attemptId: 'unit-1', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified' });
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+  await appendFile(evidenceFile, `${JSON.stringify(evidenceRecord(definition, { attemptId: 'unit-2', attemptPhase: 'started', operation: 'ui_run_check', checkId: 'unit', outcome: 'pending' }))}\n`);
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+  await appendFile(evidenceFile, `${JSON.stringify(evidenceRecord(definition, { attemptId: 'unit-2', attemptPhase: 'completed', operation: 'ui_run_check', checkId: 'unit', outcome: 'failed' }))}\n`);
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+});
+
+test('status cannot let an older concurrent completion override a later-started failed attempt', async () => {
+  const definition = task({
+    state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], capture_recipes: [],
+  });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+  const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+  for (const entry of [
+    evidenceRecord(definition, { attemptId: 'unit-old', attemptPhase: 'started', operation: 'ui_run_check', checkId: 'unit', outcome: 'pending' }),
+    evidenceRecord(definition, { attemptId: 'unit-new', attemptPhase: 'started', operation: 'ui_run_check', checkId: 'unit', outcome: 'pending' }),
+    evidenceRecord(definition, { attemptId: 'unit-new', attemptPhase: 'completed', operation: 'ui_run_check', checkId: 'unit', outcome: 'failed' }),
+    evidenceRecord(definition, { attemptId: 'unit-old', attemptPhase: 'completed', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified' }),
+  ]) await appendFile(evidenceFile, `${JSON.stringify(entry)}\n`);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+});
+
+test('status cannot reuse evidence whose authorization digest predates an otherwise identical recipe ID', async () => {
+  const definition = task({
+    state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], capture_recipes: [],
+  });
+  const oldDigest = digest({ ...definition, approved_check_recipes: [{ ...definition.approved_check_recipes[0], argv: ['node', '--test', 'old.mjs'] }] });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+  const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+  for (const entry of [
+    evidenceRecord(definition, { attemptId: 'unit-1', attemptPhase: 'started', operation: 'ui_run_check', checkId: 'unit', outcome: 'pending', authorizationDigest: oldDigest }),
+    evidenceRecord(definition, { attemptId: 'unit-1', attemptPhase: 'completed', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified', authorizationDigest: oldDigest }),
+  ]) await appendFile(evidenceFile, `${JSON.stringify(entry)}\n`);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+});
+
+test('status requires current regular capture artifacts with exact complete hashes', async () => {
+  for (const scenario of ['missing', 'replaced', 'symlinked', 'wrong hash', 'incomplete']) {
+    const definition = task({
+      state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+      candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+      approved_check_recipes: [{ ...task().approved_check_recipes[0], write_paths: ['.ui-results/unit.json', 'evidence/page.png', 'evidence/other.png'] }],
+      capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }, { path: 'evidence/other.png', type: 'screenshot' }] }],
+    });
+    const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+    const { repo } = await fixture(definition);
+    await writeFile(join(repo, 'evidence/other.png'), 'other capture');
+    await bindCandidate(repo, definition);
+    const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+    const paths = ['evidence/page.png', 'evidence/other.png'];
+    const artifacts = await Promise.all(paths.map(async (path) => ({ path, hash: `sha256:${createHash('sha256').update(await readFile(join(repo, path))).digest('hex')}` })));
+    await appendAttempt(evidenceFile, definition, { attemptId: 'unit-1', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified' });
+    await appendAttempt(evidenceFile, definition, { attemptId: 'capture-1', operation: 'ui_capture', recipeId: 'capture', outcome: 'captured', artifacts });
+    const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+    if (scenario === 'missing') await rm(join(repo, 'evidence/page.png'));
+    if (scenario === 'replaced') await writeFile(join(repo, 'evidence/page.png'), 'replacement capture');
+    if (scenario === 'symlinked') {
+      await rm(join(repo, 'evidence/page.png'));
+      await symlink(join(repo, 'evidence/other.png'), join(repo, 'evidence/page.png'));
+    }
+    const badArtifacts = scenario === 'wrong hash' ? [{ ...artifacts[0], hash: `sha256:${'0'.repeat(64)}` }, artifacts[1]]
+      : scenario === 'incomplete' ? [artifacts[0]] : artifacts;
+    await appendAttempt(evidenceFile, definition, { attemptId: 'capture-2', operation: 'ui_capture', recipeId: 'capture', outcome: 'captured', artifacts: badArtifacts });
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false, scenario);
+  }
 });
 
 test('status never reports accepted work verified without matching local evidence', async () => {
