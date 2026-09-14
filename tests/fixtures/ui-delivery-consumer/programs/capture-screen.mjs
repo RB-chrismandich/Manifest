@@ -1,4 +1,4 @@
-import { lstat, readFile, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -9,13 +9,16 @@ const resolvedTarget = resolve(targetPath);
 const resolvedPng = resolve(pngPath);
 const resolvedResult = resolve(resultPath);
 const emit = (passed) => writeFile(resolvedResult, `${JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: passed ? 1 : 0, failed: passed ? 0 : 1, skipped: 0 })}\n`, 'utf8');
-const userDataDir = `${process.env.HOME ?? '/tmp/ui-delivery'}/chrome-profile`;
+const homeDirectory = process.env.HOME ?? '/tmp/ui-delivery';
+const userDataDir = `${homeDirectory}/chrome-profile`;
+const crashDumpsDir = `${homeDirectory}/crash-dumps`;
 const sanitizeDiagnostic = (value) => value.replace(/file:\/\/\S+/g, '[approved local target]').replace(/https?:\/\/\S+/g, '[url]').replace(/\s+/g, ' ').trim().slice(0, 4096);
 const launch = () => new Promise((resolveLaunch, rejectLaunch) => {
   let stderr = '';
   const child = spawn(resolve(chromePath), [
     '--headless=new', '--disable-gpu', '--no-first-run', '--disable-background-networking',
-    '--disable-dev-shm-usage', `--user-data-dir=${userDataDir}`,
+    '--disable-dev-shm-usage', '--disable-breakpad', '--disable-crash-reporter', '--noerrdialogs',
+    `--user-data-dir=${userDataDir}`, `--crash-dumps-dir=${crashDumpsDir}`,
     '--hide-scrollbars', '--window-size=1280,900', `--screenshot=${resolvedPng}`, pathToFileURL(resolvedTarget).href,
   ], { shell: false, stdio: ['ignore', 'ignore', 'pipe'] });
   child.stderr.on('data', (chunk) => { if (Buffer.byteLength(stderr) < 4096) stderr += Buffer.from(chunk).subarray(0, 4096 - Buffer.byteLength(stderr)).toString(); });
@@ -27,6 +30,7 @@ const launch = () => new Promise((resolveLaunch, rejectLaunch) => {
 });
 
 try {
+  await Promise.all([mkdir(userDataDir, { recursive: true, mode: 0o700 }), mkdir(crashDumpsDir, { recursive: true, mode: 0o700 })]);
   await rm(resolvedPng, { force: true });
   await launch();
   const stat = await lstat(resolvedPng);
