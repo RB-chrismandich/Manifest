@@ -58,8 +58,10 @@ configuration.
 ## Prepare and authorize a task
 
 Create a task JSON under `.omp/ui-delivery/tasks/` that satisfies
-`plugins/stitch-design/skills/ui-delivery/references/task.schema.json`. Begin in
-`draft`, then have the trusted coordinator approve a manifest containing:
+`plugins/stitch-design/skills/ui-delivery/references/task.schema.json`. Task IDs
+are filename-safe ASCII (`[A-Za-z0-9][A-Za-z0-9._-]{0,127}`), and every
+authorized path is relative and whitespace-free. Begin in `draft`, then have
+the trusted coordinator approve a manifest containing:
 
 - one `@ui_code` route, a design revision, narrow `allowed_paths`, and explicit
   forbidden policy paths;
@@ -91,8 +93,11 @@ and requires fresh coordinator authorization.
 2. Move the approved task to `approved`, set `model_route` to `@ui_code`,
    inject the builder digest, and give it only to `ui-builder`.
 3. The builder patches only allowed paths and records the resulting candidate
-   revision and hash. It may run named build checks only. A check referenced by
-   a capture recipe is capture-only and `ui_run_check` rejects it.
+   revision and hash. The hash snapshots the entire non-host-owned worktree, so
+   a verifier dependency outside `allowed_paths` also invalidates evidence;
+   only `.omp/ui-delivery` protected state and declared check outputs are
+   excluded. It may run named build checks only. A check referenced by a capture
+   recipe is capture-only and `ui_run_check` rejects it.
 4. The trusted coordinator confirms the current candidate hash and the latest
    builder-check attempts under the builder digest. It then atomically changes
    the exact task to `reviewing` with `model_route: "@ui_review"`, computes the
