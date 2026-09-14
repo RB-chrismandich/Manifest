@@ -8,7 +8,6 @@ from typing import Any
 
 import pytest
 import yaml
-from jsonschema import Draft202012Validator, FormatChecker
 
 from tools.generate_plugin_views import render_views
 
@@ -36,8 +35,6 @@ def _frontmatter(path: Path) -> dict[str, Any]:
     return document
 
 
-
-
 def test_lifecycle_skills_are_portable_agent_skills_with_namespaced_handoffs(
     repo_root: Path,
 ) -> None:
@@ -55,10 +52,6 @@ def test_lifecycle_skills_are_portable_agent_skills_with_namespaced_handoffs(
         assert 0 < len(metadata["description"]) <= 200
     assert "/stitch-design:ui-verification" in delivery.read_text(encoding="utf-8")
     assert "/stitch-design:ui-delivery" in verification.read_text(encoding="utf-8")
-
-
-
-
 
 
 def test_delivery_preflight_requires_omp_assets_without_unrestricted_fallback(
@@ -82,10 +75,6 @@ def test_delivery_preflight_requires_omp_assets_without_unrestricted_fallback(
         assert required_asset in delivery
     assert "unrestricted fallback" in delivery.lower()
     assert "blocks work" in delivery.lower()
-
-
-
-
 
 
 def test_a11y_reports_evidence_categories_without_conformance_claims(
@@ -120,8 +109,6 @@ def test_design_generation_removes_unbounded_variant_and_curl_guidance(
     assert '"variantcount": 3' not in source
     assert "default: 3" not in source
     assert "no more than two candidates" in source
-
-
 
 
 def test_omp_agents_are_constrained_to_their_declared_roles(repo_root: Path) -> None:
