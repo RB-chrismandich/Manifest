@@ -63,7 +63,7 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
           "project_sha256": "0f7327bb8769c032412e986ae9d8e1de2ccbb3171c98b0599eecc6f3cf4145c0",
-          "exe_sha256": null,
+          "exe_sha256": "5577df89745de251581c406e22522affe5f3bf20aebcdb8b775a41bb13b26a1c",
           "python_provider": {
             "implementation": "cpython",
             "version": "3.12.3",
