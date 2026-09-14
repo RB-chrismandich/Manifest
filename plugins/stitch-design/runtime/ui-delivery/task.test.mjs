@@ -29,6 +29,7 @@ function approvedTask(overrides = {}) {
       id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
       backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
       write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
+      trusted_verifier: { path: '.omp/ui-delivery/verifiers/unit.mjs', sha256: `sha256:${'b'.repeat(64)}` },
     }],
     capture_recipes: [{
       id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }],
@@ -180,6 +181,14 @@ test('rejects malformed grant expiry even for status-facing task loads', async (
   const definition = approvedTask({ stitch_grant: { project_id: 'project-17', expires_at: 'not-a-date', mutations: [], readback_tools: [] } });
   const { repo, path } = await taskFile(definition);
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
+});
+
+test('requires every check recipe to declare a protected, exact SHA-256 trusted verifier', async () => {
+  const definition = approvedTask();
+  const { trusted_verifier, ...withoutVerifier } = definition.approved_check_recipes[0];
+  const { repo, path } = await taskFile({ ...definition, approved_check_recipes: [withoutVerifier] });
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /trusted verifier/i);
+  void trusted_verifier;
 });
 
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {

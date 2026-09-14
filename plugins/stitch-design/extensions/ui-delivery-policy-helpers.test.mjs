@@ -28,6 +28,9 @@ export function execute(tool, args, cwd, signal = new AbortController().signal) 
   return tool.execute('call', args, signal, () => {}, { cwd });
 }
 
+const verifierSource = 'export default () => ({ schema: "ui-delivery-check-v1", required: 1, passed: 1, failed: 0, skipped: 0 });\n';
+const verifierHash = `sha256:${createHash('sha256').update(verifierSource).digest('hex')}`;
+
 export function task(overrides = {}) {
   return {
     task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
@@ -37,11 +40,13 @@ export function task(overrides = {}) {
         id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
         backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
         write_paths: ['.ui-results/unit.json'],
+        trusted_verifier: { path: '.omp/ui-delivery/verifiers/unit.mjs', sha256: verifierHash },
       },
       {
         id: 'capture-unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
         backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
         write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
+        trusted_verifier: { path: '.omp/ui-delivery/verifiers/capture.mjs', sha256: verifierHash },
       },
     ],
     capture_recipes: [{ id: 'capture', check_id: 'capture-unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }] }],
@@ -70,10 +75,12 @@ export function digest(value) {
 
 export async function fixture(definition = task()) {
   const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-policy-'));
-  await Promise.all(['src', '.ui-results', 'evidence', '.omp/ui-delivery/tasks', '.omp/ui-delivery/evidence'].map((path) => mkdir(join(repo, path), { recursive: true })));
+  await Promise.all(['src', '.ui-results', 'evidence', '.omp/ui-delivery/tasks', '.omp/ui-delivery/evidence', '.omp/ui-delivery/verifiers'].map((path) => mkdir(join(repo, path), { recursive: true })));
   await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 1;\n');
   await writeFile(join(repo, '.ui-results/unit.json'), '{"prior":true}\n');
   await writeFile(join(repo, 'evidence/page.png'), 'prior capture');
+  await writeFile(join(repo, '.omp/ui-delivery/verifiers/unit.mjs'), verifierSource);
+  await writeFile(join(repo, '.omp/ui-delivery/verifiers/capture.mjs'), verifierSource);
   await writeFile(join(repo, '.omp/ui-delivery/tasks/task.json'), JSON.stringify(definition));
   return { repo, definition };
 }
