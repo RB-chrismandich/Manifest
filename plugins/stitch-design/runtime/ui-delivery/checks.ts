@@ -182,6 +182,29 @@ async function executeDirect(command: Command, outputLimitBytes: number, signal?
   });
 }
 
+function executeInjected(executor: (command: Command) => Promise<Execution>, command: Command, signal?: AbortSignal): Promise<Execution> {
+  const { promise, resolve: resolveResult, reject: rejectResult } = Promise.withResolvers<Execution>();
+  let settled = false;
+  const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', aborted); };
+  const rejectOnce = (reason: unknown) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    rejectResult(reason);
+  };
+  const resolveOnce = (execution: Execution) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    resolveResult(execution);
+  };
+  const aborted = () => { rejectOnce(new Error('check aborted')); };
+  const timer = setTimeout(() => { rejectOnce(new Error('check timed out')); }, command.timeoutMs);
+  signal?.addEventListener('abort', aborted, { once: true });
+  void Promise.resolve().then(() => executor(command)).then(resolveOnce, rejectOnce);
+  return promise;
+}
+
 export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir() }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string }): Promise<CheckResult> {
   if (signal?.aborted) throw new Error('check aborted');
   if (command !== undefined) throw new Error('raw commands are not accepted');
@@ -235,14 +258,15 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     if (recipe.backend === 'docker' && (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! < 0 || dockerGid! < 0)) throw new Error('Docker requires POSIX user IDs');
     const deniedReads = protectedPaths.map((path, index) => ['-D', `DENY_${index}=${resolve(root, path)}`] as string[]).flat();
     const extraParameters = runtime ? runtime.extras.flatMap((entry, index) => ['-D', `EXTRA_EXEC_${index}=${entry.executable}`, '-D', `EXTRA_RUNTIME_${index}=${entry.runtime}`]) : [];
+    const verifierParameters = runtime ? ['-D', `VERIFIER=${verifier.path}`, '-D', `VERIFIER_ROOT=${verifier.root}`] : [];
     const spec: Command = recipe.backend === 'sandbox-exec'
-      ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...deniedReads, '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) (subpath (param "SCRATCH")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${protectedPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH"))) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts }
+      ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...verifierParameters, ...deniedReads, '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) (subpath (param "SCRATCH")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${protectedPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-read-metadata (literal (param "VERIFIER_ROOT"))) (allow file-read* (literal (param "VERIFIER"))) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH"))) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts }
       : (() => {
         if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned');
         return { executable: 'docker', argv: ['run', '--rm', '--name', containerName, '--user', `${dockerUid}:${dockerGid}`, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', '--env', 'HOME=/tmp/ui-delivery', '--env', 'TMPDIR=/tmp/ui-delivery', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName };
       })();
     const execution = executor
-      ? await Promise.race([executor(spec), new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error('check timed out')), spec.timeoutMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('check aborted')); }, { once: true }); })])
+      ? await executeInjected(executor, spec, signal)
       : await executeDirect(spec, Math.max(outputLimitBytes, VERIFIER_ENVELOPE_LIMIT), signal);
     if (execution.exitCode === 0) await persistVerifierOutputs(root, verifierEnvelope(execution.stdout, recipe.write_paths, recipe.result_path), outputs, recipe.result_path);
     return { argv: recipe.argv, exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };

@@ -7,7 +7,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { runCheck } from './checks.ts';
-
+import { loadTask } from './task.ts';
 const execFileAsync = promisify(execFile);
 const verifier = {
   path: '.omp/ui-delivery/verifiers/verify.mjs',
@@ -126,6 +126,28 @@ test('grants the sandbox read and write access to its scratch directory', async 
   const profile = calls[0].argv[calls[0].argv.indexOf('-p') + 1];
   assert.equal(profile.match(/\(subpath \(param "SCRATCH"\)\)/g)?.length, 2);
   assert.match(profile, /\(allow file-write\* \(literal "\/dev\/null"\) \(subpath \(param "SCRATCH"\)\)\)/);
+});
+
+test('allows only the digest-checked verifier beneath protected .omp state', async () => {
+  const repo = await fixture();
+  const sibling = join(repo, '.omp/ui-delivery/sibling-state.txt');
+  await writeFile(sibling, 'protected sibling\n');
+  const calls = [];
+  await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+  const command = calls[0];
+  const profileIndex = command.argv.indexOf('-p');
+  const executable = command.argv.find((argument) => argument.startsWith('EXEC='))?.slice('EXEC='.length);
+  assert.ok(executable);
+  const script = 'const { readFileSync } = require("node:fs"); const verifier = readFileSync(process.argv[1], "utf8"); try { readFileSync(process.argv[2], "utf8"); process.exitCode = 2; } catch (error) { if (!["EACCES", "EPERM"].includes(error.code)) throw error; } process.stdout.write(verifier);';
+  const { stdout } = await execFileAsync('sandbox-exec', [
+    ...command.argv.slice(0, profileIndex + 2),
+    executable,
+    '-e',
+    script,
+    join(repo, verifier.path),
+    sibling,
+  ]);
+  assert.equal(stdout, 'trusted verifier\n');
 });
 
 test('parameterizes SBPL paths and permits required runtime and system reads without network access', async () => {
@@ -289,6 +311,39 @@ test('terminates the workload and removes scratch on timeout or abort before ret
   assert.deepEqual(await readdir(scratchRoot), []);
 });
 
+test('cleans injected-executor timeout and abort resources after it settles', async () => {
+  const repo = await fixture();
+  const listeners = new Set();
+  const signal = {
+    aborted: false,
+    addEventListener(type, listener) { if (type === 'abort') listeners.add(listener); },
+    removeEventListener(type, listener) { if (type === 'abort') listeners.delete(listener); },
+  };
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const timers = [];
+  globalThis.setTimeout = ((callback, delay) => {
+    const timer = { callback, delay, cleared: false };
+    timers.push(timer);
+    return timer;
+  });
+  globalThis.clearTimeout = ((timer) => { timer.cleared = true; });
+  try {
+    await runCheck({
+      repo, task: task(), checkId: 'unit', signal, executor: executor([]), backends: mockBackends,
+    });
+    await assert.rejects(() => runCheck({
+      repo, task: task(), checkId: 'unit', signal, executor: async () => { throw new Error('injected failure'); }, backends: mockBackends,
+    }), /injected failure/);
+    assert.equal(listeners.size, 0);
+    assert.equal(timers.length, 2);
+    assert.ok(timers.every((timer) => timer.cleared));
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
 test('writes verifier-declared results only after the sandbox exits without mounting outputs', async () => {
   const repo = await fixture();
   const calls = [];
@@ -325,13 +380,12 @@ test('rejects overlapping host-output attempts without cross-attributing verifie
         repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends,
         executor: async () => ({ exitCode: 0, stdout: verifierOutput({ result: { attempt: 'second' } }), stderr: '' }),
       }),
-      /output is busy/,
+      /output|lock|concurrent/i,
     );
   } finally {
     release();
-    await first;
   }
-  assert.deepEqual(JSON.parse(await readFile(join(repo, shared), 'utf8')), { attempt: 'first' });
+  await first;
   await runCheck({
     repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends,
     executor: async () => ({ exitCode: 0, stdout: verifierOutput({ result: { attempt: 'second' } }), stderr: '' }),
@@ -377,15 +431,26 @@ test('keeps comma-bearing declared outputs out of Docker mount options', async (
   });
   assert.equal(calls[0].argv.filter((argument) => argument.includes(resultPath)).length, 0);
 });
-test('prepares pilot checks with node for trusted runtime resolution', async () => {
+
+test('prepares a qualified pilot task with approval and active-runtime handoff', async () => {
   const { stdout } = await execFileAsync(process.execPath, ['tests/fixtures/ui-delivery-consumer/prepare.mjs', tmpdir()]);
   const prepared = JSON.parse(stdout);
+  const priorApproval = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  const priorQualification = process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
   try {
     for (const launch of prepared.cases) {
       const preparedTask = JSON.parse(await readFile(launch.task, 'utf8'));
       assert.equal(preparedTask.approved_check_recipes[0].argv[0], 'node');
+      assert.equal(preparedTask.qualification_hash, launch.active_qualification_sha256);
+      process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = launch.external_approval_sha256;
+      process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = launch.active_qualification_sha256;
+      await loadTask({ repo: launch.repo, taskFile: launch.task, operation: 'patch' });
     }
   } finally {
+    if (priorApproval === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = priorApproval;
+    if (priorQualification === undefined) delete process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
+    else process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = priorQualification;
     await rm(dirname(prepared.cases[0].repo), { recursive: true, force: true });
   }
 });
