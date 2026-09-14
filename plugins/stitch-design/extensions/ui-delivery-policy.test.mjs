@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 import uiDeliveryPolicy, { registerUiDeliveryPolicy } from './ui-delivery-policy.ts';
+import { candidateHash as calculateCandidateHash } from '../runtime/ui-delivery/task.ts';
 
 function extensionApi() {
   const tools = []; const handlers = new Map();
@@ -83,12 +84,16 @@ test('registers the deterministic UI delivery surface with exact OMP approval ti
 test('requires the external digest for patch, check, and capture even when repository JSON self-approves', async () => {
   const { api, tools } = extensionApi();
   uiDeliveryPolicy(api);
-  const { repo } = await fixture();
-  for (const [name, args] of [
-    ['ui_apply_patch', { taskFile: '.omp/ui-delivery/tasks/task.json', patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-x\n+y\n' }],
-    ['ui_run_check', { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }],
-    ['ui_capture', { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }],
+  for (const [name, args, definition] of [
+    ['ui_apply_patch', { taskFile: '.omp/ui-delivery/tasks/task.json', patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-x\n+y\n' }, task()],
+    ['ui_run_check', { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }, task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` })],
+    ['ui_capture', { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }, task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` })],
   ]) {
+    const { repo } = await fixture(definition);
+    if (name !== 'ui_apply_patch') {
+      definition.candidate_hash = await calculateCandidateHash({ repo, task: definition });
+      await writeFile(join(repo, '.omp/ui-delivery/tasks/task.json'), JSON.stringify(definition));
+    }
     const tool = tools.find((entry) => entry.name === name);
     await withoutApproval(() => assert.rejects(() => execute(tool, args, repo), /approval/i));
   }
@@ -115,8 +120,9 @@ test('fails closed on every unparseable, alternate, destructive, or symlink diff
   }
 });
 
-function candidateHash() {
-  return `sha256:${createHash('sha256').update('export const Card = 1;\n').digest('hex')}`;
+async function bindCandidate(repo, definition) {
+  definition.candidate_hash = await calculateCandidateHash({ repo, task: definition });
+  await writeFile(join(repo, '.omp/ui-delivery/tasks/task.json'), JSON.stringify(definition));
 }
 
 function policyWithCheckRunner(api, runCheck) {
@@ -165,9 +171,10 @@ test('rejects a wrong candidate hash before executing an approved check', async 
 });
 
 test('rejects a fresh zero-exit check result that reports skipped required checks', async () => {
-  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: candidateHash() });
+  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
   const { api, tools } = extensionApi();
   const { repo } = await fixture(definition);
+  await bindCandidate(repo, definition);
   policyWithCheckRunner(api, async () => {
     await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 0, failed: 0, skipped: 1 }));
     return success();
@@ -177,9 +184,10 @@ test('rejects a fresh zero-exit check result that reports skipped required check
 });
 
 test('rejects a zero-exit runner that leaves a pre-existing successful result unchanged', async () => {
-  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: candidateHash() });
+  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
   const { api, tools } = extensionApi();
   const { repo } = await fixture(definition);
+  await bindCandidate(repo, definition);
   await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }));
   policyWithCheckRunner(api, async () => success());
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
@@ -187,9 +195,10 @@ test('rejects a zero-exit runner that leaves a pre-existing successful result un
 });
 
 test('rejects capture when a successful check leaves its nonempty artifact unchanged', async () => {
-  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: candidateHash() });
+  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
   const { api, tools } = extensionApi();
   const { repo } = await fixture(definition);
+  await bindCandidate(repo, definition);
   policyWithCheckRunner(api, async () => {
     await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }));
     return success();

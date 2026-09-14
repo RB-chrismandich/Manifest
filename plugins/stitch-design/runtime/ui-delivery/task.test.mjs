@@ -65,17 +65,17 @@ test('requires an external authorization digest for every mutation and executabl
   const definition = approvedTask();
   const { repo, path } = await taskFile(definition);
   delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true }));
+  await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }));
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = 'sha256:0'.padEnd(71, '0');
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true }));
-  await withApproval(definition, () => loadTask({ repo, taskFile: path, mutation: true }));
+  await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }));
+  await withApproval(definition, () => loadTask({ repo, taskFile: path, operation: 'patch' }));
 });
 
 test('rejects a repository task that self-asserts approved without the parent authorization digest', async () => {
   const definition = approvedTask({ state: 'approved' });
   const { repo, path } = await taskFile(definition);
   delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true }), /approval/i);
+  await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /approval/i);
 });
 
 test('preserves authorization digest across lifecycle changes and invalidates recipes paths or grants', () => {
@@ -99,12 +99,12 @@ test('permits candidate lifecycle states for checks while reserving mutation aut
       ...(state === 'accepted' ? { evidence_refs: ['artifact://task-17/evidence'] } : {}),
     });
     const { repo, path } = await taskFile(definition);
-    await loadTask({ repo, taskFile: path });
-    await withApproval(definition, () => assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true })));
+    await loadTask({ repo, taskFile: path, operation: 'check' });
+    await withApproval(definition, () => assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' })));
   }
   const approved = approvedTask();
   const { repo, path } = await taskFile(approved);
-  await withApproval(approved, () => loadTask({ repo, taskFile: path, mutation: true }));
+  await withApproval(approved, () => loadTask({ repo, taskFile: path, operation: 'patch' }));
 });
 
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
