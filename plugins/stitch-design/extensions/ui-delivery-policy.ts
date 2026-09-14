@@ -73,13 +73,21 @@ function diffTargets(patch: string): string[] {
 }
 async function gitApply(cwd: string, patch: string, signal: AbortSignal, reverse = false): Promise<void> {
   const { promise, resolve, reject } = Promise.withResolvers<void>();
+  let settled = false;
+  const settle = (error?: Error) => {
+    if (settled) return;
+    settled = true;
+    if (error) reject(error);
+    else resolve();
+  };
   const child = spawn('git', ['apply', '--whitespace=nowarn', ...(reverse ? ['--reverse'] : []), '--'], { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'], signal });
-  child.once('error', (error) => reject(signal.aborted ? new Error('git apply aborted') : error));
+  child.once('error', (error) => settle(signal.aborted ? new Error('git apply aborted') : error));
   child.once('close', (code) => {
-    if (code === 0) resolve();
-    else if (signal.aborted) reject(new Error('git apply aborted'));
-    else reject(new GitApplyRejectedError());
+    if (code === 0) settle();
+    else if (signal.aborted) settle(new Error('git apply aborted'));
+    else settle(new GitApplyRejectedError());
   });
+  child.stdin.once('error', (error) => settle(signal.aborted ? new Error('git apply aborted') : error));
   child.stdin.end(patch);
   return promise;
 }

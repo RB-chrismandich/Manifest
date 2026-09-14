@@ -211,6 +211,61 @@ test('blocks a second task when another task leaves repository patch recovery un
   ));
 });
 
+test('contains an early git apply stdin EPIPE in the caller-visible rejection and retains the recovery journal', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const bin = await mkdtemp(join(tmpdir(), 'ui-delivery-early-git-'));
+  const git = join(bin, 'git');
+  const previousPath = process.env.PATH;
+  const uncaught = [];
+  const captureUncaught = (error) => uncaught.push(error);
+  await writeFile(git, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  process.env.PATH = `${bin}:${previousPath ?? ''}`;
+  process.on('uncaughtException', captureUncaught);
+  try {
+    await withApproval(definition, () => assert.rejects(
+      () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+        taskFile: '.omp/ui-delivery/tasks/task.json',
+        patch: `diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+${'x'.repeat(8 * 1024 * 1024)}\n`,
+      }, repo),
+    ));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual(uncaught, []);
+    assert.equal(JSON.parse(await readFile(join(repo, '.omp/ui-delivery/evidence/repository.patch-pending.json'), 'utf8')).state, 'pending');
+  } finally {
+    process.off('uncaughtException', captureUncaught);
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    await rm(bin, { recursive: true, force: true });
+  }
+});
+
+test('releases the patch journal after a clean git apply nonzero exit', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const bin = await mkdtemp(join(tmpdir(), 'ui-delivery-nonzero-git-'));
+  const git = join(bin, 'git');
+  const previousPath = process.env.PATH;
+  await writeFile(git, '#!/bin/sh\ncat > /dev/null\nexit 1\n', { mode: 0o755 });
+  process.env.PATH = `${bin}:${previousPath ?? ''}`;
+  try {
+    await withApproval(definition, () => assert.rejects(
+      () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+        taskFile: '.omp/ui-delivery/tasks/task.json',
+        patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+      }, repo),
+      /git apply rejected patch/,
+    ));
+    await assert.rejects(() => readFile(join(repo, '.omp/ui-delivery/evidence/repository.patch-pending.json')));
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    await rm(bin, { recursive: true, force: true });
+  }
+});
+
 test('patch atomically binds the candidate, preserves authorization, records evidence, and enables its check', async () => {
   const definition = task();
   const { api, tools } = extensionApi();
