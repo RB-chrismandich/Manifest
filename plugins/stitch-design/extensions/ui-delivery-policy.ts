@@ -13,6 +13,11 @@ const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
 const result = (details: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
 function diffTargets(patch: string): string[] {
   const lines = patch.split('\n'); const targets: string[] = [];
+  const parseRange = (start: string, count: string | undefined): [number, number] => {
+    const parsedStart = Number(start); const parsedCount = count === undefined ? 1 : Number(count);
+    if (!Number.isSafeInteger(parsedStart) || !Number.isSafeInteger(parsedCount) || parsedStart < 0 || parsedCount < 0 || (parsedStart === 0 && parsedCount !== 0)) throw new Error('malformed hunk header');
+    return [parsedStart, parsedCount];
+  };
   for (let index = 0; index < lines.length;) {
     if (!lines[index]) { index += 1; continue; }
     const header = /^diff --git a\/([^\s]+) b\/([^\s]+)$/.exec(lines[index++]);
@@ -30,9 +35,31 @@ function diffTargets(patch: string): string[] {
     if ((created && (oldPath !== newPath || lines[index++] !== '--- /dev/null' || lines[index++] !== `+++ b/${newPath}`)) || (!created && (oldPath !== newPath || lines[index++] !== `--- a/${oldPath}` || lines[index++] !== `+++ b/${newPath}`))) throw new Error('unsafe or destructive diff policy');
     let hunks = 0;
     while (index < lines.length && !lines[index].startsWith('diff --git ')) {
-      if (lines[index].startsWith('@@ ')) hunks += 1;
-      else if (/^(?:new|old) mode|^(?:rename|copy) |^similarity index|^Binary |^(?:---|\+\+\+) /.test(lines[index])) throw new Error('malformed diff metadata');
-      index += 1;
+      if (!lines[index]) { index += 1; continue; }
+      const hunk = /^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@(?: .*)?$/.exec(lines[index]);
+      if (!hunk) throw new Error(lines[index].startsWith('@@ ') ? 'malformed hunk header' : 'malformed hunk body');
+      index += 1; hunks += 1;
+      let [oldRemaining, newRemaining] = parseRange(hunk[1], hunk[2]);
+      const [, parsedNewCount] = parseRange(hunk[3], hunk[4]); newRemaining = parsedNewCount;
+      let markerAllowed = false;
+      while (oldRemaining > 0 || newRemaining > 0) {
+        const line = lines[index++];
+        if (line === undefined) throw new Error('malformed hunk body');
+        if (line === '\\ No newline at end of file') {
+          if (!markerAllowed) throw new Error('malformed hunk body');
+          markerAllowed = false; continue;
+        }
+        if (line.startsWith(' ')) { oldRemaining -= 1; newRemaining -= 1; }
+        else if (line.startsWith('-')) oldRemaining -= 1;
+        else if (line.startsWith('+')) newRemaining -= 1;
+        else throw new Error('malformed hunk body');
+        if (oldRemaining < 0 || newRemaining < 0) throw new Error('malformed hunk body');
+        markerAllowed = true;
+      }
+      if (lines[index] === '\\ No newline at end of file') {
+        if (!markerAllowed) throw new Error('malformed hunk body');
+        index += 1;
+      }
     }
     if (!hunks || targets.includes(newPath)) throw new Error('unparseable diff policy');
     targets.push(newPath);
