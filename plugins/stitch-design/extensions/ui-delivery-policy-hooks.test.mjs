@@ -116,7 +116,7 @@ test('surfaces mutation-result persistence failures and keeps the mutation fail-
     await writeFile(join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock'), '');
     await assert.rejects(
       () => handlers.get('tool_result')({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } }),
-      /exist|state/i,
+      /exist|state|lock|malformed/i,
     );
     const retry = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-2' });
     assert.equal(retry.block, true);

@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
