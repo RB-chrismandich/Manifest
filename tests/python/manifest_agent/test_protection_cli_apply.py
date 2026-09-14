@@ -22,9 +22,8 @@ from tests.python.manifest_agent.test_protection_cli import (
     _stage_get,
     _write_response,
     _write_workflow,
+    env,
 )
-
-pytest_plugins = ("tests.python.manifest_agent.test_protection_cli",)
 
 
 def test_apply_refused_when_aggregate_has_continue_on_error(
