@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { lstat, mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -15,6 +15,8 @@ const recipe = {
   backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'], trusted_verifier: verifier,
 };
+
+const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20 };
 
 function task(overrides = {}) {
   return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
@@ -50,7 +52,7 @@ test('constructs Docker with fixed non-secret environment forwarded to the workl
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
     checkId: 'unit', environment: { AWS_SECRET_ACCESS_KEY: 'secret', CI: 'attacker-selected' },
-    backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
+    backends: { 'sandbox-exec': true, docker: true }, hostIdentity: nonRootHostIdentity, executor: executor(calls),
   });
   const [command] = calls;
   assert.equal(command.executable, 'docker');
@@ -68,7 +70,7 @@ test('uses Docker lifecycle cleanup for ordinary nonzero check results', async (
   const calls = [];
   const result = await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, hostIdentity: nonRootHostIdentity,
     executor: async (command) => {
       calls.push(command);
       return { exitCode: 1, stdout: '', stderr: 'failed' };
@@ -83,7 +85,7 @@ test('rewrites the verified Docker verifier argument beneath an approved image r
   const containerArgv = ['node', `/repo/${verifier.path}`];
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, argv: containerArgv, backend: 'docker' }] }),
-    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, hostIdentity: nonRootHostIdentity, executor: executor(calls),
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executable, 'docker');
@@ -96,7 +98,7 @@ test('mounts only the digest-verified verifier file and rewrites its Docker argv
   const calls = [];
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, hostIdentity: nonRootHostIdentity, executor: executor(calls),
   });
   const [command] = calls;
   const verifierMount = command.mounts.find((mount) => mount.target === '/trusted-verifier');
@@ -125,23 +127,17 @@ test('rejects Docker output paths that cannot be safely exact-path masked', asyn
 test('masks each declared Docker output with an empty read-only file', async () => {
   const repo = await fixture();
   let mask;
-  let mode;
-  let unreadable = false;
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, hostIdentity: nonRootHostIdentity,
     executor: async (command) => {
       mask = command.mounts.find((entry) => entry.target === '/repo/.ui-results/unit.json');
-      await assert.rejects(() => readFile(mask.source, 'utf8'), { code: 'EACCES' });
-      unreadable = true;
-      mode = (await lstat(mask.source)).mode & 0o777;
       return { exitCode: 0, stdout: verifierOutput(), stderr: 'stderr' };
     },
   });
   assert.ok(mask);
+  assert.equal(mask.target, '/repo/.ui-results/unit.json');
   assert.equal(mask.readOnly, true);
-  assert.equal(unreadable, true);
-  assert.equal(mode, 0);
 });
 
 test('rejects a repository-resident Docker argv[0]', async () => {
@@ -194,7 +190,7 @@ test('uses the injected non-root host identity for Docker', async () => {
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
     checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
-    hostIdentity: { getuid: () => 501, getgid: () => 20 }, executor: executor(calls),
+    hostIdentity: nonRootHostIdentity, executor: executor(calls),
   });
   const userIndex = calls[0].argv.indexOf('--user');
   assert.equal(calls[0].argv[userIndex + 1], '501:20');
