@@ -1,21 +1,33 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { loadTask } from './task.ts';
+import { candidateHash, loadTask } from './task.ts';
 
-async function approvedTask(repo, overrides = {}) {
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  return value;
+}
+
+function authorizationDigest(task) {
+  const projection = Object.fromEntries([
+    'task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths',
+    'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant',
+  ].filter((key) => key in task).map((key) => [key, task[key]]));
+  return `sha256:${createHash('sha256').update(JSON.stringify(canonical(projection))).digest('hex')}`;
+}
+
+function approvedTask(overrides = {}) {
   return {
-    task_id: 'task-17',
-    state: 'approved',
-    design_revision: 'stitch-r17',
-    allowed_paths: ['src/Card.tsx'],
-    forbidden_policy_paths: ['policy/baseline.json'],
+    task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
+    allowed_paths: ['src/Card.tsx', '.ui-results/unit.json', 'evidence/page.png'], forbidden_policy_paths: ['policy/baseline.json'],
     approved_check_recipes: [{
       id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
-      backend: 'sandbox-exec',
+      backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
     }],
     capture_recipes: [{
       id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }],
@@ -27,51 +39,88 @@ async function approvedTask(repo, overrides = {}) {
 
 async function taskFile(task, relative = '.omp/ui-delivery/tasks/task-17.json') {
   const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-task-'));
+  await mkdir(join(repo, 'src'), { recursive: true });
+  await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 1;\n');
+  await mkdir(join(repo, '.ui-results'), { recursive: true });
+  await mkdir(join(repo, 'evidence'), { recursive: true });
+  await writeFile(join(repo, '.ui-results/unit.json'), '{"prior":true}\n');
+  await writeFile(join(repo, 'evidence/page.png'), 'prior capture');
   const path = join(repo, relative);
   await mkdir(join(path, '..'), { recursive: true });
-  await writeFile(path, JSON.stringify(await approvedTask(repo, task)));
+  await writeFile(path, JSON.stringify(approvedTask(task)));
   return { repo, path };
 }
 
-test('loads a schema-valid approved task from the repository task directory', async () => {
-  const { repo, path } = await taskFile({});
-  const task = await loadTask({ repo, taskFile: path, mutation: true, now: new Date('2026-09-14T00:00:00Z') });
-  assert.equal(task.task_id, 'task-17');
-});
+async function withApproval(task, operation) {
+  const before = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = authorizationDigest(task);
+  try { return await operation(); } finally {
+    if (before === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = before;
+  }
+}
 
-test('rejects a task outside the repository policy task directory', async () => {
-  const { repo, path } = await taskFile({}, 'tasks/task-17.json');
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: false }));
-});
-
-test('rejects a policy task filename whose symlink resolves outside the repository', async () => {
-  const { repo } = await taskFile({});
-  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-task-outside-'));
-  const outsideTask = join(outside, 'task.json');
-  await writeFile(outsideTask, JSON.stringify(await approvedTask(repo)));
-  const path = join(repo, '.omp/ui-delivery/tasks/escaped.json');
-  await symlink(outsideTask, path);
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: false }));
-});
-
-test('rejects a schema-invalid task before executing a policy operation', async () => {
-  const { repo, path } = await taskFile({ allowed_paths: [] });
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: false }));
-});
-
-test('rejects mutations when the task is not approved', async () => {
-  const { repo, path } = await taskFile({ state: 'draft' });
+test('requires an external authorization digest for every mutation and executable task load', async () => {
+  const definition = approvedTask();
+  const { repo, path } = await taskFile(definition);
+  delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
   await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true }));
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = 'sha256:0'.padEnd(71, '0');
+  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true }));
+  await withApproval(definition, () => loadTask({ repo, taskFile: path, mutation: true }));
 });
 
-test('rejects an approved task whose Stitch mutation grant is expired', async () => {
-  const { repo, path } = await taskFile({
-    stitch_grant: {
-      project_id: 'project-17',
-      expires_at: '2020-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'stitch.edit_screen', input_hash: 'sha256:input', max_uses: 1 }],
-      readback_tools: ['stitch.get_screen'],
-    },
+test('rejects a repository task that self-asserts approved without the parent authorization digest', async () => {
+  const definition = approvedTask({ state: 'approved' });
+  const { repo, path } = await taskFile(definition);
+  delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true }), /approval/i);
+});
+
+test('preserves authorization digest across lifecycle changes and invalidates recipes paths or grants', () => {
+  const task = approvedTask({
+    state: 'candidate_ready', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
+    evidence_refs: ['artifact://task-17/evidence.json'],
   });
-  await assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true, now: new Date('2026-09-14T00:00:00Z') }));
+  const digest = authorizationDigest(task);
+  assert.equal(digest, authorizationDigest({ ...task, state: 'reviewing', repair_cycles: 1, outcome: 'unverified', evidence_refs: ['artifact://new'] }));
+  assert.notEqual(digest, authorizationDigest({ ...task, allowed_paths: ['src/Other.tsx'] }));
+  assert.notEqual(digest, authorizationDigest({ ...task, approved_check_recipes: [{ ...task.approved_check_recipes[0], argv: ['evil'] }] }));
+  assert.notEqual(digest, authorizationDigest({ ...task, stitch_grant: { project_id: 'different' } }));
+});
+
+test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
+  const definition = approvedTask({ allowed_paths: ['src/Card.tsx', '.ui-results', 'evidence'] });
+  const { repo } = await taskFile(definition);
+  await mkdir(join(repo, '.ui-results'), { recursive: true });
+  await mkdir(join(repo, 'evidence'), { recursive: true });
+  const before = await candidateHash({ repo, task: definition });
+  await writeFile(join(repo, '.ui-results/unit.json'), '{"schema":"ui-delivery-check-v1"}\n');
+  await writeFile(join(repo, 'evidence/page.png'), 'fresh capture');
+  assert.equal(await candidateHash({ repo, task: definition }), before);
+  await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 2;\n');
+  assert.notEqual(await candidateHash({ repo, task: definition }), before);
+});
+
+test('accepts a schema-valid building task and rejects policy-directory escapes', async () => {
+  const definition = approvedTask({ state: 'building' });
+  const { repo, path } = await taskFile(definition);
+  const task = await loadTask({ repo, taskFile: path });
+  assert.equal(task.state, 'building');
+  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-task-outside-'));
+  const escaped = join(repo, '.omp/ui-delivery/tasks/escaped.json');
+  await writeFile(join(outside, 'task.json'), JSON.stringify(definition));
+  await symlink(join(outside, 'task.json'), escaped);
+  await assert.rejects(() => loadTask({ repo, taskFile: escaped }));
+});
+
+test('rejects malformed recipes and empty capture evidence before an operation starts', async () => {
+  for (const override of [
+    { approved_check_recipes: [{ ...approvedTask().approved_check_recipes[0], result_path: undefined }] },
+    { capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [] }] },
+  ]) {
+    const { repo, path } = await taskFile(override);
+    await assert.rejects(() => loadTask({ repo, taskFile: path }));
+  }
 });

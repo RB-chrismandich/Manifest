@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, symlink } from 'node:fs/promises';
+import { link, mkdtemp, mkdir, readFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -45,6 +45,21 @@ test('rejects evidence-file traversal and a final symlink escaping the task evid
   const escaped = join(repo, '.omp/ui-delivery/evidence/escaped.jsonl');
   await symlink(join(outside, 'escaped.jsonl'), escaped);
   await assert.rejects(() => appendEvidence({ repo, evidenceFile: escaped, record: binding }));
+});
+
+test('rejects a symlinked policy-directory component and a multiply-linked evidence file', async () => {
+  const { repo, evidenceFile } = await fixture();
+  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-evidence-outside-'));
+  const policyRoot = join(repo, '.omp/ui-delivery');
+  await rm(policyRoot, { recursive: true });
+  await mkdir(join(outside, 'evidence'), { recursive: true });
+  await symlink(outside, policyRoot);
+  await assert.rejects(() => appendEvidence({ repo, evidenceFile, record: binding }));
+
+  const second = await fixture();
+  await appendEvidence({ repo: second.repo, evidenceFile: second.evidenceFile, record: binding });
+  await link(second.evidenceFile, join(second.repo, 'linked.jsonl'));
+  await assert.rejects(() => appendEvidence({ repo: second.repo, evidenceFile: second.evidenceFile, record: binding }));
 });
 
 test('preserves append-only JSONL history rather than rewriting an earlier record', async () => {

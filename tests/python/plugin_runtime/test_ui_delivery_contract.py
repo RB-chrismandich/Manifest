@@ -93,7 +93,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         "state": "accepted",
         "design_revision": "stitch-revision-71",
         "candidate_revision": "git:4d2ce0b",
-        "candidate_hash": "sha256:8d5f2e",
+        "candidate_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "allowed_paths": ["src/components/CheckoutCard.tsx"],
         "forbidden_policy_paths": [".claude/settings.json"],
         "approved_check_recipes": [
@@ -104,7 +104,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
                 "timeout_ms": 120000,
                 "backend": "sandbox-exec",
                 "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
-                "env": ["CI"],
+                "result_path": "artifacts/checkout-ui.result.json",
                 "artifacts": [{"path": "artifacts/checkout-ui.xml", "type": "junit"}],
             }
         ],
@@ -145,6 +145,10 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         validator,
         {key: value for key, value in candidate_ready.items() if key != "candidate_hash"},
     )
+    _assert_invalid(
+        validator,
+        {**candidate_ready, "candidate_hash": "sha256:8d5f2e"},
+    )
     _assert_valid(
         validator,
         {
@@ -172,7 +176,8 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
     )
     _assert_invalid(validator, {key: value for key, value in task.items() if key != "capture_recipes"})
     _assert_invalid(validator, {key: value for key, value in task.items() if key != "evidence_refs"})
-    _assert_invalid(validator, {**task, "repair_cycles": 3})
+    _assert_invalid(validator, {**task, "approved_check_recipes": [{**task["approved_check_recipes"][0], "env": ["CI"]}]})
+    _assert_invalid(validator, {**task, "approved_check_recipes": [{key: value for key, value in task["approved_check_recipes"][0].items() if key != "result_path"}]})
     _assert_invalid(validator, {**task, "state": "accepted", "outcome": "unverified"})
     _assert_invalid(validator, {**task, "state": "blocked", "outcome": "verified"})
     _assert_invalid(validator, {**task, "state": "cancelled"})
@@ -276,6 +281,7 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
                 "timeout_ms": 1000,
                 "backend": "docker",
                 "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                "result_path": "artifacts/checkout-ui.result.json",
             }
         ],
         "capture_recipes": [
@@ -296,7 +302,7 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
         **active,
         "state": "candidate_ready",
         "candidate_revision": "git:4d2ce0b",
-        "candidate_hash": "sha256:8d5f2e",
+        "candidate_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     }
     _assert_valid(validator, candidate_ready)
     for state in ("reviewing", "repairing"):
@@ -352,6 +358,7 @@ def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
                 "timeout_ms": 1000,
                 "backend": "docker",
                 "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                "result_path": "artifacts/checkout-ui.result.json",
             }
         ],
         "capture_recipes": [

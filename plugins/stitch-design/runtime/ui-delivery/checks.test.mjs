@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, realpath } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -7,12 +7,13 @@ import test from 'node:test';
 import { runCheck } from './checks.ts';
 
 const recipe = {
-  id: 'unit', argv: ['node', '--test', 'test.mjs'], cwd: 'src', timeout_ms: 500,
-  backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef', env: ['CI'],
+  id: 'unit', argv: ['node', '--test', 'test.mjs'], cwd: '.', timeout_ms: 500,
+  backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef',
+  result_path: '.ui-results/unit.json',
 };
 
 function task(overrides = {}) {
-  return { allowed_paths: ['src'], approved_check_recipes: [recipe], ...overrides };
+  return { allowed_paths: ['src/Card.tsx', '.ui-results/unit.json'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
 }
 
 function executor(calls, stdout = 'x'.repeat(64)) {
@@ -22,12 +23,21 @@ function executor(calls, stdout = 'x'.repeat(64)) {
   };
 }
 
-test('runs only a named recipe through sandbox-exec with scrubbed environment and fixed argv', async () => {
+async function fixture() {
   const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-check-'));
-  await mkdir(join(repo, 'src'));
+  await mkdir(join(repo, 'src'), { recursive: true });
+  await mkdir(join(repo, '.ui-results'), { recursive: true });
+  await mkdir(join(repo, 'policy'), { recursive: true });
+  await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 1;\n');
+  await writeFile(join(repo, '.ui-results/unit.json'), '{"prior":true}\n');
+  return repo;
+}
+
+test('runs a file-allowlisted check from the read-only repository cwd with fixed argv', async () => {
+  const repo = await fixture();
   const calls = [];
   const result = await runCheck({
-    repo, task: task(), checkId: 'unit', environment: { CI: '1', HOME: '/ambient', TOKEN: 'secret' },
+    repo, task: task(), checkId: 'unit', environment: { HOME: '/ambient', TOKEN: 'secret', CI: '1' },
     executor: executor(calls),
   });
   assert.equal(calls.length, 1);
@@ -35,51 +45,78 @@ test('runs only a named recipe through sandbox-exec with scrubbed environment an
   assert.deepEqual(calls[0].recipeArgv, recipe.argv);
   assert.ok(calls[0].argv.includes('--test'));
   assert.ok(!calls[0].argv.includes('sh'));
-  assert.equal(calls[0].cwd, join(await realpath(repo), 'src'));
-  assert.deepEqual(calls[0].env, { CI: '1' });
-  assert.equal(calls[0].timeoutMs, 500);
+  assert.equal(calls[0].cwd, await realpath(repo));
+  assert.equal(calls[0].env.TOKEN, undefined);
+  assert.equal(calls[0].env.HOME, undefined);
   assert.deepEqual(result.argv, recipe.argv);
 });
 
-test('rejects raw command input and unknown recipe identifiers', async () => {
-  const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-check-'));
-  await mkdir(join(repo, 'src'));
+test('parameterizes SBPL paths and permits required runtime and system reads without network access', async () => {
+  const repo = await fixture();
+  const crafted = 'src/evil") (allow network*) (';
+  await mkdir(join(repo, crafted), { recursive: true });
+  const calls = [];
+  await runCheck({
+    repo, task: task({ allowed_paths: [crafted] }), checkId: 'unit', executor: executor(calls),
+  });
+  const [command] = calls;
+  assert.ok(command.argv.includes('-D'));
+  assert.ok(command.argv.some((argument) => argument.includes('network*') && argument.includes('deny')));
+  assert.ok(command.argv.some((argument) => argument.includes('/usr') || argument.includes('/System')));
+  assert.ok(!command.argv.some((argument) => argument.includes(crafted)));
+});
+
+test('rejects raw command input, unknown recipes, symlinked writes, and writable protected roots', async () => {
+  const repo = await fixture();
+  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-outside-'));
+  await symlink(outside, join(repo, 'src/linked'));
+  for (const candidate of [
+    task({ allowed_paths: ['.git'] }),
+    task({ allowed_paths: ['.'] }),
+    task({ allowed_paths: ['policy'] }),
+    task({ allowed_paths: ['src/linked'] }),
+  ]) {
+    await assert.rejects(() => runCheck({ repo, task: candidate, checkId: 'unit', executor: executor([]) }));
+  }
   await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'missing', executor: executor([]) }));
   await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]) }));
 });
 
-test('rejects a recipe cwd that escapes the repository', async () => {
-  const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-check-'));
-  await mkdir(join(repo, 'src'));
-  await assert.rejects(() => runCheck({ repo, task: task({ approved_check_recipes: [{ ...recipe, cwd: '../outside' }] }), checkId: 'unit', executor: executor([]) }));
-});
-
-test('fails closed when the selected sandbox backend is unavailable', async () => {
-  const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-check-'));
-  await mkdir(join(repo, 'src'));
-  await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', backends: { 'sandbox-exec': false, docker: true }, executor: executor([]) }));
-});
-
-test('constructs an isolated digest-pinned Docker invocation and bounds captured output', async () => {
-  const repo = await mkdtemp(join(tmpdir(), 'ui-delivery-check-'));
-  await mkdir(join(repo, 'src'));
+test('constructs Docker with fixed non-secret environment forwarded to the workload', async () => {
+  const repo = await fixture();
   const calls = [];
-  const result = await runCheck({
+  await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', outputLimitBytes: 32, backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
+    checkId: 'unit', environment: { AWS_SECRET_ACCESS_KEY: 'secret', CI: 'attacker-selected' },
+    backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
   });
   const [command] = calls;
   assert.equal(command.executable, 'docker');
   assert.ok(command.argv.includes('--network'));
   assert.ok(command.argv.includes('none'));
   assert.ok(command.argv.includes('--read-only'));
-  const canonicalRepo = await realpath(repo);
-  assert.ok(command.argv.includes('--mount'));
-  assert.ok(command.argv.includes(recipe.sandbox_image));
-  assert.deepEqual(command.recipeArgv, recipe.argv);
-  assert.ok(command.mounts.some((mount) => mount.source === canonicalRepo && mount.readOnly));
-  assert.ok(command.mounts.some((mount) => mount.source === join(canonicalRepo, 'src') && !mount.readOnly));
-  assert.equal(result.stdout.truncated, true);
-  assert.equal(result.stdout.bytes, 32);
-  assert.equal(result.stderr.truncated, false);
+  assert.ok(command.argv.includes('--env'));
+  assert.ok(!command.argv.includes('AWS_SECRET_ACCESS_KEY=secret'));
+  assert.ok(!command.argv.includes('CI=attacker-selected'));
+});
+
+test('terminates the workload and removes scratch on timeout or abort before returning', async () => {
+  const repo = await fixture();
+  const scratchRoot = await mkdtemp(join(tmpdir(), 'ui-delivery-scratch-root-'));
+  const controller = new AbortController();
+  const calls = [];
+  controller.abort();
+  await assert.rejects(() => runCheck({
+    repo, task: task(), checkId: 'unit', signal: controller.signal, scratchRoot, executor: executor(calls),
+  }));
+  assert.equal(calls.length, 0);
+  await assert.rejects(() => runCheck({
+    repo, task: task({ approved_check_recipes: [{ ...recipe, timeout_ms: 1 }] }), checkId: 'unit', scratchRoot,
+    executor: async (command) => {
+      calls.push(command);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  }));
+  assert.deepEqual(await readdir(scratchRoot), []);
 });

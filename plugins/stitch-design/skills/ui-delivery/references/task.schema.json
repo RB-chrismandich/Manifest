@@ -42,7 +42,7 @@
     },
     "candidate_hash": {
       "type": "string",
-      "minLength": 1
+      "pattern": "^sha256:[a-fA-F0-9]{64}$"
     },
     "allowed_paths": {
       "type": "array",
@@ -71,7 +71,8 @@
           "argv",
           "cwd",
           "timeout_ms",
-          "backend"
+          "backend",
+          "result_path"
         ],
         "properties": {
           "id": {
@@ -102,12 +103,10 @@
               "docker"
             ]
           },
-          "env": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^[A-Z_][A-Z0-9_]*$"
-            }
+          "result_path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\.\\.)"
           },
           "sandbox_image": {
             "type": "string",
