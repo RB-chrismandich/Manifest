@@ -10,6 +10,11 @@
 - Reconcile the complete Codex plugin marketplace before retiring flat skills.
 - Add the pinned, cross-harness `manifest-i-have-adhd` plugin and reversible upstream migration.
 - Add portable skill model chains, bounded failure classification, explicit fallback authorization, and `manifest skill-run`.
+- Add `stitch-design` 0.4.0's OMP-local UI delivery: Astra and local-only
+  model qualification, isolated two-route pilot preparation, and constrained
+  builder/reviewer roles. The release gates authorization on a trusted external
+  digest and verification on current candidate-bound check and capture evidence;
+  it does not claim deployment, publication, or live Stitch access.
 
 > Version history for the Manifest parallel agent orchestration framework
 
