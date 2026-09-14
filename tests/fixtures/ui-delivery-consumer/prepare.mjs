@@ -31,17 +31,21 @@ for (const definition of cases) {
   await cp(join(fixtureRoot, 'cases', definition.source), repo, { recursive: true });
   await Promise.all([
     cp(join(fixtureRoot, 'contracts'), join(repo, 'contracts'), { recursive: true }),
-    cp(join(fixtureRoot, 'programs'), join(repo, 'tools'), { recursive: true }),
     cp(join(fixtureRoot, 'verifiers'), join(repo, '.omp/ui-delivery/verifiers'), { recursive: true }),
     mkdir(join(repo, 'site'), { recursive: true }),
     mkdir(join(repo, '.omp/ui-delivery/tasks'), { recursive: true }),
     mkdir(join(repo, '.ui-results'), { recursive: true }),
   ]);
+  const checkVerifier = '.omp/ui-delivery/verifiers/check-design.mjs';
   const captureVerifier = '.omp/ui-delivery/verifiers/capture-screen.py';
-  const trustedVerifier = {
-    path: captureVerifier,
-    sha256: `sha256:${createHash('sha256').update(await readFile(join(repo, captureVerifier))).digest('hex')}`,
-  };
+  const verifier = async (path) => ({
+    path,
+    sha256: `sha256:${createHash('sha256').update(await readFile(join(repo, path))).digest('hex')}`,
+  });
+  const [designVerifier, captureTrustedVerifier] = await Promise.all([
+    verifier(checkVerifier),
+    verifier(captureVerifier),
+  ]);
   const checkResult = '.ui-results/design-check.result.json';
   const capturePng = '.ui-results/screen.png';
   const captureResult = '.ui-results/capture.result.json';
@@ -55,13 +59,13 @@ for (const definition of cases) {
     approved_check_recipes: [
       {
         id: 'design-contract',
-        argv: [process.execPath, join(repo, 'tools/check-design.mjs'), join(repo, 'contracts', definition.contract), join(repo, definition.target), join(repo, checkResult)],
-        cwd: '.', timeout_ms: 30000, backend: 'sandbox-exec', result_path: checkResult, write_paths: [checkResult],
+        argv: [process.execPath, join(repo, checkVerifier), join(repo, 'contracts', definition.contract), join(repo, definition.target), join(repo, checkResult)],
+        cwd: '.', timeout_ms: 30000, backend: 'sandbox-exec', result_path: checkResult, write_paths: [checkResult], trusted_verifier: designVerifier,
       },
       {
         id: 'capture-screen',
         argv: ['/home/cptr/.venv/bin/python3', `/repo/${captureVerifier}`, '/usr/bin/chromium', `/repo/${definition.target}`, `/repo/${capturePng}`, `/repo/${captureResult}`],
-        cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult], trusted_verifier: trustedVerifier,
+        cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult], trusted_verifier: captureTrustedVerifier,
       },
     ],
     capture_recipes: [{ id: 'screen-png', check_id: 'capture-screen', artifacts: [{ path: capturePng, type: 'image/png' }] }],
