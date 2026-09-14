@@ -176,13 +176,12 @@ EOF
     assert_output --partial ".antigravity/skills/code-audit/SKILL.md"
 }
 
-@test "verify_installation reports the antigravity SKILL.md as Missing when enabled but not deployed" {
+@test "verify_installation omits retired Antigravity skill paths when enabled but not deployed" {
     setup_verify
     make_verify_stub claude
     make_verify_stub agy
     run verify_installation
-    assert_output --partial "Missing:"
-    assert_output --partial ".antigravity/skills/code-audit/SKILL.md"
+    refute_output --partial ".antigravity/skills/code-audit/SKILL.md"
 }
 
 # ---- print_summary: antigravity auth hint (G17) ----
