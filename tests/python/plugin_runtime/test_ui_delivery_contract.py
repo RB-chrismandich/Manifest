@@ -154,11 +154,24 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
             candidate["outcome"] = "unverified"
         _assert_valid(validator, candidate)
 
+    stitch_grant = {
+        "project_id": "stitch-project-17",
+        "expires_at": "2030-01-01T00:00:00Z",
+        "mutations": [
+            {
+                "tool_name": "stitch.edit_screen",
+                "input_hash": "sha256:8d5f2e",
+                "max_uses": 1,
+            }
+        ],
+        "readback_tools": ["stitch.get_screen"],
+    }
+
     candidate_ready = {**task, "state": "candidate_ready", "outcome": "unverified"}
     _assert_valid(validator, candidate_ready)
     _assert_invalid(
         validator,
-        {**task, "stitch_grant": {**task["stitch_grant"], "expires_at": "not-a-date"}},
+        {**task, "stitch_grant": {**stitch_grant, "expires_at": "not-a-date"}},
     )
 
     for state in ("candidate_ready", "reviewing"):
@@ -186,18 +199,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         validator,
         {
             **task,
-            "stitch_grant": {
-                "project_id": "stitch-project-17",
-                "expires_at": "2030-01-01T00:00:00Z",
-                "mutations": [
-                    {
-                        "tool_name": "stitch.edit_screen",
-                        "input_hash": "sha256:8d5f2e",
-                        "max_uses": 1,
-                    }
-                ],
-                "readback_tools": ["stitch.get_screen"],
-            },
+            "stitch_grant": stitch_grant,
         },
     )
 

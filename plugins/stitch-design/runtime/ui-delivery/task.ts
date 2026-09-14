@@ -94,6 +94,8 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
     if (process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== authorizationDigest(task)) invalid('external approval digest mismatch');
   }
   const grant = task.stitch_grant;
-  if ((mutation || operation) && grant && (!grant.expires_at || Number.isNaN(Date.parse(grant.expires_at)) || Date.parse(grant.expires_at) <= now.getTime())) invalid('Stitch grant expired');
+  const grantExpiry = grant && typeof grant.expires_at === 'string' ? Date.parse(grant.expires_at) : Number.NaN;
+  if (grant && !Number.isFinite(grantExpiry)) invalid('Stitch grant expiry is invalid');
+  if ((mutation || operation) && grant && grantExpiry <= now.getTime()) invalid('Stitch grant expired');
   return task;
 }

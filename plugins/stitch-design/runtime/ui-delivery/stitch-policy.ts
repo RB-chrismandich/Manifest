@@ -24,7 +24,8 @@ export function createStitchPolicy({ task, registry, now = () => new Date() }: {
     classify(toolName: string): StitchToolKind | 'unknown' { return classified.get(toolName) ?? 'unknown'; },
     async authorize({ projectId, toolName, input }: { projectId: string; toolName: string; input: unknown }): Promise<void> {
       const kind = classified.get(toolName);
-      if (!grant || task.state !== 'approved' || grant.project_id !== projectId || Date.parse(grant.expires_at ?? '') <= now().getTime()) throw new Error('Stitch tool call is not authorized');
+      const expiresAt = Date.parse(grant?.expires_at ?? '');
+      if (!grant || task.state !== 'approved' || grant.project_id !== projectId || !Number.isFinite(expiresAt) || expiresAt <= now().getTime()) throw new Error('Stitch tool call is not authorized');
       if (kind === 'read') return;
       if (lifecycle === 'mutation_unknown') throw new Error('Stitch mutation requires readback reconciliation');
       if (used) throw new Error('Stitch mutation grant is already consumed');
