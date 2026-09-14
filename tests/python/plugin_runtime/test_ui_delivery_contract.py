@@ -543,7 +543,7 @@ def test_omp_only_agents_have_explicit_non_native_harness_compatibility(
         compatibility = agents[agent_id]["compatibility"]
         assert set(compatibility) == set(HARNESS_NAMES)
         for harness, status in compatibility.items():
-            assert status["mode"] in {"unsupported", "degraded"}, (agent_id, harness)
+            assert status["mode"] == "not_applicable", (agent_id, harness)
             assert status["reason"].strip(), (agent_id, harness)
 
 
@@ -579,11 +579,11 @@ def test_portable_views_expose_skills_but_never_omp_only_agents(
             for harness in ("antigravity", "codex", "cursor", "devin")
         ),
     )
-    for unsupported in compatibility_surfaces:
+    for records_for_harness in compatibility_surfaces:
         records = {
             record["component_id"]: record
-            for record in unsupported
-            if record["mode"] == "unsupported"
+            for record in records_for_harness
+            if record["mode"] == "not_applicable"
         }
         assert records["ui-builder"]["path"] == "agents/ui-builder.md"
         assert records["ui-reviewer"]["path"] == "agents/ui-reviewer.md"
