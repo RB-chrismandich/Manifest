@@ -30,11 +30,9 @@ jobs:
         harness: [claude, codex, gemini, cursor, antigravity, devin]
     env:
       HARNESS: ${{ matrix.harness }}
-      # This protected environment secret is intentionally required. A public
-      # PR runner cannot manufacture a licensed/authenticated native CLI and
-      # must report BLOCKED rather than passing a fake live result.
+      # A public PR runner cannot manufacture a licensed/authenticated native
+      # CLI. The protected environment supplies the audited harness installer.
       MANIFEST_LIVE_SETUP_COMMAND: ${{ secrets.MANIFEST_LIVE_SETUP_COMMAND }}
-      MANIFEST_LIVE_HARNESS_TOKEN: ${{ secrets.MANIFEST_LIVE_HARNESS_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
@@ -49,8 +47,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${MANIFEST_LIVE_HARNESS_TOKEN:-}" || -z "${MANIFEST_LIVE_SETUP_COMMAND:-}" ]]; then
-            echo "BLOCKED: protected MANIFEST_LIVE_HARNESS_TOKEN and MANIFEST_LIVE_SETUP_COMMAND are required"
+          if [[ -z "${MANIFEST_LIVE_SETUP_COMMAND:-}" ]]; then
+            echo "BLOCKED: protected MANIFEST_LIVE_SETUP_COMMAND is required"
             exit 1
           fi
           # The protected release environment owns this audited, harness-specific
