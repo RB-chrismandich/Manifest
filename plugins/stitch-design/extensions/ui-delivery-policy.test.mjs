@@ -159,6 +159,41 @@ test('applies a standard new regular-file diff', async () => {
   assert.equal(await readFile(join(repo, 'src/New.tsx'), 'utf8'), 'export const New = 1;\n');
 });
 
+test('creates a missing trusted evidence directory before recording a patch and check', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi();
+  policyWithCheckRunner(api, async () => {
+    await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }));
+    return success();
+  });
+  const { repo } = await fixture(definition);
+  await rm(join(repo, '.omp/ui-delivery/evidence'), { recursive: true });
+  await withApproval(definition, async () => {
+    await execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+      taskFile: '.omp/ui-delivery/tasks/task.json',
+      patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+    }, repo);
+    await execute(tools.find((entry) => entry.name === 'ui_run_check'), { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }, repo);
+  });
+  assert.match(await readFile(join(repo, '.omp/ui-delivery/evidence/task-17.jsonl'), 'utf8'), /ui_run_check/);
+});
+
+test('rejects an unsafe evidence directory before updating the candidate task', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-evidence-outside-'));
+  await rm(join(repo, '.omp/ui-delivery/evidence'), { recursive: true });
+  await symlink(outside, join(repo, '.omp/ui-delivery/evidence'));
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+  }, repo), /symlink|evidence|policy/i));
+  const persisted = JSON.parse(await readFile(join(repo, '.omp/ui-delivery/tasks/task.json'), 'utf8'));
+  assert.equal(persisted.state, 'approved');
+  assert.equal(persisted.candidate_hash, undefined);
+});
+
 async function bindCandidate(repo, definition) {
   definition.candidate_hash = await calculateCandidateHash({ repo, task: definition });
   await writeFile(join(repo, '.omp/ui-delivery/tasks/task.json'), JSON.stringify(definition));
