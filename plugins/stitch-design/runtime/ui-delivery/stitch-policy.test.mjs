@@ -20,27 +20,25 @@ function task(overrides = {}) {
 }
 
 const registry = [
-  {
-    name: 'mcp__stitch_get_screen',
-    sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
-    parameters: { type: 'object' },
-  },
-  {
-    name: 'mcp__stitch_list_projects',
-    sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
-    parameters: { type: 'object' },
-  },
-  {
-    name: 'mcp__stitch_create_project',
-    sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
-    parameters: { type: 'object' },
-  },
-  {
-    name: 'mcp__stitch_generate_screen_from_text',
-    sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
-    parameters: { type: 'object' },
-  },
-];
+  'get_screen',
+  'list_screens',
+  'get_project',
+  'list_projects',
+  'list_design_systems',
+  'read_url_content',
+  'create_project',
+  'generate_screen_from_text',
+  'edit_screens',
+  'generate_variants',
+  'upload_design_md',
+  'create_design_system_from_design_md',
+  'update_design_system',
+  'apply_design_system',
+].map((name) => ({
+  name: `mcp__stitch_${name}`,
+  sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
+  parameters: { type: 'object' },
+}));
 
 test('allows a registered read tool and the exact one-shot approved mutation', async () => {
   const policy = createStitchPolicy({ task: task(), registry, now: () => now });
@@ -58,11 +56,7 @@ test('allows account discovery and a one-shot input-bound project creation follo
         readback_tools: ['mcp__stitch_get_project'],
       },
     }),
-    registry: [...registry, {
-      name: 'mcp__stitch_get_project',
-      sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
-      parameters: { type: 'object' },
-    }],
+    registry,
     now: () => now,
   });
 
@@ -75,6 +69,18 @@ test('allows account discovery and a one-shot input-bound project creation follo
   assert.equal(policy.state(), 'reconciled');
 });
 
+test('classifies every Stitch tool used by bundled design workflows and rejects unknown tools', async () => {
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
+
+  for (const tool of ['get_screen', 'list_screens', 'get_project', 'list_projects', 'list_design_systems', 'read_url_content']) {
+    assert.equal(policy.classify(`mcp__stitch_${tool}`), 'read');
+  }
+  for (const tool of ['create_project', 'generate_screen_from_text', 'edit_screens', 'generate_variants', 'upload_design_md', 'create_design_system_from_design_md', 'update_design_system', 'apply_design_system']) {
+    assert.equal(policy.classify(`mcp__stitch_${tool}`), 'mutation');
+  }
+  assert.equal(policy.classify('mcp__stitch_unknown'), 'unknown');
+  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_unknown', input }));
+});
 test('denies unknown tools and schemas that do not establish a read or mutation classification', async () => {
   const policy = createStitchPolicy({
     task: task(),
@@ -98,22 +104,47 @@ test('denies missing, expired, wrong-project, and wrong-input mutation grants', 
   await assert.rejects(() => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch_generate_screen_from_text', input }));
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: { ...input, prompt: 'different' } }));
 });
-test('blocks reuse and retries after an interrupted mutation until permitted readback reconciles it', async () => {
-  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
-  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input });
-  await policy.recordDispatchInterrupted();
-  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input }));
-  await assert.rejects(() => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: false }));
-  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
-  assert.equal(policy.state(), 'reconciled');
-});
+test('reconciles a failed entry without allowing its replay and permits a separately approved entry after restart', async () => {
+  const first = { screenId: 'screen-1', prompt: 'make the header compact' };
+  const second = { screenId: 'screen-2', prompt: 'add a footer' };
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [
+        { tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(first), max_uses: 1 },
+        { tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(second), max_uses: 1 },
+      ],
+    },
+  });
+  let saved;
+  const policy = createStitchPolicy({
+    task: definition,
+    registry,
+    now: () => now,
+    persist: async (state) => {
+      saved = { ...state, entries: { ...state.entries }, version: state.version + 1 };
+      return saved;
+    },
+  });
 
-test('does not automatically retry a failed mutation and permits no second use after successful readback', async () => {
-  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
-  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: first });
   await policy.recordDispatchFailed();
+  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: first }), /reconcil|consum/i);
+  await assert.rejects(() => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: false }), /reconcil/i);
   await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
-  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input }));
+
+  const restarted = createStitchPolicy({
+    task: definition,
+    registry,
+    now: () => now,
+    state: saved,
+    persist: async (state) => {
+      saved = { ...state, entries: { ...state.entries }, version: state.version + 1 };
+      return saved;
+    },
+  });
+  await restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: second });
+  await assert.rejects(() => restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: second }), /reconcil|consum/i);
 });
 
 test('binds Stitch reads and readback reconciliation to the approved project', async () => {

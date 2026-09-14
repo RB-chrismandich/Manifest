@@ -2,6 +2,21 @@
 
 Use these examples to format your Stitch MCP design system tool calls correctly.
 
+## UI Delivery Runtime Inventory
+
+When UI delivery policy is active, only registered Stitch tools with these exact
+registry names are classified. Every mutation requires an independently approved
+`tool_name` plus canonical input hash; reads remain bound to the approved project
+except account discovery.
+
+| Classification | Exact registry names |
+| --- | --- |
+| Read | `mcp__stitch_list_projects`, `mcp__stitch_get_project`, `mcp__stitch_list_screens`, `mcp__stitch_get_screen`, `mcp__stitch_list_design_systems`, `mcp__stitch_read_url_content` |
+| Mutation | `mcp__stitch_create_project`, `mcp__stitch_generate_screen_from_text`, `mcp__stitch_edit_screens`, `mcp__stitch_generate_variants`, `mcp__stitch_upload_design_md`, `mcp__stitch_create_design_system_from_design_md`, `mcp__stitch_update_design_system`, `mcp__stitch_apply_design_system` |
+
+Unknown Stitch tools are denied. The inventory covers the bundled
+`generate-design` and `manage-design-system` workflows.
+
 ---
 
 ## Upload `DESIGN.md` (via `upload_to_stitch.py` script)
