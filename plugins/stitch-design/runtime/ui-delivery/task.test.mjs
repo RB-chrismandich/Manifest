@@ -4,7 +4,7 @@ import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { beginPatchJournal, candidateHash, loadTask, releasePatchJournal } from './task.ts';
+import { beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile } from './task.ts';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -206,6 +206,64 @@ test('rejects malformed grant expiry even for status-facing task loads', async (
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
 });
 
+test('rejects normalized calendar dates while accepting a canonical leap-day grant expiry', async () => {
+  for (const expires_at of ['2024-02-31T00:00:00Z', '2030-01-01T00:00:00+00:00']) {
+    const definition = approvedTask({
+      stitch_grant: {
+        project_id: 'project-17', expires_at,
+        mutations: [{
+          tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
+          expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'d'.repeat(64)}` },
+        }],
+        readback_tools: ['mcp__stitch_get_screen'],
+      },
+    });
+    const { repo, path } = await taskFile(definition);
+    await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
+  }
+  const leap = approvedTask({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2024-02-29T00:00:00Z',
+      mutations: [{
+        tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
+        expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'d'.repeat(64)}` },
+      }],
+      readback_tools: ['mcp__stitch_get_screen'],
+    },
+  });
+  const { repo, path } = await taskFile(leap);
+  await loadTask({ repo, taskFile: path });
+});
+
+test('only Stitch mutation loads reject expired grants while local operations remain available', async () => {
+  const stitch_grant = {
+    project_id: 'project-17', expires_at: '2020-01-01T00:00:00Z',
+    mutations: [{
+      tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
+      expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'d'.repeat(64)}` },
+    }],
+    readback_tools: ['mcp__stitch_get_screen'],
+  };
+  const patch = approvedTask({ stitch_grant });
+  const check = approvedTask({
+    stitch_grant, state: 'candidate_ready', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
+  });
+  const capture = approvedTask({
+    stitch_grant, state: 'reviewing', model_route: '@ui_review', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
+  });
+  for (const [definition, operation] of [[patch, 'patch'], [check, 'check'], [capture, 'capture']]) {
+    const { repo, path } = await taskFile(definition);
+    await withApproval(definition, () => loadTask({ repo, taskFile: path, operation }));
+  }
+  const { repo, path } = await taskFile(patch);
+  await withApproval(patch, () => assert.rejects(
+    () => loadTask({ repo, taskFile: path, mutation: true }),
+    /Stitch grant expired/i,
+  ));
+});
+
 test('rejects unsafe task IDs, repository-root candidate scope, and noncanonical paths before any operation', async () => {
   for (const override of [
     { task_id: '../task-17' },
@@ -341,6 +399,45 @@ test('does not settle patch journal creation before syncing the file and parent 
   assert.deepEqual(calls, [
     'open:journal', 'write:journal', 'sync:journal', 'close:journal',
     'open:directory', 'sync:directory', 'close:directory',
+  ]);
+});
+
+test('does not settle patch journal removal before unlinking and syncing its parent directory', async () => {
+  const { repo } = await taskFile({});
+  const calls = [];
+  const persistence = {
+    async unlink() { calls.push('unlink:journal'); },
+    async open() {
+      calls.push('open:directory');
+      return {
+        async sync() { calls.push('sync:directory'); },
+        async close() { calls.push('close:directory'); },
+      };
+    },
+  };
+  await releasePatchJournal(repo, persistence);
+  assert.deepEqual(calls, ['unlink:journal', 'open:directory', 'sync:directory', 'close:directory']);
+});
+
+test('syncs replacement task data and directory before releasing the patch journal', async () => {
+  const { repo, path } = await taskFile({});
+  const calls = [];
+  const persistence = {
+    async open(file) {
+      const label = file.endsWith('.tmp') ? 'temporary' : 'directory';
+      calls.push(`open:${label}`);
+      return {
+        async writeFile() { calls.push('write:temporary'); },
+        async sync() { calls.push(`sync:${label}`); },
+        async close() { calls.push(`close:${label}`); },
+      };
+    },
+    async rename() { calls.push('rename:task'); },
+  };
+  await replaceTaskFile({ repo, taskFile: path, task: { state: 'candidate_ready' }, persistence });
+  assert.deepEqual(calls, [
+    'open:temporary', 'write:temporary', 'sync:temporary', 'close:temporary',
+    'rename:task', 'open:directory', 'sync:directory', 'close:directory',
   ]);
 });
 test('admits only one task ID to the repository patch transaction', async () => {

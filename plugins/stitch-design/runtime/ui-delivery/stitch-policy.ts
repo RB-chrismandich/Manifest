@@ -38,7 +38,7 @@ export interface StitchPolicy {
   recordDispatchInterrupted(request: { toolCallId: string }): Promise<void>;
   recordDispatchFailed(request: { toolCallId: string }): Promise<void>;
   recordMutationResult(request: { toolName: string; toolCallId: string; projectId?: string; result?: unknown; succeeded: boolean }): Promise<void>;
-  recordReadback(request: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void>;
+  hasCorrelatedReadback(toolCallId: string): boolean;
   state(): string;
 }
 
@@ -179,6 +179,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       if (identity) identities.set(entryKey, identity);
       entries.set(entryKey, 'consumed'); await save();
     },
+    hasCorrelatedReadback(toolCallId: string): boolean { return readbacks.has(toolCallId); },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
       const boundProjectId = grant?.project_id ?? discoveredProjectId;
       const entryKey = unresolvedEntry();

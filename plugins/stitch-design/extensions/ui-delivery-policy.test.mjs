@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdtemp, readFile, rm, symlink, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -358,4 +358,34 @@ test('rejects capture when a successful check leaves its nonempty artifact uncha
   });
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
   await assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_capture'), { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }, repo), /stale|fresh|artifact/i);
+});
+
+test('accepts same-size same-mtime rewritten check results and capture artifacts by content identity', async () => {
+  const definition = task({ state: 'reviewing', model_route: '@ui_review', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
+  const { api, tools } = extensionApi();
+  const { repo } = await fixture(definition);
+  await bindCandidate(repo, definition);
+  const resultPath = join(repo, '.ui-results/unit.json');
+  const artifactPath = join(repo, 'evidence/page.png');
+  const resultBefore = await lstat(resultPath);
+  const artifactBefore = await lstat(artifactPath);
+  const oldResult = '{"schema":"ui-delivery-check-v1","required":1,"passed":1,"failed":0,"skipped":0}';
+  const newResult = '{"passed":1,"schema":"ui-delivery-check-v1","required":1,"failed":0,"skipped":0}';
+  assert.equal(oldResult.length, newResult.length);
+  await writeFile(resultPath, oldResult);
+  await utimes(resultPath, resultBefore.atime, resultBefore.mtime);
+  await writeFile(artifactPath, 'prior capture!');
+  await utimes(artifactPath, artifactBefore.atime, artifactBefore.mtime);
+  policyWithCheckRunner(api, async () => {
+    await writeFile(resultPath, newResult);
+    await utimes(resultPath, resultBefore.atime, resultBefore.mtime);
+    await writeFile(artifactPath, 'fresh capture!');
+    await utimes(artifactPath, artifactBefore.atime, artifactBefore.mtime);
+    return success();
+  });
+  await withApproval(definition, () => execute(
+    tools.find((entry) => entry.name === 'ui_capture'),
+    { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' },
+    repo,
+  ));
 });

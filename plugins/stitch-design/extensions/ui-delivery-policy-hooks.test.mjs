@@ -47,6 +47,30 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
   });
 });
 
+test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi();
+  api.getAllTools = () => [
+    { name: 'mcp__stitch_get_screen', sourceInfo: { source: 'mcp', path: '<mcp:stitch>' }, parameters: { type: 'object' } },
+    { name: 'mcp__stitch_get_project', sourceInfo: { source: 'mcp', path: '<mcp:stitch>' }, parameters: { type: 'object' } },
+    { name: 'mcp__stitch_generate_screen_from_text', sourceInfo: { source: 'mcp', path: '<mcp:stitch>' }, parameters: { type: 'object' } },
+  ];
+  uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+
+  await withApproval(definition, async () => {
+    await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    const hook = handlers.get('tool_call');
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+    await handlers.get('tool_result')({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } });
+    assert.equal(await hook({ toolName: 'mcp__stitch_get_project', input: { projectId: 'project-17' }, toolCallId: 'unrelated-read-1' }), undefined);
+    assert.equal(await handlers.get('tool_result')({
+      toolName: 'mcp__stitch_get_project', toolCallId: 'unrelated-read-1', isError: false, details: { projectId: 'project-17' },
+    }), undefined);
+  });
+});
+
 test('surfaces a successful create-project result without project identity and keeps the mutation fail-closed', async () => {
   const creation = { title: 'Bounded project' };
   const definition = task({

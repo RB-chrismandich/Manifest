@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { lstat, readFile, rename, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { createReadStream } from 'node:fs';
+import { lstat, readFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
-import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
+import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile } from '../runtime/ui-delivery/task.ts';
 import { createStitchPolicy, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
@@ -102,7 +103,20 @@ async function gitApply(cwd: string, patch: string, signal: AbortSignal, reverse
 }
 function exactResult(value: unknown): boolean { if (!value || typeof value !== 'object') return false; const entry = value as Record<string, unknown>; return entry.schema === 'ui-delivery-check-v1' && Number.isInteger(entry.required) && entry.required >= 1 && entry.passed === entry.required && entry.failed === 0 && entry.skipped === 0; }
 async function outputPath(repo: string, task: any, checkId: string, path: string): Promise<string> { const recipe = task.approved_check_recipes.find((entry: any) => entry.id === checkId); if (!recipe?.write_paths?.includes(path)) throw new Error('artifact is not a declared check output'); return authorizePath({ repo, task: { allowed_paths: recipe.write_paths, forbidden_policy_paths: task.forbidden_policy_paths }, path }); }
-async function freshArtifact(path: string, before?: { mtimeNs: bigint; size: number }): Promise<{ hash: string }> { const stat = await lstat(path, { bigint: true }); if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1n || stat.size < 1n || (before && stat.mtimeNs === before.mtimeNs && Number(stat.size) === before.size)) throw new Error('stale or invalid capture artifact'); return { hash: `sha256:${createHash('sha256').update(await readFile(path)).digest('hex')}` }; }
+async function fileDigest(path: string): Promise<string> {
+  const before = await lstat(path, { bigint: true });
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n || before.size < 1n) throw new Error('stale or invalid capture artifact');
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  const after = await lstat(path, { bigint: true });
+  if (!after.isFile() || after.isSymbolicLink() || after.nlink !== 1n || after.dev !== before.dev || after.ino !== before.ino || after.size !== before.size) throw new Error('stale or invalid capture artifact');
+  return `sha256:${hash.digest('hex')}`;
+}
+async function freshArtifact(path: string, before?: { hash: string }): Promise<{ hash: string }> {
+  const hash = await fileDigest(path);
+  if (before?.hash === hash) throw new Error('stale or invalid capture artifact');
+  return { hash };
+}
 async function verifiedArtifact(repo: string, task: any, checkId: string, expected: any[], recipe: any): Promise<boolean> {
   if (!Array.isArray(expected) || expected.length !== recipe.artifacts.length) return false;
   const seen = new Set<string>();
@@ -155,9 +169,16 @@ async function verifiedStatus(repo: string, task: any): Promise<boolean> {
     return true;
   } catch { return false; }
 }
-async function resultSnapshot(path: string): Promise<{ mtimeNs: bigint; size: number } | undefined> { try { const stat = await lstat(path, { bigint: true }); return { mtimeNs: stat.mtimeNs, size: Number(stat.size) }; } catch { return undefined; } }
-async function freshResult(path: string, before: { mtimeNs: bigint; size: number } | undefined): Promise<void> { const stat = await lstat(path, { bigint: true }); if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1n || (before && before.mtimeNs === stat.mtimeNs && before.size === Number(stat.size))) throw new Error('stale check result'); if (!exactResult(JSON.parse(await readFile(path, 'utf8')))) throw new Error('check result is unverified'); }
-async function updateTask(repo: string, taskFile: string, task: Record<string, unknown>, signal: AbortSignal): Promise<void> { if (signal.aborted) throw new Error('patch aborted'); const target = await resolveTaskFile({ repo, taskFile }); const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`); await writeFile(temporary, JSON.stringify(task), { mode: 0o600, flag: 'wx' }); if (signal.aborted) { await writeFile(temporary, ''); throw new Error('patch aborted'); } await rename(temporary, target); }
+async function resultSnapshot(path: string): Promise<{ hash: string } | undefined> { try { return { hash: await fileDigest(path) }; } catch { return undefined; } }
+async function freshResult(path: string, before: { hash: string } | undefined): Promise<void> {
+  const hash = await fileDigest(path);
+  if (before?.hash === hash) throw new Error('stale check result');
+  if (!exactResult(JSON.parse(await readFile(path, 'utf8')))) throw new Error('check result is unverified');
+}
+async function updateTask(repo: string, taskFile: string, task: Record<string, unknown>, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) throw new Error('patch aborted');
+  await replaceTaskFile({ repo, taskFile, task });
+}
 function evidenceRecord(task: any, attemptId: string, attemptPhase: 'started' | 'completed', operation: string, selector: Record<string, string>, outcome: string, artifacts: unknown[], elapsedMs: number, checked?: any): Record<string, unknown> { return { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, authorizationDigest: authorizationDigest(task), attemptId, attemptPhase, operation, ...selector, outcome, elapsedMs, artifacts, stdoutHash: checked?.stdout?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', stderrHash: checked?.stderr?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' }; }
 async function appendAttempt(repo: string, task: any, record: Record<string, unknown>): Promise<void> { await appendEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record }); }
 
@@ -310,7 +331,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
       if (!stitch) throw new Error('Stitch tool call is not authorized');
-      const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
+      const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: true });
       assertActiveRuntimeQualification(task);
       if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
       const input = event.input;
@@ -334,7 +355,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       if (event.isError) await stitch.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
       else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: details, succeeded: true });
     }
-    if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.state() === 'mutation_unknown') {
+    if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.hasCorrelatedReadback(event.toolCallId)) {
       if (!projectId) throw new Error('Stitch project binding is required');
       await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation: details });
     }

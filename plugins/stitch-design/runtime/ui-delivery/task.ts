@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';
-import { lstat, open, readdir, readFile, realpath, unlink, type FileHandle } from 'node:fs/promises';
+import { lstat, open, readdir, readFile, realpath, rename, unlink, type FileHandle } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { canonicalJsonHash } from './evidence.ts';
 import { STITCH_MUTATION_TOOL_NAMES, STITCH_READBACK_TOOL_NAMES } from './stitch-policy.ts';
@@ -13,6 +13,18 @@ function within(root: string, candidate: string): boolean {
 function invalid(message: string): never { throw new Error(`Invalid UI delivery task: ${message}`); }
 function nonEmptyStrings(value: unknown): value is string[] { return Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'string' && entry.length > 0); }
 function relativePath(value: unknown): value is string { return value === '.' || typeof value === 'string' && value.length > 0 && !/\s/.test(value) && !value.startsWith('/') && !value.includes('\\') && !value.includes('//') && !value.split('/').some((part) => part === '.' || part === '..' || !part); }
+
+function canonicalUtcDateTime(value: unknown): number | undefined {
+  if (typeof value !== 'string') return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/.exec(value);
+  if (!match) return undefined;
+  const [, year, month, day, hour, minute, second] = match.map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(hour, minute, second, 0);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day || date.getUTCHours() !== hour || date.getUTCMinutes() !== minute || date.getUTCSeconds() !== second) return undefined;
+  return date.getTime();
+}
 
 export function authorizationDigest(task: DeliveryTask): string {
   const projection = Object.fromEntries(['task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization'].filter((key) => key in task).map((key) => [key, task[key]]));
@@ -63,8 +75,9 @@ function validate(task: unknown): asserts task is DeliveryTask {
   }
   const grant = value.stitch_grant;
   if (grant !== undefined) {
-    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations) || !nonEmptyStrings(grant.readback_tools) || !grant.readback_tools.every((tool: string) => STITCH_READBACK_TOOL_NAMES.includes(tool as typeof STITCH_READBACK_TOOL_NAMES[number]))) invalid('invalid Stitch grant');
+    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations) || !nonEmptyStrings(grant.readback_tools) || !grant.readback_tools.every((tool: string) => STITCH_READBACK_TOOL_NAMES.includes(tool as typeof STITCH_READBACK_TOOL_NAMES[number])) || canonicalUtcDateTime(grant.expires_at) === undefined) invalid('invalid Stitch grant');
     if (grant.mutations.some((mutation: Record<string, unknown>) => mutation?.tool_name === 'mcp__stitch_create_project') && Object.hasOwn(grant, 'project_id')) invalid('project-bound create grant is invalid');
+    const mutationKeys = new Set<string>();
     for (const mutation of grant.mutations) {
       const expected = mutation?.expected_readback;
       const expectedRecord = expected && typeof expected === 'object' && !Array.isArray(expected) ? expected : undefined;
@@ -74,6 +87,9 @@ function validate(task: unknown): asserts task is DeliveryTask {
       const predictableReadback = predictableFields && typeof predictableFields === 'object' && !Array.isArray(predictableFields) && Object.keys(predictableFields).length > 0 && Object.keys(predictableFields).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field)) && !Object.hasOwn(expectedRecord ?? {}, 'response_hash') && ['project', 'screen', 'design_system'].includes(expectedRecord?.resource_identity);
       if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !/^sha256:[a-f0-9]{64}$/.test(mutation?.input_hash) || mutation?.max_uses !== 1 || !expectedRecord || !STITCH_READBACK_TOOL_NAMES.includes(expectedRecord.tool_name) || !grant.readback_tools.includes(expectedRecord.tool_name)) invalid('invalid Stitch grant tool');
       if (!exactReadback && !predictableReadback || creating && (!predictableReadback || expectedRecord.resource_identity !== 'project')) invalid('invalid Stitch grant readback');
+      const mutationKey = `${mutation.tool_name}\0${mutation.input_hash}`;
+      if (mutationKeys.has(mutationKey)) invalid('duplicate Stitch grant mutation');
+      mutationKeys.add(mutationKey);
     }
   }
 }
@@ -110,8 +126,9 @@ async function assertNoPendingPatchJournal(repo: string): Promise<void> {
 
 export type PatchJournalPersistence = {
   open: (path: string, flags: number, mode?: number) => Promise<Pick<FileHandle, 'writeFile' | 'sync' | 'close'>>;
+  unlink?: (path: string) => Promise<void>;
 };
-const patchJournalPersistence: PatchJournalPersistence = { open };
+const patchJournalPersistence: PatchJournalPersistence = { open, unlink };
 export async function beginPatchJournal({ repo, taskId, taskFile, patchHash, persistence = patchJournalPersistence }: { repo: string; taskId: string; taskFile: string; patchHash: string; persistence?: PatchJournalPersistence }): Promise<string> {
   const journal = patchJournalPath(repo);
   const handle = await persistence.open(journal, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
@@ -130,8 +147,39 @@ export async function beginPatchJournal({ repo, taskId, taskFile, patchHash, per
   return journal;
 }
 
-export async function releasePatchJournal(repo: string): Promise<void> {
-  await unlink(patchJournalPath(repo));
+export async function releasePatchJournal(repo: string, persistence = patchJournalPersistence): Promise<void> {
+  const journal = patchJournalPath(repo);
+  if (!persistence.unlink) throw new Error('patch journal persistence cannot remove journal');
+  await persistence.unlink(journal);
+  const parent = await persistence.open(dirname(journal), constants.O_RDONLY | constants.O_DIRECTORY);
+  try {
+    await parent.sync();
+  } finally {
+    await parent.close();
+  }
+}
+export type TaskReplacementPersistence = {
+  open: (path: string, flags: number, mode?: number) => Promise<Pick<FileHandle, 'writeFile' | 'sync' | 'close'>>;
+  rename: (oldPath: string, newPath: string) => Promise<void>;
+};
+const taskReplacementPersistence: TaskReplacementPersistence = { open, rename };
+export async function replaceTaskFile({ repo, taskFile, task, persistence = taskReplacementPersistence }: { repo: string; taskFile: string; task: Record<string, unknown>; persistence?: TaskReplacementPersistence }): Promise<void> {
+  const target = await resolveTaskFile({ repo, taskFile });
+  const temporary = join(dirname(target), `.${target.split(sep).at(-1)}.${process.pid}.${Date.now()}.tmp`);
+  const handle = await persistence.open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try {
+    await handle.writeFile(JSON.stringify(task));
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await persistence.rename(temporary, target);
+  const parent = await persistence.open(dirname(target), constants.O_RDONLY | constants.O_DIRECTORY);
+  try {
+    await parent.sync();
+  } finally {
+    await parent.close();
+  }
 }
 export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
   validate(task);
@@ -181,8 +229,8 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
     assertActiveRuntimeQualification(task);
   }
   const grant = task.stitch_grant;
-  const grantExpiry = grant && typeof grant.expires_at === 'string' ? Date.parse(grant.expires_at) : Number.NaN;
-  if (grant && !Number.isFinite(grantExpiry)) invalid('Stitch grant expiry is invalid');
-  if ((mutation || operation) && grant && grantExpiry <= now.getTime()) invalid('Stitch grant expired');
+  const grantExpiry = grant ? canonicalUtcDateTime(grant.expires_at) : undefined;
+  if (grant && grantExpiry === undefined) invalid('Stitch grant expiry is invalid');
+  if (mutation && grant && grantExpiry <= now.getTime()) invalid('Stitch grant expired');
   return task;
 }
