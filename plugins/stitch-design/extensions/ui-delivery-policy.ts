@@ -1,82 +1,31 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
-import { runCheck } from '../runtime/ui-delivery/checks.ts';
+import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
-import { loadTask } from '../runtime/ui-delivery/task.ts';
+import { authorizationDigest, candidateHash, loadTask } from '../runtime/ui-delivery/task.ts';
+import { createStitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
 const result = (details: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
+function diffTargets(patch: string): string[] { const lines = patch.split('\n'); const targets: string[] = []; let entries = 0; for (let index = 0; index < lines.length; index += 1) { const header = /^diff --git a\/([^\s]+) b\/([^\s]+)$/.exec(lines[index]); if (!header || header[1] !== header[2]) throw new Error('unsafe or unparseable diff policy'); entries += 1; const oldLine = lines[++index]; const newLine = lines[++index]; if (oldLine !== `--- a/${header[1]}` || newLine !== `+++ b/${header[1]}` || header[1].startsWith('/') || header[1].split('/').includes('..')) throw new Error('unsafe or destructive diff policy'); while (index + 1 < lines.length && !lines[index + 1].startsWith('diff --git ')) { index += 1; if (/^(?:new|old) mode|^(?:rename|copy) |^similarity index|^deleted file mode/.test(lines[index])) throw new Error('destructive or symlink diff policy'); } targets.push(header[1]); } if (!entries) throw new Error('patch has no file targets'); return targets; }
+async function gitApply(cwd: string, patch: string, signal: AbortSignal): Promise<void> { const { promise, resolve, reject } = Promise.withResolvers<void>(); const child = spawn('git', ['apply', '--whitespace=nowarn', '--'], { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'], signal }); let stderr = ''; child.stderr.on('data', (chunk) => { stderr += String(chunk).slice(0, 4096 - stderr.length); }); child.once('error', reject); child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`git apply failed${stderr ? ': rejected patch' : ''}`))); child.stdin.end(patch); return promise; }
+function exactResult(value: unknown): boolean { if (!value || typeof value !== 'object') return false; const entry = value as Record<string, unknown>; return entry.schema === 'ui-delivery-check-v1' && Number.isInteger(entry.required) && entry.required >= 1 && entry.passed === entry.required && entry.failed === 0 && entry.skipped === 0; }
+async function outputPath(repo: string, task: any, checkId: string, path: string): Promise<string> { const recipe = task.approved_check_recipes.find((entry: any) => entry.id === checkId); if (!recipe?.write_paths?.includes(path)) throw new Error('artifact is not a declared check output'); return authorizePath({ repo, task: { allowed_paths: recipe.write_paths, forbidden_policy_paths: task.forbidden_policy_paths }, path }); }
+async function freshArtifact(path: string, before?: { mtimeMs: number; size: number }): Promise<{ hash: string }> { const stat = await lstat(path); if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 1 || (before && stat.mtimeMs === before.mtimeMs && stat.size === before.size)) throw new Error('stale or invalid capture artifact'); return { hash: `sha256:${createHash('sha256').update(await readFile(path)).digest('hex')}` }; }
+async function verifiedStatus(repo: string, task: any): Promise<boolean> { if (task.state !== 'accepted' || task.outcome !== 'verified' || !task.candidate_hash || await candidateHash({ repo, task }) !== task.candidate_hash) return false; try { const text = await readFile(join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), 'utf8'); return text.split('\n').filter(Boolean).some((line) => { try { const evidence = JSON.parse(line); return evidence.candidateHash === task.candidate_hash && evidence.outcome === 'verified'; } catch { return false; } }); } catch { return false; } }
 
-function diffTargets(patch: string): string[] {
-  if (!patch || /^(deleted file mode|rename from |rename to |new file mode 120000)/m.test(patch)) throw new Error('destructive or symlink diff is forbidden');
-  const targets: string[] = [];
-  for (const line of patch.split('\n')) {
-    const matched = /^(?:diff --git a\/\S+ b\/|\+\+\+ b\/)(\S+)$/.exec(line);
-    if (matched) targets.push(matched[1]);
-  }
-  if (!targets.length) throw new Error('patch has no file targets');
-  for (const target of targets) if (target.startsWith('/') || target.split('/').includes('..') || target === '/dev/null') throw new Error('unsafe diff target');
-  return [...new Set(targets)];
+export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck } = {}): void {
+  const checkRunner = deps.runCheck ?? defaultRunCheck; let stitch: ReturnType<typeof createStitchPolicy> | undefined;
+  pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) { const taskFile = (params as { taskFile?: string }).taskFile; if (!taskFile) return result(STATUS); const task = await loadTask({ repo: ctx.cwd, taskFile }); const approved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256 === authorizationDigest(task); if (approved) stitch = createStitchPolicy({ task, registry: (pi.getAllTools?.() ?? []) as any[] }); const verified = await verifiedStatus(ctx.cwd, task); return result({ extension: STATUS.extension, taskId: task.task_id, state: task.state, outcome: verified ? task.outcome : 'evidence_unverified', authorizationDigest: authorizationDigest(task), approved: approved && verified || approved && task.outcome === 'unverified' }); } });
+  pi.registerTool({ name: 'ui_apply_patch', label: 'Apply approved UI patch', description: 'Apply an authorized non-destructive unified diff.', parameters: pi.zod.object({ taskFile: pi.zod.string(), patch: pi.zod.string() }).strict(), approval: 'write', strict: true, async execute(_id, params, signal, _onUpdate, ctx) { const args = params as { taskFile: string; patch: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, mutation: true }); const changedFiles = diffTargets(args.patch); for (const target of changedFiles) await authorizePath({ repo: ctx.cwd, task, path: target }); await gitApply(ctx.cwd, args.patch, signal); return result({ taskId: task.task_id, operation: 'ui_apply_patch', outcome: 'mutation_unknown', changedFiles, patchHash: `sha256:${createHash('sha256').update(args.patch).digest('hex')}` }); } });
+  pi.registerTool({ name: 'ui_run_check', label: 'Run approved UI check', description: 'Run a named approved check in an OS sandbox.', parameters: pi.zod.object({ taskFile: pi.zod.string(), checkId: pi.zod.string() }).strict(), approval: 'exec', strict: true, async execute(_id, params, signal, _onUpdate, ctx) { const args = params as { taskFile: string; checkId: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, mutation: true }); if (!task.candidate_revision || !task.candidate_hash || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate hash does not match current worktree'); const checked = await checkRunner({ repo: ctx.cwd, task, checkId: args.checkId, signal }); const recipe = task.approved_check_recipes.find((entry: any) => entry.id === args.checkId); if (checked.exitCode !== 0 || !exactResult(JSON.parse(await readFile(await outputPath(ctx.cwd, task, args.checkId, recipe.result_path), 'utf8'))) || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('check result is unverified or candidate changed'); await appendEvidence({ repo: ctx.cwd, evidenceFile: join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record: { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, operation: 'ui_run_check', checkId: args.checkId, outcome: 'verified', elapsedMs: 0, artifacts: [], stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash } }); return result({ taskId: task.task_id, operation: 'ui_run_check', checkId: args.checkId, exitCode: checked.exitCode, stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash }); } });
+  pi.registerTool({ name: 'ui_capture', label: 'Capture approved UI evidence', description: 'Record only artifacts named by an approved capture recipe.', parameters: pi.zod.object({ taskFile: pi.zod.string(), recipeId: pi.zod.string() }).strict(), approval: 'exec', strict: true, async execute(_id, params, signal, _onUpdate, ctx) { const args = params as { taskFile: string; recipeId: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, mutation: true }); if (!task.candidate_revision || !task.candidate_hash || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate hash does not match current worktree'); const recipe = task.capture_recipes.find((entry: any) => entry.id === args.recipeId); if (!recipe) throw new Error('unknown capture recipe'); const before = await Promise.all(recipe.artifacts.map(async (artifact: any) => { try { const stat = await lstat(await outputPath(ctx.cwd, task, recipe.check_id, artifact.path)); return { mtimeMs: stat.mtimeMs, size: stat.size }; } catch { return undefined; } })); const checked = await checkRunner({ repo: ctx.cwd, task, checkId: recipe.check_id, signal }); if (checked.exitCode !== 0) throw new Error('capture check did not succeed'); const artifacts = await Promise.all(recipe.artifacts.map(async (artifact: any, index: number) => ({ path: artifact.path, ...(await freshArtifact(await outputPath(ctx.cwd, task, recipe.check_id, artifact.path), before[index])) }))); if (await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate changed'); await appendEvidence({ repo: ctx.cwd, evidenceFile: join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record: { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, operation: 'ui_capture', outcome: 'captured', elapsedMs: 0, artifacts, stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash } }); return result({ taskId: task.task_id, operation: 'ui_capture', artifacts: artifacts.map((artifact) => basename(artifact.path)) }); } });
+  const hookable = pi as unknown as { on?: (event: string, handler: (event: any) => Promise<unknown>) => void };
+  hookable.on?.('tool_call', async (event) => { if (!event.toolName.startsWith('mcp__stitch__')) return undefined; try { if (!stitch) throw new Error('Stitch tool call is not authorized'); await stitch.authorize({ projectId: event.projectId, toolName: event.toolName, input: event.input }); return undefined; } catch (error) { return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' }; } });
+  hookable.on?.('tool_result', async (event) => { if (!stitch || !event.toolName.startsWith('mcp__stitch__')) return undefined; if (stitch.classify(event.toolName) === 'mutation' && event.result?.isError) stitch.recordDispatchFailed(); if (stitch.classify(event.toolName) === 'read' && stitch.state() === 'mutation_unknown') stitch.recordReadback({ toolName: event.toolName, reconciled: !event.result?.isError }); return undefined; });
 }
-
-async function gitApply(cwd: string, patch: string, signal: AbortSignal): Promise<void> {
-  const { promise, resolve, reject } = Promise.withResolvers<void>();
-  const child = spawn('git', ['apply', '--whitespace=nowarn', '--'], { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'], signal });
-  let stderr = '';
-  child.stderr.on('data', (chunk) => { stderr += String(chunk).slice(0, 4096 - stderr.length); });
-  child.on('error', reject);
-  child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`git apply failed${stderr ? ': rejected patch' : ''}`)));
-  child.stdin.end(patch);
-  return promise;
-}
-
-export default function uiDeliveryPolicy(pi: ExtensionAPI): void {
-  pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true,
-    async execute(_id, params, _signal, _onUpdate, ctx) {
-      const taskFile = (params as { taskFile?: string }).taskFile;
-      if (!taskFile) return result(STATUS);
-      const task = await loadTask({ repo: ctx.cwd, taskFile });
-      return result({ extension: STATUS.extension, taskId: task.task_id, state: task.state, outcome: task.outcome });
-    } });
-  pi.registerTool({ name: 'ui_apply_patch', label: 'Apply approved UI patch', description: 'Apply an authorized non-destructive unified diff.', parameters: pi.zod.object({ taskFile: pi.zod.string(), patch: pi.zod.string() }).strict(), approval: 'write', strict: true,
-    async execute(_id, params, signal, _onUpdate, ctx) {
-      const args = params as { taskFile: string; patch: string };
-      const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, mutation: true });
-      const changedFiles = diffTargets(args.patch);
-      for (const target of changedFiles) await authorizePath({ repo: ctx.cwd, task, path: target });
-      await gitApply(ctx.cwd, args.patch, signal);
-      return result({ taskId: task.task_id, operation: 'ui_apply_patch', outcome: 'mutation_unknown', changedFiles, patchHash: `sha256:${createHash('sha256').update(args.patch).digest('hex')}` });
-    } });
-  pi.registerTool({ name: 'ui_run_check', label: 'Run approved UI check', description: 'Run a named approved check in an OS sandbox.', parameters: pi.zod.object({ taskFile: pi.zod.string(), checkId: pi.zod.string() }).strict(), approval: 'exec', strict: true,
-    async execute(_id, params, _signal, _onUpdate, ctx) {
-      const args = params as { taskFile: string; checkId: string };
-      const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile });
-      const checked = await runCheck({ repo: ctx.cwd, task, checkId: args.checkId, environment: process.env });
-      if (task.candidate_revision && task.candidate_hash) await appendEvidence({ repo: ctx.cwd, evidenceFile: join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record: { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, operation: 'ui_run_check', checkId: args.checkId, outcome: checked.exitCode === 0 ? 'verified' : 'failed', elapsedMs: 0, artifacts: [], stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash } });
-      return result({ taskId: task.task_id, operation: 'ui_run_check', checkId: args.checkId, exitCode: checked.exitCode, stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash });
-    } });
-  pi.registerTool({ name: 'ui_capture', label: 'Capture approved UI evidence', description: 'Record only artifacts named by an approved capture recipe.', parameters: pi.zod.object({ taskFile: pi.zod.string(), recipeId: pi.zod.string() }).strict(), approval: 'exec', strict: true,
-    async execute(_id, params, _signal, _onUpdate, ctx) {
-      const args = params as { taskFile: string; recipeId: string };
-      const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile });
-      const recipe = task.capture_recipes.find((entry: { id: string }) => entry.id === args.recipeId);
-      if (!recipe) throw new Error('unknown capture recipe');
-      const checked = await runCheck({ repo: ctx.cwd, task, checkId: recipe.check_id, environment: process.env });
-      if (checked.exitCode !== 0) throw new Error('capture check did not succeed');
-      const artifacts = [];
-      for (const artifact of recipe.artifacts) {
-        const path = await authorizePath({ repo: ctx.cwd, task, path: artifact.path });
-        const bytes = await readFile(path);
-        artifacts.push({ path: artifact.path, hash: `sha256:${createHash('sha256').update(bytes).digest('hex')}` });
-      }
-      const evidenceFile = join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`);
-      await appendEvidence({ repo: ctx.cwd, evidenceFile, record: { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision ?? 'unbound', candidateHash: task.candidate_hash ?? 'unbound', modelRoute: task.model_route, operation: 'ui_capture', outcome: 'captured', elapsedMs: 0, artifacts, stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash } });
-      return result({ taskId: task.task_id, operation: 'ui_capture', artifacts: artifacts.map((artifact) => basename(artifact.path)) });
-    } });
-  const optionalApi = pi as unknown as { on?: (event: string, handler: (event: { toolName: string; input: unknown; projectId: string }) => Promise<void>) => void; getMcpRegistry?: () => unknown[] };
-  if (typeof optionalApi.on === 'function') optionalApi.on('tool_call', async () => { throw new Error('Stitch tool calls require a task-bound policy instance'); });
-}
+export default function uiDeliveryPolicy(pi: ExtensionAPI): void { registerUiDeliveryPolicy(pi); }

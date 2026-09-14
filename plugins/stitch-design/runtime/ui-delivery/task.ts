@@ -1,5 +1,7 @@
-import { realpath, readFile } from 'node:fs/promises';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { createHash } from 'node:crypto';
+import { lstat, readdir, readFile, realpath } from 'node:fs/promises';
+import { join, relative, resolve, sep } from 'node:path';
+import { canonicalJsonHash } from './evidence.ts';
 
 export type DeliveryTask = Record<string, any>;
 
@@ -7,42 +9,69 @@ function within(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
   return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..' && !rel.includes(`${sep}..${sep}`));
 }
-
 function invalid(message: string): never { throw new Error(`Invalid UI delivery task: ${message}`); }
+function nonEmptyStrings(value: unknown): value is string[] { return Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'string' && entry.length > 0); }
+function relativePath(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.split(/[\\/]/).includes('..'); }
 
-function nonEmptyStrings(value: unknown): value is string[] {
-  return Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'string' && entry.length > 0);
+export function authorizationDigest(task: DeliveryTask): string {
+  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant'].filter((key) => key in task).map((key) => [key, task[key]]));
+  return canonicalJsonHash(projection);
 }
 
 function validate(task: unknown): asserts task is DeliveryTask {
   if (!task || typeof task !== 'object' || Array.isArray(task)) invalid('must be an object');
   const value = task as DeliveryTask;
   for (const key of ['task_id', 'state', 'design_revision', 'model_route', 'outcome']) if (typeof value[key] !== 'string' || !value[key]) invalid(`missing ${key}`);
-  if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths)) invalid('paths must be non-empty string arrays');
+  if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays');
   if (!Array.isArray(value.approved_check_recipes) || !value.approved_check_recipes.length) invalid('missing check recipes');
   if (!Array.isArray(value.capture_recipes) || !value.capture_recipes.length) invalid('missing capture recipes');
   if (!Number.isInteger(value.repair_cycles) || value.repair_cycles < 0 || value.repair_cycles > 2) invalid('invalid repair cycles');
-  const states = new Set(['draft', 'approved', 'candidate_ready', 'reviewing', 'repairing', 'accepted', 'blocked', 'failed']);
+  const states = new Set(['draft', 'approved', 'building', 'candidate_ready', 'reviewing', 'repairing', 'accepted', 'blocked', 'failed']);
   if (!states.has(value.state)) invalid('invalid state');
   if (value.model_route !== '@ui_code') invalid('invalid model route');
   if ((value.state === 'accepted' && value.outcome !== 'verified') || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome mismatch');
-  if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || typeof value.candidate_hash !== 'string')) invalid('candidate binding required');
+  if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/i.test(value.candidate_hash))) invalid('candidate binding required');
+  if (['accepted', 'blocked', 'failed'].includes(value.state) && !nonEmptyStrings(value.evidence_refs)) invalid('terminal evidence required');
+  const ids = new Set<string>();
   for (const recipe of value.approved_check_recipes) {
-    if (!recipe || typeof recipe !== 'object' || !nonEmptyStrings(recipe.argv) || typeof recipe.id !== 'string' || typeof recipe.cwd !== 'string' || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || !['sandbox-exec', 'docker'].includes(recipe.backend)) invalid('invalid check recipe');
-    if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/@sha256:[a-f0-9]{16,}$/i.test(recipe.sandbox_image))) invalid('docker image must be digest pinned');
+    if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || ids.has(recipe.id) || !nonEmptyStrings(recipe.argv) || !relativePath(recipe.cwd) || !relativePath(recipe.result_path) || !nonEmptyStrings(recipe.write_paths) || !recipe.write_paths.every(relativePath) || !recipe.write_paths.includes(recipe.result_path) || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || !['sandbox-exec', 'docker'].includes(recipe.backend)) invalid('invalid check recipe');
+    for (const writePath of recipe.write_paths) if (writePath === '.' || writePath === '.git' || writePath === '.omp' || writePath === 'secrets' || value.allowed_paths.some((allowed: string) => allowed === writePath || allowed.startsWith(`${writePath}/`) || writePath.startsWith(`${allowed}/`))) invalid('check output overlaps candidate scope');
+    ids.add(recipe.id);
+    if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image))) invalid('docker image must be digest pinned');
+  }
+  const captureIds = new Set<string>();
+  for (const recipe of value.capture_recipes) {
+    if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || captureIds.has(recipe.id) || typeof recipe.check_id !== 'string' || !ids.has(recipe.check_id) || !Array.isArray(recipe.artifacts) || recipe.artifacts.length < 1) invalid('invalid capture recipe');
+    captureIds.add(recipe.id);
+    const check = value.approved_check_recipes.find((entry: Record<string, unknown>) => entry.id === recipe.check_id);
+    for (const artifact of recipe.artifacts) if (!artifact || typeof artifact !== 'object' || !relativePath(artifact.path) || typeof artifact.type !== 'string' || !artifact.type || !Array.isArray(check?.write_paths) || !check.write_paths.includes(artifact.path)) invalid('invalid capture artifact');
   }
 }
 
-export async function loadTask({ repo, taskFile, mutation = false, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; now?: Date }): Promise<DeliveryTask> {
+async function walk(root: string, current: string, files: string[]): Promise<void> {
+  const stat = await lstat(current);
+  if (stat.isSymbolicLink()) throw new Error('candidate contains symlink');
+  if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), files); return; }
+  if (stat.isFile()) files.push(current);
+}
+export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
   const root = await realpath(repo);
-  const tasks = join(root, '.omp', 'ui-delivery', 'tasks');
-  let actual: string;
-  try { actual = await realpath(resolve(root, taskFile)); } catch { invalid('task file does not exist'); }
+  const files: string[] = [];
+  for (const allowed of task.allowed_paths) { const path = resolve(root, allowed); if (!within(root, path)) throw new Error('allowed path escapes repository'); try { await walk(root, path, files); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; } }
+  files.sort(); const hash = createHash('sha256'); for (const path of files) hash.update(await readFile(path));
+  return `sha256:${hash.digest('hex')}`;
+}
+
+export async function loadTask({ repo, taskFile, mutation = false, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; now?: Date }): Promise<DeliveryTask> {
+  const root = await realpath(repo); const tasks = join(root, '.omp', 'ui-delivery', 'tasks');
+  let actual: string; try { actual = await realpath(resolve(root, taskFile)); } catch { invalid('task file does not exist'); }
   if (!within(tasks, actual)) invalid('task file is outside policy directory');
-  let task: unknown;
-  try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
+  let task: unknown; try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);
-  if (mutation && task.state !== 'approved') invalid('mutation requires approved state');
+  if (mutation) {
+    if (task.state !== 'approved' && task.state !== 'candidate_ready') invalid('mutation requires approved state');
+    if (process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== authorizationDigest(task)) invalid('external approval digest mismatch');
+  }
   const grant = task.stitch_grant;
   if (mutation && grant && (!grant.expires_at || Number.isNaN(Date.parse(grant.expires_at)) || Date.parse(grant.expires_at) <= now.getTime())) invalid('Stitch grant expired');
   return task;
