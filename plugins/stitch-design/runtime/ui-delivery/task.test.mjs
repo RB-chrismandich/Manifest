@@ -152,6 +152,12 @@ test('requires renewed reviewer authorization after coordinator transitions a ca
   await withApproval(reviewer, () => loadTask({ repo, taskFile: path, operation: 'capture' }));
 });
 
+test('rejects malformed grant expiry even for status-facing task loads', async () => {
+  const definition = approvedTask({ stitch_grant: { project_id: 'project-17', expires_at: 'not-a-date', mutations: [], readback_tools: [] } });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
+});
+
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
   const definition = approvedTask();
   const { repo } = await taskFile(definition);

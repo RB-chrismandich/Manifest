@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 import yaml
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 
 from tools.generate_plugin_views import render_views
 
@@ -52,7 +52,7 @@ def _schema(path: Path) -> Draft202012Validator:
     document = json.loads(path.read_text(encoding="utf-8"))
     assert document["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     Draft202012Validator.check_schema(document)
-    return Draft202012Validator(document)
+    return Draft202012Validator(document, format_checker=FormatChecker())
 
 
 def _assert_valid(validator: Draft202012Validator, instance: dict[str, Any]) -> None:
@@ -156,6 +156,10 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
 
     candidate_ready = {**task, "state": "candidate_ready", "outcome": "unverified"}
     _assert_valid(validator, candidate_ready)
+    _assert_invalid(
+        validator,
+        {**task, "stitch_grant": {**task["stitch_grant"], "expires_at": "not-a-date"}},
+    )
 
     for state in ("candidate_ready", "reviewing"):
         _assert_valid(

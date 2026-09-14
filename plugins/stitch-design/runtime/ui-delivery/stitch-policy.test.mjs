@@ -52,6 +52,7 @@ test('denies missing, expired, wrong-project, and wrong-input mutation grants', 
   for (const candidate of [
     task({ stitch_grant: undefined }),
     task({ stitch_grant: { ...task().stitch_grant, expires_at: '2020-01-01T00:00:00Z' } }),
+    task({ stitch_grant: { ...task().stitch_grant, expires_at: 'not-a-date' } }),
   ]) {
     const policy = createStitchPolicy({ task: candidate, registry, now: () => now });
     await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input }));
