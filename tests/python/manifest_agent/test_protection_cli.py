@@ -177,10 +177,8 @@ def _base_env(tmp_path: Path, *, path: str) -> dict[str, str]:
     }
 
 
-@pytest.fixture
-def env(tmp_path: Path) -> dict[str, Any]:
-    """A real bin dir with a fake `gh` on a real PATH, a real responses dir,
-    a real log path, and a real temp config+workflow pair."""
+def _make_env(tmp_path: Path) -> dict[str, Any]:
+    """Build the isolated fake-GitHub CLI environment shared by split modules."""
     bin_dir = tmp_path / "bin"
     _write_fake_gh(bin_dir)
     return {
@@ -191,6 +189,11 @@ def env(tmp_path: Path) -> dict[str, Any]:
         "config_path": tmp_path / "branch-protection.json",
         "workflow_path": tmp_path / "workflow.yml",
     }
+
+
+@pytest.fixture
+def env(tmp_path: Path) -> dict[str, Any]:
+    return _make_env(tmp_path)
 
 
 def _cli_env(env: dict[str, Any], *, path: str | None = None) -> dict[str, str]:
