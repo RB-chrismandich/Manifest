@@ -204,6 +204,6 @@ _124 commands, generated from `.apm/skills/*/SKILL.md`._
 | `/test-isolate-ambient` | Design tests that replace real home, XDG state, network, installed harnesses, and repository globals with explicit fixtures so broken code cannot pass on ambient state. | Design tests that replace real home, XDG state, network, installed harnesses, and repository globals with explicit fixtures so broken code cannot pass on ambient state. | available |
 | `/ui-delivery` | Own an approved, bounded UI build lifecycle with authorized changes and evidence. | Own an approved, bounded UI build lifecycle with authorized changes and evidence. | available |
 | `/ui-verification` | Review an exact UI candidate read-only and return bounded evidence-based verdicts. | Review an exact UI candidate read-only and return bounded evidence-based verdicts. | available |
-| `/upload-to-stitch` | Upload authorized local assets to Stitch and reconcile them by readback. | Upload authorized local assets to Stitch and reconcile them by readback. | available |
+| `/upload-to-stitch` | Use when an authorized local DESIGN.md or Markdown document must be uploaded to a Stitch project. | Use when an authorized local DESIGN. | available |
 
 <!-- END GENERATED COMMANDS -->

@@ -423,7 +423,7 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Upload authorized local assets to Stitch and reconcile them by readback.",
+      "description": "Use when an authorized local DESIGN.md or Markdown document must be uploaded to a Stitch project.",
       "name": "upload-to-stitch",
       "qualified_name": "stitch-design:upload-to-stitch"
     },

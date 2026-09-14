@@ -1,12 +1,12 @@
 ---
-description: "Upload authorized local assets to Stitch and reconcile them by readback."
+description: "Use when an authorized local DESIGN.md or Markdown document must be uploaded to a Stitch project."
 globs: ".claude/skills/upload-to-stitch/**"
 alwaysApply: false
 ---
 
 # upload-to-stitch
 
-Upload authorized local assets to Stitch and reconcile them by readback.
+Use when an authorized local DESIGN.md or Markdown document must be uploaded to a Stitch project.
 
 <!-- Auto-generated from .claude/skills/upload-to-stitch/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
