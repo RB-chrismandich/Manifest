@@ -255,7 +255,7 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements.",
+      "description": "Focused accessibility evidence audit for semantics, keyboard use, contrast, labels, and error announcements.",
       "name": "a11y-audit",
       "qualified_name": "stitch-design:a11y-audit"
     },

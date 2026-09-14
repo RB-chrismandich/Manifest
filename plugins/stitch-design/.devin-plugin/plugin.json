@@ -55,6 +55,12 @@
             "path": "agents/skeptic-verifier.md"
           },
           {
+            "component_id": "model-qualification",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/model-qualification"
+          },
+          {
             "component_id": "react-native-validator",
             "component_type": "runtime",
             "mode": "imported",
@@ -110,6 +116,10 @@
           }
         ],
         "runtime": [
+          {
+            "id": "model-qualification",
+            "path": "runtime/model-qualification"
+          },
           {
             "id": "react-native-validator",
             "path": "skills/react-native/scripts"
@@ -223,6 +233,12 @@
             "path": "agents/skeptic-verifier.md"
           },
           {
+            "component_id": "model-qualification",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/model-qualification"
+          },
+          {
             "component_id": "react-native-validator",
             "component_type": "runtime",
             "mode": "native",
@@ -278,6 +294,10 @@
           }
         ],
         "runtime": [
+          {
+            "id": "model-qualification",
+            "path": "runtime/model-qualification"
+          },
           {
             "id": "react-native-validator",
             "path": "skills/react-native/scripts"
@@ -391,6 +411,12 @@
             "path": "agents/skeptic-verifier.md"
           },
           {
+            "component_id": "model-qualification",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/model-qualification"
+          },
+          {
             "component_id": "react-native-validator",
             "component_type": "runtime",
             "mode": "generated",
@@ -446,6 +472,10 @@
           }
         ],
         "runtime": [
+          {
+            "id": "model-qualification",
+            "path": "runtime/model-qualification"
+          },
           {
             "id": "react-native-validator",
             "path": "skills/react-native/scripts"
@@ -559,6 +589,12 @@
             "path": "agents/skeptic-verifier.md"
           },
           {
+            "component_id": "model-qualification",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/model-qualification"
+          },
+          {
             "component_id": "react-native-validator",
             "component_type": "runtime",
             "mode": "native",
@@ -614,6 +650,10 @@
           }
         ],
         "runtime": [
+          {
+            "id": "model-qualification",
+            "path": "runtime/model-qualification"
+          },
           {
             "id": "react-native-validator",
             "path": "skills/react-native/scripts"

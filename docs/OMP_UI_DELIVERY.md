@@ -19,9 +19,12 @@ read-only `ui-reviewer` agents, and these extension tools:
 | `ui_capture` | exec | Create only a declared evidence artifact. |
 
 The task and evidence directories are repository-local:
-`.omp/ui-delivery/tasks/` and `.omp/ui-delivery/evidence/`. The builder uses
+`.omp/ui-delivery/tasks/` and `.omp/ui-delivery/evidence/`. The builder declares
 only `read`, `grep`, `glob`, `ui_apply_patch`, and `ui_run_check`; the reviewer
-uses only `read`, `grep`, `glob`, and `ui_capture`. Neither may spawn agents.
+declares only `read`, `grep`, `glob`, and `ui_capture`. Neither may spawn agents.
+The extension independently enforces `@ui_code` for patch/build-check calls and
+`@ui_review` for capture calls; agent tool declarations are not the security
+boundary.
 
 ## Qualify the model route
 
@@ -72,33 +75,42 @@ The coordinator computes the canonical authorization digest over the approved
 policy projection (`task_id`, design revision, path rules, checks, captures,
 model route, and any Stitch grant) and supplies **that exact value** to the OMP
 process as `UI_DELIVERY_APPROVED_TASK_SHA256`. A repository task cannot approve
-itself. Do not hash formatted task JSON, expose credentials, or let the builder
+itself. Do not hash formatted task JSON, expose credentials, or let an agent
 supply or change the environment value. Any policy-relevant edit requires a new
-digest and a new authorization.
+digest and a new authorization. Lifecycle state, candidate identity, outcome,
+repair count, and evidence references are deliberately outside that immutable
+projection; switching from `@ui_code` to `@ui_review` still changes the digest
+and requires fresh coordinator authorization.
 
 ## Run the lifecycle
 
 1. Preflight the linked package and tools. Missing constrained tools block the
    task; there is no unrestricted substitute.
-2. Move the approved task to `approved`, inject the external digest, and give
-   it only to `ui-builder`.
+2. Move the approved task to `approved`, set `model_route` to `@ui_code`,
+   inject the builder digest, and give it only to `ui-builder`.
 3. The builder patches only allowed paths and records the resulting candidate
-   revision and hash. It runs only named approved checks.
-4. Move the exact candidate to `candidate_ready`/`reviewing`; `ui-reviewer`
-   reads that revision and hash, captures declared evidence, and returns its
-   strict review schema.
-5. An accepted review becomes `verified` only after current checks and captures
-   are bound to the same task, digest, design, candidate revision/hash, and
-   model route. Authorized repair is limited to two cycles; the third open
-   cycle is `blocked`.
+   revision and hash. It may run named build checks only. A check referenced by
+   a capture recipe is capture-only and `ui_run_check` rejects it.
+4. The trusted coordinator confirms the current candidate hash and the latest
+   builder-check attempts under the builder digest. It then atomically changes
+   the exact task to `reviewing` with `model_route: "@ui_review"`, computes the
+   new reviewer digest, and starts a separate reviewer process with that digest.
+   The old builder digest cannot authorize capture.
+5. `ui-reviewer` reads the exact revision/hash, invokes only declared capture
+   recipes, inspects their artifacts, and returns the strict review schema.
+6. The coordinator validates the review schema and candidate identity before
+   mapping an accepted verdict to `accepted`/`verified`. Authorized repair is
+   limited to two cycles; the third open cycle is `blocked`.
 
-`verified` means the task is accepted, the current candidate hash still
-matches, every current-digest check's **latest attempt** completed verified, and
-every capture has a current complete artifact hash. Treat a status with
-`verified: false`—including the task outcome `unverified`—as
-**evidence_unverified**, not as a pass. Skipped, unavailable, stale, timed-out,
-or failed evidence cannot be promoted. `failed` is a failed check or review;
-`blocked` covers authorization, recovery, or unresolved repair limits.
+`verified` means the task is accepted on `@ui_review`, the current candidate
+hash still matches, every unreferenced build check's latest attempt is verified
+under the equivalent `@ui_code` policy digest, and every declared capture's
+latest attempt and current complete artifact hash match the reviewer digest.
+Later wrong-route, wrong-digest, unfinished, or failed attempts invalidate the
+corresponding evidence. Treat `verified: false`—including task outcome
+`unverified`—as **evidence_unverified**, not as a pass. Skipped, unavailable,
+stale, timed-out, or failed evidence cannot be promoted. `failed` is a failed
+check or review; `blocked` covers authorization, recovery, or repair limits.
 
 ## Verifier and sandbox boundaries
 
@@ -108,11 +120,14 @@ sandbox that has no permission to write the check result or evidence location;
 the trusted verifier alone records results. This prevents a candidate from
 turning its own output into evidence.
 
-Checks use approved fixed argv and an OS sandbox. On macOS, the residual
-compatibility scope includes `mach-lookup` and `file-read-metadata`; it is not a
+Checks use approved fixed argv and an OS sandbox. Docker checks require a
+digest-pinned image and run with no network, a read-only root filesystem, the
+host caller's non-root UID/GID, fixed non-secret environment, exact output and
+scratch mounts, and protected-path masks. On macOS, `sandbox-exec` has residual
+compatibility scope for `mach-lookup` and `file-read-metadata`; it is not a
 general read grant. Content reads remain limited to the repository, approved
-runtime/executable dependencies, scratch space, and required system paths; the
-policy masks `.git`, `.omp`, `secrets`, and forbidden paths.
+runtime/executable dependencies, scratch space, and required system paths;
+`.git`, `.omp`, `secrets`, and forbidden paths remain masked.
 
 ## Deterministic release pilot
 
@@ -128,6 +143,14 @@ The parent argument must be absolute. The command creates it as needed and
 prints one JSON launch record containing two case repository/task/external
 approval-digest triples. Use those values to start isolated OMP runs; do not
 place the generated task or digest in this repository.
+
+The pilot's visual capture runs Chromium with JavaScript disabled inside the
+digest-pinned `ghcr.io/open-webui/computer` image declared by the fixture. The
+outer container remains networkless, read-only, non-root, and limited to exact
+result mounts. Both routes must complete separate Astra builder and reviewer
+runs and finish with `ui_delivery_status.verified: true`; fixture preparation
+alone is not release evidence.
+
 
 ## Harness boundaries
 

@@ -18,4 +18,4 @@ output:
     outcome: {type: string, enum: [verified, failed, blocked, unverified]}
 ---
 
-Apply changes only to task-manifest `allowed_paths`; never modify forbidden policy paths. Use only approved fixed-argv check recipes. Record changed paths, exact candidate revision/hash, and check evidence. Never spawn, use unlisted tools, or claim skipped/unavailable checks pass.
+Apply changes only to task-manifest `allowed_paths`; never modify forbidden policy paths. Require the `@ui_code` builder stage and use only approved fixed-argv checks not referenced by capture recipes. Record changed paths, exact candidate revision/hash, and check evidence. Never capture, spawn, use unlisted tools, or claim skipped/unavailable checks pass.

@@ -19,4 +19,4 @@ output:
     evidence_refs: {type: array, minItems: 1, items: {type: string, minLength: 1}}
 ---
 
-Review only the supplied candidate revision and hash. Validate the result against `/stitch-design:ui-verification`'s `references/review.schema.json`, capture read-only evidence, and report findings and verdict. Never write, patch, execute checks, spawn, or use unlisted tools. Skipped or unavailable evidence is unverified, never verified.
+Review only a `reviewing` task on `@ui_review` with the supplied candidate revision, hash, and renewed reviewer authorization. Validate the result against `/stitch-design:ui-verification`'s `references/review.schema.json`, invoke only declared capture recipes, inspect their artifacts, and report findings and verdict. Never write, patch, execute build checks, spawn, or use unlisted tools. Skipped or unavailable evidence is unverified, never verified.

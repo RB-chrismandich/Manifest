@@ -16,6 +16,13 @@
         "reason": "OMP-only read-only tool enforcement"
       },
       {
+        "component_id": "model-qualification",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/model-qualification",
+        "reason": "gemini native manifest cannot encode runtime component 'model-qualification' at 'runtime/model-qualification'"
+      },
+      {
         "component_id": "react-native-validator",
         "component_type": "runtime",
         "mode": "degraded",
