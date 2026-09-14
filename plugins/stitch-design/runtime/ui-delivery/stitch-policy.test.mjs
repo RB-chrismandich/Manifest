@@ -54,7 +54,7 @@ test('binds approved mutations to the project discovered by create-project readb
     stitch_grant: {
       expires_at: '2030-01-01T00:00:00Z',
       mutations: [
-        { tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: hashStitchInput({ projectId: 'project-created' }) } },
+        { tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Bounded project' } } },
         { tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(generation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: hashStitchInput({ screen: { id: 'screen-created' } }) } },
       ],
       readback_tools: ['mcp__stitch_get_project', 'mcp__stitch_get_screen'],
@@ -67,9 +67,35 @@ test('binds approved mutations to the project discovered by create-project readb
   await assert.rejects(() => policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'create-2' }), /reconcil|consum/i);
   await policy.recordMutationResult({ toolName: 'mcp__stitch_create_project', toolCallId: 'create-1', projectId: 'project-created', succeeded: true });
   await policy.authorize({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', input: { projectId: 'project-created' }, toolCallId: 'readback-1' });
-  await policy.recordReadback({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-created' } });
+  await assert.rejects(
+    () => policy.recordReadback({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'other-project', title: 'Bounded project' } }),
+    /reconcil/i,
+  );
+  await assert.rejects(
+    () => policy.recordReadback({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-created', title: 'Unexpected project' } }),
+    /reconcil/i,
+  );
+  await policy.recordReadback({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-created', title: 'Bounded project' } });
   await policy.authorize({ projectId: 'project-created', toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' });
   assert.equal(definition.stitch_grant.project_id, undefined);
+});
+
+test('fails closed before dispatch when a mutation readback is not explicitly granted', async () => {
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [{
+        ...task().stitch_grant.mutations[0],
+        expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: hashStitchInput({ projectId: 'project-17' }) },
+      }],
+    },
+  });
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now });
+
+  await assert.rejects(
+    () => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'mutation-1' }),
+    /grant|authorized/i,
+  );
 });
 
 test('classifies every Stitch tool used by bundled design workflows and rejects unknown tools', async () => {

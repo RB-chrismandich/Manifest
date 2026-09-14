@@ -130,7 +130,7 @@ def _stitch_grant() -> dict[str, Any]:
         "mutations": [
             {
                 "tool_name": "mcp__stitch_edit_screens",
-                "input_hash": "sha256:8d5f2e",
+                "input_hash": "sha256:" + "8" * 64,
                 "max_uses": 1,
                 "expected_readback": {
                     "tool_name": "mcp__stitch_get_screen",
@@ -174,6 +174,58 @@ def test_task_schema_enforces_grant_contract(repo_root: Path) -> None:
     )
     assert_invalid(
         validator,
+        {
+            **task,
+            "stitch_grant": {
+                **stitch_grant,
+                "mutations": [
+                    {
+                        **stitch_grant["mutations"][0],
+                        "expected_readback": {
+                            **stitch_grant["mutations"][0]["expected_readback"],
+                            "tool_name": "mcp__stitch_list_projects",
+                        },
+                    }
+                ],
+            },
+        },
+    )
+    for projectless_read in (
+        "mcp__stitch_list_projects",
+        "mcp__stitch_read_url_content",
+    ):
+        assert_invalid(
+            validator,
+            {
+                **task,
+                "stitch_grant": {
+                    **stitch_grant,
+                    "readback_tools": [projectless_read],
+                },
+            },
+        )
+    for noncanonical_hash in (
+        "sha256:8d5f2e",
+        "SHA256:" + "a" * 64,
+        "sha256:" + "A" * 64,
+    ):
+        assert_invalid(
+            validator,
+            {
+                **task,
+                "stitch_grant": {
+                    **stitch_grant,
+                    "mutations": [
+                        {
+                            **stitch_grant["mutations"][0],
+                            "input_hash": noncanonical_hash,
+                        }
+                    ],
+                },
+            },
+        )
+    assert_invalid(
+        validator,
         {**task, "stitch_grant": {**stitch_grant, "expires_at": "not-a-date"}},
     )
     assert_invalid(
@@ -190,13 +242,50 @@ def test_task_schema_enforces_grant_contract(repo_root: Path) -> None:
     )
     assert_invalid(
         validator,
-        {
-            **task,
-            "stitch_grant": {**stitch_grant, "readback_tools": ["stitch.get_screen"]},
-        },
+        {**task, "stitch_grant": {**stitch_grant, "readback_tools": ["stitch.get_screen"]}},
     )
     assert_valid(validator, {**task, "stitch_grant": stitch_grant})
 
+def test_task_schema_constructs_create_readback_without_future_response_hash(
+    repo_root: Path,
+) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+    create_grant = {
+        "expires_at": "2030-01-01T00:00:00Z",
+        "mutations": [
+            {
+                "tool_name": "mcp__stitch_create_project",
+                "input_hash": "sha256:" + "c" * 64,
+                "max_uses": 1,
+                "expected_readback": {
+                    "tool_name": "mcp__stitch_get_project",
+                    "predictable_fields": {"title": "Checkout"},
+                },
+            }
+        ],
+        "readback_tools": ["mcp__stitch_get_project"],
+    }
+
+    assert_valid(validator, {**task, "stitch_grant": create_grant})
+    assert_invalid(
+        validator,
+        {
+            **task,
+            "stitch_grant": {
+                **create_grant,
+                "mutations": [
+                    {
+                        **create_grant["mutations"][0],
+                        "expected_readback": {
+                            "tool_name": "mcp__stitch_get_project",
+                            "response_hash": "sha256:" + "a" * 64,
+                        },
+                    }
+                ],
+            },
+        },
+    )
 
 def test_task_schema_enforces_required_fields_and_outcomes(repo_root: Path) -> None:
     validator = _validator(repo_root)

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
-import { execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
+import { bindCandidate, digest, execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 
 test('fails package activation before registering tools when required enforcement hooks are unavailable', () => {
@@ -52,7 +52,7 @@ test('surfaces a successful create-project result without project identity and k
   const definition = task({
     stitch_grant: {
       expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: hashStitchInput({ projectId: 'project-created' }) } }],
+      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Bounded project' } } }],
       readback_tools: ['mcp__stitch_get_project'],
     },
   });
@@ -156,6 +156,38 @@ test('a restarted extension loads the protected consumed mutation state before a
 
   const restarted = extensionApi(); uiDeliveryPolicy(restarted.api);
   await withApproval(definition, async () => {
+    await execute(restarted.tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    const replay = await restarted.handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-2' });
+    assert.equal(replay.block, true);
+    assert.match(replay.reason, /reconcil|consum/i);
+  });
+});
+
+test('reviewer accepted status preserves builder mutation replay protection through a transition and restart', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const builder = taskWithStitchGrant(input);
+  const first = extensionApi(); uiDeliveryPolicy(first.api);
+  const { repo } = await fixture(builder);
+  const taskFile = join(repo, '.omp/ui-delivery/tasks/task.json');
+
+  await withApproval(builder, async () => {
+    await execute(first.tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await first.handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+  });
+
+  const reviewer = {
+    ...builder, state: 'accepted', model_route: '@ui_review', outcome: 'verified',
+    candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+  };
+  await bindCandidate(repo, reviewer);
+  const restarted = extensionApi(); uiDeliveryPolicy(restarted.api);
+  await withApproval(reviewer, async () => {
+    const status = await execute(restarted.tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.authorizationDigest, digest(reviewer));
+  });
+
+  await writeFile(taskFile, JSON.stringify(builder));
+  await withApproval(builder, async () => {
     await execute(restarted.tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
     const replay = await restarted.handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-2' });
     assert.equal(replay.block, true);

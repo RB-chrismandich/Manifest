@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs';
 import { lstat, readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { canonicalJsonHash } from './evidence.ts';
-import { STITCH_MUTATION_TOOL_NAMES, STITCH_READ_TOOL_NAMES } from './stitch-policy.ts';
+import { STITCH_MUTATION_TOOL_NAMES, STITCH_READBACK_TOOL_NAMES } from './stitch-policy.ts';
 export type DeliveryTask = Record<string, any>;
 
 function within(root: string, candidate: string): boolean {
@@ -63,10 +63,13 @@ function validate(task: unknown): asserts task is DeliveryTask {
   }
   const grant = value.stitch_grant;
   if (grant !== undefined) {
-    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations) || !nonEmptyStrings(grant.readback_tools) || !grant.readback_tools.every((tool: string) => STITCH_READ_TOOL_NAMES.includes(tool as typeof STITCH_READ_TOOL_NAMES[number]))) invalid('invalid Stitch grant');
+    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations) || !nonEmptyStrings(grant.readback_tools) || !grant.readback_tools.every((tool: string) => STITCH_READBACK_TOOL_NAMES.includes(tool as typeof STITCH_READBACK_TOOL_NAMES[number]))) invalid('invalid Stitch grant');
     for (const mutation of grant.mutations) {
       const expected = mutation?.expected_readback;
-      if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !expected || typeof expected !== 'object' || !STITCH_READ_TOOL_NAMES.includes(expected.tool_name) || !/^sha256:[a-f0-9]{64}$/i.test(expected.response_hash)) invalid('invalid Stitch grant tool');
+      const creating = mutation?.tool_name === 'mcp__stitch_create_project';
+      const predictableFields = expected?.predictable_fields;
+      if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !/^sha256:[a-f0-9]{64}$/.test(mutation?.input_hash) || mutation?.max_uses !== 1 || !expected || typeof expected !== 'object' || !STITCH_READBACK_TOOL_NAMES.includes(expected.tool_name) || !grant.readback_tools.includes(expected.tool_name)) invalid('invalid Stitch grant tool');
+      if (creating ? !predictableFields || typeof predictableFields !== 'object' || Array.isArray(predictableFields) || !Object.keys(predictableFields).length || Object.hasOwn(expected, 'response_hash') || Object.keys(predictableFields).some((field) => field === 'projectId' || field === 'project_id') : !/^sha256:[a-f0-9]{64}$/i.test(expected.response_hash) || Object.hasOwn(expected, 'predictable_fields')) invalid('invalid Stitch grant readback');
     }
   }
 }

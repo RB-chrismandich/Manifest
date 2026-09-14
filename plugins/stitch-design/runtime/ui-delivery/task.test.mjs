@@ -335,6 +335,25 @@ test('rejects grants with tools outside the exact supported Stitch inventory', a
   const { repo, path } = await taskFile(definition);
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*tool|grant/i);
 });
+
+test('rejects grants whose readback is ungranted, projectless, or noncanonical', async () => {
+  const baseGrant = {
+    project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+    mutations: [{
+      tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
+      expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'a'.repeat(64)}` },
+    }],
+    readback_tools: ['mcp__stitch_get_screen'],
+  };
+  for (const stitch_grant of [
+    { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: `sha256:${'a'.repeat(64)}` } }] },
+    { ...baseGrant, readback_tools: ['mcp__stitch_list_projects'] },
+    { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], input_hash: `sha256:${'C'.repeat(64)}` }] },
+  ]) {
+    const { repo, path } = await taskFile({ stitch_grant });
+    await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*grant|readback/i);
+  }
+});
 test('admits only one task ID to the repository patch transaction', async () => {
   const { repo } = await taskFile({});
   await mkdir(join(repo, '.omp/ui-delivery/evidence'), { recursive: true });
