@@ -16,6 +16,51 @@ from manifest_agent.checks.registry import load_registry
 from manifest_agent.checks.runner import execute_check, run_profile
 from manifest_agent.cli import cli
 
+RECEIPT_SHAPE_MUTATIONS = (
+    lambda value: value.update(group=[]),
+    lambda value: value.update(status=[]),
+    lambda value: value.update(required_ids=[["test.probe"]]),
+    lambda value: value.update(
+        results=[{"id": ["test.probe"], "status": ["PASS"], "returncode": []}]
+    ),
+)
+RECEIPT_NUMERIC_BOOLEAN_MUTATIONS = (
+    lambda value: value.update(schema_version=True),
+    lambda value: value.update(run_attempt=True),
+    lambda value: value["results"][0].update(returncode=False),
+    lambda value: value["results"][0].update(duration_seconds=False),
+)
+
+
+def run_policy_script(tmp_path: Path, *, baseline: object, script: str):
+    candidate_copy = candidate_with_policies(
+        tmp_path, baseline=baseline, script=script
+    )
+    return run_profile(
+        load_registry(registry(tmp_path / "checks.json")),
+        "full",
+        None,
+        candidate_copy,
+        {},
+    )
+
+
+def invoke_aggregate_cli(config: Path, results_dir: Path, context_path: Path):
+    return CliRunner().invoke(
+        cli,
+        [
+            "check-aggregate",
+            "full",
+            "--project-config",
+            str(config),
+            "--results-dir",
+            str(results_dir),
+            "--context",
+            str(context_path),
+            "--json",
+        ],
+    )
+
 
 def registry(
     path: Path, *, argv: list[str] | None = None, honors: bool = False
@@ -182,15 +227,7 @@ def test_registry_consumes_env_assignments_before_command(tmp_path: Path):
     assert loaded["checks"][0].argv[2] == sys.executable
 
 
-@pytest.mark.parametrize(
-    "mutate",
-    [
-        lambda value: value.update(schema_version=True),
-        lambda value: value.update(run_attempt=True),
-        lambda value: value["results"][0].update(returncode=False),
-        lambda value: value["results"][0].update(duration_seconds=False),
-    ],
-)
+@pytest.mark.parametrize("mutate", RECEIPT_NUMERIC_BOOLEAN_MUTATIONS)
 def test_receipt_rejects_json_booleans_for_numeric_fields(mutate):
     malformed = receipt()
     mutate(malformed)
@@ -210,20 +247,14 @@ def test_registry_rejects_json_boolean_timeout(tmp_path: Path):
 def test_large_structured_findings_are_not_lost_to_diagnostic_truncation(
     tmp_path: Path,
 ):
-    candidate_copy = candidate_with_policies(
+    report = run_policy_script(
         tmp_path,
+        baseline=(),
         script=(
             "import json\n"
             "print(json.dumps({'findings': [{'id': f'new-{i:05d}'} "
             "for i in range(9000)]}))\n"
         ),
-    )
-    report = run_profile(
-        load_registry(registry(tmp_path / "checks.json")),
-        "full",
-        None,
-        candidate_copy,
-        {},
     )
     assert report["status"] == "FAIL"
     assert len(report["results"][0]["findings"]) == 9000
@@ -242,20 +273,13 @@ def test_registry_rejects_traversal_before_repo_owned_classification(tmp_path: P
 
 
 def test_structured_check_findings_fail_new_debt(tmp_path: Path):
-    candidate_copy = candidate_with_policies(
+    report = run_policy_script(
         tmp_path,
         baseline=[{"id": "known"}],
         script=(
             "import json\n"
             "print(json.dumps({'findings': [{'id': 'known'}, {'id': 'new'}]}))\n"
         ),
-    )
-    report = run_profile(
-        load_registry(registry(tmp_path / "checks.json")),
-        "full",
-        None,
-        candidate_copy,
-        {},
     )
     assert report["status"] == "FAIL"
     assert report["results"][0]["findings"] == ({"id": "known"}, {"id": "new"})
@@ -305,17 +329,7 @@ def test_project_checks_schema_is_strict_and_matches_runtime_shape():
     assert schema["properties"]["profiles"]["additionalProperties"] is False
 
 
-@pytest.mark.parametrize(
-    "mutate",
-    [
-        lambda value: value.update(group=[]),
-        lambda value: value.update(status=[]),
-        lambda value: value.update(required_ids=[["test.probe"]]),
-        lambda value: value.update(
-            results=[{"id": ["test.probe"], "status": ["PASS"], "returncode": []}]
-        ),
-    ],
-)
+@pytest.mark.parametrize("mutate", RECEIPT_SHAPE_MUTATIONS)
 def test_malformed_receipt_shapes_short_circuit_to_blocked(tmp_path: Path, mutate):
     malformed = receipt()
     mutate(malformed)
@@ -350,19 +364,7 @@ def test_repo_owned_exit_two_is_fail_with_diagnostics(tmp_path: Path):
 
 
 @pytest.mark.parametrize(
-    "mutate",
-    [
-        lambda value: value.update(group=[]),
-        lambda value: value.update(status=[]),
-        lambda value: value.update(required_ids=[["test.probe"]]),
-        lambda value: value.update(
-            results=[{"id": ["test.probe"], "status": ["PASS"], "returncode": []}]
-        ),
-        lambda value: value.update(schema_version=True),
-        lambda value: value.update(run_attempt=True),
-        lambda value: value["results"][0].update(returncode=False),
-        lambda value: value["results"][0].update(duration_seconds=False),
-    ],
+    "mutate", RECEIPT_SHAPE_MUTATIONS + RECEIPT_NUMERIC_BOOLEAN_MUTATIONS
 )
 def test_malformed_receipt_cli_blocks_without_traceback(tmp_path: Path, mutate):
     config = registry(tmp_path / "checks.json")
@@ -373,20 +375,7 @@ def test_malformed_receipt_cli_blocks_without_traceback(tmp_path: Path, mutate):
     (results_dir / "receipt.json").write_text(json.dumps(malformed), encoding="utf-8")
     context_path = tmp_path / "context.json"
     context_path.write_text(json.dumps(context()), encoding="utf-8")
-    result = CliRunner().invoke(
-        cli,
-        [
-            "check-aggregate",
-            "full",
-            "--project-config",
-            str(config),
-            "--results-dir",
-            str(results_dir),
-            "--context",
-            str(context_path),
-            "--json",
-        ],
-    )
+    result = invoke_aggregate_cli(config, results_dir, context_path)
     assert result.exit_code == 3
     assert json.loads(result.output)["status"] == "BLOCKED"
     assert "Traceback" not in result.output
@@ -430,20 +419,7 @@ def test_boolean_aggregate_context_blocks_at_direct_and_cli_boundaries(
     (results_dir / "receipt.json").write_text(json.dumps(receipt()), encoding="utf-8")
     context_path = tmp_path / "context.json"
     context_path.write_text(json.dumps(malformed), encoding="utf-8")
-    result = CliRunner().invoke(
-        cli,
-        [
-            "check-aggregate",
-            "full",
-            "--project-config",
-            str(config),
-            "--results-dir",
-            str(results_dir),
-            "--context",
-            str(context_path),
-            "--json",
-        ],
-    )
+    result = invoke_aggregate_cli(config, results_dir, context_path)
     assert result.exit_code == 3
     assert json.loads(result.output)["status"] == "BLOCKED"
     assert "Traceback" not in result.output
