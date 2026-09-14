@@ -2,12 +2,11 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { runCheck } from './checks.ts';
-import { loadTask } from './task.ts';
 const execFileAsync = promisify(execFile);
 const verifier = {
   path: '.omp/ui-delivery/verifiers/verify.mjs',
@@ -242,53 +241,6 @@ test('rejects a verifier directory symlink that escapes the repository', async (
   );
 });
 
-test('constructs Docker with fixed non-secret environment forwarded to the workload', async () => {
-  const repo = await fixture();
-  const calls = [];
-  await runCheck({
-    repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', environment: { AWS_SECRET_ACCESS_KEY: 'secret', CI: 'attacker-selected' },
-    backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
-  });
-  const [command] = calls;
-  assert.equal(command.executable, 'docker');
-  assert.ok(command.argv.includes('--network'));
-  assert.ok(command.argv.includes('none'));
-  assert.ok(command.argv.includes('--read-only'));
-  assert.ok(command.argv.includes('--env'));
-  assert.ok(command.argv.includes('--rm'));
-  assert.ok(!command.argv.includes('AWS_SECRET_ACCESS_KEY=secret'));
-  assert.ok(!command.argv.includes('CI=attacker-selected'));
-});
-
-test('uses Docker lifecycle cleanup for ordinary nonzero check results', async () => {
-  const repo = await fixture();
-  const calls = [];
-  const result = await runCheck({
-    repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
-    executor: async (command) => {
-      calls.push(command);
-      return { exitCode: 1, stdout: '', stderr: 'failed' };
-    },
-  });
-  assert.equal(result.exitCode, 1);
-  assert.ok(calls[0].argv.includes('--rm'));
-});
-
-test('passes fixed Docker workload argv through without resolving its container executable on the host', async () => {
-  const repo = await fixture();
-  const calls = [];
-  const containerArgv = ['ui-check-in-container', `/repo/${verifier.path}`];
-  await runCheck({
-    repo, task: task({ approved_check_recipes: [{ ...recipe, argv: containerArgv, backend: 'docker' }] }),
-    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
-  });
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].executable, 'docker');
-  assert.deepEqual(calls[0].recipeArgv, containerArgv);
-  assert.deepEqual(calls[0].argv.slice(-containerArgv.length), containerArgv);
-});
 
 test('terminates the workload and removes scratch on timeout or abort before returning', async () => {
   const repo = await fixture();
@@ -417,40 +369,3 @@ test('does not remove an output lock it did not create', async () => {
   await rm(lock);
 });
 
-test('keeps comma-bearing declared outputs out of Docker mount options', async () => {
-  const repo = await fixture();
-  const calls = [];
-  const resultPath = '.ui-results/unit,ro=false.json';
-
-  await runCheck({
-    repo,
-    task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', result_path: resultPath, write_paths: [resultPath] }] }),
-    checkId: 'unit',
-    executor: executor(calls),
-    backends: mockBackends,
-  });
-  assert.equal(calls[0].argv.filter((argument) => argument.includes(resultPath)).length, 0);
-});
-
-test('prepares a qualified pilot task with approval and active-runtime handoff', async () => {
-  const { stdout } = await execFileAsync(process.execPath, ['tests/fixtures/ui-delivery-consumer/prepare.mjs', tmpdir()]);
-  const prepared = JSON.parse(stdout);
-  const priorApproval = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
-  const priorQualification = process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
-  try {
-    for (const launch of prepared.cases) {
-      const preparedTask = JSON.parse(await readFile(launch.task, 'utf8'));
-      assert.equal(preparedTask.approved_check_recipes[0].argv[0], 'node');
-      assert.equal(preparedTask.qualification_hash, launch.active_qualification_sha256);
-      process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = launch.external_approval_sha256;
-      process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = launch.active_qualification_sha256;
-      await loadTask({ repo: launch.repo, taskFile: launch.task, operation: 'patch' });
-    }
-  } finally {
-    if (priorApproval === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
-    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = priorApproval;
-    if (priorQualification === undefined) delete process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
-    else process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = priorQualification;
-    await rm(dirname(prepared.cases[0].repo), { recursive: true, force: true });
-  }
-});

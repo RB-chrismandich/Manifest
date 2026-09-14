@@ -190,7 +190,10 @@ def test_task_schema_enforces_grant_contract(repo_root: Path) -> None:
     )
     assert_invalid(
         validator,
-        {**task, "stitch_grant": {**stitch_grant, "readback_tools": ["stitch.get_screen"]}},
+        {
+            **task,
+            "stitch_grant": {**stitch_grant, "readback_tools": ["stitch.get_screen"]},
+        },
     )
     assert_valid(validator, {**task, "stitch_grant": stitch_grant})
 
