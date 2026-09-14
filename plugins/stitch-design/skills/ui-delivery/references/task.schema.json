@@ -109,6 +109,10 @@
               "pattern": "^[A-Z_][A-Z0-9_]*$"
             }
           },
+          "sandbox_image": {
+            "type": "string",
+            "pattern": "^[^@\\s]+@sha256:[a-fA-F0-9]{16,}$"
+          },
           "artifacts": {
             "type": "array",
             "items": {
@@ -365,6 +369,45 @@
         "properties": {
           "outcome": {
             "const": "unverified"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "approved_check_recipes": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "backend": {
+                  "const": "docker"
+                }
+              },
+              "required": [
+                "backend"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "approved_check_recipes": {
+            "items": {
+              "if": {
+                "properties": {
+                  "backend": {
+                    "const": "docker"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "sandbox_image"
+                ]
+              }
+            }
           }
         }
       }

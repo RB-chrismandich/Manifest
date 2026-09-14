@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { createStitchPolicy, hashStitchInput } from './stitch-policy.ts';
+
+const now = new Date('2026-09-14T00:00:00Z');
+const input = { screenId: 'screen-1', prompt: 'make the header compact' };
+const inputHash = hashStitchInput(input);
+
+function task(overrides = {}) {
+  return {
+    state: 'approved',
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_edit_screen', input_hash: inputHash, max_uses: 1 }],
+      readback_tools: ['mcp__stitch_get_screen'],
+    },
+    ...overrides,
+  };
+}
+
+const registry = [
+  {
+    name: 'mcp__stitch_get_screen',
+    metadata: { mcpServerName: 'stitch', mcpToolName: 'get_screen', operation: 'read' },
+    inputSchema: { type: 'object' },
+  },
+  {
+    name: 'mcp__stitch_edit_screen',
+    metadata: { mcpServerName: 'stitch', mcpToolName: 'edit_screen', operation: 'mutation' },
+    inputSchema: { type: 'object' },
+  },
+];
+
+test('allows a registered read tool and the exact one-shot approved mutation', async () => {
+  const policy = createStitchPolicy({ task: task(), registry, now });
+  assert.equal(policy.classify('mcp__stitch_get_screen'), 'read');
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input });
+});
+
+test('denies unknown tools and schemas that do not establish a read or mutation classification', () => {
+  const policy = createStitchPolicy({
+    task: task(),
+    registry: [{ name: 'mcp__stitch_unknown', metadata: { mcpServerName: 'stitch', mcpToolName: 'unknown' }, inputSchema: {} }],
+    now,
+  });
+  assert.equal(policy.classify('mcp__stitch_unknown'), 'unknown');
+  assert.throws(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_unknown', input }));
+});
+
+test('denies missing, expired, wrong-project, and wrong-input mutation grants', async () => {
+  for (const candidate of [
+    task({ stitch_grant: undefined }),
+    task({ stitch_grant: { ...task().stitch_grant, expires_at: '2020-01-01T00:00:00Z' } }),
+  ]) {
+    const policy = createStitchPolicy({ task: candidate, registry, now });
+    await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input }));
+  }
+  const policy = createStitchPolicy({ task: task(), registry, now });
+  await assert.rejects(() => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch_edit_screen', input }));
+  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input: { ...input, prompt: 'different' } }));
+});
+
+test('blocks reuse and retries after an interrupted mutation until permitted readback reconciles it', async () => {
+  const policy = createStitchPolicy({ task: task(), registry, now });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input });
+  policy.recordDispatchInterrupted();
+  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input }));
+  await assert.rejects(() => policy.recordReadback({ toolName: 'mcp__stitch_get_screen', reconciled: false }));
+  policy.recordReadback({ toolName: 'mcp__stitch_get_screen', reconciled: true });
+  assert.equal(policy.state(), 'reconciled');
+});
+
+test('does not automatically retry a failed mutation and permits no second use after successful readback', async () => {
+  const policy = createStitchPolicy({ task: task(), registry, now });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input });
+  policy.recordDispatchFailed(new Error('timeout'));
+  policy.recordReadback({ toolName: 'mcp__stitch_get_screen', reconciled: true });
+  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input }));
+});
