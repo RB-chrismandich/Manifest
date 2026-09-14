@@ -19,28 +19,13 @@ Unknown Stitch tools are denied. The inventory covers the bundled
 
 ---
 
-## Upload `DESIGN.md` (via `upload_to_stitch.py` script)
+## Upload `DESIGN.md`
 
-Uploads a `DESIGN.md` file to a project via the `BatchCreateScreens` endpoint.
-This is the first step in creating a design system from a markdown file.
-
-> [!NOTE]
-> Use the `upload-to-stitch` skill's script instead of the `upload_design_md`
-> MCP tool. The script handles base64 encoding in-process, avoiding the model's
-> output token limit.
-
-```bash
-STITCH_API_KEY=<API_KEY> python3 \
-  "${CLAUDE_PLUGIN_ROOT}/skills/upload-to-stitch/scripts/upload_to_stitch.py" \
-  --project-id <PROJECT_ID> \
-  --file-path /path/to/DESIGN.md
-```
-
-The script reads the key from the `STITCH_API_KEY` environment variable; there
-is no `--api-key` flag. It ships with the sibling `stitch-design:upload-to-stitch`
-skill, not
-this one, so the path is anchored on `${CLAUDE_PLUGIN_ROOT}` rather than written
-relative to a working directory the caller may not be in.
+Dispatch `mcp__stitch_upload_design_md` only through the ui-delivery policy
+extension. The request must match the externally approved task digest, project,
+and exact content; then reconcile it using the approved post-mutation readback.
+The retired `upload_to_stitch.py` script deliberately rejects every upload
+invocation and must not be used.
 
 ---
 

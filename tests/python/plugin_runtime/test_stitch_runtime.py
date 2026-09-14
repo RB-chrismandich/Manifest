@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import subprocess
 import textwrap
 from pathlib import Path
@@ -214,6 +215,27 @@ def test_stitch_contract_inventories_omp_delivery_assets(
         "devin",
     }
     assert all(status["mode"] != "native" for status in compatibility.values())
+def test_direct_stitch_upload_script_fails_closed(
+    stitch_bundle: Path, tmp_path: Path
+) -> None:
+    script = stitch_bundle / "skills/upload-to-stitch/scripts/upload_to_stitch.py"
+    candidate = tmp_path / "unapproved.md"
+    candidate.write_text("# First bytes\n", encoding="utf-8")
+
+    def invoke(project_id: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(script), "--project-id", project_id, "--file-path", str(candidate)],
+            cwd=tmp_path, env=_offline_env(tmp_path), text=True, capture_output=True, check=False,
+        )
+
+    wrong_project = invoke("wrong-project")
+    candidate.write_text("# Changed bytes\n", encoding="utf-8")
+    changed_content = invoke("approved-project")
+    retry = invoke("approved-project")
+
+    for result in (wrong_project, changed_content, retry):
+        assert result.returncode == 2
+        assert "policy-controlled mcp__stitch_upload_design_md" in result.stderr
 
 
 def test_omp_plugin_link_isolated_from_real_home_registers_package(
