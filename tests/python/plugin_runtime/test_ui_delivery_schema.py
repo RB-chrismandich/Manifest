@@ -31,6 +31,10 @@ TASK_STATES = {
     "failed",
 }
 
+QUALIFICATION_HASH = (
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
 
 @pytest.fixture
 def repo_root() -> Path:
@@ -44,6 +48,7 @@ def _accepted_task() -> dict[str, Any]:
         "design_revision": "stitch-revision-71",
         "candidate_revision": "git:4d2ce0b",
         "candidate_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "qualification_hash": QUALIFICATION_HASH,
         "allowed_paths": ["src/components/CheckoutCard.tsx"],
         "forbidden_policy_paths": [".claude/settings.json"],
         "approved_check_recipes": [
@@ -174,6 +179,7 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
         "allowed_paths",
         "forbidden_policy_paths",
         "capture_recipes",
+        "qualification_hash",
         "evidence_refs",
     ):
         assert_invalid(
@@ -263,6 +269,7 @@ def test_task_schema_requires_evidence_for_terminal_candidate_states(
         "task_id": "ui-delivery-18",
         "state": "draft",
         "design_revision": "stitch-revision-72",
+        "qualification_hash": QUALIFICATION_HASH,
         "allowed_paths": ["src/components/CheckoutCard.tsx"],
         "forbidden_policy_paths": [".claude/settings.json"],
         "approved_check_recipes": [docker_check_recipe()],
@@ -312,6 +319,7 @@ def test_task_schema_allows_pre_candidate_failures_with_evidence(
     terminal = {
         "task_id": "ui-delivery-19",
         "design_revision": "stitch-revision-73",
+        "qualification_hash": QUALIFICATION_HASH,
         "allowed_paths": ["src/components/CheckoutCard.tsx"],
         "forbidden_policy_paths": [".claude/settings.json"],
         "approved_check_recipes": [docker_check_recipe()],
