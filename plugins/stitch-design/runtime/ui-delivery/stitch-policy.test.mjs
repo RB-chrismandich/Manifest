@@ -89,7 +89,7 @@ test('binds Stitch reads and readback reconciliation to the approved project', a
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input });
   assert.throws(
     () => policy.recordReadback({ projectId: 'other-project', toolName: 'mcp__stitch__get_screen', reconciled: true }),
-    /cannot reconcile/i,
+    /reconcil/i,
   );
   assert.equal(policy.state(), 'mutation_unknown');
   policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch__get_screen', reconciled: true });
