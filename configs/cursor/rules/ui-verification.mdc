@@ -1,0 +1,15 @@
+---
+description: "Review an exact UI candidate read-only and return bounded evidence-based verdicts."
+globs: ".claude/skills/ui-verification/**"
+alwaysApply: false
+---
+
+# ui-verification
+
+Review an exact UI candidate read-only and return bounded evidence-based verdicts.
+
+<!-- Auto-generated from .claude/skills/ui-verification/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ui-verification/SKILL.md` for the full skill definition.
+

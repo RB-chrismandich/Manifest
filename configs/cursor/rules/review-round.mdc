@@ -1,12 +1,12 @@
 ---
-description: "Run one adversarial design review round — parallel lens reviewers, skeptic-verified blockers, consensus gate."
+description: "Run one bounded adversarial review round for an exact UI candidate."
 globs: ".claude/skills/review-round/**"
 alwaysApply: false
 ---
 
 # review-round
 
-Run one adversarial design review round — parallel lens reviewers, skeptic-verified blockers, consensus gate.
+Run one bounded adversarial review round for an exact UI candidate.
 
 <!-- Auto-generated from .claude/skills/review-round/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
