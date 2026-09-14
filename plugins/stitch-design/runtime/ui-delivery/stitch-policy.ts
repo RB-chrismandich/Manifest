@@ -14,7 +14,9 @@ export function createStitchPolicy({ task, registry, now = new Date() }: { task:
     classify(toolName: string): Kind | 'unknown' { return classified.get(toolName) ?? 'unknown'; },
     async authorize({ projectId, toolName, input }: { projectId: string; toolName: string; input: unknown }): Promise<void> {
       if (classified.get(toolName) === 'read') return;
-      if (classified.get(toolName) !== 'mutation' || !grant || task.state !== 'approved' || grant.project_id !== projectId || Date.parse(grant.expires_at ?? '') <= now.getTime() || used || lifecycle === 'mutation_unknown') throw new Error('Stitch tool call is not authorized');
+      if (lifecycle === 'mutation_unknown') throw new Error('Stitch mutation requires readback reconciliation');
+      if (used) throw new Error('Stitch mutation grant is already consumed');
+      if (classified.get(toolName) !== 'mutation' || !grant || task.state !== 'approved' || grant.project_id !== projectId || Date.parse(grant.expires_at ?? '') <= now.getTime()) throw new Error('Stitch tool call is not authorized');
       const mutation = grant.mutations?.find((entry) => entry.tool_name === toolName); if (!mutation || mutation.max_uses !== 1 || mutation.input_hash !== hashStitchInput(input)) throw new Error('Stitch mutation does not match one-shot grant'); used = true; lifecycle = 'mutation_unknown';
     },
     recordDispatchInterrupted(): void { lifecycle = 'mutation_unknown'; }, recordDispatchFailed(): void { lifecycle = 'mutation_unknown'; },
