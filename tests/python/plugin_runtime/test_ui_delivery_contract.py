@@ -12,7 +12,6 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from tools.generate_plugin_views import render_views
 
-
 HARNESS_NAMES = (
     "claude",
     "codex",
@@ -62,6 +61,7 @@ def _assert_valid(validator: Draft202012Validator, instance: dict[str, Any]) -> 
 def _assert_invalid(validator: Draft202012Validator, instance: dict[str, Any]) -> None:
     assert list(validator.iter_errors(instance))
 
+
 def _assert_no_response_format_conditionals(schema: Any) -> None:
     if isinstance(schema, dict):
         assert not {"allOf", "if", "then"} & schema.keys()
@@ -101,7 +101,8 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
     repo_root: Path,
 ) -> None:
     validator = _schema(
-        repo_root / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
+        repo_root
+        / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
     )
     task = {
         "task_id": "ui-delivery-17",
@@ -185,11 +186,19 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
     )
     _assert_invalid(
         validator,
-        {key: value for key, value in candidate_ready.items() if key != "candidate_revision"},
+        {
+            key: value
+            for key, value in candidate_ready.items()
+            if key != "candidate_revision"
+        },
     )
     _assert_invalid(
         validator,
-        {key: value for key, value in candidate_ready.items() if key != "candidate_hash"},
+        {
+            key: value
+            for key, value in candidate_ready.items()
+            if key != "candidate_hash"
+        },
     )
     _assert_invalid(
         validator,
@@ -203,17 +212,59 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         },
     )
 
-    _assert_invalid(validator, {key: value for key, value in task.items() if key != "allowed_paths"})
-    _assert_invalid(validator, {key: value for key, value in task.items() if key != "forbidden_policy_paths"})
+    _assert_invalid(
+        validator, {key: value for key, value in task.items() if key != "allowed_paths"}
+    )
+    _assert_invalid(
+        validator,
+        {key: value for key, value in task.items() if key != "forbidden_policy_paths"},
+    )
     _assert_invalid(
         validator,
         {**task, "approved_check_recipes": ["npm run test:ui -- CheckoutCard"]},
     )
-    _assert_invalid(validator, {**task, "approved_check_recipes": [{key: value for key, value in task["approved_check_recipes"][0].items() if key != "write_paths"}]})
-    _assert_invalid(validator, {key: value for key, value in task.items() if key != "capture_recipes"})
-    _assert_invalid(validator, {key: value for key, value in task.items() if key != "evidence_refs"})
-    _assert_invalid(validator, {**task, "approved_check_recipes": [{**task["approved_check_recipes"][0], "env": ["CI"]}]})
-    _assert_invalid(validator, {**task, "approved_check_recipes": [{key: value for key, value in task["approved_check_recipes"][0].items() if key != "result_path"}]})
+    _assert_invalid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {
+                    key: value
+                    for key, value in task["approved_check_recipes"][0].items()
+                    if key != "write_paths"
+                }
+            ],
+        },
+    )
+    _assert_invalid(
+        validator,
+        {key: value for key, value in task.items() if key != "capture_recipes"},
+    )
+    _assert_invalid(
+        validator, {key: value for key, value in task.items() if key != "evidence_refs"}
+    )
+    _assert_invalid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {**task["approved_check_recipes"][0], "env": ["CI"]}
+            ],
+        },
+    )
+    _assert_invalid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {
+                    key: value
+                    for key, value in task["approved_check_recipes"][0].items()
+                    if key != "result_path"
+                }
+            ],
+        },
+    )
     _assert_invalid(validator, {**task, "state": "accepted", "outcome": "unverified"})
     _assert_invalid(validator, {**task, "state": "blocked", "outcome": "verified"})
     _assert_invalid(validator, {**task, "state": "cancelled"})
@@ -292,7 +343,11 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         {
             **task,
             "approved_check_recipes": [
-                {key: value for key, value in task["approved_check_recipes"][0].items() if key != "sandbox_image"}
+                {
+                    key: value
+                    for key, value in task["approved_check_recipes"][0].items()
+                    if key != "sandbox_image"
+                }
                 | {"backend": "docker"}
             ],
         },
@@ -301,7 +356,8 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
 
 def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) -> None:
     validator = _schema(
-        repo_root / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
+        repo_root
+        / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
     )
     active = {
         "task_id": "ui-delivery-18",
@@ -348,13 +404,18 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
     for state in ("reviewing", "repairing"):
         _assert_valid(validator, {**candidate_ready, "state": state})
     _assert_invalid(validator, {**active, "state": "candidate_ready"})
-    for state, outcome in (("accepted", "verified"), ("failed", "failed"), ("blocked", "blocked")):
+    for state, outcome in (
+        ("accepted", "verified"),
+        ("failed", "failed"),
+        ("blocked", "blocked"),
+    ):
         terminal = {**candidate_ready, "state": state, "outcome": outcome}
         _assert_invalid(validator, terminal)
         _assert_valid(
             validator,
             {**terminal, "evidence_refs": ["artifact://ui-delivery-18/result.json"]},
         )
+
 
 def test_delivery_preflight_requires_omp_assets_without_unrestricted_fallback(
     repo_root: Path,
@@ -383,7 +444,8 @@ def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
     repo_root: Path,
 ) -> None:
     validator = _schema(
-        repo_root / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
+        repo_root
+        / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
     )
     terminal = {
         "task_id": "ui-delivery-19",
@@ -480,8 +542,10 @@ def test_design_generation_removes_unbounded_variant_and_curl_guidance(
     repo_root: Path,
 ) -> None:
     source = (
-        repo_root / "plugins/stitch-design/skills/generate-design/SKILL.md"
-    ).read_text(encoding="utf-8").lower()
+        (repo_root / "plugins/stitch-design/skills/generate-design/SKILL.md")
+        .read_text(encoding="utf-8")
+        .lower()
+    )
 
     assert "curl -o" not in source
     assert '"variantcount": 3' not in source
@@ -508,9 +572,18 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
     }
 
     _assert_valid(validator, review)
-    _assert_invalid(validator, {key: value for key, value in review.items() if key != "candidate_revision"})
-    _assert_invalid(validator, {key: value for key, value in review.items() if key != "candidate_hash"})
-    _assert_invalid(validator, {key: value for key, value in review.items() if key != "evidence_refs"})
+    _assert_invalid(
+        validator,
+        {key: value for key, value in review.items() if key != "candidate_revision"},
+    )
+    _assert_invalid(
+        validator,
+        {key: value for key, value in review.items() if key != "candidate_hash"},
+    )
+    _assert_invalid(
+        validator,
+        {key: value for key, value in review.items() if key != "evidence_refs"},
+    )
     _assert_invalid(validator, {**review, "repair_cycles": 3})
     _assert_invalid(validator, {**review, "outcome": "verified"})
     _assert_invalid(
@@ -557,16 +630,12 @@ def test_portable_views_expose_skills_but_never_omp_only_agents(
             encoding="utf-8"
         )
     )
-    assert {"./skills/ui-delivery", "./skills/ui-verification"} <= set(
-        claude["skills"]
-    )
+    assert {"./skills/ui-delivery", "./skills/ui-verification"} <= set(claude["skills"])
     assert "./agents/ui-builder.md" not in claude.get("agents", [])
     assert "./agents/ui-reviewer.md" not in claude.get("agents", [])
 
     gemini = json.loads(
-        (tmp_path / "stitch-design/gemini-extension.json").read_text(
-            encoding="utf-8"
-        )
+        (tmp_path / "stitch-design/gemini-extension.json").read_text(encoding="utf-8")
     )
     portable = json.loads(
         (tmp_path / "stitch-design/plugin.json").read_text(encoding="utf-8")
@@ -596,8 +665,8 @@ def test_portable_views_expose_skills_but_never_omp_only_agents(
 
     for skill_name in ("ui-delivery", "ui-verification"):
         metadata = yaml.safe_load(
-            (tmp_path / f"stitch-design/skills/{skill_name}/agents/openai.yaml").read_text(
-                encoding="utf-8"
-            )
+            (
+                tmp_path / f"stitch-design/skills/{skill_name}/agents/openai.yaml"
+            ).read_text(encoding="utf-8")
         )
         assert metadata == {"policy": {"allow_implicit_invocation": False}}

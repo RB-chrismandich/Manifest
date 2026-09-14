@@ -231,4 +231,3 @@ test('rejects capture when a successful check leaves its nonempty artifact uncha
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
   await assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_capture'), { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }, repo), /stale|fresh|artifact/i);
 });
-

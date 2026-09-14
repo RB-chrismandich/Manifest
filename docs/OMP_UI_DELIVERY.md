@@ -151,7 +151,6 @@ result mounts. Both routes must complete separate Astra builder and reviewer
 runs and finish with `ui_delivery_status.verified: true`; fixture preparation
 alone is not release evidence.
 
-
 ## Harness boundaries
 
 | Harness | Supported surface |

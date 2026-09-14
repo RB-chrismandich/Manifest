@@ -223,7 +223,12 @@ def test_omp_plugin_link_isolated_from_real_home_registers_package(
     plugin_root = Path(env["HOME"]) / ".omp/plugins"
     real_registry = Path.home() / ".omp/plugins"
     real_registry_before = (
-        tuple(sorted(path.relative_to(real_registry).as_posix() for path in real_registry.rglob("*")))
+        tuple(
+            sorted(
+                path.relative_to(real_registry).as_posix()
+                for path in real_registry.rglob("*")
+            )
+        )
         if real_registry.exists()
         else ()
     )
@@ -251,9 +256,7 @@ def test_omp_plugin_link_isolated_from_real_home_registers_package(
     )
     assert listed.returncode == 0, listed.stderr
     npm_packages = json.loads(listed.stdout)["npm"]
-    package = next(
-        item for item in npm_packages if item["name"] == "stitch-design"
-    )
+    package = next(item for item in npm_packages if item["name"] == "stitch-design")
     assert Path(package["path"]) == registered_package
     assert package["version"] == "0.4.0"
     assert package["enabled"] is True
@@ -269,7 +272,6 @@ def test_omp_plugin_link_isolated_from_real_home_registers_package(
         else ()
     )
     assert real_registry_after == real_registry_before
-
 
 
 def test_generated_validators_run_offline_without_node_modules(
