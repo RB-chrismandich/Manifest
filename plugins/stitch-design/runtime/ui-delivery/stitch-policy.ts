@@ -5,8 +5,8 @@ type StitchRegistryTool = { name: string; sourceInfo?: { source?: string; path?:
 export type StitchToolKind = 'read' | 'mutation';
 function isStitchRegistryTool(value: unknown): value is StitchRegistryTool { return Boolean(value) && typeof value === 'object' && 'name' in value && typeof value.name === 'string'; }
 const READ_TOOLS = new Set(['get_screen', 'list_screens', 'get_project', 'list_projects']);
-const MUTATION_TOOLS = new Set(['edit_screen', 'create_screen', 'delete_screen', 'update_project']);
-function kindFor(tool: StitchRegistryTool): StitchToolKind | undefined { const suffix = tool.name.replace(/^mcp__stitch__/, ''); if (!tool.name.startsWith('mcp__stitch__') || tool.sourceInfo?.source !== 'mcp' || !String(tool.sourceInfo?.path ?? '').includes('stitch') || !(tool.parameters ?? tool.inputSchema)) return undefined; if (READ_TOOLS.has(suffix)) return 'read'; if (MUTATION_TOOLS.has(suffix)) return 'mutation'; return undefined; }
+const MUTATION_TOOLS = new Set(['generate_screen_from_text', 'edit_screens', 'generate_variants']);
+function kindFor(tool: StitchRegistryTool): StitchToolKind | undefined { const prefix = 'mcp__stitch_'; const suffix = tool.name.slice(prefix.length); if (!tool.name.startsWith(prefix) || tool.sourceInfo?.source !== 'mcp' || !String(tool.sourceInfo?.path ?? '').includes('stitch') || !(tool.parameters ?? tool.inputSchema)) return undefined; if (READ_TOOLS.has(suffix)) return 'read'; if (MUTATION_TOOLS.has(suffix)) return 'mutation'; return undefined; }
 
 export interface StitchPolicy {
   classify(toolName: string): StitchToolKind | 'unknown';
