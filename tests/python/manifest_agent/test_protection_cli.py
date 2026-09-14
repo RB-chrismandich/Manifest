@@ -370,8 +370,6 @@ def test_404_not_protected_reports_every_setting_absent(env: dict[str, Any]) -> 
         assert item["live"] in (None, [])
 
 
-
-
 # ---------------------------------------------------------------------------
 # CLI help states dry-run-by-default
 # ---------------------------------------------------------------------------

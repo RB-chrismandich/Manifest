@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from manifest_agent import protection
 from tests.python.manifest_agent.test_protection_cli import (
     _cli_args,
     _cli_env,
@@ -21,9 +22,9 @@ from tests.python.manifest_agent.test_protection_cli import (
     _stage_get,
     _write_response,
     _write_workflow,
-    env,
 )
-from manifest_agent import protection
+
+pytest_plugins = ("tests.python.manifest_agent.test_protection_cli",)
 
 
 def test_apply_refused_when_aggregate_has_continue_on_error(

@@ -61,9 +61,8 @@ def _assert_valid(validator: Draft202012Validator, instance: dict[str, Any]) -> 
 def _assert_invalid(validator: Draft202012Validator, instance: dict[str, Any]) -> None:
     assert list(validator.iter_errors(instance))
 
-def _with_check_recipe(
-    task: dict[str, Any], **overrides: Any
-) -> dict[str, Any]:
+
+def _with_check_recipe(task: dict[str, Any], **overrides: Any) -> dict[str, Any]:
     recipe = task["approved_check_recipes"][0]
     return {**task, "approved_check_recipes": [{**recipe, **overrides}]}
 
@@ -90,6 +89,7 @@ def _capture_recipe() -> dict[str, Any]:
         "check_id": "checkout-ui",
         "artifacts": [{"path": "artifacts/checkout.png", "type": "image"}],
     }
+
 
 def _assert_no_response_format_conditionals(schema: Any) -> None:
     if isinstance(schema, dict):
@@ -313,9 +313,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
 
     _assert_invalid(
         validator,
-        _with_check_recipe(
-            task, sandbox_image="registry.example/ui-check:latest"
-        ),
+        _with_check_recipe(task, sandbox_image="registry.example/ui-check:latest"),
     )
 
     _assert_invalid(
