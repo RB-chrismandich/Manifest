@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { mkdir, open, lstat, realpath, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, open, lstat, realpath, readFile, rename, unlink, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 function canonical(value: unknown): string { if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`; if (value && typeof value === 'object') return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`; return JSON.stringify(value); }
@@ -26,6 +26,17 @@ export async function appendEvidence({ repo, evidenceFile, record }: { repo: str
   const handle = await open(target, constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   try { const stat = await handle.stat(); if (!stat.isFile() || stat.nlink !== 1) throw new Error('evidence file is unsafe'); await handle.write(`${JSON.stringify(record)}\n`); }
   finally { await handle.close(); }
+}
+
+
+type StatePersistence = {
+  open: typeof open;
+  rename: typeof rename;
+  unlink: typeof unlink;
+};
+const statePersistence: StatePersistence = { open, rename, unlink };
+async function closeQuietly(handle: FileHandle | undefined): Promise<void> {
+  if (handle) await handle.close().catch(() => undefined);
 }
 
 export type StitchMutationState = {
@@ -64,13 +75,17 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
   }
 }
 
-export async function updateStitchMutationState({ repo, taskId, authorizationDigest, expectedVersion, state }: { repo: string; taskId: string; authorizationDigest: string; expectedVersion: number; state: Omit<StitchMutationState, 'authorizationDigest' | 'version'> }): Promise<StitchMutationState> {
+export async function updateStitchMutationState({ repo, taskId, authorizationDigest, expectedVersion, state, persistence = statePersistence }: { repo: string; taskId: string; authorizationDigest: string; expectedVersion: number; state: Omit<StitchMutationState, 'authorizationDigest' | 'version'>; persistence?: StatePersistence }): Promise<StitchMutationState> {
   const target = await stateFile(repo, taskId);
   const lock = `${target}.lock`;
-  let handle;
+  let handle: FileHandle | undefined;
+  let temporaryHandle: FileHandle | undefined;
+  let directoryHandle: FileHandle | undefined;
+  let temporary: string | undefined;
   let createdLock = false;
+  let renamed = false;
   try {
-    handle = await open(lock, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+    handle = await persistence.open(lock, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
     createdLock = true;
     const current = await loadStitchMutationState({ repo, taskId, authorizationDigest });
     const version = current?.version ?? 0;
@@ -78,12 +93,22 @@ export async function updateStitchMutationState({ repo, taskId, authorizationDig
     const entries = state.entries;
     if (!entries || typeof entries !== 'object' || Array.isArray(entries) || Object.getPrototypeOf(entries) !== Object.prototype || Object.entries(entries).some(([key, value]) => !key || !['pending', 'consumed', 'reconciled'].includes(value))) throw new Error('Stitch state entries are invalid');
     const next: StitchMutationState = { authorizationDigest, entries, ...(state.projectId ? { projectId: state.projectId } : {}), version: version + 1 };
-    const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`);
-    await writeFile(temporary, JSON.stringify(next), { mode: 0o600, flag: 'wx' });
-    await rename(temporary, target);
+    temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`);
+    temporaryHandle = await persistence.open(temporary, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+    await temporaryHandle.write(JSON.stringify(next));
+    await temporaryHandle.sync();
+    await temporaryHandle.close();
+    temporaryHandle = undefined;
+    await persistence.rename(temporary, target);
+    renamed = true;
+    directoryHandle = await persistence.open(dirname(target), constants.O_RDONLY);
+    await directoryHandle.sync();
     return next;
   } finally {
-    await handle?.close();
-    if (createdLock) await unlink(lock).catch(() => undefined);
+    await closeQuietly(directoryHandle);
+    await closeQuietly(temporaryHandle);
+    if (temporary && !renamed) await persistence.unlink(temporary).catch(() => undefined);
+    await closeQuietly(handle);
+    if (createdLock) await persistence.unlink(lock).catch(() => undefined);
   }
 }

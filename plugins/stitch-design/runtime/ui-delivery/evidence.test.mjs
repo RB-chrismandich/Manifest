@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { link, mkdtemp, mkdir, open, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, mkdir, open, readFile, readdir, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -96,4 +96,65 @@ test('does not unlink a mutation lock owned by a failed contender', async () => 
     await owner.close();
     await rm(lock);
   }
+});
+
+test('syncs consumed mutation state before rename and its directory after rename', async () => {
+  const { repo } = await fixture();
+  const evidenceDirectory = join(repo, '.omp/ui-delivery/evidence');
+  const events = [];
+  const persistence = {
+    async open(path, flags, mode) {
+      const handle = await open(path, flags, mode);
+      return {
+        write: (...args) => handle.write(...args),
+        sync: async () => { events.push(`sync:${path}`); await handle.sync(); },
+        close: async () => { events.push(`close:${path}`); await handle.close(); },
+      };
+    },
+    async rename(from, to) { events.push(`rename:${from}:${to}`); await rename(from, to); },
+    unlink,
+  };
+
+  await updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: { mutation: 'consumed' }, projectId: 'project-17' },
+    persistence,
+  });
+
+  const temporary = events.find((event) => event.startsWith('sync:') && event.includes('.tmp'));
+  const renamed = events.find((event) => event.startsWith('rename:'));
+  const directorySync = events.find((event) => event.startsWith('sync:') && !event.includes('.tmp'));
+  assert.ok(temporary);
+  assert.ok(renamed);
+  assert.ok(directorySync);
+  assert.ok(events.indexOf(temporary) < events.indexOf(renamed));
+  assert.ok(events.indexOf(renamed) < events.indexOf(directorySync));
+  assert.ok(events.includes(`close:${directorySync.slice('sync:'.length)}`));
+});
+
+test('cleans up a synced temporary mutation state when rename fails', async () => {
+  const { repo } = await fixture();
+  const closed = [];
+  const persistence = {
+    async open(path, flags, mode) {
+      const handle = await open(path, flags, mode);
+      return {
+        write: (...args) => handle.write(...args),
+        sync: (...args) => handle.sync(...args),
+        close: async () => { closed.push(path); await handle.close(); },
+      };
+    },
+    async rename() { throw new Error('rename failed'); },
+    unlink,
+  };
+
+  await assert.rejects(() => updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: { mutation: 'consumed' }, projectId: 'project-17' },
+    persistence,
+  }), /rename failed/);
+  const evidenceDirectory = join(repo, '.omp/ui-delivery/evidence');
+  const entries = await readdir(evidenceDirectory);
+  assert.equal(entries.filter((entry) => entry.includes('.tmp')).length, 0);
+  assert.ok(closed.some((path) => path.includes('.tmp')));
 });

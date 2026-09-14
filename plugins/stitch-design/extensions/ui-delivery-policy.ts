@@ -156,7 +156,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const digest = authorizationDigest(task);
     const approved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256 === digest;
     const registry = pi.getAllTools?.() ?? [];
-    if (approved && stitch?.authorizationDigest !== digest) {
+    if (approved && task.state === 'approved' && stitch?.authorizationDigest !== digest) {
       const state = await loadStitchMutationState({ repo: ctx.cwd, taskId: task.task_id, authorizationDigest: digest });
       stitch = {
         authorizationDigest: digest,
