@@ -16,7 +16,7 @@ const sanitizeDiagnostic = (value) => value.replace(/file:\/\/\S+/g, '[approved 
 const launch = () => new Promise((resolveLaunch, rejectLaunch) => {
   let stderr = '';
   const child = spawn(resolve(chromePath), [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--disable-background-networking',
+    '--headless=new', '--disable-gpu', '--disable-javascript', '--no-first-run', '--disable-background-networking',
     '--disable-dev-shm-usage', '--disable-breakpad', '--disable-crash-reporter', '--noerrdialogs',
     `--user-data-dir=${userDataDir}`, `--crash-dumps-dir=${crashDumpsDir}`,
     '--hide-scrollbars', '--window-size=1280,900', `--screenshot=${resolvedPng}`, pathToFileURL(resolvedTarget).href,
