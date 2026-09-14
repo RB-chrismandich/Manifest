@@ -11,6 +11,24 @@ components:
   agents:
     - {id: design-lens-reviewer, path: agents/design-lens-reviewer.md}
     - {id: skeptic-verifier, path: agents/skeptic-verifier.md}
+    - id: ui-builder
+      path: agents/ui-builder.md
+      compatibility:
+        claude: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+        codex: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+        gemini: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+        cursor: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+        antigravity: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+        devin: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+    - id: ui-reviewer
+      path: agents/ui-reviewer.md
+      compatibility:
+        claude: {mode: unsupported, reason: OMP-only read-only tool enforcement}
+        codex: {mode: unsupported, reason: OMP-only read-only tool enforcement}
+        gemini: {mode: unsupported, reason: OMP-only read-only tool enforcement}
+        cursor: {mode: unsupported, reason: OMP-only read-only tool enforcement}
+        antigravity: {mode: unsupported, reason: OMP-only read-only tool enforcement}
+        devin: {mode: unsupported, reason: OMP-only read-only tool enforcement}
   hooks: []
   runtime:
     - {id: stitch-dist, path: runtime/dist}

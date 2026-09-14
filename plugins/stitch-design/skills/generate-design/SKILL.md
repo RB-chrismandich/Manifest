@@ -1,12 +1,6 @@
 ---
 name: generate-design
-description: "Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server."
-allowed-tools:
-  - "stitch*:*"
-  - "Bash"
-  - "Read"
-  - "Write"
-  - "web_fetch"
+description: Generate approved, bounded Stitch design mutations with exact readback evidence.
 ---
 
 # Generate Design
@@ -313,3 +307,7 @@ above (present AI feedback, download design assets).
   understands best.
 - [Enhanced Prompt Example](examples/enhanced-prompt.md) — Before/after prompt
   enhancement.
+
+## Authorized mutation contract
+
+Every create, generate, edit, or variant is a separately scoped mutation: obtain point-of-risk approval naming the project, tool, and input hash. Create no more than two candidates. After every mutation, read back the exact result before proceeding. A timeout or failure is `mutation_unknown`; block retry until readback reconciles it. Retrieve assets only through an approved fixed-argv recipe; never direct `curl` guidance.

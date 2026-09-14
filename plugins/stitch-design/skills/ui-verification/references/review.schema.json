@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "candidate_revision",
+    "candidate_hash",
+    "reviewer_model_route",
+    "verdict",
+    "repair_cycles",
+    "evidence_refs",
+    "outcome"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_hash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewer_model_route": {
+      "const": "@ui_review"
+    },
+    "verdict": {
+      "enum": [
+        "accepted",
+        "repair_required",
+        "blocked",
+        "failed"
+      ]
+    },
+    "repair_cycles": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "outcome": {
+      "enum": [
+        "verified",
+        "failed",
+        "blocked",
+        "unverified"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "verified"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "blocked"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "failed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "repair_required"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "unverified"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,12 +1,6 @@
 ---
 name: upload-to-stitch
-description: "Upload local assets (images, mockups, HTML, design markdown) to a Stitch project. ALWAYS use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits."
-allowed-tools:
-  - "stitch*:*"
-  - "Bash"
-  - "Read"
-  - "Write"
-  - "web_fetch"
+description: Upload authorized local assets to Stitch and reconcile them by readback.
 ---
 
 # Upload-to-Stitch
@@ -90,3 +84,7 @@ The script auto-detects MIME type from the file extension.
 - `--api-url`: Optional. Base URL of the Stitch API. Defaults to `https://stitch.googleapis.com` (or `STITCH_API_URL`).
 - `--title`: Optional. Title for the uploaded screen.
 - `--generated-by`: Optional. Specify how the uploaded file was generated (e.g., 'stitch::extract-static-html' skill, 'Claude Code', 'Codex', 'Gemini' etc.).
+
+## Authorized upload contract
+
+Approval names the project, files, and content hashes. Make one upload attempt only. Failure or timeout is unknown until readback; never retry automatically. Read back every reported success and reconcile it to the approved hashes.

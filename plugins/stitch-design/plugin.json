@@ -6,6 +6,20 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "ui-builder",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-builder.md",
+            "reason": "OMP-only constrained tool enforcement"
+          },
+          {
+            "component_id": "ui-reviewer",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-reviewer.md",
+            "reason": "OMP-only read-only tool enforcement"
+          },
+          {
             "component_id": "stitch-omp-extension",
             "component_type": "runtime",
             "mode": "unsupported",
@@ -150,6 +164,8 @@
         "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
+        "skills/ui-delivery",
+        "skills/ui-verification",
         "skills/upload-to-stitch",
         "skills/ux-review"
       ]
@@ -157,6 +173,20 @@
     "codex": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "ui-builder",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-builder.md",
+            "reason": "OMP-only constrained tool enforcement"
+          },
+          {
+            "component_id": "ui-reviewer",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-reviewer.md",
+            "reason": "OMP-only read-only tool enforcement"
+          },
           {
             "component_id": "stitch-omp-extension",
             "component_type": "runtime",
@@ -302,6 +332,8 @@
         "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
+        "skills/ui-delivery",
+        "skills/ui-verification",
         "skills/upload-to-stitch",
         "skills/ux-review"
       ]
@@ -309,6 +341,20 @@
     "cursor": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "ui-builder",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-builder.md",
+            "reason": "OMP-only constrained tool enforcement"
+          },
+          {
+            "component_id": "ui-reviewer",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-reviewer.md",
+            "reason": "OMP-only read-only tool enforcement"
+          },
           {
             "component_id": "stitch-omp-extension",
             "component_type": "runtime",
@@ -454,6 +500,8 @@
         "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
+        "skills/ui-delivery",
+        "skills/ui-verification",
         "skills/upload-to-stitch",
         "skills/ux-review"
       ]
@@ -461,6 +509,20 @@
     "devin": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "ui-builder",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-builder.md",
+            "reason": "OMP-only constrained tool enforcement"
+          },
+          {
+            "component_id": "ui-reviewer",
+            "component_type": "agents",
+            "mode": "unsupported",
+            "path": "agents/ui-reviewer.md",
+            "reason": "OMP-only read-only tool enforcement"
+          },
           {
             "component_id": "stitch-omp-extension",
             "component_type": "runtime",
@@ -606,6 +668,8 @@
         "skills/spec-amend",
         "skills/stitch-loop",
         "skills/taste-design",
+        "skills/ui-delivery",
+        "skills/ui-verification",
         "skills/upload-to-stitch",
         "skills/ux-review"
       ]
@@ -637,6 +701,8 @@
     "skills/spec-amend",
     "skills/stitch-loop",
     "skills/taste-design",
+    "skills/ui-delivery",
+    "skills/ui-verification",
     "skills/upload-to-stitch",
     "skills/ux-review"
   ],

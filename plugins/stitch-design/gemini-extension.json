@@ -2,6 +2,20 @@
   "compatibility": {
     "degraded": [
       {
+        "component_id": "ui-builder",
+        "component_type": "agents",
+        "mode": "unsupported",
+        "path": "agents/ui-builder.md",
+        "reason": "OMP-only constrained tool enforcement"
+      },
+      {
+        "component_id": "ui-reviewer",
+        "component_type": "agents",
+        "mode": "unsupported",
+        "path": "agents/ui-reviewer.md",
+        "reason": "OMP-only read-only tool enforcement"
+      },
+      {
         "component_id": "react-native-validator",
         "component_type": "runtime",
         "mode": "degraded",

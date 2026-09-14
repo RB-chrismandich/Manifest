@@ -5,8 +5,8 @@ description: Focused accessibility audit against WCAG 2.2 AA standards. Checks A
 
 # Accessibility Audit Skill
 
-Deep accessibility audit focused exclusively on WCAG 2.2 AA conformance. This skill
-provides more detailed a11y analysis than the broader `ux-review` skill.
+Deep accessibility audit focused on WCAG 2.2 AA criteria. This skill provides
+evidence and findings; it never declares WCAG conformance.
 
 ## Arguments
 
@@ -149,3 +149,7 @@ inline on other assistants. Dispatched sub-agents execute their task directly an
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.
+
+## Outcome discipline
+
+Static or automated checks never issue a WCAG-conformance verdict. Report verified automated checks, failures, manual-required checks, skipped checks, and unavailable checks separately. Any skipped or unavailable result prevents a green or verified outcome.
