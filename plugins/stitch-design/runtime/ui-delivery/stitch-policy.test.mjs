@@ -382,6 +382,37 @@ test('reconciles collection readbacks against one learned resource without input
   await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_list_screens', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screens: [{ screenId: 'screen-created', title: 'Checkout' }] } });
 });
 
+test('reconciles learned design systems from collection readbacks', async () => {
+  const upload = { projectId: 'project-17', designMd: '# Tokens' };
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [{
+        tool_name: 'mcp__stitch_create_design_system_from_design_md',
+        input_hash: hashStitchInput(upload),
+        max_uses: 1,
+        expected_readback: {
+          tool_name: 'mcp__stitch_list_design_systems',
+          predictable_fields: { name: 'Tokens' },
+          resource_identity: 'design_system',
+        },
+      }],
+      readback_tools: ['mcp__stitch_list_design_systems'],
+    },
+  });
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now });
+
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_create_design_system_from_design_md', input: upload, toolCallId: 'create-1' });
+  await policy.recordMutationResult({
+    toolName: 'mcp__stitch_create_design_system_from_design_md',
+    toolCallId: 'create-1',
+    succeeded: true,
+    result: { projectId: 'project-17', designSystemId: 'design-system-created' },
+  });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_list_design_systems', input: { projectId: 'project-17' }, toolCallId: 'readback-1' });
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_list_design_systems', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', designSystems: [{ designSystemId: 'design-system-created', name: 'Tokens' }] } });
+});
+
 test('reconciles generated variants through their learned screen identity', async () => {
   const generation = { projectId: 'project-17', selectedScreenIds: ['screen-1'], prompt: 'Create variants' };
   const definition = task({
