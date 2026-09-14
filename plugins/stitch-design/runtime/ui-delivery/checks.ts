@@ -76,8 +76,8 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     if (recipe.backend === 'docker') for (const [index, forbidden] of protectedPaths.entries()) {
       const target = resolve(root, forbidden); if (!under(root, target)) throw new Error('forbidden path escapes repository');
       const source = join(scratch, 'masks', String(index));
-      try { if ((await lstat(target)).isDirectory()) await mkdir(source, { recursive: true, mode: 0o700 }); else { await mkdir(dirname(source), { recursive: true, mode: 0o700 }); await writeFile(source, '', { mode: 0o600, flag: 'wx' }); } }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; await mkdir(source, { recursive: true, mode: 0o700 }); }
+      try { const targetStat = await lstat(target); if (targetStat.isSymbolicLink() || (!targetStat.isDirectory() && !targetStat.isFile())) throw new Error('protected Docker path is unsafe'); if (targetStat.isDirectory()) await mkdir(source, { recursive: true, mode: 0o700 }); else { await mkdir(dirname(source), { recursive: true, mode: 0o700 }); await writeFile(source, '', { mode: 0o600, flag: 'wx' }); } }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
       masks.push({ source, target: join('/repo', relative(root, target)), readOnly: true });
     }
     const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), ...masks, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
