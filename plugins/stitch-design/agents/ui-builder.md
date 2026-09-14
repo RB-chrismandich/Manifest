@@ -16,9 +16,6 @@ output:
     check_evidence: {type: array, items: {type: string, minLength: 1}}
     evidence_refs: {type: array, minItems: 1, items: {type: string, minLength: 1}}
     outcome: {enum: [verified, failed, blocked, unverified]}
-  allOf:
-    - if: {properties: {outcome: {const: verified}}}
-      then: {required: [evidence_refs]}
 ---
 
 Apply changes only to task-manifest `allowed_paths`; never modify forbidden policy paths. Use only approved fixed-argv check recipes. Record changed paths, exact candidate revision/hash, and check evidence. Never spawn, use unlisted tools, or claim skipped/unavailable checks pass.

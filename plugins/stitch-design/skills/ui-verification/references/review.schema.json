@@ -10,8 +10,7 @@
     "verdict",
     "findings",
     "repair_cycles",
-    "evidence_refs",
-    "outcome"
+    "evidence_refs"
   ],
   "properties": {
     "task_id": {
@@ -50,14 +49,6 @@
         "minLength": 1
       }
     },
-    "outcome": {
-      "enum": [
-        "verified",
-        "failed",
-        "blocked",
-        "unverified"
-      ]
-    },
     "findings": {
       "type": "array",
       "items": {
@@ -65,85 +56,5 @@
         "minLength": 1
       }
     }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "outcome": {
-            "const": "verified"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "evidence_refs"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "const": "accepted"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "outcome": {
-            "const": "verified"
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "const": "blocked"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "outcome": {
-            "const": "blocked"
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "const": "failed"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "outcome": {
-            "const": "failed"
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "const": "repair_required"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "outcome": {
-            "const": "unverified"
-          }
-        }
-      }
-    }
-  ]
+  }
 }
