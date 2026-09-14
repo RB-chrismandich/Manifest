@@ -141,6 +141,20 @@ def _mark_backend_started(store, job_id, index, selected):
 
 
 def _capture_attempt(entry, argv, prompt_bytes, job_dir, budget, store, job_id):
+    def _spawn_allowed():
+        def _reserve(record):
+            if record.get("state") in jobstore.TERMINAL_STATES:
+                return None
+            dispatch = dict(record.get("dispatch") or {})
+            if dispatch.get("phase") != "backend_started":
+                return None
+            dispatch["phase"] = "backend_launching"
+            record["dispatch"] = dispatch
+            return record
+
+        reserved = store.mutate(job_id, _reserve)
+        return (reserved.get("dispatch") or {}).get("phase") == "backend_launching"
+
     captured = process._spawn_backend(
         entry,
         argv,
@@ -148,6 +162,7 @@ def _capture_attempt(entry, argv, prompt_bytes, job_dir, budget, store, job_id):
         job_dir,
         budget,
         on_pgid=process._make_pgid_persister(store, job_id),
+        before_popen=_spawn_allowed,
     )
     reaped = containment.reap(
         job_dir, required=containment.is_contained(store.read(job_id))
@@ -250,6 +265,9 @@ def _run_attempts(store, job_id, entry, record, prompt_bytes, chain, controller)
     attempts = list(record.get("model_attempts") or [])
     result = _AttemptResult()
     for index, selected in enumerate(chain):
+        record = store.read(job_id)
+        if record.get("state") in jobstore.TERMINAL_STATES:
+            return record, attempts, result, None
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             result = _AttemptResult(timed_out=True)
@@ -258,6 +276,11 @@ def _run_attempts(store, job_id, entry, record, prompt_bytes, chain, controller)
             entry, record, selected, mapping, prompt_bytes
         )
         record = _mark_backend_started(store, job_id, index, selected)
+        if (record.get("dispatch") or {}).get("phase") != "backend_started":
+            return record, attempts, result, None
+        record = store.read(job_id)
+        if record.get("state") in jobstore.TERMINAL_STATES:
+            return record, attempts, result, None
         result = _capture_attempt(
             entry, argv, process_prompt, job_dir, remaining, store, job_id
         )
@@ -358,6 +381,9 @@ def _finish_job(store, job_id, attempts, result, response, succeeded):
 
 def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
     """Run the bounded model chain and publish only durable safe output."""
+    record = store.read(job_id)
+    if record.get("state") in jobstore.TERMINAL_STATES:
+        return record
     job_dir = store.job_dir(job_id)
     _path, state, reason = containment.create(job_dir)
 
@@ -375,6 +401,8 @@ def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
         )
         if pending is not None:
             return pending
+        if record.get("state") in jobstore.TERMINAL_STATES:
+            return record
         succeeded, response = _result_envelope(store, job_id, entry, record, result)
         _warn_missing_session(entry, result)
         return _finish_job(store, job_id, attempts, result, response, succeeded)
