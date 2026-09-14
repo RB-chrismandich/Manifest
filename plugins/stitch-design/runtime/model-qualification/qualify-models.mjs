@@ -1,23 +1,20 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 const ROLE_NAMES = ['designer', 'ui_code', 'ui_review'];
-const THINKING_LEVELS = new Set(['low', 'medium', 'high']);
-const LOCAL_PROVIDERS = new Set(['ollama']);
+const THINKING_LEVELS = new Set(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'auto']);
+const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio', 'llamacpp']);
 const MIN_CONTEXT_WINDOW = 128000;
 const MIN_MAX_TOKENS = 16000;
 
 function usage() {
   return [
-    'Usage: qualify-models.mjs --overlay <json> --catalog <json> --json [--local-only]',
+    'Usage: qualify-models.mjs --overlay <json-or-file> --catalog <json-or-file> --json [--local-only]',
     '',
     'Qualify explicit model-role selectors against a supplied model catalog.',
-    'Required:',
-    '  --overlay <json>   Model overlay JSON object',
-    '  --catalog <json>   Model catalog JSON object',
-    '  --json             Write the qualification report as JSON',
-    'Optional:',
-    '  --local-only       Permit only local providers and disable project MCP',
+    'Required: --overlay <json-or-file>, --catalog <json-or-file>, --json',
+    'Optional: --local-only  Permit only local providers and disable project MCP',
   ].join('\n');
 }
 
@@ -52,14 +49,13 @@ function parseArgs(args) {
       const name = arg.slice(2);
       if (parsed[name] !== undefined) fail('arguments', `duplicate --${name} flag`);
       const value = args[index + 1];
-      if (value === undefined || value.startsWith('--')) fail(`--${name}`, 'requires JSON input');
+      if (value === undefined || value.startsWith('--')) fail(`--${name}`, 'requires JSON input or a JSON file');
       parsed[name] = value;
       index += 1;
       continue;
     }
     fail('arguments', 'unknown flag or positional input');
   }
-
   for (const name of ['overlay', 'catalog']) {
     if (parsed[name] === undefined) fail(`--${name}`, 'is required');
   }
@@ -67,9 +63,17 @@ function parseArgs(args) {
   return parsed;
 }
 
-function parseJson(input, field) {
+async function parseInput(source, field) {
+  let text = source;
+  if (!source.trimStart().startsWith('{')) {
+    try {
+      text = await readFile(source, 'utf8');
+    } catch {
+      fail(field, 'must be valid JSON or a readable JSON file');
+    }
+  }
   try {
-    const value = JSON.parse(input);
+    const value = JSON.parse(text);
     if (!isObject(value)) fail(field, 'must be a JSON object');
     return value;
   } catch (error) {
@@ -100,9 +104,9 @@ function parseSelector(selector, field) {
   const separator = value.lastIndexOf(':');
   const suffix = separator === -1 ? undefined : value.slice(separator + 1);
   if (suffix !== undefined && THINKING_LEVELS.has(suffix)) {
-    return { modelId: value.slice(0, separator), thinking: suffix };
+    return { selector: value.slice(0, separator), thinking: suffix };
   }
-  return { modelId: value, thinking: undefined };
+  return { selector: value, thinking: undefined };
 }
 
 function validateOverlay(overlay) {
@@ -126,7 +130,6 @@ function validateOverlay(overlay) {
 
   const mcp = requireObject(overlay.mcp, 'overlay.mcp');
   if (typeof mcp.enableProjectConfig !== 'boolean') fail('overlay.mcp.enableProjectConfig', 'must be boolean');
-
   return { roles, enabledProviders, enableProjectConfig: mcp.enableProjectConfig };
 }
 
@@ -134,24 +137,33 @@ function validateCatalog(catalog) {
   if (!Array.isArray(catalog.models) || catalog.models.length === 0) fail('catalog.models', 'must be a nonempty array');
   const models = new Map();
   for (let index = 0; index < catalog.models.length; index += 1) {
-    const model = requireObject(catalog.models[index], `catalog.models[${index}]`);
-    const id = requireString(model.id, `catalog.models[${index}].id`);
-    if (models.has(id)) fail('catalog.models', 'contains duplicate model identifiers');
-    const provider = requireString(model.provider, `catalog.models[${index}].provider`);
-    const modalities = requireStringArray(model.modalities, `catalog.models[${index}].modalities`);
-    const thinkingLevels = requireStringArray(model.thinkingLevels, `catalog.models[${index}].thinkingLevels`);
-    if (!Number.isInteger(model.contextWindow) || model.contextWindow < 0) fail(`catalog.models[${index}].contextWindow`, 'must be a nonnegative integer');
-    if (!Number.isInteger(model.maxTokens) || model.maxTokens < 0) fail(`catalog.models[${index}].maxTokens`, 'must be a nonnegative integer');
-    models.set(id, { id, provider, modalities: [...modalities].sort(), contextWindow: model.contextWindow, maxTokens: model.maxTokens, thinkingLevels: [...thinkingLevels].sort() });
+    const field = `catalog.models[${index}]`;
+    const model = requireObject(catalog.models[index], field);
+    const provider = requireString(model.provider, `${field}.provider`);
+    const id = requireString(model.id, `${field}.id`);
+    const selector = requireString(model.selector, `${field}.selector`);
+    if (models.has(selector)) fail('catalog.models', 'contains duplicate selectors');
+    const input = requireStringArray(model.input, `${field}.input`);
+    const thinking = requireStringArray(model.thinking, `${field}.thinking`);
+    if (thinking.some((level) => !THINKING_LEVELS.has(level))) fail(`${field}.thinking`, 'contains an unsupported thinking level');
+    if (!Number.isInteger(model.contextWindow) || model.contextWindow < 0) fail(`${field}.contextWindow`, 'must be a nonnegative integer');
+    if (!Number.isInteger(model.maxTokens) || model.maxTokens < 0) fail(`${field}.maxTokens`, 'must be a nonnegative integer');
+    models.set(selector, {
+      provider,
+      id,
+      selector,
+      input: [...input].sort(),
+      contextWindow: model.contextWindow,
+      maxTokens: model.maxTokens,
+      thinking: [...thinking].sort(),
+    });
   }
   return models;
 }
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
-  if (isObject(value)) {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
-  }
+  if (isObject(value)) return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
   return value;
 }
 
@@ -162,23 +174,24 @@ function qualify(overlay, catalog, localOnly) {
   const capabilities = {};
 
   for (const role of ROLE_NAMES) {
-    const selector = configuration.roles[role];
-    if (!selector.thinking) fail(`overlay.modelRoles.${role}`, 'must end with a configured thinking level');
-    const model = models.get(selector.modelId);
-    if (!model) fail(`overlay.modelRoles.${role}`, 'references a catalog model that is missing');
-    if (!model.thinkingLevels.includes(selector.thinking)) fail(`overlay.modelRoles.${role}`, `requires ${selector.thinking} thinking support`);
+    const selected = configuration.roles[role];
+    if (!selected.thinking) fail(`overlay.modelRoles.${role}`, 'must end with a configured thinking level');
+    const model = models.get(selected.selector);
+    if (!model) fail(`overlay.modelRoles.${role}`, 'references a catalog selector that is missing');
+    if (!model.thinking.includes(selected.thinking)) fail(`overlay.modelRoles.${role}`, `requires ${selected.thinking} thinking support`);
     if (model.contextWindow < MIN_CONTEXT_WINDOW) fail(`catalog model for ${role}`, 'context window is below the qualification floor');
     if (model.maxTokens < MIN_MAX_TOKENS) fail(`catalog model for ${role}`, 'max tokens are below the qualification floor');
-    if (role === 'designer' && !model.modalities.includes('image')) fail(`catalog model for ${role}`, 'image modality is required');
+    if ((role === 'designer' || role === 'ui_review') && !model.input.includes('image')) fail(`catalog model for ${role}`, 'image input is required');
     if (localOnly && !LOCAL_PROVIDERS.has(model.provider)) fail(`overlay.modelRoles.${role}`, 'cloud provider is not permitted in local-only mode');
     selectedProviders.add(model.provider);
     capabilities[role] = {
-      id: model.id,
       provider: model.provider,
-      modalities: model.modalities,
+      id: model.id,
+      selector: model.selector,
+      input: model.input,
       contextWindow: model.contextWindow,
       maxTokens: model.maxTokens,
-      thinkingLevel: selector.thinking,
+      thinking: selected.thinking,
     };
   }
 
@@ -199,8 +212,8 @@ try {
   if (args.help) {
     process.stdout.write(`${usage()}\n`);
   } else {
-    const report = qualify(parseJson(args.overlay, '--overlay'), parseJson(args.catalog, '--catalog'), args.localOnly);
-    process.stdout.write(`${JSON.stringify(report)}\n`);
+    const [overlay, catalog] = await Promise.all([parseInput(args.overlay, '--overlay'), parseInput(args.catalog, '--catalog')]);
+    process.stdout.write(`${JSON.stringify(qualify(overlay, catalog, args.localOnly))}\n`);
   }
 } catch (error) {
   process.stderr.write(`qualify-models: ${error instanceof Error ? error.message : 'qualification failed'}\n`);
