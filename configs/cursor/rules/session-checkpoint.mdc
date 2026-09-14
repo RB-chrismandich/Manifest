@@ -1,12 +1,12 @@
 ---
-description: "Write a compact continuation checkpoint to XDG state when context is high, preserving decisions, progress, blockers, and verification evidence."
+description: "Write a compact continuation checkpoint to XDG state when context is high, preserving decisions, progress, blockers, and verification evidence with integrity-checked durable continuity."
 globs: ".claude/skills/session-checkpoint/**"
 alwaysApply: false
 ---
 
 # session-checkpoint
 
-Write a compact continuation checkpoint to XDG state when context is high, preserving decisions, progress, blockers, and verification evidence.
+Write a compact continuation checkpoint to XDG state when context is high, preserving decisions, progress, blockers, and verification evidence with integrity-checked durable continuity.
 
 <!-- Auto-generated from .claude/skills/session-checkpoint/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
