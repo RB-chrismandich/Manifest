@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.checks.aggregate import aggregate_results
+from manifest_agent.checks.receipt import validate_receipt
 from manifest_agent.checks.registry import load_registry
 from tests.python.manifest_agent.test_shared_checks_review_regressions import (
     RECEIPT_NUMERIC_BOOLEAN_MUTATIONS,
