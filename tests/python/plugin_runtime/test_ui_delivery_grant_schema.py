@@ -72,6 +72,25 @@ def _stitch_grant() -> dict[str, Any]:
     }
 
 
+def _create_project_grant() -> dict[str, Any]:
+    return {
+        "expires_at": "2030-01-01T00:00:00Z",
+        "mutations": [
+            {
+                "tool_name": "mcp__stitch_create_project",
+                "input_hash": "sha256:" + "c" * 64,
+                "max_uses": 1,
+                "expected_readback": {
+                    "tool_name": "mcp__stitch_get_project",
+                    "predictable_fields": {"title": "Checkout"},
+                    "resource_identity": "project",
+                },
+            }
+        ],
+        "readback_tools": ["mcp__stitch_get_project"],
+    }
+
+
 def _validator(repo_root: Path) -> Draft202012Validator:
     return schema(
         repo_root
@@ -213,33 +232,35 @@ def test_grant_schema_accepts_readback_for_existing_project(repo_root: Path) -> 
     assert_valid(validator, {**_accepted_task(), "stitch_grant": _stitch_grant()})
 
 
-def test_grant_schema_aligns_predictable_readbacks_with_runtime(
+def test_grant_schema_accepts_predictable_readbacks(repo_root: Path) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+    predictable_existing = {
+        **_stitch_grant(),
+        "mutations": [
+            {
+                **_stitch_grant()["mutations"][0],
+                "expected_readback": {
+                    "tool_name": "mcp__stitch_get_screen",
+                    "predictable_fields": {"title": "Checkout"},
+                    "resource_identity": "screen",
+                },
+            }
+        ],
+    }
+
+    assert_valid(validator, {**task, "stitch_grant": _create_project_grant()})
+    assert_valid(validator, {**task, "stitch_grant": predictable_existing})
+
+
+def test_grant_schema_rejects_mixed_or_incomplete_predictable_readbacks(
     repo_root: Path,
 ) -> None:
     validator = _validator(repo_root)
     task = _accepted_task()
-    create_grant = {
-        "expires_at": "2030-01-01T00:00:00Z",
-        "mutations": [
-            {
-                "tool_name": "mcp__stitch_create_project",
-                "input_hash": "sha256:" + "c" * 64,
-                "max_uses": 1,
-                "expected_readback": {
-                    "tool_name": "mcp__stitch_get_project",
-                    "predictable_fields": {"title": "Checkout"},
-                    "resource_identity": "project",
-                },
-            }
-        ],
-        "readback_tools": ["mcp__stitch_get_project"],
-    }
+    grant = _create_project_grant()
+    mutation = grant["mutations"][0]
 
-    assert_valid(validator, {**task, "stitch_grant": create_grant})
-    assert_invalid(
-        validator,
-        {**task, "stitch_grant": {**create_grant, "project_id": "project-17"}},
-    )
     for expected_readback in (
         {
             "tool_name": "mcp__stitch_get_project",
@@ -266,25 +287,19 @@ def test_grant_schema_aligns_predictable_readbacks_with_runtime(
             {
                 **task,
                 "stitch_grant": {
-                    **create_grant,
-                    "mutations": [
-                        {**create_grant["mutations"][0], "expected_readback": expected_readback}
-                    ],
+                    **grant,
+                    "mutations": [{**mutation, "expected_readback": expected_readback}],
                 },
             },
         )
 
-    predictable_existing = {
-        **_stitch_grant(),
-        "mutations": [
-            {
-                **_stitch_grant()["mutations"][0],
-                "expected_readback": {
-                    "tool_name": "mcp__stitch_get_screen",
-                    "predictable_fields": {"title": "Checkout"},
-                    "resource_identity": "screen",
-                },
-            }
-        ],
-    }
-    assert_valid(validator, {**task, "stitch_grant": predictable_existing})
+
+def test_grant_schema_rejects_project_id_for_create_project(repo_root: Path) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+    grant = _create_project_grant()
+
+    assert_invalid(
+        validator,
+        {**task, "stitch_grant": {**grant, "project_id": "project-17"}},
+    )
