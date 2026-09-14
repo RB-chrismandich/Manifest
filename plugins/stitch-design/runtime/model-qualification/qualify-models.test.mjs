@@ -37,7 +37,7 @@ function model(overrides = {}) {
 }
 
 function catalog(models = [model(), model({
-  provider: 'ollama', selector: 'ollama/gpt-6-astra', input: ['text'], thinking: [],
+  provider: 'ollama', selector: 'ollama/gpt-6-astra',
 })]) {
   return { models };
 }
@@ -112,20 +112,28 @@ test('ignores incomplete capabilities on catalog entries unrelated to selected s
   assert.deepEqual(JSON.parse(result.stdout).roles, overlay().modelRoles);
 });
 
-test('produces the same qualification hash for equivalent JSON key orderings', async () => {
-  const first = await invoke(qualificationArgs());
+test('produces the same qualification hash for equivalent JSON key and provider set orderings', async () => {
+  const orderedOverlay = overlay({
+    modelRoles: {
+      designer: 'openai-codex/gpt-6-astra:high',
+      ui_code: 'ollama/gpt-6-astra:medium',
+      ui_review: 'openai-codex/gpt-6-astra:high',
+    },
+    enabledProviders: ['openai-codex', 'ollama'],
+  });
+  const first = await invoke(qualificationArgs(orderedOverlay));
   const reorderedOverlay = {
     mcp: { enableProjectConfig: true },
-    enabledProviders: ['openai-codex'],
+    enabledProviders: ['ollama', 'openai-codex'],
     retry: { modelFallback: false },
-    modelRoles: { ui_review: 'openai-codex/gpt-6-astra:high', ui_code: 'openai-codex/gpt-6-astra:medium', designer: 'openai-codex/gpt-6-astra:high' },
+    modelRoles: { ui_review: 'openai-codex/gpt-6-astra:high', ui_code: 'ollama/gpt-6-astra:medium', designer: 'openai-codex/gpt-6-astra:high' },
   };
   const reorderedCatalog = {
     models: [{
       thinking: ['low', 'medium', 'high', 'xhigh', 'max'], maxTokens: 16000, contextWindow: 128000,
       input: ['text', 'image'], selector: 'openai-codex/gpt-6-astra', id: 'gpt-6-astra', provider: 'openai-codex',
     }, {
-      thinking: [], input: ['text'], selector: 'ollama/gpt-6-astra', id: 'gpt-6-astra', provider: 'ollama',
+      thinking: ['low', 'medium', 'high', 'xhigh', 'max'], input: ['text', 'image'], selector: 'ollama/gpt-6-astra', id: 'gpt-6-astra', provider: 'ollama',
       maxTokens: 16000, contextWindow: 128000,
     }],
   };
@@ -134,6 +142,46 @@ test('produces the same qualification hash for equivalent JSON key orderings', a
   assert.equal(second.status, 0, failureText(second));
   assert.equal(JSON.parse(first.stdout).qualificationHash, JSON.parse(second.stdout).qualificationHash);
 });
+test('binds validated security policy to qualification output without secrets', async () => {
+  const localOverlay = overlay({
+    credential: secret,
+    modelRoles: {
+      designer: 'ollama/vision:high',
+      ui_code: 'ollama/vision:medium',
+      ui_review: 'ollama/vision:high',
+    },
+    enabledProviders: ['ollama'],
+    mcp: { enableProjectConfig: false },
+  });
+  const localCatalog = catalog([model({ id: 'vision', selector: 'ollama/vision', provider: 'ollama' })]);
+
+  const [local, nonLocal, projectConfig, cloudProvider] = await Promise.all([
+    invoke(qualificationArgs(localOverlay, localCatalog, ['--local-only'])),
+    invoke(qualificationArgs(localOverlay, localCatalog)),
+    invoke(qualificationArgs(overlay({ ...localOverlay, mcp: { enableProjectConfig: true } }), localCatalog)),
+    invoke(qualificationArgs(overlay({ mcp: { enableProjectConfig: false } }))),
+  ]);
+  for (const result of [local, nonLocal, projectConfig, cloudProvider]) {
+    assert.equal(result.status, 0, failureText(result));
+    assert.doesNotMatch(result.stdout, new RegExp(secret));
+  }
+
+  const localReport = JSON.parse(local.stdout);
+  const nonLocalReport = JSON.parse(nonLocal.stdout);
+  const projectConfigReport = JSON.parse(projectConfig.stdout);
+  const cloudProviderReport = JSON.parse(cloudProvider.stdout);
+  assert.deepEqual(localReport.policy, {
+    localOnly: true,
+    retry: { modelFallback: false },
+    enabledProviders: ['ollama'],
+    mcp: { enableProjectConfig: false },
+  });
+  assert.deepEqual(nonLocalReport.policy, { ...localReport.policy, localOnly: false });
+  assert.notEqual(localReport.qualificationHash, nonLocalReport.qualificationHash);
+  assert.notEqual(nonLocalReport.qualificationHash, projectConfigReport.qualificationHash);
+  assert.notEqual(nonLocalReport.qualificationHash, cloudProviderReport.qualificationHash);
+});
+
 
 test('rejects missing role, exact selector, image, thinking, and context requirements', async () => {
   const textOnly = model({ id: 'text-only', selector: 'openai-codex/text-only', input: ['text'] });

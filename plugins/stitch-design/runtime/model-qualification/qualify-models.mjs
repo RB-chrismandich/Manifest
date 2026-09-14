@@ -141,7 +141,12 @@ function validateOverlay(overlay) {
 
   const mcp = requireObject(overlay.mcp, 'overlay.mcp');
   if (typeof mcp.enableProjectConfig !== 'boolean') fail('overlay.mcp.enableProjectConfig', 'must be boolean');
-  return { roles, enabledProviders, enableProjectConfig: mcp.enableProjectConfig };
+  return {
+    roles,
+    retry: { modelFallback: retry.modelFallback },
+    enabledProviders: [...enabledProviders].sort(),
+    mcp: { enableProjectConfig: mcp.enableProjectConfig },
+  };
 }
 
 function validateCatalog(catalog) {
@@ -211,10 +216,16 @@ function qualify(overlay, catalog, localOnly) {
   if (configuredProviders.size !== selectedProviders.size || [...configuredProviders].some((provider) => !selectedProviders.has(provider))) {
     fail('overlay.enabledProviders', 'must exactly match the providers selected by model roles');
   }
-  if (localOnly && configuration.enableProjectConfig) fail('overlay.mcp.enableProjectConfig', 'must be false in local-only mode because Stitch project configuration is not permitted');
+  if (localOnly && configuration.mcp.enableProjectConfig) fail('overlay.mcp.enableProjectConfig', 'must be false in local-only mode because Stitch project configuration is not permitted');
 
   const roles = Object.fromEntries(ROLE_NAMES.map((role) => [role, overlay.modelRoles[role]]));
-  const report = { roles, capabilities };
+  const policy = {
+    localOnly,
+    retry: configuration.retry,
+    enabledProviders: configuration.enabledProviders,
+    mcp: configuration.mcp,
+  };
+  const report = { roles, capabilities, policy };
   const canonicalReport = JSON.stringify(canonicalize(report));
   return { ...report, qualificationHash: `sha256:${createHash('sha256').update(canonicalReport).digest('hex')}` };
 }
