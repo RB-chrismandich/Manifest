@@ -16,6 +16,28 @@ export async function prepareEvidenceDirectory(repo: string): Promise<string> {
   const actual = await realpath(evidence); if (!below(root, actual)) throw new Error('evidence directory escapes repository'); return actual;
 }
 
+export async function readEvidence({ repo, evidenceFile }: { repo: string; evidenceFile: string }): Promise<string | undefined> {
+  const root = await realpath(repo);
+  const evidenceRoot = await prepareEvidenceDirectory(root);
+  const requested = resolve(root, evidenceFile);
+  let parent: string;
+  try { parent = await realpath(dirname(requested)); } catch { throw new Error('evidence parent is unavailable'); }
+  if (parent !== evidenceRoot || !requested.endsWith('.jsonl')) throw new Error('evidence path is not authorized');
+  let handle: FileHandle;
+  try { handle = await open(join(parent, basename(requested)), constants.O_RDONLY | constants.O_NOFOLLOW); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.nlink !== 1) throw new Error('evidence file is unsafe');
+    return await handle.readFile({ encoding: 'utf8' });
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function appendEvidence({ repo, evidenceFile, record }: { repo: string; evidenceFile: string; record: Record<string, unknown> }): Promise<void> {
   for (const field of ['taskId', 'approvedDesignHash', 'candidateRevision', 'candidateHash', 'modelRoute', 'operation', 'outcome', 'stdoutHash', 'stderrHash']) if (typeof record[field] !== 'string' || !record[field] || record[field] === 'unbound') throw new Error(`evidence missing ${field}`);
   if (typeof record.elapsedMs !== 'number' || !Array.isArray(record.artifacts)) throw new Error('evidence has invalid bounded fields');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { appendFile, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { appendFile, link, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -177,6 +177,32 @@ test('status requires current regular capture artifacts with exact complete hash
     const badArtifacts = scenario === 'wrong hash' ? [{ ...artifacts[0], hash: `sha256:${'0'.repeat(64)}` }, artifacts[1]]
       : scenario === 'incomplete' ? [artifacts[0]] : artifacts;
     await appendAttempt(evidenceFile, definition, { attemptId: 'capture-2', operation: 'ui_capture', recipeId: 'capture', outcome: 'captured', artifacts: badArtifacts });
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false, scenario);
+  }
+});
+
+test('status refuses symlinked and multiply-linked evidence files even when their records verify', async () => {
+  for (const scenario of ['symlink', 'hard-link']) {
+    const definition = task({
+      state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+      candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
+    });
+    const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+    const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+    const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+    await appendAttempt(evidenceFile, definition, { attemptId: 'unit-1', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified' });
+    await appendCaptureEvidence(evidenceFile, definition, repo);
+    const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+    if (scenario === 'symlink') {
+      const records = await readFile(evidenceFile, 'utf8');
+      const outside = join(repo, 'evidence', 'records.jsonl');
+      await writeFile(outside, records);
+      await rm(evidenceFile);
+      await symlink(outside, evidenceFile);
+    } else {
+      await link(evidenceFile, join(repo, '.omp/ui-delivery/evidence/task-17-copy.jsonl'));
+    }
     assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false, scenario);
   }
 });

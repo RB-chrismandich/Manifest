@@ -4,7 +4,7 @@ import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { appendEvidence, canonicalJsonHash, loadStitchMutationState, updateStitchMutationState } from './evidence.ts';
+import { appendEvidence, canonicalJsonHash, loadStitchMutationState, readEvidence, updateStitchMutationState } from './evidence.ts';
 
 const binding = {
   taskId: 'task-17', approvedDesignHash: 'sha256:design', candidateRevision: 'git:abc123',
@@ -39,6 +39,14 @@ test('appends an evidence record bound to task, approved design, candidate, mode
   await appendEvidence({ repo, evidenceFile, record: binding });
   const [record] = (await readFile(evidenceFile, 'utf8')).trim().split('\n').map(JSON.parse);
   assert.deepEqual(record, binding);
+});
+
+test('reads authorized regular evidence and treats a missing evidence file as absent', async () => {
+  const { repo, evidenceFile } = await fixture();
+  await writeFile(evidenceFile, '{"record":true}\n');
+  assert.equal(await readEvidence({ repo, evidenceFile }), '{"record":true}\n');
+  await unlink(evidenceFile);
+  assert.equal(await readEvidence({ repo, evidenceFile }), undefined);
 });
 
 test('refuses evidence missing any required identity or bounded-output hash', async () => {

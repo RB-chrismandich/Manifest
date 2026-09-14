@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, readFile } from 'node:fs/promises';
+import { lstat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
-import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
+import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, readEvidence, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
 import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile } from '../runtime/ui-delivery/task.ts';
 import { createStitchPolicy, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
@@ -135,7 +135,7 @@ async function verifiedStatus(repo: string, task: any): Promise<boolean> {
     const checkDigest = authorizationDigest(checkPolicy);
     const captureDigest = authorizationDigest(task);
     const records: Record<string, unknown>[] = [];
-    for (const line of (await readFile(join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), 'utf8')).split('\n')) {
+    for (const line of (await readEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`) }) ?? '').split('\n')) {
       if (!line.trim()) continue;
       try {
         const record: unknown = JSON.parse(line);
