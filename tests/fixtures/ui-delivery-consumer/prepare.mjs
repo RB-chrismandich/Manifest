@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cp, lstat, mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,20 +9,6 @@ const requestedRoot = process.argv[2];
 if (requestedRoot !== undefined && !isAbsolute(requestedRoot)) throw new Error('preparation root must be absolute');
 if (requestedRoot) await mkdir(requestedRoot, { recursive: true });
 const outputRoot = requestedRoot ? await mkdtemp(join(requestedRoot, 'ui-delivery-consumer-')) : await mkdtemp(join(tmpdir(), 'ui-delivery-consumer-'));
-const chromeCandidates = [
-  process.env.UI_DELIVERY_CHROME,
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-].filter((value) => typeof value === 'string' && value.length > 0);
-let chromePath;
-for (const candidate of chromeCandidates) {
-  if (!isAbsolute(candidate)) continue;
-  try {
-    const stat = await lstat(candidate);
-    if (stat.isFile() && !stat.isSymbolicLink()) { chromePath = await realpath(candidate); break; }
-  } catch {}
-}
-if (!chromePath) throw new Error('an absolute Chrome executable is required');
 
 const canonical = (value) => {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -68,8 +54,8 @@ for (const definition of cases) {
       },
       {
         id: 'capture-screen',
-        argv: [process.execPath, join(repo, 'tools/capture-screen.mjs'), chromePath, join(repo, definition.target), join(repo, capturePng), join(repo, captureResult)],
-        cwd: '.', timeout_ms: 30000, backend: 'sandbox-exec', result_path: captureResult, write_paths: [capturePng, captureResult],
+        argv: ['/home/cptr/.venv/bin/python3', '/repo/tools/capture-screen.py', '/usr/bin/chromium', `/repo/${definition.target}`, `/repo/${capturePng}`, `/repo/${captureResult}`],
+        cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult],
       },
     ],
     capture_recipes: [{ id: 'screen-png', check_id: 'capture-screen', artifacts: [{ path: capturePng, type: 'image/png' }] }],
