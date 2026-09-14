@@ -34,7 +34,7 @@ try:
     command = [
         chrome_path, '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-javascript',
         '--no-first-run', '--disable-background-networking', '--disable-dev-shm-usage',
-        '--disable-breakpad', '--disable-crash-reporter', '--noerrdialogs',
+        '--disable-breakpad', '--disable-crash-reporter', '--disable-crashpad', '--no-crash-upload', '--noerrdialogs',
         f'--user-data-dir={profile}', f'--crash-dumps-dir={crash_dumps}',
         '--hide-scrollbars', '--window-size=1280,900', f'--screenshot={png}', target.as_uri(),
     ]
