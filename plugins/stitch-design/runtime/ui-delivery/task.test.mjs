@@ -99,8 +99,10 @@ test('permits candidate lifecycle states for checks while reserving mutation aut
       ...(state === 'accepted' ? { evidence_refs: ['artifact://task-17/evidence'] } : {}),
     });
     const { repo, path } = await taskFile(definition);
-    await loadTask({ repo, taskFile: path, operation: 'check' });
-    await withApproval(definition, () => assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' })));
+    await withApproval(definition, async () => {
+      await loadTask({ repo, taskFile: path, operation: 'check' });
+      await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }));
+    });
   }
   const approved = approvedTask();
   const { repo, path } = await taskFile(approved);
