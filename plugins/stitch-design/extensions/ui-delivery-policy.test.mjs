@@ -422,3 +422,57 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
     if (saved === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256; else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = saved;
   }
 });
+
+test('approved status cannot renew a consumed Stitch mutation grant after successful readback', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = task({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch__edit_screen', input_hash: hashStitchInput(input), max_uses: 1 }],
+      readback_tools: ['mcp__stitch__get_screen'],
+    },
+  });
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  const hook = handlers.get('tool_call');
+
+  await withApproval(definition, async () => {
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.approved, true);
+    assert.equal(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-1' }), undefined);
+    await handlers.get('tool_result')({
+      toolName: 'mcp__stitch__get_screen',
+      isError: false,
+      content: [{ type: 'text', text: JSON.stringify({ screenId: 'screen-17' }) }],
+      details: { projectId: 'project-17' },
+    });
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.approved, true);
+    const retry = await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-2' });
+    assert.equal(retry.block, true);
+    assert.match(retry.reason, /consum/i);
+  });
+});
+
+test('approved status cannot clear a Stitch mutation awaiting readback', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = task({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch__edit_screen', input_hash: hashStitchInput(input), max_uses: 1 }],
+      readback_tools: ['mcp__stitch__get_screen'],
+    },
+  });
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  const hook = handlers.get('tool_call');
+
+  await withApproval(definition, async () => {
+    await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-1' }), undefined);
+    assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.approved, true);
+    const retry = await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-2' });
+    assert.equal(retry.block, true);
+    assert.match(retry.reason, /reconcil/i);
+  });
+});

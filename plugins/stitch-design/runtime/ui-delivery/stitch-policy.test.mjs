@@ -78,3 +78,18 @@ test('does not automatically retry a failed mutation and permits no second use a
   policy.recordReadback({ toolName: 'mcp__stitch__get_screen', reconciled: true });
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input }));
 });
+
+test('checks mutation grant expiry against an injected clock at authorization time', async () => {
+  let clock = new Date('2026-09-14T00:00:00Z');
+  const policy = createStitchPolicy({
+    task: task({ stitch_grant: { ...task().stitch_grant, expires_at: '2026-09-14T00:01:00Z' } }),
+    registry,
+    now: () => clock,
+  });
+  clock = new Date('2026-09-14T00:01:01Z');
+
+  await assert.rejects(
+    () => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input }),
+    /not authorized/i,
+  );
+});
