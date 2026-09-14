@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from manifest_agent.checks.aggregate import aggregate_results
 from manifest_agent.checks.candidate import materialize_candidate
 from manifest_agent.checks.receipt import validate_receipt
 from manifest_agent.checks.registry import load_registry
@@ -33,9 +32,7 @@ RECEIPT_NUMERIC_BOOLEAN_MUTATIONS = (
 
 
 def run_policy_script(tmp_path: Path, *, baseline: object, script: str):
-    candidate_copy = candidate_with_policies(
-        tmp_path, baseline=baseline, script=script
-    )
+    candidate_copy = candidate_with_policies(tmp_path, baseline=baseline, script=script)
     return run_profile(
         load_registry(registry(tmp_path / "checks.json")),
         "full",
@@ -328,6 +325,7 @@ def test_project_checks_schema_is_strict_and_matches_runtime_shape():
     assert check["additionalProperties"] is False
     assert schema["properties"]["profiles"]["additionalProperties"] is False
 
+
 def test_repo_owned_exit_two_is_fail_with_diagnostics(tmp_path: Path):
     root = tmp_path / "root"
     root.mkdir()
@@ -346,10 +344,6 @@ def test_repo_owned_exit_two_is_fail_with_diagnostics(tmp_path: Path):
     )
     assert result.status == "FAIL"
     assert result.diagnostics == "detail\n"
-
-
-
-
 
 
 def test_run_profile_stamps_ci_receipt_provenance(tmp_path: Path) -> None:
