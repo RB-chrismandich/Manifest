@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -215,6 +215,8 @@ def test_stitch_contract_inventories_omp_delivery_assets(
         "devin",
     }
     assert all(status["mode"] != "native" for status in compatibility.values())
+
+
 def test_direct_stitch_upload_script_fails_closed(
     stitch_bundle: Path, tmp_path: Path
 ) -> None:
@@ -224,8 +226,19 @@ def test_direct_stitch_upload_script_fails_closed(
 
     def invoke(project_id: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [sys.executable, str(script), "--project-id", project_id, "--file-path", str(candidate)],
-            cwd=tmp_path, env=_offline_env(tmp_path), text=True, capture_output=True, check=False,
+            [
+                sys.executable,
+                str(script),
+                "--project-id",
+                project_id,
+                "--file-path",
+                str(candidate),
+            ],
+            cwd=tmp_path,
+            env=_offline_env(tmp_path),
+            text=True,
+            capture_output=True,
+            check=False,
         )
 
     wrong_project = invoke("wrong-project")
