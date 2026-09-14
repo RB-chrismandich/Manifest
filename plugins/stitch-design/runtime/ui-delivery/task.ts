@@ -66,10 +66,15 @@ export async function candidateHash({ repo, task }: { repo: string; task: Delive
   return `sha256:${hash.digest('hex')}`;
 }
 
-export async function loadTask({ repo, taskFile, mutation = false, operation, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; operation?: 'patch' | 'check' | 'capture'; now?: Date }): Promise<DeliveryTask> {
+export async function resolveTaskFile({ repo, taskFile }: { repo: string; taskFile: string }): Promise<string> {
   const root = await realpath(repo); const tasks = join(root, '.omp', 'ui-delivery', 'tasks');
-  let actual: string; try { actual = await realpath(resolve(root, taskFile)); } catch { invalid('task file does not exist'); }
+  let actual: string; try { actual = await realpath(resolve(root, taskFile)); } catch { return invalid('task file does not exist'); }
   if (!within(tasks, actual)) invalid('task file is outside policy directory');
+  return actual;
+}
+
+export async function loadTask({ repo, taskFile, mutation = false, operation, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; operation?: 'patch' | 'check' | 'capture'; now?: Date }): Promise<DeliveryTask> {
+  const actual = await resolveTaskFile({ repo, taskFile });
   let task: unknown; try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);
   if (mutation || operation) {
