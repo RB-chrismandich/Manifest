@@ -149,6 +149,16 @@ test('rejects a fresh zero-exit check result that reports skipped required check
   await assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_run_check'), { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }, repo), /skipped|unverified/i);
 });
 
+test('rejects a zero-exit runner that leaves a pre-existing successful result unchanged', async () => {
+  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: candidateHash() });
+  const { api, tools } = extensionApi();
+  const { repo } = await fixture(definition);
+  await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }));
+  policyWithCheckRunner(api, async () => success());
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
+  await assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_run_check'), { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }, repo), /fresh|stale|result/i);
+});
+
 test('rejects capture when a successful check leaves its nonempty artifact unchanged', async () => {
   const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: candidateHash() });
   const { api, tools } = extensionApi();

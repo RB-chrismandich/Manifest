@@ -91,6 +91,22 @@ test('preserves authorization digest across lifecycle changes and invalidates re
   assert.notEqual(digest, authorizationDigest({ ...task, stitch_grant: { project_id: 'different' } }));
 });
 
+test('permits candidate lifecycle states for checks while reserving mutation authorization for approved', async () => {
+  for (const state of ['candidate_ready', 'reviewing', 'repairing', 'accepted']) {
+    const definition = approvedTask({
+      state, candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`,
+      outcome: state === 'accepted' ? 'verified' : 'unverified',
+      ...(state === 'accepted' ? { evidence_refs: ['artifact://task-17/evidence'] } : {}),
+    });
+    const { repo, path } = await taskFile(definition);
+    await loadTask({ repo, taskFile: path });
+    await withApproval(definition, () => assert.rejects(() => loadTask({ repo, taskFile: path, mutation: true })));
+  }
+  const approved = approvedTask();
+  const { repo, path } = await taskFile(approved);
+  await withApproval(approved, () => loadTask({ repo, taskFile: path, mutation: true }));
+});
+
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
   const definition = approvedTask();
   const { repo } = await taskFile(definition);
@@ -102,6 +118,27 @@ test('hashes only sorted allowed regular-file bytes, excluding declared result a
   assert.equal(await candidateHash({ repo, task: definition }), before);
   await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 2;\n');
   assert.notEqual(await candidateHash({ repo, task: definition }), before);
+});
+
+test('hashes path-delimited candidate entries and rejects an intermediate symlink escape', async () => {
+  const { repo } = await taskFile({});
+  await Promise.all([
+    writeFile(join(repo, 'ab'), 'a'),
+    writeFile(join(repo, 'a'), 'ab'),
+    writeFile(join(repo, 'renamed'), 'same'),
+    writeFile(join(repo, 'original'), 'same'),
+  ]);
+  await writeFile(join(repo, 'c'), 'bc');
+  await writeFile(join(repo, 'bc'), 'c');
+  const joined = await candidateHash({ repo, task: approvedTask({ allowed_paths: ['a', 'bc'] }) });
+  assert.notEqual(split, joined);
+  assert.notEqual(
+    await candidateHash({ repo, task: approvedTask({ allowed_paths: ['original'] }) }),
+    await candidateHash({ repo, task: approvedTask({ allowed_paths: ['renamed'] }) }),
+  );
+  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-candidate-outside-'));
+  await symlink(outside, join(repo, 'src/escaped'));
+  await assert.rejects(() => candidateHash({ repo, task: approvedTask({ allowed_paths: ['src/escaped'] }) }));
 });
 
 test('accepts a schema-valid building task and rejects policy-directory escapes', async () => {
