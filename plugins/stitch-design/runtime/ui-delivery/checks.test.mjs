@@ -152,6 +152,25 @@ test('allows only the digest-checked verifier beneath protected .omp state', { s
   assert.equal(stdout, 'trusted verifier\n');
 });
 
+test('explicitly denies sandbox reads of stale declared outputs', { skip: !sandboxExecAvailable }, async () => {
+  const repo = await fixture();
+  const calls = [];
+  await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+  const command = calls[0];
+  const profileIndex = command.argv.indexOf('-p');
+  const executable = command.argv.find((argument) => argument.startsWith('EXEC='))?.slice('EXEC='.length);
+  assert.ok(executable);
+  const script = 'const { readFileSync } = require("node:fs"); try { readFileSync(process.argv[1], "utf8"); process.stdout.write("exposed"); } catch (error) { if (!["EACCES", "EPERM"].includes(error.code)) throw error; process.stdout.write("denied"); }';
+  const { stdout } = await execFileAsync('sandbox-exec', [
+    ...command.argv.slice(0, profileIndex + 2),
+    executable,
+    '-e',
+    script,
+    join(repo, '.ui-results/unit.json'),
+  ]);
+  assert.equal(stdout, 'denied');
+});
+
 test('preserves a verifier envelope split within a UTF-8 scalar', { skip: !sandboxExecAvailable }, async () => {
   const repo = await fixture();
   const output = verifierOutput({ result: { label: 'é' } });

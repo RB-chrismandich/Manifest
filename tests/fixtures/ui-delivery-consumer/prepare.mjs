@@ -66,7 +66,7 @@ for (const definition of cases) {
       },
       {
         id: 'capture-screen',
-        argv: ['/home/cptr/.venv/bin/python3', `/repo/${captureVerifier}`, '/usr/bin/chromium', `/repo/${definition.target}`],
+        argv: ['python3', `/repo/${captureVerifier}`, '/usr/bin/chromium', `/repo/${definition.target}`],
         cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult], trusted_verifier: captureTrustedVerifier,
       },
     ],

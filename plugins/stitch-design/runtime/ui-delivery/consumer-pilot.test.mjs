@@ -19,6 +19,9 @@ test('prepares a qualified pilot task with approval and active-runtime handoff',
     for (const launch of prepared.cases) {
       const preparedTask = JSON.parse(await readFile(launch.task, 'utf8'));
       assert.equal(preparedTask.approved_check_recipes[0].argv[0], 'node');
+      assert.equal(preparedTask.approved_check_recipes[1].backend, 'docker');
+      assert.equal(preparedTask.approved_check_recipes[1].argv[0], 'python3');
+      assert.match(preparedTask.approved_check_recipes[1].sandbox_image, /@sha256:[a-f0-9]{64}$/);
       assert.equal(preparedTask.qualification_hash, launch.active_qualification_sha256);
       process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = launch.external_approval_sha256;
       process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = launch.active_qualification_sha256;

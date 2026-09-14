@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -77,10 +77,10 @@ test('uses Docker lifecycle cleanup for ordinary nonzero check results', async (
   assert.equal(result.exitCode, 1);
   assert.ok(calls[0].argv.includes('--rm'));
 });
-test('rewrites the verified Docker verifier argument without resolving its container executable on the host', async () => {
+test('rewrites the verified Docker verifier argument beneath an approved image runtime', async () => {
   const repo = await fixture();
   const calls = [];
-  const containerArgv = ['ui-check-in-container', `/repo/${verifier.path}`];
+  const containerArgv = ['node', `/repo/${verifier.path}`];
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, argv: containerArgv, backend: 'docker' }] }),
     checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
@@ -88,7 +88,7 @@ test('rewrites the verified Docker verifier argument without resolving its conta
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executable, 'docker');
   assert.deepEqual(calls[0].recipeArgv, containerArgv);
-  assert.deepEqual(calls[0].argv.slice(-containerArgv.length), ['ui-check-in-container', '/trusted-verifier']);
+  assert.deepEqual(calls[0].argv.slice(-containerArgv.length), ['node', '/trusted-verifier']);
 });
 
 test('mounts only the digest-verified verifier file and rewrites its Docker argv', async () => {
@@ -109,16 +109,57 @@ test('mounts only the digest-verified verifier file and rewrites its Docker argv
   assert.equal(command.mounts.some((mount) => mount.target === `/repo/.omp/ui-delivery/verifiers`), false);
 });
 
-test('keeps comma-bearing declared outputs out of Docker mount options', async () => {
+test('rejects Docker output paths that cannot be safely exact-path masked', async () => {
   const repo = await fixture();
-  const calls = [];
   const resultPath = '.ui-results/unit,ro=false.json';
+  await assert.rejects(
+    () => runCheck({
+      repo,
+      task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', result_path: resultPath, write_paths: [resultPath] }] }),
+      checkId: 'unit', executor: executor([]), backends: { 'sandbox-exec': true, docker: true },
+    }),
+    /unsafe Docker mount path/,
+  );
+});
+
+test('masks each declared Docker output with an empty read-only file', async () => {
+  const repo = await fixture();
+  let mask;
+  let mode;
+  let unreadable = false;
   await runCheck({
-    repo,
-    task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', result_path: resultPath, write_paths: [resultPath] }] }),
-    checkId: 'unit', executor: executor(calls), backends: { 'sandbox-exec': true, docker: true },
+    repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+    executor: async (command) => {
+      mask = command.mounts.find((entry) => entry.target === '/repo/.ui-results/unit.json');
+      await assert.rejects(() => readFile(mask.source, 'utf8'), { code: 'EACCES' });
+      unreadable = true;
+      mode = (await lstat(mask.source)).mode & 0o777;
+      return { exitCode: 0, stdout: verifierOutput(), stderr: 'stderr' };
+    },
   });
-  assert.equal(calls[0].argv.filter((argument) => argument.includes(resultPath)).length, 0);
+  assert.ok(mask);
+  assert.equal(mask.readOnly, true);
+  assert.equal(unreadable, true);
+  assert.equal(mode, 0);
+});
+
+test('rejects a repository-resident Docker argv[0]', async () => {
+  const repo = await fixture();
+  let executorCalled = false;
+  await assert.rejects(
+    () => runCheck({
+      repo,
+      task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', argv: [`/repo/${verifier.path}`, `/repo/${verifier.path}`] }] }),
+      checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+      executor: async () => {
+        executorCalled = true;
+        return { exitCode: 0, stdout: verifierOutput(), stderr: '' };
+      },
+    }),
+    /Docker.*runtime|approved.*runtime/i,
+  );
+  assert.equal(executorCalled, false);
 });
 
 test('denies Docker dispatch for missing, invalid, or root host identities', async () => {

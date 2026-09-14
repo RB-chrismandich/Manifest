@@ -51,6 +51,10 @@ async function persistVerifierOutputs(root: string, envelope: VerifierEnvelope, 
   }
 }
 const APPROVED_RUNTIME_BASENAMES: Record<string, true> = { node: true };
+const APPROVED_DOCKER_RUNTIME_BASENAMES: Record<string, true> = { node: true, python3: true };
+function approvedDockerRuntime(argv: string[]): void {
+  if (!APPROVED_DOCKER_RUNTIME_BASENAMES[argv[0]]) throw new Error('approved Docker runtime is unavailable');
+}
 async function approvedExecutable(root: string, argv: string[]): Promise<{ executable: string; runtime: string; extras: { executable: string; runtime: string }[] }> {
   const requested = argv[0];
   if (!APPROVED_RUNTIME_BASENAMES[requested]) throw new Error('approved executable is unavailable');
@@ -254,6 +258,12 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
       }
       masks.push({ source, target: join('/repo', relative(root, target)), readOnly: true });
     }
+    if (recipe.backend === 'docker') for (const [index, [, output]] of [...outputs.entries()].entries()) {
+      const source = join(scratch, 'masks', `output-${index}`);
+      await mkdir(dirname(source), { recursive: true, mode: 0o700 });
+      await writeFile(source, '', { mode: 0o000, flag: 'wx' });
+      masks.push({ source, target: join('/repo', relative(root, output)), readOnly: true });
+    }
     const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...masks, ...(recipe.backend === 'docker' ? [{ source: verifier.path, target: verifier.dockerTarget, readOnly: true }] : []), { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
     if (recipe.backend === 'docker') for (const mount of mounts) { safeDockerMountPath(mount.source); safeDockerMountPath(mount.target); }
     const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
@@ -261,15 +271,17 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     const dockerUid = recipe.backend === 'docker' ? hostIdentity.getuid?.() : undefined;
     const dockerGid = recipe.backend === 'docker' ? hostIdentity.getgid?.() : undefined;
     if (recipe.backend === 'docker' && (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! <= 0 || dockerGid! <= 0)) throw new Error('Docker requires non-root POSIX user IDs');
-    const deniedReads = protectedPaths.map((path, index) => ['-D', `DENY_${index}=${resolve(root, path)}`] as string[]).flat();
+    const deniedReadPaths = [...new Set([...protectedPaths.map((path) => resolve(root, path)), ...outputs.values()])];
+    const deniedReads = deniedReadPaths.map((path, index) => ['-D', `DENY_${index}=${path}`] as string[]).flat();
     const extraParameters = runtime ? runtime.extras.flatMap((entry, index) => ['-D', `EXTRA_EXEC_${index}=${entry.executable}`, '-D', `EXTRA_RUNTIME_${index}=${entry.runtime}`]) : [];
     const verifierParameters = runtime ? ['-D', `VERIFIER=${verifier.path}`, '-D', `VERIFIER_ROOT=${verifier.root}`] : [];
     const dockerArgv = recipe.backend === 'docker'
       ? recipe.argv.map((argument, index) => index <= 1 && (argument.startsWith('/repo/') ? join(root, argument.slice('/repo/'.length)) : resolve(root, argument)) === verifier.path ? verifier.dockerTarget : argument)
       : recipe.argv;
     const spec: Command = recipe.backend === 'sandbox-exec'
-      ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...verifierParameters, ...deniedReads, '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) (subpath (param "SCRATCH")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${protectedPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-read-metadata (literal (param "VERIFIER_ROOT"))) (allow file-read* (literal (param "VERIFIER"))) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH"))) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts }
+      ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...verifierParameters, ...deniedReads, '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) (subpath (param "SCRATCH")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${deniedReadPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-read-metadata (literal (param "VERIFIER_ROOT"))) (allow file-read* (literal (param "VERIFIER"))) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH"))) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts }
       : (() => {
+        approvedDockerRuntime(recipe.argv);
         if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned');
         return { executable: 'docker', argv: ['run', '--rm', '--name', containerName, '--user', `${dockerUid}:${dockerGid}`, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', '--env', 'HOME=/tmp/ui-delivery', '--env', 'TMPDIR=/tmp/ui-delivery', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...dockerArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName };
       })();
