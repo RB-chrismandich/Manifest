@@ -257,5 +257,3 @@ test('rejects a verifier directory symlink that escapes the repository', async (
     /trusted verifier/,
   );
 });
-
-
