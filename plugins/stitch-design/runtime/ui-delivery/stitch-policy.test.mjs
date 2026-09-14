@@ -38,14 +38,14 @@ test('allows a registered read tool and the exact one-shot approved mutation', a
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input });
 });
 
-test('denies unknown tools and schemas that do not establish a read or mutation classification', () => {
+test('denies unknown tools and schemas that do not establish a read or mutation classification', async () => {
   const policy = createStitchPolicy({
     task: task(),
     registry: [{ name: 'mcp__stitch_unknown', metadata: { mcpServerName: 'stitch', mcpToolName: 'unknown' }, inputSchema: {} }],
     now,
   });
   assert.equal(policy.classify('mcp__stitch_unknown'), 'unknown');
-  assert.throws(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_unknown', input }));
+  await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_unknown', input }));
 });
 
 test('denies missing, expired, wrong-project, and wrong-input mutation grants', async () => {
@@ -66,7 +66,7 @@ test('blocks reuse and retries after an interrupted mutation until permitted rea
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input });
   policy.recordDispatchInterrupted();
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_edit_screen', input }));
-  await assert.rejects(() => policy.recordReadback({ toolName: 'mcp__stitch_get_screen', reconciled: false }));
+  assert.throws(() => policy.recordReadback({ toolName: 'mcp__stitch_get_screen', reconciled: false }));
   policy.recordReadback({ toolName: 'mcp__stitch_get_screen', reconciled: true });
   assert.equal(policy.state(), 'reconciled');
 });

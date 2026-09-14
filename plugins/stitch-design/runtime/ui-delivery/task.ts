@@ -26,7 +26,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if (!states.has(value.state)) invalid('invalid state');
   if (value.model_route !== '@ui_code') invalid('invalid model route');
   if ((value.state === 'accepted' && value.outcome !== 'verified') || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome mismatch');
-  if (['candidate_ready', 'reviewing', 'repairing', 'accepted', 'blocked', 'failed'].includes(value.state) && (typeof value.candidate_revision !== 'string' || typeof value.candidate_hash !== 'string')) invalid('candidate binding required');
+  if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || typeof value.candidate_hash !== 'string')) invalid('candidate binding required');
   for (const recipe of value.approved_check_recipes) {
     if (!recipe || typeof recipe !== 'object' || !nonEmptyStrings(recipe.argv) || typeof recipe.id !== 'string' || typeof recipe.cwd !== 'string' || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || !['sandbox-exec', 'docker'].includes(recipe.backend)) invalid('invalid check recipe');
     if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/@sha256:[a-f0-9]{16,}$/i.test(recipe.sandbox_image))) invalid('docker image must be digest pinned');
@@ -36,11 +36,9 @@ function validate(task: unknown): asserts task is DeliveryTask {
 export async function loadTask({ repo, taskFile, mutation = false, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; now?: Date }): Promise<DeliveryTask> {
   const root = await realpath(repo);
   const tasks = join(root, '.omp', 'ui-delivery', 'tasks');
-  const requested = resolve(root, taskFile);
-  if (!within(tasks, requested)) invalid('task file is outside policy directory');
   let actual: string;
-  try { actual = await realpath(requested); } catch { invalid('task file does not exist'); }
-  if (!within(tasks, actual)) invalid('task file escapes policy directory');
+  try { actual = await realpath(resolve(root, taskFile)); } catch { invalid('task file does not exist'); }
+  if (!within(tasks, actual)) invalid('task file is outside policy directory');
   let task: unknown;
   try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);

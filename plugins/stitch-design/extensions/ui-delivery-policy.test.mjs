@@ -5,8 +5,8 @@ import uiDeliveryPolicy from './ui-delivery-policy.ts';
 
 function extensionApi() {
   const tools = [];
-  const schema = { strict: () => schema };
-  return { tools, api: { zod: { object: () => schema }, registerTool: (tool) => tools.push(tool) } };
+  const schema = { strict: () => schema, optional: () => schema };
+  return { tools, api: { zod: { object: () => schema, string: () => schema }, registerTool: (tool) => tools.push(tool) } };
 }
 
 function context(cwd = '/repo') {

@@ -103,6 +103,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
                 "cwd": "apps/web",
                 "timeout_ms": 120000,
                 "backend": "sandbox-exec",
+                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
                 "env": ["CI"],
                 "artifacts": [{"path": "artifacts/checkout-ui.xml", "type": "junit"}],
             }
@@ -205,6 +206,57 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         },
     )
 
+    _assert_invalid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {
+                    **task["approved_check_recipes"][0],
+                    "sandbox_image": "registry.example/ui-check:latest",
+                }
+            ],
+        },
+    )
+
+    _assert_invalid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {
+                    **task["approved_check_recipes"][0],
+                    "backend": "docker",
+                    "sandbox_image": "registry.example/ui-check@sha512:0123456789abcdef",
+                }
+            ],
+        },
+    )
+
+    _assert_valid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {
+                    **task["approved_check_recipes"][0],
+                    "backend": "docker",
+                    "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                }
+            ],
+        },
+    )
+    _assert_invalid(
+        validator,
+        {
+            **task,
+            "approved_check_recipes": [
+                {key: value for key, value in task["approved_check_recipes"][0].items() if key != "sandbox_image"}
+                | {"backend": "docker"}
+            ],
+        },
+    )
+
 
 def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) -> None:
     validator = _schema(
@@ -223,6 +275,7 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
                 "cwd": "apps/web",
                 "timeout_ms": 1000,
                 "backend": "docker",
+                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
             }
         ],
         "capture_recipes": [
@@ -298,6 +351,7 @@ def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
                 "cwd": "apps/web",
                 "timeout_ms": 1000,
                 "backend": "docker",
+                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
             }
         ],
         "capture_recipes": [
