@@ -75,3 +75,23 @@ test('approved status cannot clear a Stitch mutation awaiting readback', async (
     assert.match(retry.reason, /reconcil/i);
   });
 });
+
+test('a restarted extension loads the protected consumed mutation state before authorizing Stitch', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const first = extensionApi(); uiDeliveryPolicy(first.api);
+  const { repo } = await fixture(definition);
+
+  await withApproval(definition, async () => {
+    await execute(first.tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await first.handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input }), undefined);
+  });
+
+  const restarted = extensionApi(); uiDeliveryPolicy(restarted.api);
+  await withApproval(definition, async () => {
+    await execute(restarted.tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    const replay = await restarted.handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input });
+    assert.equal(replay.block, true);
+    assert.match(replay.reason, /reconcil|consum/i);
+  });
+});

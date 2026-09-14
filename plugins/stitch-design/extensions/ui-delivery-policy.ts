@@ -4,7 +4,7 @@ import { lstat, readFile, rename, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
-import { appendEvidence, prepareEvidenceDirectory } from '../runtime/ui-delivery/evidence.ts';
+import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
 import { authorizationDigest, candidateHash, loadTask, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
 import { createStitchPolicy, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
@@ -119,8 +119,38 @@ function evidenceRecord(task: any, attemptId: string, attemptPhase: 'started' | 
 async function appendAttempt(repo: string, task: any, record: Record<string, unknown>): Promise<void> { await appendEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record }); }
 
 export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck } = {}): void {
-  const checkRunner = deps.runCheck ?? defaultRunCheck; let stitch: { authorizationDigest: string; policy: StitchPolicy } | undefined;
-  pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) { const taskFile = (params as { taskFile?: string }).taskFile; if (!taskFile) return result(STATUS); const task = await loadTask({ repo: ctx.cwd, taskFile }); const digest = authorizationDigest(task); const approved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256 === digest; const registry = pi.getAllTools?.() ?? []; if (approved && stitch?.authorizationDigest !== digest) stitch = { authorizationDigest: digest, policy: createStitchPolicy({ task, registry }) }; const verified = await verifiedStatus(ctx.cwd, task); return result({ extension: STATUS.extension, taskId: task.task_id, state: task.state, outcome: verified ? task.outcome : 'evidence_unverified', verified, authorizationDigest: digest, approved: approved && verified || approved && task.outcome === 'unverified' }); } });
+  const checkRunner = deps.runCheck ?? defaultRunCheck;
+  let stitch: { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string } | undefined;
+  pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) {
+    const taskFile = (params as { taskFile?: string }).taskFile;
+    if (!taskFile) return result(STATUS);
+    const task = await loadTask({ repo: ctx.cwd, taskFile });
+    const digest = authorizationDigest(task);
+    const approved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256 === digest;
+    const registry = pi.getAllTools?.() ?? [];
+    if (approved && stitch?.authorizationDigest !== digest) {
+      const state = await loadStitchMutationState({ repo: ctx.cwd, taskId: task.task_id, authorizationDigest: digest });
+      stitch = {
+        authorizationDigest: digest,
+        repo: ctx.cwd,
+        taskFile,
+        policy: createStitchPolicy({
+          task,
+          registry,
+          state,
+          persist: async (next) => updateStitchMutationState({
+            repo: ctx.cwd,
+            taskId: task.task_id,
+            authorizationDigest: digest,
+            expectedVersion: next.version,
+            state: { lifecycle: next.lifecycle as 'ready' | 'mutation_unknown' | 'reconciled', used: next.used, ...(next.projectId ? { projectId: next.projectId } : {}) },
+          }),
+        }),
+      };
+    }
+    const verified = await verifiedStatus(ctx.cwd, task);
+    return result({ extension: STATUS.extension, taskId: task.task_id, state: task.state, outcome: verified ? task.outcome : 'evidence_unverified', verified, authorizationDigest: digest, approved: approved && verified || approved && task.outcome === 'unverified' });
+  } });
   pi.registerTool({ name: 'ui_apply_patch', label: 'Apply approved UI patch', description: 'Apply an authorized non-destructive unified diff.', parameters: pi.zod.object({ taskFile: pi.zod.string(), patch: pi.zod.string() }).strict(), approval: 'write', strict: true, async execute(_id, params, signal, _onUpdate, ctx) { const args = params as { taskFile: string; patch: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'patch' }); const started = performance.now(); await prepareEvidenceDirectory(ctx.cwd); const changedFiles = diffTargets(args.patch); for (const target of changedFiles) await authorizePath({ repo: ctx.cwd, task, path: target }); await gitApply(ctx.cwd, args.patch, signal); const hash = await candidateHash({ repo: ctx.cwd, task }); const updated = { ...task, state: 'candidate_ready', candidate_revision: `git:${hash.slice(7, 19)}`, candidate_hash: hash, outcome: 'unverified' }; await updateTask(ctx.cwd, args.taskFile, updated, signal); const evidenceFile = join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`); await appendEvidence({ repo: ctx.cwd, evidenceFile, record: { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: updated.candidate_revision, candidateHash: hash, modelRoute: task.model_route, operation: 'ui_apply_patch', outcome: 'mutation_unknown', elapsedMs: Math.max(0, Math.round(performance.now() - started)), artifacts: [], stdoutHash: `sha256:${createHash('sha256').update(args.patch).digest('hex')}`, stderrHash: `sha256:${createHash('sha256').update('').digest('hex')}` } }); return result({ taskId: task.task_id, operation: 'ui_apply_patch', state: updated.state, candidateRevision: updated.candidate_revision, candidateHash: hash, authorizationDigest: authorizationDigest(updated), evidenceRef: `artifact://${task.task_id}/evidence.jsonl`, changedFiles }); } });
   pi.registerTool({ name: 'ui_run_check', label: 'Run approved UI check', description: 'Run a named approved check in an OS sandbox.', parameters: pi.zod.object({ taskFile: pi.zod.string(), checkId: pi.zod.string() }).strict(), approval: 'exec', strict: true, async execute(_id, params, signal, _onUpdate, ctx) {
     const args = params as { taskFile: string; checkId: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'check' }); const started = performance.now();
@@ -158,7 +188,35 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     }
   } });
   const hookable = pi as unknown as { on?: (event: string, handler: (event: any) => Promise<unknown>) => void };
-  hookable.on?.('tool_call', async (event) => { if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined; try { if (!stitch) throw new Error('Stitch tool call is not authorized'); const input = event.input; const projectId = input && typeof input === 'object' && (typeof input.projectId === 'string' ? input.projectId : typeof input.project_id === 'string' ? input.project_id : undefined); if (!projectId) throw new Error('Stitch project binding is required'); await stitch.policy.authorize({ projectId, toolName: event.toolName, input }); return undefined; } catch (error) { return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' }; } });
-  hookable.on?.('tool_result', async (event) => { if (!stitch || typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined; if (stitch.policy.classify(event.toolName) === 'mutation' && event.isError) stitch.policy.recordDispatchFailed(); if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.state() === 'mutation_unknown') { const details = event.details; const projectId = details && typeof details === 'object' && (typeof details.projectId === 'string' ? details.projectId : typeof details.project_id === 'string' ? details.project_id : undefined); if (!projectId) throw new Error('Stitch project binding is required'); stitch.policy.recordReadback({ projectId, toolName: event.toolName, reconciled: !event.isError }); } return undefined; });
+  hookable.on?.('tool_call', async (event) => {
+    if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
+    try {
+      if (!stitch) throw new Error('Stitch tool call is not authorized');
+      const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
+      if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
+      const input = event.input;
+      const projectId = input && typeof input === 'object' && (typeof input.projectId === 'string' ? input.projectId : typeof input.project_id === 'string' ? input.project_id : undefined);
+      await stitch.policy.authorize({ projectId, toolName: event.toolName, input });
+      return undefined;
+    } catch (error) {
+      return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
+    }
+  });
+  hookable.on?.('tool_result', async (event) => {
+    if (!stitch || typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
+    const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
+    if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
+    const details = event.details;
+    const projectId = details && typeof details === 'object' && (typeof details.projectId === 'string' ? details.projectId : typeof details.project_id === 'string' ? details.project_id : undefined);
+    if (stitch.policy.classify(event.toolName) === 'mutation') {
+      if (event.isError) await stitch.policy.recordDispatchFailed();
+      else await stitch.policy.recordMutationResult({ toolName: event.toolName, projectId, succeeded: true }).catch(() => undefined);
+    }
+    if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.state() === 'mutation_unknown') {
+      if (!projectId) throw new Error('Stitch project binding is required');
+      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, reconciled: !event.isError });
+    }
+    return undefined;
+  });
 }
 export default function uiDeliveryPolicy(pi: ExtensionAPI): void { registerUiDeliveryPolicy(pi); }

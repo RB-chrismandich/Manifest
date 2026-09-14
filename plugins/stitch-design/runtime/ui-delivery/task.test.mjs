@@ -16,7 +16,7 @@ function canonical(value) {
 function authorizationDigest(task) {
   const projection = Object.fromEntries([
     'task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths',
-    'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant',
+    'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization',
   ].filter((key) => key in task).map((key) => [key, task[key]]));
   return `sha256:${createHash('sha256').update(JSON.stringify(canonical(projection))).digest('hex')}`;
 }
@@ -91,17 +91,19 @@ test('preserves authorization digest across lifecycle changes and invalidates re
   assert.notEqual(digest, authorizationDigest({ ...task, stitch_grant: { project_id: 'different' } }));
 });
 
-test('permits candidate lifecycle states for checks while reserving mutation authorization for approved', async () => {
+test('permits candidate lifecycle checks while reserving patches for approved or renewed repairing tasks', async () => {
   for (const state of ['candidate_ready', 'reviewing', 'repairing', 'accepted']) {
     const definition = approvedTask({
       state, candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`,
       outcome: state === 'accepted' ? 'verified' : 'unverified',
       ...(state === 'accepted' ? { evidence_refs: ['artifact://task-17/evidence'] } : {}),
+      ...(state === 'repairing' ? { repair_cycles: 1, repair_authorization: { cycle: 1, nonce: 'renewed-repair' } } : {}),
     });
     const { repo, path } = await taskFile(definition);
     await withApproval(definition, async () => {
       await loadTask({ repo, taskFile: path, operation: 'check' });
-      await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }));
+      if (state === 'repairing') await loadTask({ repo, taskFile: path, operation: 'patch' });
+      else await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }));
     });
   }
   const approved = approvedTask();
@@ -150,6 +152,28 @@ test('requires renewed reviewer authorization after coordinator transitions a ca
   }
 
   await withApproval(reviewer, () => loadTask({ repo, taskFile: path, operation: 'capture' }));
+});
+
+test('requires a fresh cycle-bound nonce before a repairing task can apply a patch', async () => {
+  const repair = approvedTask({
+    state: 'repairing', repair_cycles: 1,
+    repair_authorization: { cycle: 1, nonce: 'repair-cycle-1' },
+    candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`,
+  });
+  const prior = { ...repair, repair_authorization: { cycle: 1, nonce: 'old-approval' } };
+  const { repo, path } = await taskFile(repair);
+  const before = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = authorizationDigest(prior);
+  try {
+    await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /approval/i);
+  } finally {
+    if (before === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = before;
+  }
+  await withApproval(repair, () => loadTask({ repo, taskFile: path, operation: 'patch' }));
+  const malformed = { ...repair, repair_authorization: { cycle: 2, nonce: 'wrong-cycle' } };
+  await writeFile(path, JSON.stringify(malformed));
+  await withApproval(malformed, () => assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /repairing|cycle/i));
 });
 
 test('rejects malformed grant expiry even for status-facing task loads', async () => {

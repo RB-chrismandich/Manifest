@@ -26,6 +26,16 @@ const registry = [
     parameters: { type: 'object' },
   },
   {
+    name: 'mcp__stitch_list_projects',
+    sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
+    parameters: { type: 'object' },
+  },
+  {
+    name: 'mcp__stitch_create_project',
+    sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
+    parameters: { type: 'object' },
+  },
+  {
     name: 'mcp__stitch_generate_screen_from_text',
     sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
     parameters: { type: 'object' },
@@ -36,6 +46,33 @@ test('allows a registered read tool and the exact one-shot approved mutation', a
   const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   assert.equal(policy.classify('mcp__stitch_get_screen'), 'read');
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input });
+});
+
+test('allows account discovery and a one-shot input-bound project creation followed by readback', async () => {
+  const creation = { title: 'Bounded project' };
+  const policy = createStitchPolicy({
+    task: task({
+      stitch_grant: {
+        expires_at: '2030-01-01T00:00:00Z',
+        mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1 }],
+        readback_tools: ['mcp__stitch_get_project'],
+      },
+    }),
+    registry: [...registry, {
+      name: 'mcp__stitch_get_project',
+      sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' },
+      parameters: { type: 'object' },
+    }],
+    now: () => now,
+  });
+
+  await policy.authorize({ toolName: 'mcp__stitch_list_projects', input: {} });
+  await policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation });
+  await assert.rejects(() => policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation }), /reconcil|consum/i);
+  await policy.recordMutationResult({ toolName: 'mcp__stitch_create_project', projectId: 'project-created', succeeded: true });
+  await policy.authorize({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', input: { projectId: 'project-created' } });
+  await policy.recordReadback({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', reconciled: true });
+  assert.equal(policy.state(), 'reconciled');
 });
 
 test('denies unknown tools and schemas that do not establish a read or mutation classification', async () => {
@@ -61,39 +98,32 @@ test('denies missing, expired, wrong-project, and wrong-input mutation grants', 
   await assert.rejects(() => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch_generate_screen_from_text', input }));
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: { ...input, prompt: 'different' } }));
 });
-
 test('blocks reuse and retries after an interrupted mutation until permitted readback reconciles it', async () => {
   const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input });
-  policy.recordDispatchInterrupted();
+  await policy.recordDispatchInterrupted();
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input }));
-  assert.throws(() => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: false }));
-  policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
+  await assert.rejects(() => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: false }));
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
   assert.equal(policy.state(), 'reconciled');
 });
 
 test('does not automatically retry a failed mutation and permits no second use after successful readback', async () => {
   const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input });
-  policy.recordDispatchFailed(new Error('timeout'));
-  policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
+  await policy.recordDispatchFailed();
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input }));
 });
 
 test('binds Stitch reads and readback reconciliation to the approved project', async () => {
   const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: {} });
-  await assert.rejects(
-    () => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch_get_screen', input: {} }),
-    /not authorized/i,
-  );
+  await assert.rejects(() => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch_get_screen', input: {} }), /not authorized/i);
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input });
-  assert.throws(
-    () => policy.recordReadback({ projectId: 'other-project', toolName: 'mcp__stitch_get_screen', reconciled: true }),
-    /reconcil/i,
-  );
+  await assert.rejects(() => policy.recordReadback({ projectId: 'other-project', toolName: 'mcp__stitch_get_screen', reconciled: true }), /reconcil/i);
   assert.equal(policy.state(), 'mutation_unknown');
-  policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', reconciled: true });
   assert.equal(policy.state(), 'reconciled');
 });
 

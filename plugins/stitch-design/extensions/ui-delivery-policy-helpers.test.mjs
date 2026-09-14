@@ -63,7 +63,7 @@ export function taskWithStitchGrant(input) {
 export function digest(value) {
   const canonical = (entry) => Array.isArray(entry) ? entry.map(canonical)
     : entry && typeof entry === 'object' ? Object.fromEntries(Object.keys(entry).sort().map((key) => [key, canonical(entry[key])])) : entry;
-  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant']
+  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization']
     .filter((key) => key in value).map((key) => [key, value[key]]));
   return `sha256:${createHash('sha256').update(JSON.stringify(canonical(projection))).digest('hex')}`;
 }

@@ -14,7 +14,7 @@ function nonEmptyStrings(value: unknown): value is string[] { return Array.isArr
 function relativePath(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.split(/[\\/]/).includes('..'); }
 
 export function authorizationDigest(task: DeliveryTask): string {
-  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant'].filter((key) => key in task).map((key) => [key, task[key]]));
+  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization'].filter((key) => key in task).map((key) => [key, task[key]]));
   return canonicalJsonHash(projection);
 }
 
@@ -32,6 +32,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if ((value.state === 'accepted' && value.outcome !== 'verified') || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome mismatch');
   if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/i.test(value.candidate_hash))) invalid('candidate binding required');
   if (['accepted', 'blocked', 'failed'].includes(value.state) && !nonEmptyStrings(value.evidence_refs)) invalid('terminal evidence required');
+  if (value.state === 'repairing' && (!value.repair_authorization || typeof value.repair_authorization !== 'object' || !Number.isInteger(value.repair_authorization.cycle) || value.repair_authorization.cycle !== value.repair_cycles || value.repair_authorization.cycle < 1 || typeof value.repair_authorization.nonce !== 'string' || !value.repair_authorization.nonce)) invalid('repairing requires renewed cycle-bound authorization');
   const ids = new Set<string>();
   for (const recipe of value.approved_check_recipes) {
     if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || ids.has(recipe.id) || !nonEmptyStrings(recipe.argv) || !relativePath(recipe.cwd) || !relativePath(recipe.result_path) || !nonEmptyStrings(recipe.write_paths) || !recipe.write_paths.every(relativePath) || !recipe.write_paths.includes(recipe.result_path) || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || !['sandbox-exec', 'docker'].includes(recipe.backend)) invalid('invalid check recipe');
@@ -80,7 +81,7 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
   if (mutation || operation) {
     if (operation === 'patch') {
       if (task.model_route !== '@ui_code') invalid('patch requires @ui_code model route');
-      if (task.state !== 'approved') invalid('patch requires approved lifecycle state');
+      if (task.state !== 'approved' && task.state !== 'repairing') invalid('patch requires approved or renewed repairing lifecycle state');
     } else if (operation === 'check') {
       if (task.model_route !== '@ui_code') invalid('check requires @ui_code model route');
       if (!['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(task.state)) invalid('check requires candidate lifecycle state');

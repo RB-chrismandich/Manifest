@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { mkdir, open, lstat, realpath } from 'node:fs/promises';
+import { mkdir, open, lstat, realpath, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 function canonical(value: unknown): string { if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`; if (value && typeof value === 'object') return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`; return JSON.stringify(value); }
@@ -26,4 +26,51 @@ export async function appendEvidence({ repo, evidenceFile, record }: { repo: str
   const handle = await open(target, constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   try { const stat = await handle.stat(); if (!stat.isFile() || stat.nlink !== 1) throw new Error('evidence file is unsafe'); await handle.write(`${JSON.stringify(record)}\n`); }
   finally { await handle.close(); }
+}
+
+export type StitchMutationState = {
+  authorizationDigest: string;
+  lifecycle: 'ready' | 'mutation_unknown' | 'reconciled';
+  used: boolean;
+  projectId?: string;
+  version: number;
+};
+
+async function stateFile(repo: string, taskId: string): Promise<string> {
+  if (!/^[A-Za-z0-9._-]+$/.test(taskId)) throw new Error('invalid Stitch state task id');
+  return join(await prepareEvidenceDirectory(repo), `${taskId}.stitch-state.json`);
+}
+
+export async function loadStitchMutationState({ repo, taskId, authorizationDigest }: { repo: string; taskId: string; authorizationDigest: string }): Promise<StitchMutationState | undefined> {
+  const target = await stateFile(repo, taskId);
+  try {
+    const stat = await lstat(target);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Stitch state file is unsafe');
+    const state = JSON.parse(await readFile(target, 'utf8')) as StitchMutationState;
+    if (state.authorizationDigest !== authorizationDigest || !['ready', 'mutation_unknown', 'reconciled'].includes(state.lifecycle) || typeof state.used !== 'boolean' || !Number.isInteger(state.version) || state.version < 0 || (state.projectId !== undefined && (typeof state.projectId !== 'string' || !state.projectId))) return undefined;
+    return state;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+export async function updateStitchMutationState({ repo, taskId, authorizationDigest, expectedVersion, state }: { repo: string; taskId: string; authorizationDigest: string; expectedVersion: number; state: Omit<StitchMutationState, 'authorizationDigest' | 'version'> }): Promise<StitchMutationState> {
+  const target = await stateFile(repo, taskId);
+  const lock = `${target}.lock`;
+  let handle;
+  try {
+    handle = await open(lock, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+    const current = await loadStitchMutationState({ repo, taskId, authorizationDigest });
+    const version = current?.version ?? 0;
+    if (version !== expectedVersion) throw new Error('Stitch mutation state changed concurrently');
+    const next: StitchMutationState = { authorizationDigest, lifecycle: state.lifecycle, used: state.used, ...(state.projectId ? { projectId: state.projectId } : {}), version: version + 1 };
+    const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`);
+    await writeFile(temporary, JSON.stringify(next), { mode: 0o600, flag: 'wx' });
+    await rename(temporary, target);
+    return next;
+  } finally {
+    await handle?.close();
+    await unlink(lock).catch(() => undefined);
+  }
 }
