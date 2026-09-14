@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "documentation",
+  "kind": "documentation",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Create README.md and commands.json from the supplied repository facts. Return both as JSON files.",
+  "artifacts": {
+    "pyproject.toml": "[project]\nname = 'minicli'\nrequires-python = '>=3.11'\n",
+    "help.txt": "usage: minicli [-h] {check,render}\n\npositional arguments:\n  {check,render}\n    check         validate input\n    render        render output\n"
+  },
+  "output_contract": {
+    "files": {"README.md": "string", "commands.json": "string"}
+  }
+}
