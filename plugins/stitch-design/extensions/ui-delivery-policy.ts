@@ -8,7 +8,7 @@ import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, readEvidence, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
 import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile } from '../runtime/ui-delivery/task.ts';
-import { createStitchPolicy, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
+import { createStitchPolicy, stitchObservation, stitchProjectIdFrom, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
 const result = (details: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
@@ -335,7 +335,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       assertActiveRuntimeQualification(task);
       if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
       const input = event.input;
-      const projectId = input && typeof input === 'object' && (typeof input.projectId === 'string' ? input.projectId : typeof input.project_id === 'string' ? input.project_id : undefined);
+      const projectId = stitchProjectIdFrom(input);
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
       await stitch.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
       return undefined;
@@ -348,16 +348,16 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
     assertActiveRuntimeQualification(task);
     if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
-    const details = event.details;
-    const projectId = details && typeof details === 'object' && (typeof details.projectId === 'string' ? details.projectId : typeof details.project_id === 'string' ? details.project_id : undefined);
+    const observation = stitchObservation(event.content, event.details);
+    const projectId = stitchProjectIdFrom(observation) ?? stitchProjectIdFrom(event.details) ?? stitchProjectIdFrom(event.input);
     if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
     if (stitch.policy.classify(event.toolName) === 'mutation') {
       if (event.isError) await stitch.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
-      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: details, succeeded: true });
+      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: observation, succeeded: true });
     }
     if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.hasCorrelatedReadback(event.toolCallId)) {
       if (!projectId) throw new Error('Stitch project binding is required');
-      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation: details });
+      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation });
     }
     return undefined;
   });

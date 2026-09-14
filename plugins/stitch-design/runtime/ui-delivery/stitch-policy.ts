@@ -29,6 +29,42 @@ const COLLECTION_READBACK_TOOLS: Record<string, true> = {
   mcp__stitch_list_screens: true,
   mcp__stitch_list_design_systems: true,
 };
+const MAX_STITCH_OBSERVATION_BYTES = 1_048_576;
+const recordFrom = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+const canonicalProjectId = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || !value) return undefined;
+  const resource = /^projects\/([^/]+)(?:\/.*)?$/.exec(value);
+  return resource?.[1] ?? (!value.includes('/') ? value : undefined);
+};
+export function stitchProjectIdFrom(value: unknown): string | undefined {
+  const record = recordFrom(value);
+  if (!record) return undefined;
+  for (const candidate of [record, recordFrom(record.project), recordFrom(record.structuredContent)]) {
+    if (!candidate) continue;
+    for (const key of ['projectId', 'project_id']) {
+      const projectId = canonicalProjectId(candidate[key]);
+      if (projectId) return projectId;
+    }
+    const projectId = canonicalProjectId(candidate.name);
+    if (projectId) return projectId;
+  }
+  return undefined;
+}
+export function stitchObservation(content: unknown, details: unknown): unknown {
+  const structured = recordFrom(details)?.structuredContent;
+  if (recordFrom(structured)) return structured;
+  if (Array.isArray(content) && content.length === 1) {
+    const chunk = recordFrom(content[0]);
+    if (chunk?.type === 'text' && typeof chunk.text === 'string' && Buffer.byteLength(chunk.text, 'utf8') <= MAX_STITCH_OBSERVATION_BYTES) {
+      try {
+        const parsed = JSON.parse(chunk.text);
+        if (recordFrom(parsed)) return parsed;
+      } catch {}
+    }
+  }
+  return details;
+}
 function kindFor(tool: StitchRegistryTool): StitchToolKind | undefined {
   if (!tool.name.startsWith('mcp__stitch_') || tool.sourceInfo?.source !== 'mcp' || !String(tool.sourceInfo?.path ?? '').includes('stitch') || !(tool.parameters ?? tool.inputSchema)) return undefined;
   if (READ_TOOLS[tool.name]) return 'read';
@@ -82,7 +118,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
   };
   const unresolvedEntry = (): string | undefined => [...entries].find(([, lifecycle]) => lifecycle !== 'reconciled')?.[0];
   const canonicalHash = (value: unknown): value is string => typeof value === 'string' && /^sha256:[a-f0-9]{64}$/.test(value);
-  const projectIdFrom = (value: unknown): string | undefined => identityFrom(value, 'project')?.value;
+  const projectIdFrom = stitchProjectIdFrom;
   const identityKeys: Record<StitchIdentityKind, readonly string[]> = {
     project: ['projectId', 'project_id'],
     screen: ['screenId', 'screen_id'],
@@ -93,14 +129,18 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     screen: ['screen'],
     design_system: ['designSystem', 'design_system'],
   };
-  const recordFrom = (value: unknown): Record<string, unknown> | undefined =>
-    value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  const resourceNamePatterns: Record<StitchIdentityKind, RegExp> = {
+    project: /^projects\/[^/]+$/,
+    screen: /^projects\/[^/]+\/screens\/[^/]+$/,
+    design_system: /^projects\/[^/]+\/designSystems\/[^/]+$/,
+  };
   const identityFrom = (value: unknown, kind: StitchIdentityKind): StitchIdentity | undefined => {
     const record = recordFrom(value);
     if (!record) return undefined;
     for (const candidate of [record, ...identityContainers[kind].map((key) => recordFrom(record[key]))]) {
       if (!candidate) continue;
       for (const key of identityKeys[kind]) if (typeof candidate[key] === 'string' && candidate[key]) return { kind, value: candidate[key] };
+      if (typeof candidate.name === 'string' && resourceNamePatterns[kind].test(candidate.name)) return { kind, value: candidate.name };
     }
     return undefined;
   };

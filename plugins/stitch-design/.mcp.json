@@ -4,7 +4,10 @@
     "stitch": {
       "type": "http",
       "url": "https://stitch.googleapis.com/mcp",
-      "enabled": true
+      "enabled": true,
+      "headers": {
+        "X-Goog-Api-Key": "${STITCH_API_KEY}"
+      }
     }
   }
 }

@@ -120,6 +120,7 @@ def test_stitch_omp_mcp_definition_is_safe_and_streamable_http(
                 "type": "http",
                 "url": "https://stitch.googleapis.com/mcp",
                 "enabled": True,
+                "headers": {"X-Goog-Api-Key": "${STITCH_API_KEY}"},
             }
         },
     }
