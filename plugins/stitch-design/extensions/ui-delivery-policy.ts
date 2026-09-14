@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { lstat, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { lstat, readFile, rename, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
-import { authorizationDigest, candidateHash, loadTask, patchJournalPath, resolveTaskFile, type DeliveryTask } from '../runtime/ui-delivery/task.ts';
+import { authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
 import { createStitchPolicy, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
@@ -126,13 +126,6 @@ async function verifiedStatus(repo: string, task: any): Promise<boolean> {
 async function resultSnapshot(path: string): Promise<{ mtimeNs: bigint; size: number } | undefined> { try { const stat = await lstat(path, { bigint: true }); return { mtimeNs: stat.mtimeNs, size: Number(stat.size) }; } catch { return undefined; } }
 async function freshResult(path: string, before: { mtimeNs: bigint; size: number } | undefined): Promise<void> { const stat = await lstat(path, { bigint: true }); if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1n || (before && before.mtimeNs === stat.mtimeNs && before.size === Number(stat.size))) throw new Error('stale check result'); if (!exactResult(JSON.parse(await readFile(path, 'utf8')))) throw new Error('check result is unverified'); }
 async function updateTask(repo: string, taskFile: string, task: Record<string, unknown>, signal: AbortSignal): Promise<void> { if (signal.aborted) throw new Error('patch aborted'); const target = await resolveTaskFile({ repo, taskFile }); const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`); await writeFile(temporary, JSON.stringify(task), { mode: 0o600, flag: 'wx' }); if (signal.aborted) { await writeFile(temporary, ''); throw new Error('patch aborted'); } await rename(temporary, target); }
-async function writePatchJournal(repo: string, task: DeliveryTask, taskFile: string, patch: string): Promise<string> {
-  const journal = patchJournalPath(repo, task.task_id);
-  const temporary = `${journal}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temporary, JSON.stringify({ taskId: task.task_id, taskFile, patchHash: `sha256:${createHash('sha256').update(patch).digest('hex')}`, state: 'pending' }), { mode: 0o600, flag: 'wx' });
-  await rename(temporary, journal);
-  return journal;
-}
 function evidenceRecord(task: any, attemptId: string, attemptPhase: 'started' | 'completed', operation: string, selector: Record<string, string>, outcome: string, artifacts: unknown[], elapsedMs: number, checked?: any): Record<string, unknown> { return { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, authorizationDigest: authorizationDigest(task), attemptId, attemptPhase, operation, ...selector, outcome, elapsedMs, artifacts, stdoutHash: checked?.stdout?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', stderrHash: checked?.stderr?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' }; }
 async function appendAttempt(repo: string, task: any, record: Record<string, unknown>): Promise<void> { await appendEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record }); }
 
@@ -170,7 +163,80 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const verified = await verifiedStatus(ctx.cwd, task);
     return result({ extension: STATUS.extension, taskId: task.task_id, state: task.state, outcome: verified ? task.outcome : 'evidence_unverified', verified, authorizationDigest: digest, approved: approved && verified || approved && task.outcome === 'unverified' });
   } });
-  pi.registerTool({ name: 'ui_apply_patch', label: 'Apply approved UI patch', description: 'Apply an authorized non-destructive unified diff.', parameters: pi.zod.object({ taskFile: pi.zod.string(), patch: pi.zod.string() }).strict(), approval: 'write', strict: true, async execute(_id, params, signal, _onUpdate, ctx) { const args = params as { taskFile: string; patch: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'patch' }); const started = performance.now(); await prepareEvidenceDirectory(ctx.cwd); const changedFiles = diffTargets(args.patch); for (const target of changedFiles) await authorizePath({ repo: ctx.cwd, task, path: target }); const journal = await writePatchJournal(ctx.cwd, task, args.taskFile, args.patch); let applied = false; try { await gitApply(ctx.cwd, args.patch, signal); applied = true; const hash = await candidateHash({ repo: ctx.cwd, task }); const updated = { ...task, state: 'candidate_ready', candidate_revision: `git:${hash.slice(7, 19)}`, candidate_hash: hash, outcome: 'unverified' }; await updateTask(ctx.cwd, args.taskFile, updated, signal); const evidenceFile = join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`); await appendEvidence({ repo: ctx.cwd, evidenceFile, record: { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: updated.candidate_revision, candidateHash: hash, modelRoute: task.model_route, operation: 'ui_apply_patch', outcome: 'mutation_unknown', elapsedMs: Math.max(0, Math.round(performance.now() - started)), artifacts: [], stdoutHash: `sha256:${createHash('sha256').update(args.patch).digest('hex')}`, stderrHash: `sha256:${createHash('sha256').update('').digest('hex')}` } }); await unlink(journal); return result({ taskId: task.task_id, operation: 'ui_apply_patch', state: updated.state, candidateRevision: updated.candidate_revision, candidateHash: hash, authorizationDigest: authorizationDigest(updated), evidenceRef: `artifact://${task.task_id}/evidence.jsonl`, changedFiles }); } catch (error) { if (applied) { try { await gitApply(ctx.cwd, args.patch, new AbortController().signal, true); await updateTask(ctx.cwd, args.taskFile, task, new AbortController().signal); await unlink(journal); } catch {} } throw error; } } });
+  pi.registerTool({
+    name: 'ui_apply_patch',
+    label: 'Apply approved UI patch',
+    description: 'Apply an authorized non-destructive unified diff.',
+    parameters: pi.zod.object({ taskFile: pi.zod.string(), patch: pi.zod.string() }).strict(),
+    approval: 'write',
+    strict: true,
+    async execute(_id, params, signal, _onUpdate, ctx) {
+      const args = params as { taskFile: string; patch: string };
+      const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'patch' });
+      const started = performance.now();
+      await prepareEvidenceDirectory(ctx.cwd);
+      const changedFiles = diffTargets(args.patch);
+      for (const target of changedFiles) await authorizePath({ repo: ctx.cwd, task, path: target });
+      await beginPatchJournal({
+        repo: ctx.cwd,
+        taskId: task.task_id,
+        taskFile: args.taskFile,
+        patchHash: `sha256:${createHash('sha256').update(args.patch).digest('hex')}`,
+      });
+      let applied = false;
+      try {
+        await gitApply(ctx.cwd, args.patch, signal);
+        applied = true;
+        const hash = await candidateHash({ repo: ctx.cwd, task });
+        const updated = {
+          ...task,
+          state: 'candidate_ready',
+          candidate_revision: `git:${hash.slice(7, 19)}`,
+          candidate_hash: hash,
+          outcome: 'unverified',
+        };
+        await updateTask(ctx.cwd, args.taskFile, updated, signal);
+        const evidenceFile = join(ctx.cwd, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`);
+        await appendEvidence({
+          repo: ctx.cwd,
+          evidenceFile,
+          record: {
+            taskId: task.task_id,
+            approvedDesignHash: task.design_revision,
+            candidateRevision: updated.candidate_revision,
+            candidateHash: hash,
+            modelRoute: task.model_route,
+            operation: 'ui_apply_patch',
+            outcome: 'mutation_unknown',
+            elapsedMs: Math.max(0, Math.round(performance.now() - started)),
+            artifacts: [],
+            stdoutHash: `sha256:${createHash('sha256').update(args.patch).digest('hex')}`,
+            stderrHash: `sha256:${createHash('sha256').update('').digest('hex')}`,
+          },
+        });
+        await releasePatchJournal(ctx.cwd);
+        return result({
+          taskId: task.task_id,
+          operation: 'ui_apply_patch',
+          state: updated.state,
+          candidateRevision: updated.candidate_revision,
+          candidateHash: hash,
+          authorizationDigest: authorizationDigest(updated),
+          evidenceRef: `artifact://${task.task_id}/evidence.jsonl`,
+          changedFiles,
+        });
+      } catch (error) {
+        if (applied) {
+          try {
+            await gitApply(ctx.cwd, args.patch, new AbortController().signal, true);
+            await updateTask(ctx.cwd, args.taskFile, task, new AbortController().signal);
+            await releasePatchJournal(ctx.cwd);
+          } catch {}
+        }
+        throw error;
+      }
+    },
+  });
   pi.registerTool({ name: 'ui_run_check', label: 'Run approved UI check', description: 'Run a named approved check in an OS sandbox.', parameters: pi.zod.object({ taskFile: pi.zod.string(), checkId: pi.zod.string() }).strict(), approval: 'exec', strict: true, async execute(_id, params, signal, _onUpdate, ctx) {
     const args = params as { taskFile: string; checkId: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'check' }); const started = performance.now();
     if (!task.candidate_revision || !task.candidate_hash || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate hash does not match current worktree');

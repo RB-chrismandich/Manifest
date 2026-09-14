@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { lstat, readdir, readFile, realpath } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { lstat, readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { canonicalJsonHash } from './evidence.ts';
 
@@ -53,7 +54,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
 }
 
 function excludedCandidatePath(path: string, task: DeliveryTask): boolean {
-  if (path === '.git' || path.startsWith('.git/') || path === '.omp/ui-delivery' || path.startsWith('.omp/ui-delivery/')) return true;
+  if (path === '.git' || path.startsWith('.git/') || path === '.omp' || path.startsWith('.omp/')) return true;
   const outputs = task.approved_check_recipes.flatMap((recipe: { write_paths?: unknown }) => Array.isArray(recipe.write_paths) ? recipe.write_paths : []);
   return outputs.some((output: string) => path === output || path.startsWith(`${output}/`));
 }
@@ -65,21 +66,36 @@ async function walk(root: string, current: string, task: DeliveryTask, files: st
   if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), task, files); return; }
   if (stat.isFile()) files.push(current);
 }
-export function patchJournalPath(repo: string, taskId: string): string { return join(repo, '.omp', 'ui-delivery', 'evidence', `${taskId}.patch-pending.json`); }
-async function assertNoPendingPatchJournal(repo: string, taskId: string): Promise<void> {
+export function patchJournalPath(repo: string): string { return join(repo, '.omp', 'ui-delivery', 'evidence', 'repository.patch-pending.json'); }
+async function assertNoPendingPatchJournal(repo: string): Promise<void> {
   try {
-    const stat = await lstat(patchJournalPath(repo, taskId));
+    const stat = await lstat(patchJournalPath(repo));
     if (!stat.isFile() || stat.isSymbolicLink()) invalid('patch recovery state is invalid');
     invalid('patch recovery is pending');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
 }
+
+export async function beginPatchJournal({ repo, taskId, taskFile, patchHash }: { repo: string; taskId: string; taskFile: string; patchHash: string }): Promise<string> {
+  const journal = patchJournalPath(repo);
+  await writeFile(journal, JSON.stringify({ taskId, taskFile, patchHash, state: 'pending' }), { mode: 0o600, flag: 'wx' });
+  return journal;
+}
+
+export async function releasePatchJournal(repo: string): Promise<void> {
+  await unlink(patchJournalPath(repo));
+}
 export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
   const root = await realpath(repo); const files: string[] = [];
   await walk(root, root, task, files);
   files.sort(); const hash = createHash('sha256');
-  for (const path of files) { const relativePath = relative(root, path); const bytes = await readFile(path); hash.update(Buffer.from(`${relativePath}\0${bytes.length}\0`)); hash.update(bytes); }
+  for (const path of files) {
+    const candidatePath = relative(root, path);
+    const stat = await lstat(path);
+    hash.update(Buffer.from(`${candidatePath}\0${stat.size}\0`));
+    for await (const chunk of createReadStream(path)) hash.update(chunk);
+  }
   return `sha256:${hash.digest('hex')}`;
 }
 
@@ -94,7 +110,7 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
   const actual = await resolveTaskFile({ repo, taskFile });
   let task: unknown; try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);
-  await assertNoPendingPatchJournal(await realpath(repo), task.task_id);
+  await assertNoPendingPatchJournal(await realpath(repo));
   if (mutation || operation) {
     if (operation === 'patch') {
       if (task.model_route !== '@ui_code') invalid('patch requires @ui_code model route');

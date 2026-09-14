@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { candidateHash, loadTask } from './task.ts';
+import { beginPatchJournal, candidateHash, loadTask, releasePatchJournal } from './task.ts';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -243,4 +243,48 @@ test('rejects malformed recipes and empty capture evidence before an operation s
     const { repo, path } = await taskFile(override);
     await assert.rejects(() => loadTask({ repo, taskFile: path }));
   }
+});
+
+test('rejects whitespace-bearing capture artifact paths using the runtime path contract', async () => {
+  const definition = approvedTask({
+    capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page capture.png', type: 'screenshot' }] }],
+  });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /capture artifact|path/i);
+});
+
+test('excludes the entire protected .omp namespace from stable candidate hashes', async () => {
+  const definition = approvedTask({ allowed_paths: ['.'] });
+  const { repo } = await taskFile(definition);
+  const before = await candidateHash({ repo, task: definition });
+  await mkdir(join(repo, '.omp/unrelated'), { recursive: true });
+  await writeFile(join(repo, '.omp/unrelated/verifier.mjs'), 'host-owned verifier mutation');
+  assert.equal(await candidateHash({ repo, task: definition }), before);
+});
+
+test('streams large candidate files into a deterministic framed hash', async () => {
+  const definition = approvedTask();
+  const { repo } = await taskFile(definition);
+  const source = Buffer.alloc(16 * 1024 * 1024, 0x5a);
+  await writeFile(join(repo, 'src/large.bin'), source);
+  const expected = createHash('sha256')
+    .update(`src/Card.tsx\0${Buffer.byteLength('export const Card = 1;\n')}\0`)
+    .update('export const Card = 1;\n')
+    .update(`src/large.bin\0${source.length}\0`)
+    .update(source)
+    .digest('hex');
+  assert.equal(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
+  assert.equal(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
+});
+
+test('admits only one task ID to the repository patch transaction', async () => {
+  const { repo } = await taskFile({});
+  await mkdir(join(repo, '.omp/ui-delivery/evidence'), { recursive: true });
+  const attempts = await Promise.allSettled([
+    beginPatchJournal({ repo, taskId: 'task-17', taskFile: '.omp/ui-delivery/tasks/task-17.json', patchHash: 'sha256:first' }),
+    beginPatchJournal({ repo, taskId: 'task-18', taskFile: '.omp/ui-delivery/tasks/task-18.json', patchHash: 'sha256:second' }),
+  ]);
+  assert.equal(attempts.filter((attempt) => attempt.status === 'fulfilled').length, 1);
+  assert.equal(attempts.filter((attempt) => attempt.status === 'rejected').length, 1);
+  await releasePatchJournal(repo);
 });

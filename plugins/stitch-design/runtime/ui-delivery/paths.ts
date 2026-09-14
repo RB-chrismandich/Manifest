@@ -1,7 +1,7 @@
 import { lstat, realpath } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 
-const PROTECTED = ['.git', '.omp/ui-delivery/tasks', '.omp/ui-delivery/evidence', 'secrets'];
+const PROTECTED = ['.git', '.omp', 'secrets'];
 function isBelow(root: string, candidate: string): boolean { const rel = relative(root, candidate); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..'); }
 function blocked(rel: string, entries: string[]): boolean { return entries.some((entry) => rel === entry || rel.startsWith(`${entry}${sep}`) || entry.startsWith(`${rel}${sep}`)); }
 async function existingAncestor(path: string): Promise<string> { let current = path; while (true) { try { await lstat(current); return current; } catch { const parent = dirname(current); if (parent === current) throw new Error('no existing ancestor'); current = parent; } } }

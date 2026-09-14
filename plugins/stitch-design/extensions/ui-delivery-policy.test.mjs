@@ -60,6 +60,16 @@ test('rejects Git-quoted paths with spaces before patch mutation', async () => {
   }, repo), /unsafe|unparseable|path/i));
 });
 
+test('rejects .omp verifier mutations even when a broad allowed path grants the repository root', async () => {
+  const definition = task({ allowed_paths: ['.'] });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/.omp/ui-delivery/verifiers/unit.mjs b/.omp/ui-delivery/verifiers/unit.mjs\n--- a/.omp/ui-delivery/verifiers/unit.mjs\n+++ b/.omp/ui-delivery/verifiers/unit.mjs\n@@ -1 +1 @@\n-x\n+y\n',
+  }, repo), /protected|path/i));
+});
+
 test('applies a same-path regular diff with standard index metadata', async () => {
   const definition = task();
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
@@ -176,7 +186,7 @@ test('fails closed on a durable pending patch journal', async () => {
   const definition = task();
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition);
-  await writeFile(join(repo, '.omp/ui-delivery/evidence/task-17.patch-pending.json'), '{"state":"pending"}');
+  await writeFile(join(repo, '.omp/ui-delivery/evidence/repository.patch-pending.json'), '{"state":"pending"}');
   await withApproval(definition, async () => {
     for (const toolName of ['ui_delivery_status', 'ui_apply_patch']) {
       const args = toolName === 'ui_delivery_status'
@@ -186,6 +196,19 @@ test('fails closed on a durable pending patch journal', async () => {
     }
   });
   assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 1;\n');
+});
+
+test('blocks a second task when another task leaves repository patch recovery uncertain', async () => {
+  const first = task();
+  const second = task({ task_id: 'task-18' });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(first);
+  await writeFile(join(repo, '.omp/ui-delivery/tasks/task-18.json'), JSON.stringify(second));
+  await writeFile(join(repo, '.omp/ui-delivery/evidence/repository.patch-pending.json'), JSON.stringify({ taskId: first.task_id, state: 'pending' }));
+  await withApproval(second, () => assert.rejects(
+    () => execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task-18.json' }, repo),
+    /recovery|pending/i,
+  ));
 });
 
 test('patch atomically binds the candidate, preserves authorization, records evidence, and enables its check', async () => {

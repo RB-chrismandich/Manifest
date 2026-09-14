@@ -181,6 +181,20 @@ def test_task_schema_rejects_unsafe_ids_and_whitespace_paths(repo_root: Path) ->
         validator,
         _with_check_recipe(task, write_paths=["artifacts/check result.json"]),
     )
+    assert_invalid(
+        validator,
+        {
+            **task,
+            "capture_recipes": [
+                {
+                    **task["capture_recipes"][0],
+                    "artifacts": [
+                        {"path": "artifacts/checkout capture.png", "type": "image"}
+                    ],
+                }
+            ],
+        },
+    )
 
 
 def test_task_schema_requires_complete_hardened_check_recipes(repo_root: Path) -> None:
@@ -307,6 +321,7 @@ def test_agent_output_schemas_are_strict_and_match_the_review_contract(
         assert_no_response_format_conditionals(document)
     assert set(reviewer_output["properties"]) == set(review_schema["properties"])
     assert set(reviewer_output["required"]) == set(review_schema["required"])
+    assert reviewer_output["oneOf"] == review_schema["oneOf"]
     assert "outcome" not in reviewer_output["properties"]
     assert "outcome" not in review_schema["properties"]
     for field in ("findings", "reviewer_model_route", "verdict", "repair_cycles"):
@@ -338,12 +353,29 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
         "candidate_hash": "sha256:8d5f2e",
         "reviewer_model_route": "@ui_review",
         "verdict": "accepted",
-        "findings": ["No blocking findings."],
+        "findings": [],
         "repair_cycles": 2,
         "evidence_refs": ["artifact://ui-delivery-17/capture.png"],
     }
 
     assert_valid(validator, review)
+    assert_invalid(validator, {**review, "findings": ["Incorrect spacing."]})
+    assert_valid(
+        validator,
+        {**review, "verdict": "repair_required", "findings": ["Incorrect spacing."]},
+    )
+    assert_invalid(
+        validator,
+        {**review, "verdict": "repair_required", "findings": []},
+    )
+    assert_invalid(
+        validator,
+        {**review, "verdict": "blocked", "findings": []},
+    )
+    assert_invalid(
+        validator,
+        {**review, "verdict": "failed", "findings": []},
+    )
     assert_invalid(
         validator,
         {key: value for key, value in review.items() if key != "candidate_revision"},
