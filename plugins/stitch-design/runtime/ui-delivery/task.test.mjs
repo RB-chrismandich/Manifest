@@ -360,6 +360,12 @@ test('rejects grants whose readback is ungranted, projectless, or noncanonical',
     { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: `sha256:${'a'.repeat(64)}` } }] },
     { ...baseGrant, readback_tools: ['mcp__stitch_list_projects'] },
     { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], input_hash: `sha256:${'C'.repeat(64)}` }] },
+    { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'A'.repeat(64)}` } }] },
+    {
+      expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { projectTitle: 'Checkout' } } }],
+      readback_tools: ['mcp__stitch_get_project'],
+    },
   ]) {
     const { repo, path } = await taskFile({ stitch_grant });
     await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*grant|readback/i);

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -38,6 +38,7 @@ async function fixture() {
   await mkdir(join(repo, 'policy'), { recursive: true });
   await mkdir(join(repo, '.omp/ui-delivery/verifiers'), { recursive: true });
   await writeFile(join(repo, verifier.path), 'trusted verifier\n');
+  await writeFile(join(repo, '.omp/ui-delivery/verifiers/sibling.mjs'), 'untrusted sibling\n');
   await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 1;\n');
   await writeFile(join(repo, '.ui-results/unit.json'), '{"prior":true}\n');
   return repo;
@@ -76,8 +77,7 @@ test('uses Docker lifecycle cleanup for ordinary nonzero check results', async (
   assert.equal(result.exitCode, 1);
   assert.ok(calls[0].argv.includes('--rm'));
 });
-
-test('passes fixed Docker workload argv through without resolving its container executable on the host', async () => {
+test('rewrites the verified Docker verifier argument without resolving its container executable on the host', async () => {
   const repo = await fixture();
   const calls = [];
   const containerArgv = ['ui-check-in-container', `/repo/${verifier.path}`];
@@ -88,7 +88,25 @@ test('passes fixed Docker workload argv through without resolving its container 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executable, 'docker');
   assert.deepEqual(calls[0].recipeArgv, containerArgv);
-  assert.deepEqual(calls[0].argv.slice(-containerArgv.length), containerArgv);
+  assert.deepEqual(calls[0].argv.slice(-containerArgv.length), ['ui-check-in-container', '/trusted-verifier']);
+});
+
+test('mounts only the digest-verified verifier file and rewrites its Docker argv', async () => {
+  const repo = await fixture();
+  const calls = [];
+  await runCheck({
+    repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),
+  });
+  const [command] = calls;
+  const verifierMount = command.mounts.find((mount) => mount.target === '/trusted-verifier');
+  assert.deepEqual(command.recipeArgv, recipe.argv);
+  assert.equal(command.argv.at(-1), '/trusted-verifier');
+  assert.deepEqual(verifierMount, {
+    source: await realpath(join(repo, verifier.path)), target: '/trusted-verifier', readOnly: true,
+  });
+  assert.equal(command.mounts.some((mount) => mount.source === join(repo, '.omp/ui-delivery/verifiers')), false);
+  assert.equal(command.mounts.some((mount) => mount.target === `/repo/.omp/ui-delivery/verifiers`), false);
 });
 
 test('keeps comma-bearing declared outputs out of Docker mount options', async () => {

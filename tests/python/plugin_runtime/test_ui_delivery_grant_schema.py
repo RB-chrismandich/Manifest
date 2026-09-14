@@ -158,6 +158,28 @@ def test_grant_schema_requires_canonical_hashes_and_tools(repo_root: Path) -> No
                 },
             },
         )
+    for noncanonical_response_hash in (
+        "SHA256:" + "a" * 64,
+        "sha256:" + "A" * 64,
+    ):
+        assert_invalid(
+            validator,
+            {
+                **task,
+                "stitch_grant": {
+                    **grant,
+                    "mutations": [
+                        {
+                            **mutation,
+                            "expected_readback": {
+                                **mutation["expected_readback"],
+                                "response_hash": noncanonical_response_hash,
+                            },
+                        }
+                    ],
+                },
+            },
+        )
     assert_invalid(
         validator,
         {
@@ -224,6 +246,24 @@ def test_grant_schema_allows_create_readback_without_response_hash(
                         "expected_readback": {
                             "tool_name": "mcp__stitch_get_project",
                             "response_hash": "sha256:" + "a" * 64,
+                        },
+                    }
+                ],
+            },
+        },
+    )
+    assert_invalid(
+        validator,
+        {
+            **task,
+            "stitch_grant": {
+                **create_grant,
+                "mutations": [
+                    {
+                        **create_grant["mutations"][0],
+                        "expected_readback": {
+                            "tool_name": "mcp__stitch_get_project",
+                            "predictable_fields": {"projectTitle": "Checkout"},
                         },
                     }
                 ],

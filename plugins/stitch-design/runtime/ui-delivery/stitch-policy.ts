@@ -75,7 +75,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     const record = value as Record<string, unknown>;
     return typeof record.projectId === 'string' ? record.projectId : typeof record.project_id === 'string' ? record.project_id : undefined;
   };
-  const validPredictableFields = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0 && Object.keys(value).every((field) => field !== 'projectId' && field !== 'project_id');
+  const validPredictableFields = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0 && Object.keys(value).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field));
   const validExpectedReadback = (mutation: NonNullable<StitchGrant['mutations']>[number]): boolean => {
     const expected = mutation.expected_readback;
     if (!READBACK_TOOLS[expected.tool_name] || !grant?.readback_tools?.includes(expected.tool_name)) return false;

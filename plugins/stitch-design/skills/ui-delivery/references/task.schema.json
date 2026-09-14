@@ -293,11 +293,11 @@
                 "required": ["tool_name"],
                 "properties": {
                   "tool_name": {"enum": ["mcp__stitch_get_screen", "mcp__stitch_list_screens", "mcp__stitch_get_project", "mcp__stitch_list_design_systems"]},
-                  "response_hash": {"type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$"},
+                  "response_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
                   "predictable_fields": {
                     "type": "object",
                     "minProperties": 1,
-                    "propertyNames": {"pattern": "^(?!project_?id$).+$"}
+                    "propertyNames": {"pattern": "^(?!project_id$)[a-z][a-z0-9_]*$"}
                   }
                 }
               }
