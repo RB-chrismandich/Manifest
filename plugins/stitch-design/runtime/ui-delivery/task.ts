@@ -53,7 +53,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
 }
 
 function excludedCandidatePath(path: string, task: DeliveryTask): boolean {
-  if (path === '.omp/ui-delivery' || path.startsWith('.omp/ui-delivery/')) return true;
+  if (path === '.git' || path.startsWith('.git/') || path === '.omp/ui-delivery' || path.startsWith('.omp/ui-delivery/')) return true;
   const outputs = task.approved_check_recipes.flatMap((recipe: { write_paths?: unknown }) => Array.isArray(recipe.write_paths) ? recipe.write_paths : []);
   return outputs.some((output: string) => path === output || path.startsWith(`${output}/`));
 }
