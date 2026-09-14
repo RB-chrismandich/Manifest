@@ -48,7 +48,8 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   const canonicalRepo = await realpath(repo);
   assert.equal(calls[0].cwd, canonicalRepo);
   assert.equal(calls[0].env.TOKEN, undefined);
-  assert.equal(calls[0].env.HOME, undefined);
+  assert.notEqual(calls[0].env.HOME, '/ambient');
+  assert.equal(calls[0].env.HOME, calls[0].env.TMPDIR);
   assert.ok(calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, '.ui-results/unit.json') && !mount.readOnly));
   assert.ok(!calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, 'src/Card.tsx') && !mount.readOnly));
   assert.deepEqual(result.argv, recipe.argv);
