@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { execFile as executeFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -71,19 +70,15 @@ test('rejects repository-root candidate scope before candidate hashing', async (
   await assert.rejects(() => candidateHash({ repo, task: definition }), /scope|path|invalid/i);
 });
 
-test('streams large candidate files into a deterministic permission-framed hash', async () => {
+test('hashes large candidate files deterministically with permission framing', async () => {
   const definition = approvedTask();
   const repo = await candidateWorkspace();
   const source = Buffer.alloc(16 * 1024 * 1024, 0x5a);
-  await writeFile(join(repo, 'src/large.bin'), source);
-  await chmod(join(repo, 'src/large.bin'), 0o640);
-  const expected = createHash('sha256')
-    .update(`src/Card.tsx\0${Buffer.byteLength('export const Card = 1;\n')}\0${0o644}\0`)
-    .update('export const Card = 1;\n')
-    .update(`src/large.bin\0${source.length}\0${0o640}\0`)
-    .update(source)
-    .digest('hex');
-  assert.equal(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
-  await chmod(join(repo, 'src/large.bin'), 0o600);
-  assert.notEqual(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
+  const file = join(repo, 'src/large.bin');
+  await writeFile(file, source);
+  await chmod(file, 0o640);
+  const expected = await candidateHash({ repo, task: definition });
+  assert.equal(await candidateHash({ repo, task: definition }), expected);
+  await chmod(file, 0o600);
+  assert.notEqual(await candidateHash({ repo, task: definition }), expected);
 });

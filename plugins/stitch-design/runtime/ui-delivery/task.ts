@@ -141,8 +141,12 @@ export async function candidateHash({ repo, task }: { repo: string; task: Delive
   for (const { path, directory } of entries) {
     const candidatePath = relative(root, path);
     const stat = await lstat(path);
-    hash.update(Buffer.from(`${directory ? 'directory' : 'file'}\0${candidatePath}\0${stat.size}\0${stat.mode & 0o777}\0`));
-    if (!directory) for await (const chunk of createReadStream(path)) hash.update(chunk);
+    if (directory) {
+      hash.update(Buffer.from(`directory\0${candidatePath}\0${stat.mode & 0o777}\0`));
+      continue;
+    }
+    hash.update(Buffer.from(`file\0${candidatePath}\0${stat.size}\0${stat.mode & 0o777}\0`));
+    for await (const chunk of createReadStream(path)) hash.update(chunk);
   }
   return `sha256:${hash.digest('hex')}`;
 }
