@@ -59,7 +59,7 @@ for (const definition of cases) {
     state: 'approved',
     design_revision: `approved-${definition.id}-v1`,
     allowed_paths: ['site'],
-    forbidden_policy_paths: ['.omp', '.ui-results', 'contracts', 'tools'],
+    forbidden_policy_paths: ['.omp'],
     approved_check_recipes: [
       {
         id: 'design-contract',
