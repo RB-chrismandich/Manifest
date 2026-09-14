@@ -65,12 +65,17 @@ def _assert_invalid(validator: Draft202012Validator, instance: dict[str, Any]) -
 def _assert_no_response_format_conditionals(schema: Any) -> None:
     if isinstance(schema, dict):
         assert not {"allOf", "if", "then"} & schema.keys()
+        properties = schema.get("properties")
+        if properties is not None:
+            assert isinstance(properties, dict)
+            for property_name, property_schema in properties.items():
+                assert isinstance(property_schema, dict), property_name
+                assert "type" in property_schema, property_name
         for value in schema.values():
             _assert_no_response_format_conditionals(value)
     elif isinstance(schema, list):
         for value in schema:
             _assert_no_response_format_conditionals(value)
-
 
 
 def test_lifecycle_skills_are_portable_agent_skills_with_namespaced_handoffs(
