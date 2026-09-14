@@ -96,13 +96,15 @@ fi
 # Empty inventory is reported, never silently treated as "nothing to reclaim":
 # a lockfile that exists but lists no files is the signal that reclamation
 # CANNOT be verified, which is a different situation from a clean one.
-reclaim_list=""
+reclaim_list=()
 if [[ -f "$LOCKFILE" ]]; then
     # Harvest EVERY entry deliberately: filtering by domain HERE would hide a
     # corrupted path from the escape check below, and silently not reclaiming a
     # suspicious entry is worse than loudly refusing it. The domain filter is
     # applied in the reclaim loop instead, AFTER that check (T5.2, spec 674).
-    reclaim_list="$(awk '
+    while IFS= read -r rel; do
+        reclaim_list+=("$rel")
+    done < <(awk '
         /^[[:space:]]*deployed_files:[[:space:]]*$/ { inlist = 1; next }
         inlist && /^[[:space:]]*-[[:space:]]*/ {
             item = $0
@@ -111,7 +113,7 @@ if [[ -f "$LOCKFILE" ]]; then
             next
         }
         inlist { inlist = 0 }
-    ' "$LOCKFILE" || true)"
+    ' "$LOCKFILE" || true)
 fi
 
 echo "Domain:   $DOMAIN"
@@ -119,7 +121,7 @@ echo "Registry: $REGISTRY"
 echo "Lockfile: $LOCKFILE"
 echo ""
 
-if [[ -z "$reclaim_list" ]]; then
+if [[ ${#reclaim_list[@]} -eq 0 ]]; then
     echo "APM-deployed files to reclaim: NONE FOUND"
     echo "  Either APM never deployed this domain, or the lockfile carries no"
     echo "  deployed-file inventory. If APM did deploy it, un-gating without"
@@ -127,7 +129,7 @@ if [[ -z "$reclaim_list" ]]; then
     echo "  before trusting this as clean."
 else
     echo "APM-deployed files to reclaim:"
-    printf '  %s\n' $reclaim_list
+    printf '  %s\n' "${reclaim_list[@]}"
 fi
 echo ""
 
@@ -149,7 +151,7 @@ echo "Un-gated: '$DOMAIN' removed from $REGISTRY"
 # Paths in the lockfile are home-relative. Anything that escapes $HOME is
 # refused rather than followed — a corrupted lockfile must not drive rm -rf.
 reclaimed=0
-for rel in $reclaim_list; do
+for rel in "${reclaim_list[@]}"; do
     case "$rel" in
         /* | *..*)
             err "refusing to reclaim suspicious path: $rel"
