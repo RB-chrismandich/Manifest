@@ -8,7 +8,7 @@ async function existingAncestor(path: string): Promise<string> { let current = p
 async function noSymlinkComponents(root: string, path: string): Promise<void> { let current = root; for (const part of relative(root, path).split(sep)) { if (!part) continue; current = resolve(current, part); try { if ((await lstat(current)).isSymbolicLink()) throw new Error('symlink path is forbidden'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; break; } } }
 
 export async function authorizePath({ repo, task, path }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[] }; path: string }): Promise<string> {
-  if (typeof path !== 'string' || !path || path.includes('\0') || path.startsWith('/') || path.split(/[\\/]/).includes('..')) throw new Error('invalid path');
+  if (typeof path !== 'string' || !path || path.includes('\0') || path.startsWith('/') || path.includes('\\') || path.includes('//') || path.split('/').some((part) => part === '.' || part === '..' || !part)) throw new Error('invalid path');
   const root = await realpath(repo); const candidate = resolve(root, path);
   if (!isBelow(root, candidate)) throw new Error('path escapes repository');
   const rel = relative(root, candidate);

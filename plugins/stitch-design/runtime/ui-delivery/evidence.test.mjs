@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { link, mkdtemp, mkdir, readFile, rm, symlink } from 'node:fs/promises';
+import { link, mkdtemp, mkdir, open, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { appendEvidence, canonicalJsonHash } from './evidence.ts';
+import { appendEvidence, canonicalJsonHash, loadStitchMutationState, updateStitchMutationState } from './evidence.ts';
 
 const binding = {
   taskId: 'task-17', approvedDesignHash: 'sha256:design', candidateRevision: 'git:abc123',
@@ -70,4 +70,30 @@ test('preserves append-only JSONL history rather than rewriting an earlier recor
   assert.equal(lines.length, 2);
   assert.equal(JSON.parse(lines[0]).operation, 'ui_run_check');
   assert.equal(JSON.parse(lines[1]).operation, 'ui_capture');
+});
+
+test('rejects malformed existing mutation state instead of treating it as absent', async () => {
+  const { repo } = await fixture();
+  const stateFile = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json');
+  await writeFile(stateFile, '{"version":"invalid"}');
+  await assert.rejects(
+    () => loadStitchMutationState({ repo, taskId: 'task-17', authorizationDigest: 'sha256:approved' }),
+    /malformed/i,
+  );
+});
+
+test('does not unlink a mutation lock owned by a failed contender', async () => {
+  const { repo } = await fixture();
+  const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+  const owner = await open(lock, 'wx', 0o600);
+  try {
+    await assert.rejects(() => updateStitchMutationState({
+      repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+      state: { entries: {}, projectId: 'project-17' },
+    }));
+    await owner.stat();
+  } finally {
+    await owner.close();
+    await rm(lock);
+  }
 });

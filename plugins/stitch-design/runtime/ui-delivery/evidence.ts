@@ -56,7 +56,7 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
       || !Number.isInteger(state.version)
       || state.version < 0
       || (state.projectId !== undefined && (typeof state.projectId !== 'string' || !state.projectId))
-    ) return undefined;
+    ) throw new Error('Stitch mutation state is malformed');
     return state;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
@@ -68,8 +68,10 @@ export async function updateStitchMutationState({ repo, taskId, authorizationDig
   const target = await stateFile(repo, taskId);
   const lock = `${target}.lock`;
   let handle;
+  let createdLock = false;
   try {
     handle = await open(lock, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+    createdLock = true;
     const current = await loadStitchMutationState({ repo, taskId, authorizationDigest });
     const version = current?.version ?? 0;
     if (version !== expectedVersion) throw new Error('Stitch mutation state changed concurrently');
@@ -82,6 +84,6 @@ export async function updateStitchMutationState({ repo, taskId, authorizationDig
     return next;
   } finally {
     await handle?.close();
-    await unlink(lock).catch(() => undefined);
+    if (createdLock) await unlink(lock).catch(() => undefined);
   }
 }

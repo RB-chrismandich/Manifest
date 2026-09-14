@@ -11,6 +11,10 @@ import { createStitchPolicy, type StitchPolicy } from '../runtime/ui-delivery/st
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
 const result = (details: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
+class GitApplyRejectedError extends Error {
+  constructor() { super('git apply rejected patch'); }
+}
+
 function diffTargets(patch: string): string[] {
   const lines = patch.split('\n'); const targets: string[] = [];
   const parseRange = (start: string, count: string | undefined): [number, number] => {
@@ -67,7 +71,18 @@ function diffTargets(patch: string): string[] {
   if (!targets.length) throw new Error('patch has no file targets');
   return targets;
 }
-async function gitApply(cwd: string, patch: string, signal: AbortSignal, reverse = false): Promise<void> { const { promise, resolve, reject } = Promise.withResolvers<void>(); const child = spawn('git', ['apply', '--whitespace=nowarn', ...(reverse ? ['--reverse'] : []), '--'], { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'], signal }); let stderr = ''; child.stderr.on('data', (chunk) => { stderr += String(chunk).slice(0, 4096 - stderr.length); }); child.once('error', reject); child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`git apply failed${stderr ? ': rejected patch' : ''}`))); child.stdin.end(patch); return promise; }
+async function gitApply(cwd: string, patch: string, signal: AbortSignal, reverse = false): Promise<void> {
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
+  const child = spawn('git', ['apply', '--whitespace=nowarn', ...(reverse ? ['--reverse'] : []), '--'], { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'], signal });
+  child.once('error', (error) => reject(signal.aborted ? new Error('git apply aborted') : error));
+  child.once('close', (code) => {
+    if (code === 0) resolve();
+    else if (signal.aborted) reject(new Error('git apply aborted'));
+    else reject(new GitApplyRejectedError());
+  });
+  child.stdin.end(patch);
+  return promise;
+}
 function exactResult(value: unknown): boolean { if (!value || typeof value !== 'object') return false; const entry = value as Record<string, unknown>; return entry.schema === 'ui-delivery-check-v1' && Number.isInteger(entry.required) && entry.required >= 1 && entry.passed === entry.required && entry.failed === 0 && entry.skipped === 0; }
 async function outputPath(repo: string, task: any, checkId: string, path: string): Promise<string> { const recipe = task.approved_check_recipes.find((entry: any) => entry.id === checkId); if (!recipe?.write_paths?.includes(path)) throw new Error('artifact is not a declared check output'); return authorizePath({ repo, task: { allowed_paths: recipe.write_paths, forbidden_policy_paths: task.forbidden_policy_paths }, path }); }
 async function freshArtifact(path: string, before?: { mtimeNs: bigint; size: number }): Promise<{ hash: string }> { const stat = await lstat(path, { bigint: true }); if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1n || stat.size < 1n || (before && stat.mtimeNs === before.mtimeNs && Number(stat.size) === before.size)) throw new Error('stale or invalid capture artifact'); return { hash: `sha256:${createHash('sha256').update(await readFile(path)).digest('hex')}` }; }
@@ -226,6 +241,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
           changedFiles,
         });
       } catch (error) {
+        if (!applied && error instanceof GitApplyRejectedError) await releasePatchJournal(ctx.cwd);
         if (applied) {
           try {
             await gitApply(ctx.cwd, args.patch, new AbortController().signal, true);
@@ -300,7 +316,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     }
     if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.state() === 'mutation_unknown') {
       if (!projectId) throw new Error('Stitch project binding is required');
-      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError });
+      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation: details });
     }
     return undefined;
   });

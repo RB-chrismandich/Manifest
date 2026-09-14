@@ -183,12 +183,14 @@ test('rejects malformed grant expiry even for status-facing task loads', async (
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
 });
 
-test('rejects unsafe task IDs and whitespace-bearing paths before any operation', async () => {
+test('rejects unsafe task IDs and noncanonical paths before any operation', async () => {
   for (const override of [
     { task_id: '../task-17' },
     { task_id: 'task 17' },
     { allowed_paths: ['src/Card View.tsx'] },
     { forbidden_policy_paths: ['policy/baseline file.json'] },
+    { forbidden_policy_paths: ['./policy/baseline.json'] },
+    { allowed_paths: ['src//Card.tsx'] },
   ]) {
     const { repo, path } = await taskFile(override);
     await assert.rejects(() => loadTask({ repo, taskFile: path }), /task_id|path|invalid/i);

@@ -12,7 +12,7 @@ function within(root: string, candidate: string): boolean {
 }
 function invalid(message: string): never { throw new Error(`Invalid UI delivery task: ${message}`); }
 function nonEmptyStrings(value: unknown): value is string[] { return Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'string' && entry.length > 0); }
-function relativePath(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && !/\s/.test(value) && !value.startsWith('/') && !value.split(/[\\/]/).includes('..'); }
+function relativePath(value: unknown): value is string { return value === '.' || typeof value === 'string' && value.length > 0 && !/\s/.test(value) && !value.startsWith('/') && !value.includes('\\') && !value.includes('//') && !value.split('/').some((part) => part === '.' || part === '..' || !part); }
 
 export function authorizationDigest(task: DeliveryTask): string {
   const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization'].filter((key) => key in task).map((key) => [key, task[key]]));
@@ -50,6 +50,14 @@ function validate(task: unknown): asserts task is DeliveryTask {
     captureIds.add(recipe.id);
     const check = value.approved_check_recipes.find((entry: Record<string, unknown>) => entry.id === recipe.check_id);
     for (const artifact of recipe.artifacts) if (!artifact || typeof artifact !== 'object' || !relativePath(artifact.path) || typeof artifact.type !== 'string' || !artifact.type || !Array.isArray(check?.write_paths) || !check.write_paths.includes(artifact.path)) invalid('invalid capture artifact');
+  }
+  const grant = value.stitch_grant;
+  if (grant !== undefined) {
+    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations)) invalid('invalid Stitch grant');
+    for (const mutation of grant.mutations) {
+      const expected = mutation?.expected_readback;
+      if (!expected || typeof expected !== 'object' || typeof expected.tool_name !== 'string' || !expected.tool_name || !/^sha256:[a-f0-9]{64}$/i.test(expected.response_hash)) invalid('invalid Stitch readback expectation');
+    }
   }
 }
 

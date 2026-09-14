@@ -130,6 +130,10 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
                 "tool_name": "stitch.edit_screen",
                 "input_hash": "sha256:8d5f2e",
                 "max_uses": 1,
+                "expected_readback": {
+                    "tool_name": "stitch.get_screen",
+                    "response_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                },
             }
         ],
         "readback_tools": ["stitch.get_screen"],
@@ -142,6 +146,22 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
             "stitch_grant": {
                 **stitch_grant,
                 "mutations": [{**stitch_grant["mutations"][0], "max_uses": 2}],
+            },
+        },
+    )
+    assert_invalid(
+        validator,
+        {
+            **task,
+            "stitch_grant": {
+                **stitch_grant,
+                "mutations": [
+                    {
+                        key: value
+                        for key, value in stitch_grant["mutations"][0].items()
+                        if key != "expected_readback"
+                    }
+                ],
             },
         },
     )
@@ -177,6 +197,8 @@ def test_task_schema_rejects_unsafe_ids_and_whitespace_paths(repo_root: Path) ->
 
     assert_invalid(validator, {**task, "task_id": "../ui-delivery-17"})
     assert_invalid(validator, {**task, "allowed_paths": ["src/Checkout Card.tsx"]})
+    for noncanonical in ("./src/CheckoutCard.tsx", "src//CheckoutCard.tsx"):
+        assert_invalid(validator, {**task, "allowed_paths": [noncanonical]})
     assert_invalid(
         validator,
         _with_check_recipe(task, write_paths=["artifacts/check result.json"]),

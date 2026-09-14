@@ -34,6 +34,11 @@ test('rejects traversal and sibling-prefix confusion outside allowed paths', asy
   await assert.rejects(() => authorizePath({ repo, task, path: 'src-evil/Card.tsx' }));
 });
 
+test('rejects noncanonical paths before protected-path comparison', async () => {
+  const { repo, task } = await fixture();
+  await assert.rejects(() => authorizePath({ repo, task, path: './design-contract/baseline.json' }), /invalid path/i);
+});
+
 test('rejects an allowed-looking path whose final symlink escapes the repository', async () => {
   const { repo, task } = await fixture();
   const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-outside-'));
