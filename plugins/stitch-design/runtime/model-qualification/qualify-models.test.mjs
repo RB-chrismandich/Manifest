@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 const cli = new URL('./qualify-models.mjs', import.meta.url).pathname;
+const astraExample = new URL('./astra.example.json', import.meta.url).pathname;
 const secret = 'sk-qualification-test-secret-9Kp3Vb7Lm2Qa';
 
 function overlay(overrides = {}) {
@@ -22,16 +23,22 @@ function overlay(overrides = {}) {
   };
 }
 
-function catalog(models = [
-  {
-    id: 'openai-codex/gpt-6-astra',
+function model(overrides = {}) {
+  return {
     provider: 'openai-codex',
-    modalities: ['text', 'image'],
+    id: 'gpt-6-astra',
+    selector: 'openai-codex/gpt-6-astra',
+    input: ['text', 'image'],
     contextWindow: 128000,
     maxTokens: 16000,
-    thinkingLevels: ['low', 'medium', 'high'],
-  },
-]) {
+    thinking: ['low', 'medium', 'high', 'xhigh', 'max'],
+    ...overrides,
+  };
+}
+
+function catalog(models = [model(), model({
+  provider: 'ollama', selector: 'ollama/gpt-6-astra', input: ['text'], thinking: [],
+})]) {
   return { models };
 }
 
@@ -90,7 +97,13 @@ test('produces the same qualification hash for equivalent JSON key orderings', a
     modelRoles: { ui_review: 'openai-codex/gpt-6-astra:high', ui_code: 'openai-codex/gpt-6-astra:medium', designer: 'openai-codex/gpt-6-astra:high' },
   };
   const reorderedCatalog = {
-    models: [{ thinkingLevels: ['low', 'medium', 'high'], maxTokens: 16000, contextWindow: 128000, modalities: ['text', 'image'], provider: 'openai-codex', id: 'openai-codex/gpt-6-astra' }],
+    models: [{
+      thinking: ['low', 'medium', 'high', 'xhigh', 'max'], maxTokens: 16000, contextWindow: 128000,
+      input: ['text', 'image'], selector: 'openai-codex/gpt-6-astra', id: 'gpt-6-astra', provider: 'openai-codex',
+    }, {
+      thinking: [], input: ['text'], selector: 'ollama/gpt-6-astra', id: 'gpt-6-astra', provider: 'ollama',
+      maxTokens: 16000, contextWindow: 128000,
+    }],
   };
   const second = await invoke(qualificationArgs(reorderedOverlay, reorderedCatalog));
   assert.equal(first.status, 0, failureText(first));
@@ -98,16 +111,18 @@ test('produces the same qualification hash for equivalent JSON key orderings', a
   assert.equal(JSON.parse(first.stdout).qualificationHash, JSON.parse(second.stdout).qualificationHash);
 });
 
-test('rejects missing role, model, image, thinking, and context requirements', async () => {
+test('rejects missing role, exact selector, image, thinking, and context requirements', async () => {
+  const textOnly = model({ id: 'text-only', selector: 'openai-codex/text-only', input: ['text'] });
   const cases = [
     ['missing designer role', overlay({ modelRoles: { ui_code: 'openai-codex/gpt-6-astra:medium', ui_review: 'openai-codex/gpt-6-astra:high' } }), catalog(), /designer/i],
-    ['missing catalog model', overlay({ modelRoles: { designer: 'openai-codex/missing:high', ui_code: 'openai-codex/missing:medium', ui_review: 'openai-codex/missing:high' } }), catalog(), /model.*missing|missing.*model/i],
-    ['missing image modality', overlay(), catalog([{ ...catalog().models[0], modalities: ['text'] }]), /designer.*image|image.*designer/i],
-    ['missing configured thinking suffix', overlay(), catalog([{ ...catalog().models[0], thinkingLevels: ['low', 'medium'] }]), /high.*thinking|thinking.*high/i],
-    ['insufficient context window', overlay(), catalog([{ ...catalog().models[0], contextWindow: 127999 }]), /context/i],
+    ['missing exact selector', overlay({ modelRoles: { designer: 'openai-codex/missing:high', ui_code: 'openai-codex/missing:medium', ui_review: 'openai-codex/missing:high' } }), catalog(), /selector.*missing|missing.*selector/i],
+    ['designer image input', overlay({ modelRoles: { ...overlay().modelRoles, designer: 'openai-codex/text-only:high' } }), catalog([model(), textOnly]), /designer.*image|image.*designer/i],
+    ['ui review image input', overlay({ modelRoles: { ...overlay().modelRoles, ui_review: 'openai-codex/text-only:high' } }), catalog([model(), textOnly]), /ui.?review.*image|image.*ui.?review/i],
+    ['missing configured thinking suffix', overlay(), catalog([model({ thinking: ['low', 'medium'] })]), /high.*thinking|thinking.*high/i],
+    ['insufficient context window', overlay(), catalog([model({ contextWindow: 127999 })]), /context/i],
   ];
-  for (const [name, candidateOverlay, candidateCatalog, reason] of cases) {
-    await expectFailure(qualificationArgs(candidateOverlay, candidateCatalog), reason, name);
+  for (const [, candidateOverlay, candidateCatalog, reason] of cases) {
+    await expectFailure(qualificationArgs(candidateOverlay, candidateCatalog), reason);
   }
 });
 
@@ -123,6 +138,36 @@ test('never echoes secret-shaped overlay input on a qualification failure', asyn
   assert.doesNotMatch(failureText(result), new RegExp(secret));
 });
 
+test('accepts xhigh and max thinking suffixes listed by the exact selector', async () => {
+  const qualified = overlay({
+    modelRoles: {
+      designer: 'openai-codex/gpt-6-astra:xhigh',
+      ui_code: 'openai-codex/gpt-6-astra:max',
+      ui_review: 'openai-codex/gpt-6-astra:xhigh',
+    },
+  });
+  const result = await invoke(qualificationArgs(qualified));
+  assert.equal(result.status, 0, failureText(result));
+  assert.deepEqual(JSON.parse(result.stdout).roles, qualified.modelRoles);
+});
+
+test('accepts the shipped Astra overlay and a catalog passed by file path', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'qualify-models-catalog-'));
+  const catalogFile = join(directory, 'catalog.json');
+  try {
+    await writeFile(catalogFile, JSON.stringify(catalog()));
+    const result = await invoke(['--overlay', astraExample, '--catalog', catalogFile, '--json']);
+    assert.equal(result.status, 0, failureText(result));
+    assert.deepEqual(JSON.parse(result.stdout).roles, {
+      designer: 'openai-codex/gpt-6-astra:high',
+      ui_code: 'openai-codex/gpt-6-astra:high',
+      ui_review: 'openai-codex/gpt-6-astra:high',
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('local-only mode rejects cloud selectors and Stitch project configuration', async () => {
   await expectFailure(qualificationArgs(overlay(), catalog(), ['--local-only']), /local-only|cloud|provider/i);
   const localOverlay = overlay({
@@ -130,20 +175,26 @@ test('local-only mode rejects cloud selectors and Stitch project configuration',
     enabledProviders: ['ollama'],
     mcp: { enableProjectConfig: true },
   });
-  const localCatalog = catalog([{ ...catalog().models[0], id: 'ollama/vision', provider: 'ollama' }]);
+  const localCatalog = catalog([model({ id: 'vision', selector: 'ollama/vision', provider: 'ollama' })]);
   await expectFailure(qualificationArgs(localOverlay, localCatalog, ['--local-only']), /enableProjectConfig|stitch|local-only/i);
 });
 
-test('qualifies a complete local-only overlay without cloud fallback', async () => {
-  const localOverlay = overlay({
-    modelRoles: { designer: 'ollama/vision:high', ui_code: 'ollama/vision:medium', ui_review: 'ollama/vision:high' },
-    enabledProviders: ['ollama'],
-    mcp: { enableProjectConfig: false },
-  });
-  const localCatalog = catalog([{ ...catalog().models[0], id: 'ollama/vision', provider: 'ollama' }]);
-  const result = await invoke(qualificationArgs(localOverlay, localCatalog, ['--local-only']));
-  assert.equal(result.status, 0, failureText(result));
-  const report = JSON.parse(result.stdout);
-  assert.deepEqual(report.roles, localOverlay.modelRoles);
-  assert.match(report.qualificationHash, /^sha256:[a-f0-9]{64}$/);
+test('qualifies each allowed local provider without cloud fallback', async () => {
+  for (const provider of ['ollama', 'lmstudio', 'llamacpp']) {
+    const localOverlay = overlay({
+      modelRoles: {
+        designer: `${provider}/vision:high`,
+        ui_code: `${provider}/vision:medium`,
+        ui_review: `${provider}/vision:high`,
+      },
+      enabledProviders: [provider],
+      mcp: { enableProjectConfig: false },
+    });
+    const localCatalog = catalog([model({ id: 'vision', selector: `${provider}/vision`, provider })]);
+    const result = await invoke(qualificationArgs(localOverlay, localCatalog, ['--local-only']));
+    assert.equal(result.status, 0, failureText(result));
+    const report = JSON.parse(result.stdout);
+    assert.deepEqual(report.roles, localOverlay.modelRoles);
+    assert.match(report.qualificationHash, /^sha256:[a-f0-9]{64}$/);
+  }
 });
