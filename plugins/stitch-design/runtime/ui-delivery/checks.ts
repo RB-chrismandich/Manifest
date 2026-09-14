@@ -4,13 +4,13 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 
-export type CheckResult = { exitCode: number; stdout: { text: string; bytes: number; truncated: boolean; hash: string }; stderr: { text: string; bytes: number; truncated: boolean; hash: string } };
+export type CheckResult = { argv: string[]; exitCode: number; stdout: { text: string; bytes: number; truncated: boolean; hash: string }; stderr: { text: string; bytes: number; truncated: boolean; hash: string } };
 type Mount = { source: string; target: string; readOnly: boolean };
 type Command = { executable: string; argv: string[]; cwd: string; env: Record<string, string>; timeoutMs: number; recipeArgv: string[]; mounts: Mount[]; containerName?: string };
 type Execution = { exitCode: number; stdout: string; stderr: string; stdoutHash?: string; stderrHash?: string; stdoutBytes?: number; stderrBytes?: number; stdoutTruncated?: boolean; stderrTruncated?: boolean };
 const PROTECTED = ['.git', '.omp', 'secrets'];
 function under(root: string, path: string): boolean { const rel = relative(root, path); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..'); }
-function protectedPath(root: string, path: string, forbidden: string[]): boolean { const rel = relative(root, path); return [...PROTECTED, ...forbidden].some((item) => rel === item || rel.startsWith(`${item}${sep}`) || item.startsWith(`${rel}${sep}`)); }
+function protectedPath(root: string, path: string, forbidden: string[]): boolean { const rel = relative(root, path); return rel === '' || [...PROTECTED, ...forbidden].some((item) => rel === item || rel.startsWith(`${item}${sep}`) || item.startsWith(`${rel}${sep}`)); }
 function output(text: string, limit: number, hash?: string, bytes?: number, truncated?: boolean) { const source = Buffer.from(text); const actual = bytes ?? source.length; return { text: source.subarray(0, limit).toString(), bytes: actual, truncated: truncated ?? actual > limit, hash: hash ?? `sha256:${createHash('sha256').update(source).digest('hex')}` }; }
 async function executeDirect(command: Command, outputLimitBytes: number, signal?: AbortSignal): Promise<Execution> {
   if (signal?.aborted) throw new Error('check aborted');
@@ -45,6 +45,6 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     const spec: Command = recipe.backend === 'sandbox-exec' ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `SCRATCH=${scratch}`, ...writable.flatMap((path, index) => ['-D', `WRITE_${index}=${path}`]), '-p', `(version 1) (deny default) (allow process*) (allow file-read* (subpath (param "REPO")) (subpath "/usr") (subpath "/System") (subpath "/Library") (subpath "/private")) (allow file-write* (subpath (param "SCRATCH")) ${writable.map((_, index) => `(subpath (param "WRITE_${index}"))`).join(' ')} ) (deny network*)`, '--', ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts } : (() => { if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned'); return { executable: 'docker', argv: ['run', '--name', containerName, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName }; })();
     let execution: Execution;
     if (executor) execution = await Promise.race([executor(spec), new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error('check timed out')), spec.timeoutMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('check aborted')); }, { once: true }); })]); else execution = await executeDirect(spec, outputLimitBytes, signal);
-    return { exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };
+    return { argv: recipe.argv, exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };
   } finally { await rm(scratch, { recursive: true, force: true }); }
 }
