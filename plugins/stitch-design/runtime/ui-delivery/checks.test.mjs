@@ -368,4 +368,3 @@ test('does not remove an output lock it did not create', async () => {
   assert.equal(await readFile(lock, 'utf8'), 'replacement');
   await rm(lock);
 });
-
