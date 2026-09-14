@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -205,6 +205,36 @@ test('rejects capture when a successful check leaves its nonempty artifact uncha
   });
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
   await assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_capture'), { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }, repo), /stale|fresh|artifact/i);
+});
+
+test('status requires candidate-bound evidence for every approved check and capture before verified', async () => {
+  const definition = task({
+    state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+    approved_check_recipes: [
+      ...task().approved_check_recipes,
+      { ...task().approved_check_recipes[0], id: 'visual', result_path: '.ui-results/visual.json', write_paths: ['.ui-results/visual.json'] },
+    ],
+  });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await writeFile(join(repo, '.ui-results/visual.json'), '{"prior":true}\n');
+  await bindCandidate(repo, definition);
+  const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+  const record = (operation, extra = {}) => ({
+    taskId: definition.task_id, approvedDesignHash: definition.design_revision,
+    candidateRevision: definition.candidate_revision, candidateHash: definition.candidate_hash,
+    modelRoute: definition.model_route, operation,
+    outcome: operation === 'ui_capture' ? 'captured' : 'verified',
+    elapsedMs: 0, artifacts: [], stdoutHash: 'sha256:stdout', stderrHash: 'sha256:stderr',
+    ...extra,
+  });
+  await appendFile(evidenceFile, `${JSON.stringify(record('ui_run_check', { checkId: 'unit' }))}\n`);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+  await appendFile(evidenceFile, `${JSON.stringify(record('ui_run_check', { checkId: 'visual' }))}\n`);
+  await appendFile(evidenceFile, `${JSON.stringify(record('ui_capture', { recipeId: 'capture', artifacts: [{ path: 'evidence/page.png', hash: 'sha256:artifact' }] }))}\n`);
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
 });
 
 test('status never reports accepted work verified without matching local evidence', async () => {
