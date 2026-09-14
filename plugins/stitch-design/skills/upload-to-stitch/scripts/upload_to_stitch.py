@@ -216,57 +216,18 @@ def parse_args():
 
 
 def main():
-    args = parse_args()
-    api_key = os.environ.get("STITCH_API_KEY")
-    if not api_key:
-        print("Error: STITCH_API_KEY is required", file=sys.stderr)
-        return 2
-
-    file_path = args.file_path
-    file_suffix = file_path.suffix.lower()
-    mime_type = _MIME_TYPES.get(file_suffix)
-
-    if mime_type is None:
-        print(
-            f"Error: Unsupported file type '{file_suffix}'. Supported types:"
-            f" {', '.join(sorted(_MIME_TYPES.keys()))}"
-        )
-        sys.exit(1)
-
-    if not file_path.exists():
-        print(f"Error: File not found: {file_path}")
-        sys.exit(1)
-
-    if args.generated_by and mime_type not in ("text/html", "text/markdown"):
-        print("Warning: --generated-by is ignored for image uploads.")
-
-    print(f"File:      {file_path}")
-    print(f"MIME type: {mime_type}")
-
-    b64_data = encode_file(file_path)
-    print(f"Base64:    {len(b64_data)} chars")
-
-    screen_request = build_screen_request(
-        mime_type,
-        b64_data,
-        title=args.title,
-        generated_by=args.generated_by,
+    # This executable previously sent an unaudited REST mutation outside the
+    # ui-delivery extension.  Keep the entry point only to fail closed for old
+    # callers; uploads must now be dispatched through mcp__stitch_upload_design_md
+    # so the extension can bind the approved digest, bytes, project, one-shot
+    # grant, and readback to the same tool-call lifecycle.
+    parse_args()
+    print(
+        "Error: direct Stitch uploads are disabled; use the policy-controlled "
+        "mcp__stitch_upload_design_md tool.",
+        file=sys.stderr,
     )
-
-    print(f"\nUploading to project: {args.project_id}")
-    print(f"API URL:   {args.api_url}")
-
-    result = call_batch_create_screens(
-        api_url=args.api_url,
-        api_key=api_key,
-        project_id=args.project_id,
-        requests=[screen_request],
-        create_screen_instances=True,
-    )
-
-    print("\nResponse:")
-    print(json.dumps(result, indent=2))
-    return 0
+    return 2
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 ---
 name: design-loop
-description: Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the design loop sibling skills end to end.
-version: 0.1.0
+description: Run an approved, bounded adversarial UI design lifecycle.
 ---
 
 # Adversarial Design Loop — orchestrator
@@ -19,7 +18,7 @@ durable, auditable git artifact.
    here; the `loop-scaffold` interview captures it. If there is no spec,
    stop and write one first — the generator is never used to invent
    requirements.
-2. Confirm the generator is available (for Stitch: the `mcp__stitch__*` tools;
+2. Confirm the generator is available (for Stitch: the `mcp__stitch_*` tools;
    any generator that exports real HTML works; screens can also be
    hand-authored against the tokens with no generator at all).
 3. Note only whether the default lens roster (feasibility/spec/ux/a11y) is
@@ -91,3 +90,7 @@ entry/exit contracts: `references/process.md`.
 - **`references/process.md`** — per-phase entry/exit contracts, the
   consensus gate, commit-message conventions with worked examples, and the
   rationale behind each hard rule.
+
+## Bounded lifecycle
+
+Default to at most two design candidates and two repair cycles. Any unbounded panel escalation is optional and requires explicit approval; it is never an automatic loop.

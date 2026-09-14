@@ -1,0 +1,16 @@
+{
+  "modelRoles": {
+    "designer": "ollama/replace-me:high",
+    "ui_code": "ollama/replace-me:high",
+    "ui_review": "ollama/replace-me:high"
+  },
+  "retry": {
+    "modelFallback": false
+  },
+  "enabledProviders": [
+    "ollama"
+  ],
+  "mcp": {
+    "enableProjectConfig": false
+  }
+}

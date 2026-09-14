@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "candidate_revision",
+    "candidate_hash",
+    "reviewer_model_route",
+    "verdict",
+    "findings",
+    "repair_cycles",
+    "evidence_refs"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_hash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewer_model_route": {
+      "type": "string",
+      "const": "@ui_review"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "repair_required",
+        "blocked",
+        "failed"
+      ]
+    },
+    "repair_cycles": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "const": "accepted"
+        },
+        "findings": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    {
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "repair_required",
+            "blocked",
+            "failed"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  ]
+}

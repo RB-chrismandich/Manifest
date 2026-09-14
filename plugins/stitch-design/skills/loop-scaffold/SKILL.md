@@ -29,7 +29,7 @@ inferred from the repo):
    derived, not asked: half the frame's shorter dimension (360x360 → 180).
 4. **Typography** — webfont family and the weights screens will use (the
    render gate asserts these load before every capture).
-5. **Generator** — `stitch` (via the `mcp__stitch__*` tools), another
+5. **Generator** — `stitch` (via the `mcp__stitch_*` tools), another
    HTML-exporting generator, or `none` for hand-authored screens.
 6. **Lens roster** — default `feasibility, spec, ux, a11y`; swap lenses that
    do not fit the project (a pure-web project may not need feasibility).

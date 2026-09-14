@@ -1,0 +1,15 @@
+---
+description: "Own an approved, bounded UI build lifecycle with authorized changes and evidence."
+globs: ".claude/skills/ui-delivery/**"
+alwaysApply: false
+---
+
+# ui-delivery
+
+Own an approved, bounded UI build lifecycle with authorized changes and evidence.
+
+<!-- Auto-generated from .claude/skills/ui-delivery/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ui-delivery/SKILL.md` for the full skill definition.
+
