@@ -56,7 +56,7 @@ from pathlib import Path
 import sys
 source, target, home = map(Path, sys.argv[1:])
 target.write_text(source.read_text().replace('__HOME__', str(home)))" \
-        "$EXISTING_HOME_FIXTURE" "$1" "$HOME"
+        "$EXISTING_HOME_FIXTURE" "$1" "$SANDBOX/home"
 }
 
 @test "the repo ships the Agent hook in settings.runtime.json" {
@@ -110,11 +110,13 @@ target.write_text(source.read_text().replace('__HOME__', str(home)))" \
 }
 
 @test "existing Claude home drops only retired version-pin hook and permissions" {
-    materialize_existing_home "$SANDBOX/settings.json"
+    mkdir -p "$SANDBOX/home/.claude"
+    local target="$SANDBOX/home/.claude/settings.json"
+    materialize_existing_home "$target"
 
-    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SRC" "$target"
     assert_success
-    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SRC" "$target"
     assert_success
     assert_output --partial "already has"
 
@@ -138,7 +140,7 @@ assert allow[:4] == [
     'Bash(~/.claude/scripts/version_pin.sh --check:*)',
     'Bash(/opt/user-hooks/keep-after.sh:*)',
 ], allow
-print('legacy-removed-unrelated-preserved')" "$SANDBOX/settings.json"
+print('legacy-removed-unrelated-preserved')" "$target"
     assert_success
     assert_output "legacy-removed-unrelated-preserved"
 }
@@ -168,12 +170,14 @@ sys.exit(0 if merged == source else 1)" "$SANDBOX/settings.json" "$SRC"
 }
 
 @test "the deployed hook command points at a real script" {
+    mkdir -p "$SANDBOX/scripts"
+    cp "$REPO_ROOT/configs/claude/scripts/subagent_model_default.py" "$SANDBOX/scripts/"
+    chmod +x "$SANDBOX/scripts/subagent_model_default.py"
     merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     cmd="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['hooks']['PreToolUse'][0]['hooks'][0]['command'])" "$SANDBOX/settings.json")"
-    # The deployed copy may be absent on a machine that never bootstrapped, so
-    # assert against the repo source, which must always exist.
-    [ -f "$REPO_ROOT/configs/claude/scripts/$(basename "$cmd")" ] \
-        || { echo "no repo source for $cmd"; false; }
+    run python3 -c 'import shlex,subprocess,sys; sys.exit(subprocess.run(shlex.split(sys.argv[1])+["--help"]).returncode)' "$cmd"
+    assert_success
+    assert_output --partial "Usage"
 }
 
 @test "a missing source is a skip, not a failure (fail-open)" {

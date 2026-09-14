@@ -25,6 +25,8 @@ import statistics
 import sys
 from datetime import UTC, datetime
 
+from transcript_usage import usage_key, usage_message, warn_skipped
+
 try:
     import model_pricing
 except ModuleNotFoundError:  # partial deploy — --help must still answer
@@ -76,7 +78,7 @@ def parse_ts(raw):
     garbage (``"2026-..." > "banana"`` is False), which would leave the
     window unbounded and make a "reproducible" snapshot drift.
     """
-    if not raw:
+    if not isinstance(raw, str) or not raw:
         return None
     try:
         dt = datetime.fromisoformat(raw.strip())
@@ -150,12 +152,14 @@ def fold_file(handle, project, requests, since, until):
             rec = json.loads(line)
         except ValueError:
             continue
-        if rec.get("type") != "assistant":
+        try:
+            parsed = usage_message(rec)
+        except ValueError:
+            warn_skipped("malformed usage record")
             continue
-        message = rec.get("message") or {}
-        usage = message.get("usage") or {}
-        if not usage:
+        if parsed is None:
             continue
+        message, usage = parsed
         if since or until:
             stamp = parse_ts(rec.get("timestamp"))
             if stamp is None:
@@ -166,7 +170,7 @@ def fold_file(handle, project, requests, since, until):
             if until and stamp > until:
                 continue
         kept += 1
-        key = rec.get("requestId") or message.get("id")
+        key = usage_key(rec, message, requests)
         entry = requests.get(key)
         if entry is None:
             entry = requests[key] = {
@@ -364,6 +368,9 @@ def main(argv):
 
     classified = selected["requests"] - classes.get("other", {}).get("requests", 0)
     report = {
+        "cost_basis": "estimated_api_equivalent",
+        "actual_billing_usd": None,
+        "difficulty": "unknown; response shape is not task difficulty",
         "scan": {
             "root": root,
             "since": args.since,
