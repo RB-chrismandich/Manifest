@@ -41,7 +41,7 @@ def _accepted_task() -> dict[str, Any]:
                 **docker_check_recipe(),
                 "argv": ["npm", "run", "test:ui", "--", "CheckoutCard"],
                 "timeout_ms": 120000,
-                "backend": "sandbox-exec",
+                "backend": "docker",
                 "artifacts": [{"path": "artifacts/checkout-ui.xml", "type": "junit"}],
             }
         ],

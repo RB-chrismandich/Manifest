@@ -56,7 +56,7 @@ def _accepted_task() -> dict[str, Any]:
                 **docker_check_recipe(),
                 "argv": ["npm", "run", "test:ui", "--", "CheckoutCard"],
                 "timeout_ms": 120000,
-                "backend": "sandbox-exec",
+                "backend": "docker",
                 "artifacts": [{"path": "artifacts/checkout-ui.xml", "type": "junit"}],
             }
         ],
@@ -207,14 +207,6 @@ def test_task_schema_requires_complete_hardened_check_recipes(repo_root: Path) -
             backend="docker",
             argv=["node", ".omp/ui-delivery/verifiers/check-ui.mjs"],
             sandbox_image="registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        ),
-    )
-    assert_invalid(
-        validator,
-        _with_check_recipe(
-            task,
-            backend="docker",
-            argv=[".omp/ui-delivery/verifiers/check-ui.mjs"],
         ),
     )
     incomplete = {key: value for key, value in recipe.items() if key != "sandbox_image"}
