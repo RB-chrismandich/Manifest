@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { access, chmod, constants, lstat, mkdtemp, open, realpath, rm } from 'node:fs/promises';
+import { access, chmod, constants, lstat, mkdir, mkdtemp, open, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
@@ -71,7 +71,15 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
   for (const value of recipe.write_paths ?? []) { const lexical = resolve(root, value); if (!under(root, lexical) || protectedPath(root, lexical, task.forbidden_policy_paths ?? [])) throw new Error('writable protected path'); writable.push(await provisionOutput(root, lexical)); }
   const scratch = await realpath(await mkdtemp(join(scratchRoot, 'ui-delivery-check-')));
   try {
-    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
+    const masks: Mount[] = [];
+    if (recipe.backend === 'docker') for (const [index, forbidden] of ['.git', '.omp', 'secrets', ...(task.forbidden_policy_paths ?? [])].entries()) {
+      const target = resolve(root, forbidden); if (!under(root, target)) throw new Error('forbidden path escapes repository');
+      const source = join(scratch, 'masks', String(index));
+      try { if ((await lstat(target)).isDirectory()) await mkdir(source, { recursive: true, mode: 0o700 }); else { await mkdir(dirname(source), { recursive: true, mode: 0o700 }); await writeFile(source, '', { mode: 0o600, flag: 'wx' }); } }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; await mkdir(source, { recursive: true, mode: 0o700 }); }
+      masks.push({ source, target: join('/repo', relative(root, target)), readOnly: true });
+    }
+    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), ...masks, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
     const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
     const deniedReads = ['.git', '.omp', 'secrets', ...(task.forbidden_policy_paths ?? [])].map((path, index) => ['-D', `DENY_${index}=${resolve(root, path)}`] as string[]).flat();
