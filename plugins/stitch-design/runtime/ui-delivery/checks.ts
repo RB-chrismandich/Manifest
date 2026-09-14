@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 export type CheckResult = { argv: string[]; exitCode: number; stdout: { text: string; bytes: number; truncated: boolean; hash: string }; stderr: { text: string; bytes: number; truncated: boolean; hash: string } };
 type Mount = { source: string; target: string; readOnly: boolean };
@@ -12,6 +12,20 @@ const PROTECTED = ['.git', '.omp', 'secrets'];
 function under(root: string, path: string): boolean { const rel = relative(root, path); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..'); }
 function protectedPath(root: string, path: string, forbidden: string[]): boolean { const rel = relative(root, path); return rel === '' || [...PROTECTED, ...forbidden].some((item) => rel === item || rel.startsWith(`${item}${sep}`) || item.startsWith(`${rel}${sep}`)); }
 function output(text: string, limit: number, hash?: string, bytes?: number, truncated?: boolean) { const source = Buffer.from(text); const actual = bytes ?? source.length; return { text: source.subarray(0, limit).toString(), bytes: actual, truncated: truncated ?? actual > limit, hash: hash ?? `sha256:${createHash('sha256').update(source).digest('hex')}` }; }
+async function approvedExecutable(argv: string[]): Promise<{ executable: string; runtime: string }> {
+  const requested = argv[0];
+  const candidates = requested.startsWith('/') ? [requested] : ['/usr/bin', '/bin', '/opt/homebrew/bin', '/usr/local/bin'].map((root) => join(root, requested));
+  for (const candidate of candidates) {
+    try {
+      const executable = await realpath(candidate);
+      if (!['/usr/bin', '/bin', '/opt/homebrew', '/usr/local', '/Applications'].some((root) => executable === root || executable.startsWith(`${root}/`))) continue;
+      const homebrew = /^\/opt\/homebrew\/(?:opt\/[^/]+|Cellar\/[^/]+\/[^/]+)/.exec(executable)?.[0];
+      const application = /^\/Applications\/[^/]+\.app/.exec(executable)?.[0];
+      return { executable, runtime: homebrew ?? application ?? dirname(executable) };
+    } catch {}
+  }
+  throw new Error('approved executable is unavailable');
+}
 async function executeDirect(command: Command, outputLimitBytes: number, signal?: AbortSignal): Promise<Execution> {
   if (signal?.aborted) throw new Error('check aborted');
   return new Promise((resolveResult, rejectResult) => {
@@ -33,7 +47,7 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
   if (signal?.aborted) throw new Error('check aborted'); if (command !== undefined) throw new Error('raw commands are not accepted');
   const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; write_paths: string[] } | undefined;
   if (!recipe) throw new Error('unknown approved check'); if (!backends[recipe.backend]) throw new Error('selected sandbox backend unavailable');
-  const root = await realpath(repo); const cwd = resolve(root, recipe.cwd); if (!under(root, cwd)) throw new Error('check cwd escapes repository');
+  const root = await realpath(repo); const cwd = resolve(root, recipe.cwd); if (!under(root, cwd)) throw new Error('check cwd escapes repository'); const runtime = await approvedExecutable(recipe.argv); const invokedArgv = [runtime.executable, ...recipe.argv.slice(1)];
   const writable: string[] = [];
   for (const value of recipe.write_paths ?? []) { const lexical = resolve(root, value); if (!under(root, lexical) || protectedPath(root, lexical, task.forbidden_policy_paths ?? [])) throw new Error('writable protected path'); const resolved = await realpath(lexical); if (resolved !== lexical || !under(root, resolved)) throw new Error('symlinked writes are forbidden'); writable.push(resolved); }
   if (!writable.length) throw new Error('check has no exact writable outputs');
@@ -42,7 +56,7 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
     const env: Record<string, string> = { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
-    const spec: Command = recipe.backend === 'sandbox-exec' ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `SCRATCH=${scratch}`, ...writable.flatMap((path, index) => ['-D', `WRITE_${index}=${path}`]), '-p', `(version 1) (deny default) (allow process*) (allow file-read* (subpath (param "REPO")) (subpath "/usr") (subpath "/System") (subpath "/Library") (subpath "/private")) (allow file-write* (subpath (param "SCRATCH")) ${writable.map((_, index) => `(subpath (param "WRITE_${index}"))`).join(' ')} ) (deny network*)`, '--', ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts } : (() => { if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned'); return { executable: 'docker', argv: ['run', '--name', containerName, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName }; })();
+    const spec: Command = recipe.backend === 'sandbox-exec' ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime.runtime}`, '-D', `SCRATCH=${scratch}`, ...writable.flatMap((path, index) => ['-D', `WRITE_${index}=${path}`]), '-p', `(version 1) (deny default) (allow process*) (allow file-read* (subpath (param "REPO")) (subpath (param "RUNTIME")) (subpath "/usr") (subpath "/System") (subpath "/Library")) (allow file-write* (subpath (param "SCRATCH")) ${writable.map((_, index) => `(subpath (param "WRITE_${index}"))`).join(' ')} ) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts } : (() => { if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned'); return { executable: 'docker', argv: ['run', '--name', containerName, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName }; })();
     let execution: Execution;
     if (executor) execution = await Promise.race([executor(spec), new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error('check timed out')), spec.timeoutMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('check aborted')); }, { once: true }); })]); else execution = await executeDirect(spec, outputLimitBytes, signal);
     return { argv: recipe.argv, exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };
