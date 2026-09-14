@@ -7,14 +7,18 @@ spawns: false
 output:
   type: object
   additionalProperties: false
-  required: [task_id, candidate_revision, candidate_hash, changed_paths, check_evidence, outcome]
+  required: [task_id, candidate_revision, candidate_hash, changed_paths, check_evidence, evidence_refs, outcome]
   properties:
-    task_id: {type: string}
-    candidate_revision: {type: string}
-    candidate_hash: {type: string}
-    changed_paths: {type: array, items: {type: string}}
-    check_evidence: {type: array, items: {type: string}}
+    task_id: {type: string, minLength: 1}
+    candidate_revision: {type: string, minLength: 1}
+    candidate_hash: {type: string, minLength: 1}
+    changed_paths: {type: array, items: {type: string, minLength: 1}}
+    check_evidence: {type: array, items: {type: string, minLength: 1}}
+    evidence_refs: {type: array, minItems: 1, items: {type: string, minLength: 1}}
     outcome: {enum: [verified, failed, blocked, unverified]}
+  allOf:
+    - if: {properties: {outcome: {const: verified}}}
+      then: {required: [evidence_refs]}
 ---
 
 Apply changes only to task-manifest `allowed_paths`; never modify forbidden policy paths. Use only approved fixed-argv check recipes. Record changed paths, exact candidate revision/hash, and check evidence. Never spawn, use unlisted tools, or claim skipped/unavailable checks pass.

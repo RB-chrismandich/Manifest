@@ -104,11 +104,10 @@ call, always do both of the following before moving on:
 
 1. **Present AI Feedback**: Show the text description and suggestions from
    `outputComponents` to the user.
-2. **Download Design Assets**: Download the HTML and screenshot urls from
-   `outputComponents` to the `.stitch/designs` directory.
-   - **Naming**: Use the screen ID or a descriptive slug for the filename.
-   - **Tools**: Use `curl -o` via `run_command` or similar.
-   - **Directory**: Ensure `.stitch/designs` exists.
+2. **Retrieve Design Assets:** Use only an approved fixed-argv retrieval recipe
+   bound to the project, tool, and input hash. Read back the HTML and screenshot
+   results before continuing; timeout or failure is `mutation_unknown` and blocks
+   retry until reconciliation.
 
 ---
 
@@ -258,7 +257,7 @@ Call the `generate_variants` tool with the appropriate options:
   "selectedScreenIds": ["..."],
   "prompt": "[Describe the direction for variants]",
   "variantOptions": {
-    "variantCount": 3,
+    "variantCount": 2,
     "creativeRange": "EXPLORE",
     "aspects": ["LAYOUT", "COLOR_SCHEME"]
   }
@@ -267,7 +266,7 @@ Call the `generate_variants` tool with the appropriate options:
 
 **Variant Options:**
 
-- **`variantCount`**: 1–5 variants (default: 3)
+- **`variantCount`**: at most 2 candidates.
 - **`creativeRange`**: `REFINE` (subtle), `EXPLORE` (balanced), or `REIMAGINE`
   (radical)
 - **`aspects`**: Focus on specific dimensions — `LAYOUT`, `COLOR_SCHEME`,

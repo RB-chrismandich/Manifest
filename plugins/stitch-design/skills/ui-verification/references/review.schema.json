@@ -8,6 +8,7 @@
     "candidate_hash",
     "reviewer_model_route",
     "verdict",
+    "findings",
     "repair_cycles",
     "evidence_refs",
     "outcome"
@@ -56,9 +57,30 @@
         "blocked",
         "unverified"
       ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "verified"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "evidence_refs"
+        ]
+      }
+    },
     {
       "if": {
         "properties": {

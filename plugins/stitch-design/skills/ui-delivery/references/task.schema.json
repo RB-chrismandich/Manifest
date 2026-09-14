@@ -268,9 +268,7 @@
               "candidate_ready",
               "reviewing",
               "repairing",
-              "accepted",
-              "blocked",
-              "failed"
+              "accepted"
             ]
           }
         }

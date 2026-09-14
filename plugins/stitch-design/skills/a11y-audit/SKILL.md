@@ -1,6 +1,6 @@
 ---
 name: a11y-audit
-description: Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements.
+description: Focused accessibility evidence audit for semantics, keyboard use, contrast, labels, and error announcements.
 ---
 
 # Accessibility Audit Skill
@@ -26,9 +26,9 @@ Skip `node_modules/`, `dist/`, `build/`, `.next/`, and vendor directories.
 
 ---
 
-## Phase 2: WCAG 2.2 AA Checks
+## Phase 2: Accessibility checks
 
-Organize checks by WCAG principle.
+Organize checks by WCAG criteria without issuing a conformance verdict.
 
 ### Perceivable (WCAG 1.x)
 
@@ -96,36 +96,29 @@ Beyond WCAG, check for common ARIA misuse:
 ## Output Format
 
 ```markdown
-## Accessibility Audit Report
+## Accessibility Audit Evidence
 
 **Target**: {path}
-**Standard**: WCAG 2.2 AA
+**Criteria assessed**: WCAG 2.2 success criteria
 **Files scanned**: {count}
 **Timestamp**: {ISO-8601}
 
-### Conformance Summary
+### Verified automated checks
+- {criterion}: {measured evidence}
 
-| Principle | Checks | Pass | Fail | N/A |
-|-----------|--------|------|------|-----|
-| 1. Perceivable | 12 | 9 | 2 | 1 |
-| 2. Operable | 9 | 7 | 1 | 1 |
-| 3. Understandable | 4 | 4 | 0 | 0 |
-| 4. Robust | 3 | 2 | 1 | 0 |
-| ARIA Best Practices | 5 | 4 | 1 | 0 |
+### Failures
+- {criterion}: {file}:{line} — {observed issue}
 
-### Violations
+### Manual-required
+- {criterion}: {reason automated inspection is insufficient}
 
-| WCAG | Severity | File | Line | Issue | Fix |
-|------|----------|------|------|-------|-----|
-| 1.1.1 | High | Card.tsx | 15 | Image missing alt text | Add descriptive `alt` attribute |
-| 2.1.1 | High | Menu.tsx | 42 | `<div onClick>` not keyboard accessible | Use `<button>` or add `onKeyDown` + `role` |
-| 2.4.3 | Medium | Nav.tsx | 8 | `tabindex="5"` creates unexpected focus order | Use `tabindex="0"` instead |
+### Skipped
+- {criterion}: {explicit reason}
 
-### Verdict
+### Unavailable
+- {criterion}: {missing tool or inaccessible surface}
 
-- **AA Conformant**: All checks pass
-- **Partial**: Some violations found but core navigation works
-- **Non-conformant**: Critical violations blocking keyboard/screen reader access
+**Outcome:** verified only when no failures, skipped, or unavailable checks remain; otherwise report failed or unverified evidence.
 ```
 
 ---

@@ -257,6 +257,127 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
             {**terminal, "evidence_refs": ["artifact://ui-delivery-18/result.json"]},
         )
 
+def test_delivery_preflight_requires_omp_assets_without_unrestricted_fallback(
+    repo_root: Path,
+) -> None:
+    delivery = (
+        repo_root / "plugins/stitch-design/skills/ui-delivery/SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    for required_asset in (
+        "ui-delivery",
+        "ui-verification",
+        "ui-builder",
+        "ui-reviewer",
+        "ui_apply_patch",
+        "ui_run_check",
+        "ui_capture",
+        "task.schema.json",
+        "review.schema.json",
+    ):
+        assert required_asset in delivery
+    assert "unrestricted fallback" in delivery.lower()
+    assert "blocks work" in delivery.lower()
+
+
+def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
+    repo_root: Path,
+) -> None:
+    validator = _schema(
+        repo_root / "plugins/stitch-design/skills/ui-delivery/references/task.schema.json"
+    )
+    terminal = {
+        "task_id": "ui-delivery-19",
+        "design_revision": "stitch-revision-73",
+        "allowed_paths": ["src/components/CheckoutCard.tsx"],
+        "forbidden_policy_paths": [".claude/settings.json"],
+        "approved_check_recipes": [
+            {
+                "id": "checkout-ui",
+                "argv": ["npm", "run", "test:ui"],
+                "cwd": "apps/web",
+                "timeout_ms": 1000,
+                "backend": "docker",
+            }
+        ],
+        "capture_recipes": [
+            {
+                "id": "checkout-capture",
+                "check_id": "checkout-ui",
+                "artifacts": [{"path": "artifacts/checkout.png", "type": "image"}],
+            }
+        ],
+        "model_route": "@ui_code",
+        "repair_cycles": 0,
+        "evidence_refs": ["artifact://ui-delivery-19/error.json"],
+    }
+
+    _assert_valid(validator, {**terminal, "state": "blocked", "outcome": "blocked"})
+    _assert_valid(validator, {**terminal, "state": "failed", "outcome": "failed"})
+
+
+def test_agent_output_schemas_are_strict_and_match_the_review_contract(
+    repo_root: Path,
+) -> None:
+    review_schema = json.loads(
+        (
+            repo_root
+            / "plugins/stitch-design/skills/ui-verification/references/review.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    reviewer_output = _frontmatter(
+        repo_root / "plugins/stitch-design/agents/ui-reviewer.md"
+    )["output"]
+    assert set(reviewer_output["properties"]) == set(review_schema["properties"])
+    assert set(reviewer_output["required"]) == set(review_schema["required"])
+    for field in ("findings", "reviewer_model_route", "verdict", "repair_cycles"):
+        assert field in reviewer_output["properties"]
+        assert field in reviewer_output["required"]
+
+    for agent_name in ("ui-builder", "ui-reviewer"):
+        output = _frontmatter(
+            repo_root / f"plugins/stitch-design/agents/{agent_name}.md"
+        )["output"]
+        for field in ("task_id", "candidate_revision", "candidate_hash"):
+            assert output["properties"][field]["minLength"] == 1
+        assert output["properties"]["evidence_refs"]["minItems"] == 1
+        assert {
+            "if": {"properties": {"outcome": {"const": "verified"}}},
+            "then": {"required": ["evidence_refs"]},
+        } in output["allOf"]
+
+
+def test_a11y_reports_evidence_categories_without_conformance_claims(
+    repo_root: Path,
+) -> None:
+    source = (repo_root / "plugins/stitch-design/skills/a11y-audit/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "AA Conformant" not in source
+    assert "| Principle | Checks | Pass | Fail | N/A |" not in source
+    for category in (
+        "verified automated checks",
+        "failures",
+        "manual-required",
+        "skipped",
+        "unavailable",
+    ):
+        assert category in source.lower()
+
+
+def test_design_generation_removes_unbounded_variant_and_curl_guidance(
+    repo_root: Path,
+) -> None:
+    source = (
+        repo_root / "plugins/stitch-design/skills/generate-design/SKILL.md"
+    ).read_text(encoding="utf-8").lower()
+
+    assert "curl -o" not in source
+    assert '"variantcount": 3' not in source
+    assert "default: 3" not in source
+    assert "no more than two candidates" in source
+
 
 def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
     repo_root: Path,
@@ -271,6 +392,7 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
         "candidate_hash": "sha256:8d5f2e",
         "reviewer_model_route": "@ui_review",
         "verdict": "accepted",
+        "findings": ["No blocking findings."],
         "repair_cycles": 2,
         "evidence_refs": ["artifact://ui-delivery-17/capture.png"],
         "outcome": "verified",

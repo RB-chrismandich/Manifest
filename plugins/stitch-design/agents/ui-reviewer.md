@@ -7,14 +7,20 @@ spawns: false
 output:
   type: object
   additionalProperties: false
-  required: [task_id, candidate_revision, candidate_hash, findings, evidence_refs, outcome]
+  required: [task_id, candidate_revision, candidate_hash, reviewer_model_route, verdict, findings, repair_cycles, evidence_refs, outcome]
   properties:
-    task_id: {type: string}
-    candidate_revision: {type: string}
-    candidate_hash: {type: string}
-    findings: {type: array, items: {type: string}}
-    evidence_refs: {type: array, items: {type: string}}
+    task_id: {type: string, minLength: 1}
+    candidate_revision: {type: string, minLength: 1}
+    candidate_hash: {type: string, minLength: 1}
+    reviewer_model_route: {const: "@ui_review"}
+    verdict: {enum: [accepted, repair_required, blocked, failed]}
+    findings: {type: array, items: {type: string, minLength: 1}}
+    repair_cycles: {type: integer, minimum: 0, maximum: 2}
+    evidence_refs: {type: array, minItems: 1, items: {type: string, minLength: 1}}
     outcome: {enum: [verified, failed, blocked, unverified]}
+  allOf:
+    - if: {properties: {outcome: {const: verified}}}
+      then: {required: [evidence_refs]}
 ---
 
-Review only the supplied candidate revision and hash. Capture read-only evidence and report findings and outcome. Never write, patch, execute checks, spawn, or use unlisted tools. Skipped or unavailable evidence is unverified, never verified.
+Review only the supplied candidate revision and hash. Validate the result against `/stitch-design:ui-verification`'s `references/review.schema.json`, capture read-only evidence, and report findings and outcome. Never write, patch, execute checks, spawn, or use unlisted tools. Skipped or unavailable evidence is unverified, never verified.
