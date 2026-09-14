@@ -12,8 +12,8 @@ output:
     task_id: {type: string, minLength: 1}
     candidate_revision: {type: string, minLength: 1}
     candidate_hash: {type: string, minLength: 1}
-    reviewer_model_route: {const: "@ui_review"}
-    verdict: {enum: [accepted, repair_required, blocked, failed]}
+    reviewer_model_route: {type: string, const: "@ui_review"}
+    verdict: {type: string, enum: [accepted, repair_required, blocked, failed]}
     findings: {type: array, items: {type: string, minLength: 1}}
     repair_cycles: {type: integer, minimum: 0, maximum: 2}
     evidence_refs: {type: array, minItems: 1, items: {type: string, minLength: 1}}

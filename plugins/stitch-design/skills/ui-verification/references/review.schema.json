@@ -26,9 +26,11 @@
       "minLength": 1
     },
     "reviewer_model_route": {
+      "type": "string",
       "const": "@ui_review"
     },
     "verdict": {
+      "type": "string",
       "enum": [
         "accepted",
         "repair_required",
