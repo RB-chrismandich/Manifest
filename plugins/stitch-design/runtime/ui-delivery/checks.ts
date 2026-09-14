@@ -44,10 +44,9 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
   if (signal?.aborted) throw new Error('check aborted'); if (command !== undefined) throw new Error('raw commands are not accepted');
   const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; write_paths: string[] } | undefined;
   if (!recipe) throw new Error('unknown approved check'); if (!backends[recipe.backend]) throw new Error('selected sandbox backend unavailable');
-  const root = await realpath(repo); const cwd = resolve(root, recipe.cwd); if (!under(root, cwd)) throw new Error('check cwd escapes repository'); const runtime = await approvedExecutable(recipe.argv); const invokedArgv = [runtime.executable, ...recipe.argv.slice(1)];
+  const lexicalRepo = resolve(repo); const root = await realpath(repo); const cwd = resolve(root, recipe.cwd); if (!under(root, cwd)) throw new Error('check cwd escapes repository'); const runtime = await approvedExecutable(recipe.argv); const invokedArgv = [runtime.executable, ...recipe.argv.slice(1).map((argument) => argument.startsWith('/') && under(lexicalRepo, argument) ? join(root, relative(lexicalRepo, argument)) : argument)];
   const writable: string[] = [];
   for (const value of recipe.write_paths ?? []) { const lexical = resolve(root, value); if (!under(root, lexical) || protectedPath(root, lexical, task.forbidden_policy_paths ?? [])) throw new Error('writable protected path'); const resolved = await realpath(lexical); if (resolved !== lexical || !under(root, resolved)) throw new Error('symlinked writes are forbidden'); writable.push(resolved); }
-  if (!writable.length) throw new Error('check has no exact writable outputs');
   const scratch = await realpath(await mkdtemp(join(scratchRoot, 'ui-delivery-check-')));
   try {
     const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
