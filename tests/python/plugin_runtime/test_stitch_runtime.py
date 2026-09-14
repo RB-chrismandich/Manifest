@@ -139,8 +139,11 @@ def test_stitch_omp_extension_registers_deterministic_read_only_status_tool(
             """\
             const extensionPath = process.argv[2];
             const registeredTools = [];
+            const emptyObjectSchema = {
+              strict: () => emptyObjectSchema,
+            };
             const api = {
-              zod: { object: () => ({}) },
+              zod: { object: () => emptyObjectSchema },
               registerTool(tool) {
                 registeredTools.push(tool);
               },
