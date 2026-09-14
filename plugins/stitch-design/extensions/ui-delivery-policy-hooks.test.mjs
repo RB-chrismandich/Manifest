@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
-import { execute, extensionApi, fixture, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
+import { execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
+import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 
 test('fails package activation before registering tools when required enforcement hooks are unavailable', () => {
   const { api, tools, handlers } = extensionApi({ hooks: false });
@@ -43,6 +44,59 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
       isError: false, content: [{ type: 'text', text: JSON.stringify({ screenId: 'screen-17' }) }],
       details: { projectId: 'project-17' },
     });
+  });
+});
+
+test('surfaces a successful create-project result without project identity and keeps the mutation fail-closed', async () => {
+  const creation = { title: 'Bounded project' };
+  const definition = task({
+    stitch_grant: {
+      expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: hashStitchInput({ projectId: 'project-created' }) } }],
+      readback_tools: ['mcp__stitch_get_project'],
+    },
+  });
+  const { api, tools, handlers } = extensionApi();
+  api.getAllTools = () => ['create_project', 'get_project'].map((name) => ({
+    name: `mcp__stitch_${name}`,
+    sourceInfo: { source: 'mcp', path: '<mcp:stitch>' },
+    parameters: { type: 'object' },
+  }));
+  uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+
+  await withApproval(definition, async () => {
+    await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    const hook = handlers.get('tool_call');
+    assert.equal(await hook({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'create-1' }), undefined);
+    await assert.rejects(
+      () => handlers.get('tool_result')({ toolName: 'mcp__stitch_create_project', toolCallId: 'create-1', isError: false, details: {} }),
+      /cannot be reconciled/i,
+    );
+    const retry = await hook({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'create-2' });
+    assert.equal(retry.block, true);
+    assert.match(retry.reason, /reconcil|consum/i);
+  });
+});
+
+test('surfaces mutation-result persistence failures and keeps the mutation fail-closed', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+
+  await withApproval(definition, async () => {
+    await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    const hook = handlers.get('tool_call');
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+    await writeFile(join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock'), '');
+    await assert.rejects(
+      () => handlers.get('tool_result')({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } }),
+      /exist|state/i,
+    );
+    const retry = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-2' });
+    assert.equal(retry.block, true);
+    assert.match(retry.reason, /reconcil|consum/i);
   });
 });
 

@@ -4,14 +4,28 @@ export function hashStitchInput(input: unknown): string { return canonicalJsonHa
 type StitchRegistryTool = { name: string; sourceInfo?: { source?: string; path?: string }; parameters?: unknown; metadata?: { mcpServerName?: string; operation?: string }; inputSchema?: unknown };
 export type StitchToolKind = 'read' | 'mutation';
 function isStitchRegistryTool(value: unknown): value is StitchRegistryTool { return Boolean(value) && typeof value === 'object' && 'name' in value && typeof value.name === 'string'; }
-const READ_TOOLS: Record<string, true> = {
-  get_screen: true, list_screens: true, get_project: true, list_projects: true, list_design_systems: true, read_url_content: true,
+export const STITCH_READ_TOOL_NAMES = [
+  'mcp__stitch_get_screen', 'mcp__stitch_list_screens', 'mcp__stitch_get_project',
+  'mcp__stitch_list_projects', 'mcp__stitch_list_design_systems', 'mcp__stitch_read_url_content',
+] as const;
+export const STITCH_MUTATION_TOOL_NAMES = [
+  'mcp__stitch_create_project', 'mcp__stitch_generate_screen_from_text', 'mcp__stitch_edit_screens',
+  'mcp__stitch_generate_variants', 'mcp__stitch_upload_design_md',
+  'mcp__stitch_create_design_system_from_design_md', 'mcp__stitch_update_design_system',
+  'mcp__stitch_apply_design_system',
+] as const;
+const READ_TOOLS: Record<string, true> = Object.fromEntries(STITCH_READ_TOOL_NAMES.map((name) => [name, true]));
+const MUTATION_TOOLS: Record<string, true> = Object.fromEntries(STITCH_MUTATION_TOOL_NAMES.map((name) => [name, true]));
+const PROJECTLESS_READ_TOOLS: Record<string, true> = {
+  mcp__stitch_list_projects: true,
+  mcp__stitch_read_url_content: true,
 };
-const MUTATION_TOOLS: Record<string, true> = {
-  create_project: true, generate_screen_from_text: true, edit_screens: true, generate_variants: true,
-  upload_design_md: true, create_design_system_from_design_md: true, update_design_system: true, apply_design_system: true,
-};
-function kindFor(tool: StitchRegistryTool): StitchToolKind | undefined { const prefix = 'mcp__stitch_'; const suffix = tool.name.slice(prefix.length); if (!tool.name.startsWith(prefix) || tool.sourceInfo?.source !== 'mcp' || !String(tool.sourceInfo?.path ?? '').includes('stitch') || !(tool.parameters ?? tool.inputSchema)) return undefined; if (READ_TOOLS[suffix]) return 'read'; if (MUTATION_TOOLS[suffix]) return 'mutation'; return undefined; }
+function kindFor(tool: StitchRegistryTool): StitchToolKind | undefined {
+  if (!tool.name.startsWith('mcp__stitch_') || tool.sourceInfo?.source !== 'mcp' || !String(tool.sourceInfo?.path ?? '').includes('stitch') || !(tool.parameters ?? tool.inputSchema)) return undefined;
+  if (READ_TOOLS[tool.name]) return 'read';
+  if (MUTATION_TOOLS[tool.name]) return 'mutation';
+  return undefined;
+}
 
 export interface StitchPolicy {
   classify(toolName: string): StitchToolKind | 'unknown';
@@ -56,7 +70,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       const kind = classified.get(toolName);
       if (!valid() || !kind) throw new Error('Stitch tool call is not authorized');
       if (kind === 'read') {
-        if (toolName === 'mcp__stitch_list_projects') return;
+        if (PROJECTLESS_READ_TOOLS[toolName]) return;
         const boundProjectId = grant?.project_id ?? discoveredProjectId;
         if (!projectId || projectId !== boundProjectId) throw new Error('Stitch tool call is not authorized');
         const entryKey = unresolvedEntry();
@@ -65,10 +79,11 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       }
       const mutation = grant?.mutations?.find((entry) => entry.tool_name === toolName && entry.input_hash === hashStitchInput(input));
       const creating = toolName === 'mcp__stitch_create_project';
+      const boundProjectId = grant?.project_id ?? discoveredProjectId;
       const entryKey = mutation ? `${mutation.tool_name}:${mutation.input_hash}` : undefined;
       if (unresolvedEntry()) throw new Error('Stitch mutation requires readback reconciliation');
       if (entryKey && entries.has(entryKey)) throw new Error('Stitch mutation grant is already consumed');
-      if (!mutation || !entryKey || mutation.max_uses !== 1 || (creating ? Boolean(projectId || grant?.project_id) : !projectId || grant?.project_id !== projectId)) throw new Error('Stitch mutation does not match one-shot grant');
+      if (!mutation || !entryKey || mutation.max_uses !== 1 || (creating ? Boolean(projectId || grant?.project_id) : !projectId || projectId !== boundProjectId)) throw new Error('Stitch mutation does not match one-shot grant');
       entries.set(entryKey, 'pending'); mutationCalls.set(entryKey, toolCallId); await save();
     },
     async recordDispatchInterrupted({ toolCallId }: { toolCallId: string }): Promise<void> {

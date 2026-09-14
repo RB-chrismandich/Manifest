@@ -6,8 +6,9 @@ Use these examples to format your Stitch MCP design system tool calls correctly.
 
 When UI delivery policy is active, only registered Stitch tools with these exact
 registry names are classified. Every mutation requires an independently approved
-`tool_name` plus canonical input hash; reads remain bound to the approved project
-except account discovery.
+`tool_name` plus canonical input hash. Project-scoped reads remain bound to the
+approved project; only `mcp__stitch_list_projects` and URL-based
+`mcp__stitch_read_url_content` are projectless reads.
 
 | Classification | Exact registry names |
 | --- | --- |

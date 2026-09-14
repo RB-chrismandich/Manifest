@@ -47,27 +47,29 @@ test('allows a registered read tool and the exact one-shot approved mutation', a
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'mutation-1' });
 });
 
-test('allows account discovery and a one-shot input-bound project creation followed by readback', async () => {
+test('binds approved mutations to the project discovered by create-project readback without changing the grant', async () => {
   const creation = { title: 'Bounded project' };
-  const policy = createStitchPolicy({
-    task: task({
-      stitch_grant: {
-        expires_at: '2030-01-01T00:00:00Z',
-        mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: hashStitchInput({ projectId: 'project-created' }) } }],
-        readback_tools: ['mcp__stitch_get_project'],
-      },
-    }),
-    registry,
-    now: () => now,
+  const generation = { projectId: 'project-created', prompt: 'Create the home screen' };
+  const definition = task({
+    stitch_grant: {
+      expires_at: '2030-01-01T00:00:00Z',
+      mutations: [
+        { tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: hashStitchInput({ projectId: 'project-created' }) } },
+        { tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(generation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: hashStitchInput({ screen: { id: 'screen-created' } }) } },
+      ],
+      readback_tools: ['mcp__stitch_get_project', 'mcp__stitch_get_screen'],
+    },
   });
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now });
 
   await policy.authorize({ toolName: 'mcp__stitch_list_projects', input: {}, toolCallId: 'discovery-1' });
-  await policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'mutation-1' });
-  await assert.rejects(() => policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'mutation-2' }), /reconcil|consum/i);
-  await policy.recordMutationResult({ toolName: 'mcp__stitch_create_project', toolCallId: 'mutation-1', projectId: 'project-created', succeeded: true });
+  await policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'create-1' });
+  await assert.rejects(() => policy.authorize({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'create-2' }), /reconcil|consum/i);
+  await policy.recordMutationResult({ toolName: 'mcp__stitch_create_project', toolCallId: 'create-1', projectId: 'project-created', succeeded: true });
   await policy.authorize({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', input: { projectId: 'project-created' }, toolCallId: 'readback-1' });
   await policy.recordReadback({ projectId: 'project-created', toolName: 'mcp__stitch_get_project', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-created' } });
-  assert.equal(policy.state(), 'reconciled');
+  await policy.authorize({ projectId: 'project-created', toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' });
+  assert.equal(definition.stitch_grant.project_id, undefined);
 });
 
 test('classifies every Stitch tool used by bundled design workflows and rejects unknown tools', async () => {
@@ -90,6 +92,16 @@ test('denies unknown tools and schemas that do not establish a read or mutation 
   });
   assert.equal(policy.classify('mcp__stitch_unknown'), 'unknown');
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_unknown', input }));
+});
+
+test('allows the URL-based read without project identity but keeps scoped reads project-bound', async () => {
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
+
+  await policy.authorize({ toolName: 'mcp__stitch_read_url_content', input: { url: 'https://example.test/screen.html' }, toolCallId: 'url-read-1' });
+  await assert.rejects(
+    () => policy.authorize({ toolName: 'mcp__stitch_get_screen', input: { screenId: 'screen-1' }, toolCallId: 'scoped-read-1' }),
+    /not authorized/i,
+  );
 });
 
 test('denies missing, expired, wrong-project, and wrong-input mutation grants', async () => {
