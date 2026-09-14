@@ -4,16 +4,16 @@
       {
         "component_id": "ui-builder",
         "component_type": "agents",
-        "mode": "unsupported",
+        "mode": "not_applicable",
         "path": "agents/ui-builder.md",
-        "reason": "OMP-only constrained tool enforcement"
+        "reason": "This constrained agent is OMP-only."
       },
       {
         "component_id": "ui-reviewer",
         "component_type": "agents",
-        "mode": "unsupported",
+        "mode": "not_applicable",
         "path": "agents/ui-reviewer.md",
-        "reason": "OMP-only read-only tool enforcement"
+        "reason": "This constrained agent is OMP-only."
       },
       {
         "component_id": "model-qualification",
@@ -74,23 +74,23 @@
       {
         "component_id": "stitch-omp-extension",
         "component_type": "runtime",
-        "mode": "unsupported",
+        "mode": "not_applicable",
         "path": "extensions/ui-delivery-policy.ts",
-        "reason": "OMP extension"
+        "reason": "This extension is OMP-only."
       },
       {
         "component_id": "stitch-omp-mcp-definition",
         "component_type": "runtime",
-        "mode": "unsupported",
+        "mode": "not_applicable",
         "path": ".mcp.json",
-        "reason": "OMP MCP definition"
+        "reason": "This MCP definition is OMP-only."
       },
       {
         "component_id": "stitch-omp-package",
         "component_type": "runtime",
-        "mode": "unsupported",
+        "mode": "not_applicable",
         "path": "package.json",
-        "reason": "OMP package manifest"
+        "reason": "This package manifest is OMP-only."
       }
     ],
     "generated": [

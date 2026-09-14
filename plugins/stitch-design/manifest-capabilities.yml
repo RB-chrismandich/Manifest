@@ -14,21 +14,21 @@ components:
     - id: ui-builder
       path: agents/ui-builder.md
       compatibility:
-        claude: {mode: unsupported, reason: OMP-only constrained tool enforcement}
-        codex: {mode: unsupported, reason: OMP-only constrained tool enforcement}
-        gemini: {mode: unsupported, reason: OMP-only constrained tool enforcement}
-        cursor: {mode: unsupported, reason: OMP-only constrained tool enforcement}
-        antigravity: {mode: unsupported, reason: OMP-only constrained tool enforcement}
-        devin: {mode: unsupported, reason: OMP-only constrained tool enforcement}
+        claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        gemini: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
     - id: ui-reviewer
       path: agents/ui-reviewer.md
       compatibility:
-        claude: {mode: unsupported, reason: OMP-only read-only tool enforcement}
-        codex: {mode: unsupported, reason: OMP-only read-only tool enforcement}
-        gemini: {mode: unsupported, reason: OMP-only read-only tool enforcement}
-        cursor: {mode: unsupported, reason: OMP-only read-only tool enforcement}
-        antigravity: {mode: unsupported, reason: OMP-only read-only tool enforcement}
-        devin: {mode: unsupported, reason: OMP-only read-only tool enforcement}
+        claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        gemini: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
   hooks: []
   runtime:
     - {id: stitch-dist, path: runtime/dist}
@@ -42,30 +42,30 @@ components:
     - id: stitch-omp-package
       path: package.json
       compatibility:
-        claude: {mode: unsupported, reason: OMP package manifest}
-        codex: {mode: unsupported, reason: OMP package manifest}
-        gemini: {mode: unsupported, reason: OMP package manifest}
-        cursor: {mode: unsupported, reason: OMP package manifest}
-        antigravity: {mode: unsupported, reason: OMP package manifest}
-        devin: {mode: unsupported, reason: OMP package manifest}
+        claude: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        codex: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        gemini: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        cursor: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        devin: {mode: not_applicable, reason: This package manifest is OMP-only.}
     - id: stitch-omp-mcp-definition
       path: .mcp.json
       compatibility:
-        claude: {mode: unsupported, reason: OMP MCP definition}
-        codex: {mode: unsupported, reason: OMP MCP definition}
-        gemini: {mode: unsupported, reason: OMP MCP definition}
-        cursor: {mode: unsupported, reason: OMP MCP definition}
-        antigravity: {mode: unsupported, reason: OMP MCP definition}
-        devin: {mode: unsupported, reason: OMP MCP definition}
+        claude: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        codex: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        gemini: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        cursor: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        devin: {mode: not_applicable, reason: This MCP definition is OMP-only.}
     - id: stitch-omp-extension
       path: extensions/ui-delivery-policy.ts
       compatibility:
-        claude: {mode: unsupported, reason: OMP extension}
-        codex: {mode: unsupported, reason: OMP extension}
-        gemini: {mode: unsupported, reason: OMP extension}
-        cursor: {mode: unsupported, reason: OMP extension}
-        antigravity: {mode: unsupported, reason: OMP extension}
-        devin: {mode: unsupported, reason: OMP extension}
+        claude: {mode: not_applicable, reason: This extension is OMP-only.}
+        codex: {mode: not_applicable, reason: This extension is OMP-only.}
+        gemini: {mode: not_applicable, reason: This extension is OMP-only.}
+        cursor: {mode: not_applicable, reason: This extension is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This extension is OMP-only.}
+        devin: {mode: not_applicable, reason: This extension is OMP-only.}
   guidance: []
 capabilities:
   mcp:

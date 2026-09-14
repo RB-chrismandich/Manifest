@@ -224,6 +224,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -253,6 +254,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -495,6 +498,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -524,6 +528,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -769,6 +775,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -798,6 +805,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -1040,6 +1049,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1069,6 +1079,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -1311,6 +1323,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1340,6 +1353,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -1582,6 +1597,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1611,6 +1627,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
