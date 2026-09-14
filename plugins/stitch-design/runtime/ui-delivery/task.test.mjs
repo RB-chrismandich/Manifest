@@ -200,69 +200,6 @@ test('requires a fresh cycle-bound nonce before a repairing task can apply a pat
   await withApproval(malformed, () => assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /repairing|cycle/i));
 });
 
-test('rejects malformed grant expiry even for status-facing task loads', async () => {
-  const definition = approvedTask({ stitch_grant: { project_id: 'project-17', expires_at: 'not-a-date', mutations: [], readback_tools: [] } });
-  const { repo, path } = await taskFile(definition);
-  await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
-});
-
-test('rejects normalized calendar dates while accepting a canonical leap-day grant expiry', async () => {
-  for (const expires_at of ['2024-02-31T00:00:00Z', '2030-01-01T00:00:00+00:00']) {
-    const definition = approvedTask({
-      stitch_grant: {
-        project_id: 'project-17', expires_at,
-        mutations: [{
-          tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
-          expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'d'.repeat(64)}` },
-        }],
-        readback_tools: ['mcp__stitch_get_screen'],
-      },
-    });
-    const { repo, path } = await taskFile(definition);
-    await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
-  }
-  const leap = approvedTask({
-    stitch_grant: {
-      project_id: 'project-17', expires_at: '2024-02-29T00:00:00Z',
-      mutations: [{
-        tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
-        expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'d'.repeat(64)}` },
-      }],
-      readback_tools: ['mcp__stitch_get_screen'],
-    },
-  });
-  const { repo, path } = await taskFile(leap);
-  await loadTask({ repo, taskFile: path });
-});
-
-test('only Stitch mutation loads reject expired grants while local operations remain available', async () => {
-  const stitch_grant = {
-    project_id: 'project-17', expires_at: '2020-01-01T00:00:00Z',
-    mutations: [{
-      tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
-      expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'d'.repeat(64)}` },
-    }],
-    readback_tools: ['mcp__stitch_get_screen'],
-  };
-  const patch = approvedTask({ stitch_grant });
-  const check = approvedTask({
-    stitch_grant, state: 'candidate_ready', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
-  });
-  const capture = approvedTask({
-    stitch_grant, state: 'reviewing', model_route: '@ui_review', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
-  });
-  for (const [definition, operation] of [[patch, 'patch'], [check, 'check'], [capture, 'capture']]) {
-    const { repo, path } = await taskFile(definition);
-    await withApproval(definition, () => loadTask({ repo, taskFile: path, operation }));
-  }
-  const { repo, path } = await taskFile(patch);
-  await withApproval(patch, () => assert.rejects(
-    () => loadTask({ repo, taskFile: path, mutation: true }),
-    /Stitch grant expired/i,
-  ));
-});
 
 test('rejects unsafe task IDs, repository-root candidate scope, and noncanonical paths before any operation', async () => {
   for (const override of [

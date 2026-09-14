@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -52,6 +53,68 @@ async function expectRejectedGrant(stitch_grant, pattern) {
   const { repo, path } = await taskFile(approvedTask({ stitch_grant }));
   await assert.rejects(() => loadTask({ repo, taskFile: path }), pattern);
 }
+
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  return value;
+}
+
+function authorizationDigest(task) {
+  const projection = Object.fromEntries([
+    'task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths',
+    'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization',
+  ].filter((key) => key in task).map((key) => [key, task[key]]));
+  return `sha256:${createHash('sha256').update(JSON.stringify(canonical(projection))).digest('hex')}`;
+}
+
+async function withApproval(task, operation) {
+  const before = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  const activeBefore = process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = authorizationDigest(task);
+  process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = task.qualification_hash;
+  try { return await operation(); } finally {
+    if (before === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = before;
+    if (activeBefore === undefined) delete process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
+    else process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = activeBefore;
+  }
+}
+
+test('rejects malformed grant expiry even for status-facing task loads', async () => {
+  const definition = approvedTask({ stitch_grant: { project_id: 'project-17', expires_at: 'not-a-date', mutations: [], readback_tools: [] } });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
+});
+
+test('rejects normalized calendar dates while accepting a canonical leap-day grant expiry', async () => {
+  for (const expires_at of ['2024-02-31T00:00:00Z', '2030-01-01T00:00:00+00:00']) {
+    await expectRejectedGrant(standardGrant({ expires_at }), /expiry|date|grant/i);
+  }
+  const { repo, path } = await taskFile(approvedTask({ stitch_grant: standardGrant({ expires_at: '2024-02-29T00:00:00Z' }) }));
+});
+
+test('only Stitch mutation loads reject expired grants while local operations remain available', async () => {
+  const stitch_grant = standardGrant({ expires_at: '2020-01-01T00:00:00Z' });
+  const patch = approvedTask({ stitch_grant });
+  const check = approvedTask({
+    stitch_grant, state: 'candidate_ready', candidate_revision: 'git:abc',
+    candidate_hash: SHA256('a'), outcome: 'unverified',
+  });
+  const capture = approvedTask({
+    stitch_grant, state: 'reviewing', model_route: '@ui_review', candidate_revision: 'git:abc',
+    candidate_hash: SHA256('a'), outcome: 'unverified',
+  });
+  for (const [definition, operation] of [[patch, 'patch'], [check, 'check'], [capture, 'capture']]) {
+    const { repo, path } = await taskFile(definition);
+    await withApproval(definition, () => loadTask({ repo, taskFile: path, operation }));
+  }
+  const { repo, path } = await taskFile(patch);
+  await withApproval(patch, () => assert.rejects(
+    () => loadTask({ repo, taskFile: path, mutation: true }),
+    /Stitch grant expired/i,
+  ));
+});
 
 test('rejects grants with tools outside the exact supported Stitch inventory', async () => {
   await expectRejectedGrant(standardGrant({

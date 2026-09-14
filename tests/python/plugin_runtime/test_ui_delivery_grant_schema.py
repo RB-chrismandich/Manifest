@@ -257,6 +257,7 @@ def test_grant_schema_rejects_exact_duplicate_mutation_entries(repo_root: Path) 
         },
     )
 
+
 def test_grant_schema_accepts_readback_for_existing_project(repo_root: Path) -> None:
     validator = _validator(repo_root)
 
