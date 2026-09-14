@@ -61,8 +61,8 @@ for (const definition of cases) {
     approved_check_recipes: [
       {
         id: 'design-contract',
-        argv: ['node', join(repo, checkVerifier), join(repo, 'contracts', definition.contract), join(repo, definition.target)],
-        cwd: '.', timeout_ms: 30000, backend: 'sandbox-exec', result_path: checkResult, write_paths: [checkResult], trusted_verifier: designVerifier,
+        argv: ['node', `/repo/${checkVerifier}`, `/repo/contracts/${definition.contract}`, `/repo/${definition.target}`],
+        cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32', result_path: checkResult, write_paths: [checkResult], trusted_verifier: designVerifier,
       },
       {
         id: 'capture-screen',
