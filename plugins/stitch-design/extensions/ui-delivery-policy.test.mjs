@@ -143,6 +143,28 @@ test('applies a same-path regular diff with standard index metadata', async () =
   assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 2;\n');
 });
 
+test('applies same-file hunks whose payload lines resemble unified-diff file headers', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await writeFile(join(repo, 'src/Card.tsx'), '-- example\n');
+  await withApproval(definition, () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n--- example\n+++ example\n',
+  }, repo));
+  assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), '+ example\n');
+});
+
+test('rejects a same-file hunk whose declared line count does not match its payload', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +2 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+  }, repo), /malformed|unparseable|hunk/i));
+});
+
 test('applies an absolute task file patch and updates that validated task', async () => {
   const definition = task();
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);

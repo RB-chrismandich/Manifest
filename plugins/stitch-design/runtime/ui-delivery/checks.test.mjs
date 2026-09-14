@@ -105,8 +105,24 @@ test('constructs Docker with fixed non-secret environment forwarded to the workl
   assert.ok(command.argv.includes('none'));
   assert.ok(command.argv.includes('--read-only'));
   assert.ok(command.argv.includes('--env'));
+  assert.ok(command.argv.includes('--rm'));
   assert.ok(!command.argv.includes('AWS_SECRET_ACCESS_KEY=secret'));
   assert.ok(!command.argv.includes('CI=attacker-selected'));
+});
+
+test('uses Docker lifecycle cleanup for ordinary nonzero check results', async () => {
+  const repo = await fixture();
+  const calls = [];
+  const result = await runCheck({
+    repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
+    checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+    executor: async (command) => {
+      calls.push(command);
+      return { exitCode: 1, stdout: '', stderr: 'failed' };
+    },
+  });
+  assert.equal(result.exitCode, 1);
+  assert.ok(calls[0].argv.includes('--rm'));
 });
 
 test('passes fixed Docker workload argv through without resolving its container executable on the host', async () => {
