@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { beginPatchJournal, loadTask, releasePatchJournal } from './task.ts';
+import { beginPatchJournal, candidateHash, loadTask, releasePatchJournal } from './task.ts';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -320,6 +320,82 @@ test('rejects grants whose readback is ungranted, projectless, or noncanonical',
     const { repo, path } = await taskFile({ stitch_grant });
     await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*grant|readback/i);
   }
+});
+
+test('binds candidate identity to traversed directory modes', async () => {
+  const definition = approvedTask();
+  const { repo } = await taskFile(definition);
+  const before = await candidateHash({ repo, task: definition });
+  await chmod(join(repo, 'src'), 0o700);
+  const after = await candidateHash({ repo, task: definition });
+  assert.notEqual(after, before);
+});
+
+test('rejects uppercase candidate hashes', async () => {
+  const definition = approvedTask({
+    state: 'candidate_ready',
+    candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'A'.repeat(64)}`,
+  });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /candidate binding/i);
+});
+
+test('accepts a predictable readback only with a resource identity', async () => {
+  const definition = approvedTask({
+    stitch_grant: {
+      project_id: 'project-17',
+      expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{
+        tool_name: 'mcp__stitch_edit_screens',
+        input_hash: `sha256:${'c'.repeat(64)}`,
+        max_uses: 1,
+        expected_readback: {
+          tool_name: 'mcp__stitch_get_screen',
+          predictable_fields: { title: 'Checkout' },
+          resource_identity: 'screen',
+        },
+      }],
+      readback_tools: ['mcp__stitch_get_screen'],
+    },
+  });
+  const { repo, path } = await taskFile(definition);
+  await loadTask({ repo, taskFile: path });
+});
+
+test('rejects project-bound create grants', async () => {
+  const definition = approvedTask({
+    stitch_grant: {
+      project_id: 'project-17',
+      expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{
+        tool_name: 'mcp__stitch_create_project',
+        input_hash: `sha256:${'c'.repeat(64)}`,
+        max_uses: 1,
+        expected_readback: {
+          tool_name: 'mcp__stitch_get_project',
+          predictable_fields: { title: 'Checkout' },
+          resource_identity: 'project',
+        },
+      }],
+      readback_tools: ['mcp__stitch_get_project'],
+    },
+  });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /project-bound create/i);
+});
+
+test('rejects Docker checks that do not start an approved image runtime', async () => {
+  const definition = approvedTask({
+    approved_check_recipes: [{
+      ...approvedTask().approved_check_recipes[0],
+      backend: 'docker',
+      sandbox_image: `registry.example/ui-check@sha256:${'a'.repeat(64)}`,
+      argv: ['.omp/ui-delivery/verifiers/unit.mjs'],
+    }],
+  });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /approved image runtime/i);
 });
 
 test('does not settle patch journal creation before syncing the file and parent directory', async () => {

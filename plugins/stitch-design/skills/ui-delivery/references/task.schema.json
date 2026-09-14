@@ -47,7 +47,7 @@
     },
     "candidate_hash": {
       "type": "string",
-      "pattern": "^sha256:[a-fA-F0-9]{64}$"
+      "pattern": "^sha256:[a-f0-9]{64}$"
     },
     "allowed_paths": {
       "type": "array",
@@ -298,8 +298,19 @@
                     "type": "object",
                     "minProperties": 1,
                     "propertyNames": {"pattern": "^(?!project_id$)[a-z][a-z0-9_]*$"}
+                  },
+                  "resource_identity": {"enum": ["project", "screen", "design_system"]}
+                },
+                "oneOf": [
+                  {
+                    "required": ["tool_name", "response_hash"],
+                    "not": {"anyOf": [{"required": ["predictable_fields"]}, {"required": ["resource_identity"]}]}
+                  },
+                  {
+                    "required": ["tool_name", "predictable_fields", "resource_identity"],
+                    "not": {"required": ["response_hash"]}
                   }
-                }
+                ]
               }
             },
             "allOf": [
@@ -308,14 +319,9 @@
                 "then": {
                   "properties": {
                     "expected_readback": {
-                      "required": ["tool_name", "predictable_fields"],
-                      "not": {"required": ["response_hash"]}
+                      "required": ["predictable_fields", "resource_identity"],
+                      "properties": {"resource_identity": {"const": "project"}}
                     }
-                  }
-                },
-                "else": {
-                  "properties": {
-                    "expected_readback": {"required": ["tool_name", "response_hash"]}
                   }
                 }
               }
@@ -329,7 +335,23 @@
             "enum": ["mcp__stitch_get_screen", "mcp__stitch_list_screens", "mcp__stitch_get_project", "mcp__stitch_list_design_systems"]
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mutations": {
+                "contains": {
+                  "properties": {"tool_name": {"const": "mcp__stitch_create_project"}},
+                  "required": ["tool_name"]
+                }
+              }
+            },
+            "required": ["mutations"]
+          },
+          "then": {"not": {"required": ["project_id"]}}
+        }
+      ]
     }
   },
   "allOf": [
@@ -498,8 +520,15 @@
                 }
               },
               "then": {
-                "required": [
-                  "sandbox_image"
+                "allOf": [
+                  {"required": ["sandbox_image"]},
+                  {
+                    "properties": {
+                      "argv": {
+                        "prefixItems": [{"enum": ["node", "python3"]}]
+                      }
+                    }
+                  }
                 ]
               }
             }

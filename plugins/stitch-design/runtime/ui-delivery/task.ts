@@ -37,7 +37,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if (!states.has(value.state)) invalid('invalid state');
   if (!['@ui_code', '@ui_review'].includes(value.model_route)) invalid('invalid model route');
   if ((value.state === 'accepted' && (value.outcome !== 'verified' || value.model_route !== '@ui_review')) || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome/model route mismatch');
-  if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/i.test(value.candidate_hash))) invalid('candidate binding required');
+  if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(value.candidate_hash))) invalid('candidate binding required');
   if (['accepted', 'blocked', 'failed'].includes(value.state) && !nonEmptyStrings(value.evidence_refs)) invalid('terminal evidence required');
   if (value.state === 'repairing' && (!value.repair_authorization || typeof value.repair_authorization !== 'object' || !Number.isInteger(value.repair_authorization.cycle) || value.repair_authorization.cycle !== value.repair_cycles || value.repair_authorization.cycle < 1 || typeof value.repair_authorization.nonce !== 'string' || !value.repair_authorization.nonce)) invalid('repairing requires renewed cycle-bound authorization');
   const ids = new Set<string>();
@@ -47,7 +47,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
     if (!verifier || typeof verifier !== 'object' || !/^\.omp\/ui-delivery\/verifiers\/(?!.*\.\.)[^/].*$/.test(verifier.path) || !/^sha256:[a-f0-9]{64}$/i.test(verifier.sha256)) invalid('invalid trusted verifier');
     for (const writePath of recipe.write_paths) if (writePath === '.' || writePath === '.git' || writePath === '.omp' || writePath === 'secrets' || value.allowed_paths.some((allowed: string) => allowed === writePath || allowed.startsWith(`${writePath}/`) || writePath.startsWith(`${allowed}/`))) invalid('check output overlaps candidate scope');
     ids.add(recipe.id);
-    if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image))) invalid('docker image must be digest pinned');
+    if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image) || !['node', 'python3'].includes(recipe.argv[0]))) invalid('docker recipe must start with an approved image runtime');
   }
   const captureIds = new Set<string>();
   const artifactPaths = new Set<string>();
@@ -64,12 +64,16 @@ function validate(task: unknown): asserts task is DeliveryTask {
   const grant = value.stitch_grant;
   if (grant !== undefined) {
     if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations) || !nonEmptyStrings(grant.readback_tools) || !grant.readback_tools.every((tool: string) => STITCH_READBACK_TOOL_NAMES.includes(tool as typeof STITCH_READBACK_TOOL_NAMES[number]))) invalid('invalid Stitch grant');
+    if (grant.mutations.some((mutation: Record<string, unknown>) => mutation?.tool_name === 'mcp__stitch_create_project') && Object.hasOwn(grant, 'project_id')) invalid('project-bound create grant is invalid');
     for (const mutation of grant.mutations) {
       const expected = mutation?.expected_readback;
+      const expectedRecord = expected && typeof expected === 'object' && !Array.isArray(expected) ? expected : undefined;
       const creating = mutation?.tool_name === 'mcp__stitch_create_project';
-      const predictableFields = expected?.predictable_fields;
-      if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !/^sha256:[a-f0-9]{64}$/.test(mutation?.input_hash) || mutation?.max_uses !== 1 || !expected || typeof expected !== 'object' || !STITCH_READBACK_TOOL_NAMES.includes(expected.tool_name) || !grant.readback_tools.includes(expected.tool_name)) invalid('invalid Stitch grant tool');
-      if (creating ? !predictableFields || typeof predictableFields !== 'object' || Array.isArray(predictableFields) || !Object.keys(predictableFields).length || Object.hasOwn(expected, 'response_hash') || Object.keys(predictableFields).some((field) => !/^(?!project_id$)[a-z][a-z0-9_]*$/.test(field)) : !/^sha256:[a-f0-9]{64}$/.test(expected.response_hash) || Object.hasOwn(expected, 'predictable_fields')) invalid('invalid Stitch grant readback');
+      const predictableFields = expectedRecord?.predictable_fields;
+      const exactReadback = /^sha256:[a-f0-9]{64}$/.test(expectedRecord?.response_hash) && !Object.hasOwn(expectedRecord ?? {}, 'predictable_fields') && !Object.hasOwn(expectedRecord ?? {}, 'resource_identity');
+      const predictableReadback = predictableFields && typeof predictableFields === 'object' && !Array.isArray(predictableFields) && Object.keys(predictableFields).length > 0 && Object.keys(predictableFields).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field)) && !Object.hasOwn(expectedRecord ?? {}, 'response_hash') && ['project', 'screen', 'design_system'].includes(expectedRecord?.resource_identity);
+      if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !/^sha256:[a-f0-9]{64}$/.test(mutation?.input_hash) || mutation?.max_uses !== 1 || !expectedRecord || !STITCH_READBACK_TOOL_NAMES.includes(expectedRecord.tool_name) || !grant.readback_tools.includes(expectedRecord.tool_name)) invalid('invalid Stitch grant tool');
+      if (!exactReadback && !predictableReadback || creating && (!predictableReadback || expectedRecord.resource_identity !== 'project')) invalid('invalid Stitch grant readback');
     }
   }
 }
@@ -79,13 +83,18 @@ function excludedCandidatePath(path: string, task: DeliveryTask): boolean {
   const outputs = task.approved_check_recipes.flatMap((recipe: { write_paths?: unknown }) => Array.isArray(recipe.write_paths) ? recipe.write_paths : []);
   return outputs.some((output: string) => path === output || path.startsWith(`${output}/`));
 }
-async function walk(root: string, current: string, task: DeliveryTask, files: string[]): Promise<void> {
+type CandidateEntry = { path: string; directory: boolean };
+async function walk(root: string, current: string, task: DeliveryTask, entries: CandidateEntry[]): Promise<void> {
   const rel = relative(root, current);
   if (excludedCandidatePath(rel, task)) return;
   const stat = await lstat(current);
   if (stat.isSymbolicLink()) throw new Error('candidate contains symlink');
-  if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), task, files); return; }
-  if (stat.isFile()) { files.push(current); return; }
+  if (stat.isDirectory()) {
+    entries.push({ path: current, directory: true });
+    for (const name of (await readdir(current)).sort()) await walk(root, join(current, name), task, entries);
+    return;
+  }
+  if (stat.isFile()) { entries.push({ path: current, directory: false }); return; }
   throw new Error('candidate contains unsupported filesystem entry');
 }
 export function patchJournalPath(repo: string): string { return join(repo, '.omp', 'ui-delivery', 'evidence', 'repository.patch-pending.json'); }
@@ -126,14 +135,14 @@ export async function releasePatchJournal(repo: string): Promise<void> {
 }
 export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
   validate(task);
-  const root = await realpath(repo); const files: string[] = [];
-  await walk(root, root, task, files);
-  files.sort(); const hash = createHash('sha256');
-  for (const path of files) {
+  const root = await realpath(repo); const entries: CandidateEntry[] = [];
+  await walk(root, root, task, entries);
+  const hash = createHash('sha256');
+  for (const { path, directory } of entries) {
     const candidatePath = relative(root, path);
     const stat = await lstat(path);
-    hash.update(Buffer.from(`${candidatePath}\0${stat.size}\0${stat.mode & 0o777}\0`));
-    for await (const chunk of createReadStream(path)) hash.update(chunk);
+    hash.update(Buffer.from(`${directory ? 'directory' : 'file'}\0${candidatePath}\0${stat.size}\0${stat.mode & 0o777}\0`));
+    if (!directory) for await (const chunk of createReadStream(path)) hash.update(chunk);
   }
   return `sha256:${hash.digest('hex')}`;
 }
