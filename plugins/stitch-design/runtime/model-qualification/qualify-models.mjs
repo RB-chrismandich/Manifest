@@ -194,6 +194,7 @@ function qualify(overlay, catalog, localOnly) {
     if (!Number.isInteger(model.maxTokens) || model.maxTokens < MIN_MAX_TOKENS) fail(`catalog model for ${role}`, 'max tokens are below the qualification floor');
     if ((role === 'designer' || role === 'ui_review') && !model.input.includes('image')) fail(`catalog model for ${role}`, 'image input is required');
     if (localOnly && !LOCAL_PROVIDERS.has(model.provider)) fail(`overlay.modelRoles.${role}`, 'cloud provider is not permitted in local-only mode');
+    if (localOnly && !model.selector.startsWith(`${model.provider}/`)) fail(`catalog model for ${role}`, 'selector provider must match the declared local provider in local-only mode');
     selectedProviders.add(model.provider);
     capabilities[role] = {
       provider: model.provider,

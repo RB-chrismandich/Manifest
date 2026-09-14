@@ -203,6 +203,24 @@ test('local-only mode rejects cloud selectors and Stitch project configuration',
   await expectFailure(qualificationArgs(localOverlay, localCatalog, ['--local-only']), /enableProjectConfig|stitch|local-only/i);
 });
 
+test('local-only mode rejects a cloud selector mislabeled as a local provider', async () => {
+  const localOverlay = overlay({
+    modelRoles: {
+      designer: 'openai-codex/gpt-6-astra:high',
+      ui_code: 'openai-codex/gpt-6-astra:medium',
+      ui_review: 'openai-codex/gpt-6-astra:high',
+    },
+    enabledProviders: ['ollama'],
+    mcp: { enableProjectConfig: false },
+  });
+  const mislabeledCatalog = catalog([model({ provider: 'ollama' })]);
+
+  await expectFailure(
+    qualificationArgs(localOverlay, mislabeledCatalog, ['--local-only']),
+    /local-only|cloud|provider|selector/i,
+  );
+});
+
 test('qualifies each allowed local provider without cloud fallback', async () => {
   for (const provider of ['ollama', 'lmstudio', 'llamacpp']) {
     const localOverlay = overlay({
