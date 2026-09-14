@@ -1,19 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
-import { digest, execute, extensionApi, fixture, task, withApproval } from './ui-delivery-policy-helpers.test.mjs';
+import { execute, extensionApi, fixture, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 
 test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__stitch_ one-shot mutation/readback flow', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
-  const definition = task({
-    stitch_grant: {
-      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(input), max_uses: 1 }],
-      readback_tools: ['mcp__stitch_get_screen'],
-    },
-  });
+  const definition = taskWithStitchGrant(input);
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition);
   const hook = handlers.get('tool_call');
@@ -43,13 +36,7 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
 
 test('approved status cannot renew a consumed Stitch mutation grant after successful readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
-  const definition = task({
-    stitch_grant: {
-      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(input), max_uses: 1 }],
-      readback_tools: ['mcp__stitch_get_screen'],
-    },
-  });
+  const definition = taskWithStitchGrant(input);
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition);
   const status = tools.find((entry) => entry.name === 'ui_delivery_status');
@@ -73,13 +60,7 @@ test('approved status cannot renew a consumed Stitch mutation grant after succes
 
 test('approved status cannot clear a Stitch mutation awaiting readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
-  const definition = task({
-    stitch_grant: {
-      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(input), max_uses: 1 }],
-      readback_tools: ['mcp__stitch_get_screen'],
-    },
-  });
+  const definition = taskWithStitchGrant(input);
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition);
   const status = tools.find((entry) => entry.name === 'ui_delivery_status');

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { registerUiDeliveryPolicy } from './ui-delivery-policy.ts';
+import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 import { candidateHash as calculateCandidateHash } from '../runtime/ui-delivery/task.ts';
 
 export function extensionApi() {
@@ -47,6 +48,16 @@ export function task(overrides = {}) {
     model_route: '@ui_code', repair_cycles: 0, outcome: 'unverified',
     ...overrides,
   };
+}
+
+export function taskWithStitchGrant(input) {
+  return task({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(input), max_uses: 1 }],
+      readback_tools: ['mcp__stitch_get_screen'],
+    },
+  });
 }
 
 export function digest(value) {
