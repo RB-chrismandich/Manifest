@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -126,6 +126,33 @@ function policyWithCheckRunner(api, runCheck) {
 function success() {
   return { exitCode: 0, stdout: { hash: 'sha256:stdout' }, stderr: { hash: 'sha256:stderr' } };
 }
+
+test('patch atomically binds the candidate, preserves authorization, records evidence, and enables its check', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi();
+  const { repo } = await fixture(definition);
+  policyWithCheckRunner(api, async () => {
+    await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }));
+    return success();
+  });
+  const saved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
+  try {
+    const patch = 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n';
+    const applied = await execute(tools.find((entry) => entry.name === 'ui_apply_patch'), { taskFile: '.omp/ui-delivery/tasks/task.json', patch }, repo);
+    assert.equal(applied.details.state, 'candidate_ready');
+    assert.match(applied.details.candidateRevision, /^git:/);
+    assert.match(applied.details.candidateHash, /^sha256:[a-f0-9]{64}$/);
+    assert.equal(applied.details.authorizationDigest, digest(definition));
+    const updated = JSON.parse(await readFile(join(repo, '.omp/ui-delivery/tasks/task.json'), 'utf8'));
+    assert.equal(updated.state, 'candidate_ready');
+    assert.equal(updated.candidate_hash, applied.details.candidateHash);
+    assert.match(await readFile(join(repo, '.omp/ui-delivery/evidence', 'task-17.jsonl'), 'utf8'), /ui_apply_patch/);
+    await execute(tools.find((entry) => entry.name === 'ui_run_check'), { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }, repo);
+  } finally {
+    if (saved === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256; else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = saved;
+  }
+});
 
 test('rejects a wrong candidate hash before executing an approved check', async () => {
   const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
