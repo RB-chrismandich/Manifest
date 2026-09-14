@@ -159,6 +159,27 @@ test('applies a standard new regular-file diff', async () => {
   assert.equal(await readFile(join(repo, 'src/New.tsx'), 'utf8'), 'export const New = 1;\n');
 });
 
+test('accepts a safe new regular-file diff without optional index metadata', async () => {
+  const definition = task({ allowed_paths: ['src/NoIndex.tsx'] });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/NoIndex.tsx b/src/NoIndex.tsx\nnew file mode 100644\n--- /dev/null\n+++ b/src/NoIndex.tsx\n@@ -0,0 +1 @@\n+export const NoIndex = 1;\n',
+  }, repo));
+  assert.equal(await readFile(join(repo, 'src/NoIndex.tsx'), 'utf8'), 'export const NoIndex = 1;\n');
+});
+
+test('rejects malformed present index metadata on a new regular-file diff', async () => {
+  const definition = task({ allowed_paths: ['src/Malformed.tsx'] });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Malformed.tsx b/src/Malformed.tsx\nnew file mode 100644\nindex not-an-index\n--- /dev/null\n+++ b/src/Malformed.tsx\n@@ -0,0 +1 @@\n+export const Malformed = 1;\n',
+  }, repo), /malformed|unparseable/i));
+});
+
 test('creates a missing trusted evidence directory before recording a patch and check', async () => {
   const definition = task();
   const { api, tools } = extensionApi();
