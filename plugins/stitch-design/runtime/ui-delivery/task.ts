@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { lstat, readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises';
-import { join, relative, resolve, sep } from 'node:path';
+import { constants, createReadStream } from 'node:fs';
+import { lstat, open, readdir, readFile, realpath, unlink, type FileHandle } from 'node:fs/promises';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { canonicalJsonHash } from './evidence.ts';
 import { STITCH_MUTATION_TOOL_NAMES, STITCH_READBACK_TOOL_NAMES } from './stitch-policy.ts';
 export type DeliveryTask = Record<string, any>;
@@ -69,7 +69,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
       const creating = mutation?.tool_name === 'mcp__stitch_create_project';
       const predictableFields = expected?.predictable_fields;
       if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !/^sha256:[a-f0-9]{64}$/.test(mutation?.input_hash) || mutation?.max_uses !== 1 || !expected || typeof expected !== 'object' || !STITCH_READBACK_TOOL_NAMES.includes(expected.tool_name) || !grant.readback_tools.includes(expected.tool_name)) invalid('invalid Stitch grant tool');
-      if (creating ? !predictableFields || typeof predictableFields !== 'object' || Array.isArray(predictableFields) || !Object.keys(predictableFields).length || Object.hasOwn(expected, 'response_hash') || Object.keys(predictableFields).some((field) => field === 'projectId' || field === 'project_id') : !/^sha256:[a-f0-9]{64}$/i.test(expected.response_hash) || Object.hasOwn(expected, 'predictable_fields')) invalid('invalid Stitch grant readback');
+      if (creating ? !predictableFields || typeof predictableFields !== 'object' || Array.isArray(predictableFields) || !Object.keys(predictableFields).length || Object.hasOwn(expected, 'response_hash') || Object.keys(predictableFields).some((field) => !/^(?!project_id$)[a-z][a-z0-9_]*$/.test(field)) : !/^sha256:[a-f0-9]{64}$/.test(expected.response_hash) || Object.hasOwn(expected, 'predictable_fields')) invalid('invalid Stitch grant readback');
     }
   }
 }
@@ -85,7 +85,8 @@ async function walk(root: string, current: string, task: DeliveryTask, files: st
   const stat = await lstat(current);
   if (stat.isSymbolicLink()) throw new Error('candidate contains symlink');
   if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), task, files); return; }
-  if (stat.isFile()) files.push(current);
+  if (stat.isFile()) { files.push(current); return; }
+  throw new Error('candidate contains unsupported filesystem entry');
 }
 export function patchJournalPath(repo: string): string { return join(repo, '.omp', 'ui-delivery', 'evidence', 'repository.patch-pending.json'); }
 async function assertNoPendingPatchJournal(repo: string): Promise<void> {
@@ -98,9 +99,25 @@ async function assertNoPendingPatchJournal(repo: string): Promise<void> {
   }
 }
 
-export async function beginPatchJournal({ repo, taskId, taskFile, patchHash }: { repo: string; taskId: string; taskFile: string; patchHash: string }): Promise<string> {
+export type PatchJournalPersistence = {
+  open: (path: string, flags: number, mode?: number) => Promise<Pick<FileHandle, 'writeFile' | 'sync' | 'close'>>;
+};
+const patchJournalPersistence: PatchJournalPersistence = { open };
+export async function beginPatchJournal({ repo, taskId, taskFile, patchHash, persistence = patchJournalPersistence }: { repo: string; taskId: string; taskFile: string; patchHash: string; persistence?: PatchJournalPersistence }): Promise<string> {
   const journal = patchJournalPath(repo);
-  await writeFile(journal, JSON.stringify({ taskId, taskFile, patchHash, state: 'pending' }), { mode: 0o600, flag: 'wx' });
+  const handle = await persistence.open(journal, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try {
+    await handle.writeFile(JSON.stringify({ taskId, taskFile, patchHash, state: 'pending' }));
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  const parent = await persistence.open(dirname(journal), constants.O_RDONLY | constants.O_DIRECTORY);
+  try {
+    await parent.sync();
+  } finally {
+    await parent.close();
+  }
   return journal;
 }
 

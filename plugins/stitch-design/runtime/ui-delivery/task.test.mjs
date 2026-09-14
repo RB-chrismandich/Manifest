@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFile as executeFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 
 import { beginPatchJournal, candidateHash, loadTask, releasePatchJournal } from './task.ts';
 
@@ -65,6 +67,8 @@ async function withApproval(task, operation) {
     else process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = activeBefore;
   }
 }
+
+const execFile = promisify(executeFile);
 
 test('requires an external authorization digest for every mutation and executable task load', async () => {
   const definition = approvedTask();
@@ -247,6 +251,13 @@ test('rejects a symlink anywhere in the candidate worktree', async () => {
   await assert.rejects(() => candidateHash({ repo, task: approvedTask() }));
 });
 
+test('rejects a FIFO anywhere in the candidate worktree without opening it for reads', async () => {
+  const { repo } = await taskFile({});
+  const fifo = join(repo, 'src/untrusted.fifo');
+  await execFile('mkfifo', [fifo]);
+  await assert.rejects(() => candidateHash({ repo, task: approvedTask() }), /unsupported/i);
+});
+
 test('accepts a schema-valid building task and rejects policy-directory escapes', async () => {
   const definition = approvedTask({ state: 'building' });
   const { repo, path } = await taskFile(definition);
@@ -353,6 +364,31 @@ test('rejects grants whose readback is ungranted, projectless, or noncanonical',
     const { repo, path } = await taskFile({ stitch_grant });
     await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*grant|readback/i);
   }
+});
+
+test('does not settle patch journal creation before syncing the file and parent directory', async () => {
+  const { repo } = await taskFile({});
+  await mkdir(join(repo, '.omp/ui-delivery/evidence'), { recursive: true });
+  const calls = [];
+  const persistence = {
+    async open(path) {
+      const label = path.endsWith('.json') ? 'journal' : 'directory';
+      calls.push(`open:${label}`);
+      return {
+        async writeFile() { calls.push('write:journal'); },
+        async sync() { calls.push(`sync:${label}`); },
+        async close() { calls.push(`close:${label}`); },
+      };
+    },
+  };
+  await beginPatchJournal({
+    repo, taskId: 'task-17', taskFile: '.omp/ui-delivery/tasks/task-17.json', patchHash: 'sha256:pending',
+    persistence,
+  });
+  assert.deepEqual(calls, [
+    'open:journal', 'write:journal', 'sync:journal', 'close:journal',
+    'open:directory', 'sync:directory', 'close:directory',
+  ]);
 });
 test('admits only one task ID to the repository patch transaction', async () => {
   const { repo } = await taskFile({});

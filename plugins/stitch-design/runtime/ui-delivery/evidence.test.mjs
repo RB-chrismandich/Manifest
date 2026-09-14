@@ -25,6 +25,15 @@ test('hashes semantically identical JSON canonically regardless of object key or
   assert.equal(canonicalJsonHash({ b: [2, 1], a: { y: true, x: null } }), canonicalJsonHash({ a: { x: null, y: true }, b: [2, 1] }));
 });
 
+test('hashes composed and decomposed keys by deterministic Unicode code-unit order', () => {
+  const composed = '\u00e9';
+  const decomposed = 'e\u0301';
+  assert.equal(
+    canonicalJsonHash({ [composed]: 'composed', [decomposed]: 'decomposed' }),
+    canonicalJsonHash({ [decomposed]: 'decomposed', [composed]: 'composed' }),
+  );
+});
+
 test('appends an evidence record bound to task, approved design, candidate, model, operation, and hashes', async () => {
   const { repo, evidenceFile } = await fixture();
   await appendEvidence({ repo, evidenceFile, record: binding });
