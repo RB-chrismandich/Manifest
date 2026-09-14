@@ -45,11 +45,12 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   assert.deepEqual(calls[0].recipeArgv, recipe.argv);
   assert.ok(calls[0].argv.includes('--test'));
   assert.ok(!calls[0].argv.includes('sh'));
-  assert.equal(calls[0].cwd, await realpath(repo));
+  const canonicalRepo = await realpath(repo);
+  assert.equal(calls[0].cwd, canonicalRepo);
   assert.equal(calls[0].env.TOKEN, undefined);
   assert.equal(calls[0].env.HOME, undefined);
-  assert.ok(calls[0].mounts.some((mount) => mount.source === join(await realpath(repo), '.ui-results/unit.json') && !mount.readOnly));
-  assert.ok(!calls[0].mounts.some((mount) => mount.source === join(await realpath(repo), 'src/Card.tsx') && !mount.readOnly));
+  assert.ok(calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, '.ui-results/unit.json') && !mount.readOnly));
+  assert.ok(!calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, 'src/Card.tsx') && !mount.readOnly));
   assert.deepEqual(result.argv, recipe.argv);
 });
 

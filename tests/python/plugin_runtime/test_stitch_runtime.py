@@ -402,6 +402,7 @@ def test_stitch_contract_declares_generated_runtime(stitch_bundle: Path) -> None
         "extensions/ui-delivery-policy.ts",
         "package.json",
         "runtime/dist",
+        "runtime/model-qualification",
         "runtime/node/build.mjs",
         "runtime/node/package-lock.json",
         "runtime/node/package.json",

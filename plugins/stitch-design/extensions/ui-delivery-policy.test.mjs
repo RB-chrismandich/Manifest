@@ -16,6 +16,7 @@ function extensionApi() {
     api: {
       zod: { object: () => schema, string: () => schema },
       registerTool: (tool) => tools.push(tool),
+      on: (event, handler) => handlers.set(event, handler),
       getAllTools: () => [
         { name: 'mcp__stitch__get_screen', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: { type: 'object' } },
         { name: 'mcp__stitch__edit_screen', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: { type: 'object' } },
@@ -173,7 +174,7 @@ test('status never reports accepted work verified without matching local evidenc
   assert.match(response.details.authorizationDigest, /^sha256:[a-f0-9]{64}$/);
 });
 test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__stitch__ one-shot mutation/readback flow', async () => {
-  const input = { screenId: 'screen-17', prompt: 'compact header' };
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definition = task({
     stitch_grant: {
       project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
@@ -184,21 +185,22 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition);
   const hook = handlers.get('tool_call');
-  await hook({ toolName: 'read', input: { path: 'x' }, projectId: 'project-17' });
-  await assert.rejects(() => hook({ toolName: 'mcp__stitch__unknown', input: {}, projectId: 'project-17' }));
-  await assert.rejects(() => hook({ toolName: 'mcp__stitch__edit_screen', input, projectId: 'project-17' }));
+  assert.equal(await hook({ toolName: 'read', input: { path: 'x' }, toolCallId: 'native-1' }), undefined);
+  assert.deepEqual(await hook({ toolName: 'mcp__stitch__unknown', input: {}, toolCallId: 'unknown-1' }), { block: true, reason: 'Stitch tool is not authorized by the active UI delivery task' });
+  assert.deepEqual(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-1' }), { block: true, reason: 'Stitch tool is not authorized by the active UI delivery task' });
 
   const saved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
   try {
     const status = await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
     assert.equal(status.details.approved, true);
-    await hook({ toolName: 'mcp__stitch__edit_screen', input, projectId: 'project-17' });
-    await assert.rejects(() => hook({ toolName: 'mcp__stitch__edit_screen', input, projectId: 'project-17' }));
+    assert.equal(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-2' }), undefined);
+    assert.deepEqual(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-3' }), { block: true, reason: 'Stitch mutation already consumed; reconcile through an approved readback' });
     await handlers.get('tool_result')({
       toolName: 'mcp__stitch__get_screen',
-      result: { isError: false, content: [{ type: 'text', text: JSON.stringify({ screenId: 'screen-17' }) }] },
-      projectId: 'project-17',
+      isError: false,
+      content: [{ type: 'text', text: JSON.stringify({ screenId: 'screen-17' }) }],
+      details: { projectId: 'project-17' },
     });
   } finally {
     if (saved === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256; else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = saved;
