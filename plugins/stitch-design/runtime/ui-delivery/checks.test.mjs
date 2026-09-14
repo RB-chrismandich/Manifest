@@ -23,6 +23,7 @@ function verifierOutput({ result = { schema: 'ui-delivery-check-v1', required: 1
   return `${JSON.stringify({ schema: 'ui-delivery-verifier-output-v1', result, artifacts })}\n`;
 }
 const mockBackends = { docker: true };
+const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20 };
 function executor(calls, stdout = verifierOutput()) {
   return async (command) => {
     calls.push(command);
@@ -47,7 +48,7 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   const calls = [];
   const result = await runCheck({
     repo, task: task(), checkId: 'unit', environment: { HOME: '/ambient', TOKEN: 'secret', CI: '1' },
-    executor: executor(calls), backends: mockBackends,
+    executor: executor(calls), backends: mockBackends, hostIdentity: nonRootHostIdentity,
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executable, 'docker');
@@ -81,10 +82,10 @@ test('rejects raw command input, unknown recipes, symlinked writes, and writable
       task: task({ approved_check_recipes: [{ ...recipe, write_paths: writePaths }] }),
       checkId: 'unit',
       executor: executor([]),
-      backends: mockBackends,
+      backends: mockBackends, hostIdentity: nonRootHostIdentity,
     }));
   }
-  await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]), backends: mockBackends }));
+  await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity }));
 });
 
 test('rejects a candidate executable even when its recipe claims a trusted verifier', async () => {
@@ -96,7 +97,7 @@ test('rejects a candidate executable even when its recipe claims a trusted verif
       task: task({ approved_check_recipes: [{ ...recipe, argv: ['node', 'src/Card.tsx'] }] }),
       checkId: 'unit',
       executor: executor(calls),
-      backends: mockBackends,
+      backends: mockBackends, hostIdentity: nonRootHostIdentity,
     }),
     /trusted verifier/,
   );
@@ -112,7 +113,7 @@ test('rejects a candidate entrypoint placed before the trusted verifier', async 
       task: task({ approved_check_recipes: [{ ...recipe, argv: ['node', 'src/Card.tsx', verifier.path] }] }),
       checkId: 'unit',
       executor: executor(calls),
-      backends: mockBackends,
+      backends: mockBackends, hostIdentity: nonRootHostIdentity,
     }),
     /trusted verifier/,
   );
@@ -124,7 +125,7 @@ test('rejects verifier bytes that differ from its approved digest', async () => 
   await writeFile(join(repo, verifier.path), 'tampered verifier\n');
   const calls = [];
   await assert.rejects(
-    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends }),
+    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends, hostIdentity: nonRootHostIdentity }),
     /trusted verifier digest/,
   );
   assert.equal(calls.length, 0);
@@ -137,7 +138,7 @@ test('rejects a verifier directory symlink that escapes the repository', async (
   await rm(join(repo, '.omp/ui-delivery/verifiers'), { recursive: true, force: true });
   await symlink(outside, join(repo, '.omp/ui-delivery/verifiers'));
   await assert.rejects(
-    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends }),
+    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity }),
     /trusted verifier/,
   );
 });

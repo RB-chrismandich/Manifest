@@ -17,6 +17,7 @@ const recipe = {
   result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'], trusted_verifier: verifier,
 };
 const mockBackends = { docker: true };
+const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20 };
 
 function task(overrides = {}) {
   return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
@@ -51,11 +52,11 @@ test('terminates the workload and removes scratch on timeout or abort before ret
   const calls = [];
   controller.abort();
   await assert.rejects(() => runCheck({
-    repo, task: task(), checkId: 'unit', signal: controller.signal, scratchRoot, executor: executor(calls), backends: mockBackends,
+    repo, task: task(), checkId: 'unit', signal: controller.signal, scratchRoot, executor: executor(calls), backends: mockBackends, hostIdentity: nonRootHostIdentity,
   }));
   assert.equal(calls.length, 0);
   await assert.rejects(() => runCheck({
-    repo, task: task({ approved_check_recipes: [{ ...recipe, timeout_ms: 1 }] }), checkId: 'unit', scratchRoot, backends: mockBackends,
+    repo, task: task({ approved_check_recipes: [{ ...recipe, timeout_ms: 1 }] }), checkId: 'unit', scratchRoot, backends: mockBackends, hostIdentity: nonRootHostIdentity,
     executor: async (command) => {
       calls.push(command);
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -84,10 +85,10 @@ test('cleans injected-executor timeout and abort resources after it settles', as
   globalThis.clearTimeout = ((timer) => { timer.cleared = true; });
   try {
     await runCheck({
-      repo, task: task(), checkId: 'unit', signal, executor: executor([]), backends: mockBackends,
+      repo, task: task(), checkId: 'unit', signal, executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity,
     });
     await assert.rejects(() => runCheck({
-      repo, task: task(), checkId: 'unit', signal, executor: async () => { throw new Error('injected failure'); }, backends: mockBackends,
+      repo, task: task(), checkId: 'unit', signal, executor: async () => { throw new Error('injected failure'); }, backends: mockBackends, hostIdentity: nonRootHostIdentity,
     }), /injected failure/);
     assert.equal(listeners.size, 0);
     assert.equal(timers.length, 2);
@@ -101,7 +102,7 @@ test('cleans injected-executor timeout and abort resources after it settles', as
 test('writes verifier-declared results only after the sandbox exits without mounting outputs', async () => {
   const repo = await fixture();
   const calls = [];
-  await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+  await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends, hostIdentity: nonRootHostIdentity });
   assert.deepEqual(JSON.parse(await readFile(join(repo, '.ui-results/unit.json'), 'utf8')), {
     schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0,
   });
@@ -120,7 +121,7 @@ test('rejects overlapping host-output attempts without cross-attributing verifie
   let release;
   const firstRelease = new Promise((resolve) => { release = resolve; });
   const first = runCheck({
-    repo, task: task({ approved_check_recipes: [firstRecipe] }), checkId: 'first', backends: mockBackends,
+    repo, task: task({ approved_check_recipes: [firstRecipe] }), checkId: 'first', backends: mockBackends, hostIdentity: nonRootHostIdentity,
     executor: async () => {
       entered();
       await firstRelease;
@@ -131,7 +132,7 @@ test('rejects overlapping host-output attempts without cross-attributing verifie
   try {
     await assert.rejects(
       () => runCheck({
-        repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends,
+        repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends, hostIdentity: nonRootHostIdentity,
         executor: async () => ({ exitCode: 0, stdout: verifierOutput({ result: { attempt: 'second' } }), stderr: '' }),
       }),
       /output|lock|concurrent/i,
@@ -141,7 +142,7 @@ test('rejects overlapping host-output attempts without cross-attributing verifie
   }
   await first;
   await runCheck({
-    repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends,
+    repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends, hostIdentity: nonRootHostIdentity,
     executor: async () => ({ exitCode: 0, stdout: verifierOutput({ result: { attempt: 'second' } }), stderr: '' }),
   });
   assert.deepEqual(JSON.parse(await readFile(join(repo, shared), 'utf8')), { attempt: 'second' });
@@ -155,7 +156,7 @@ test('does not remove an output lock it did not create', async () => {
   let release;
   const releasePromise = new Promise((resolve) => { release = resolve; });
   const running = runCheck({
-    repo, task: task(), checkId: 'unit', backends: mockBackends,
+    repo, task: task(), checkId: 'unit', backends: mockBackends, hostIdentity: nonRootHostIdentity,
     executor: async () => {
       entered();
       await releasePromise;
@@ -183,7 +184,7 @@ test('removes a lock created before its owner token write fails', async () => {
   };
   try {
     await assert.rejects(
-      () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends }),
+      () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity }),
       /owner write failed/,
     );
     await assert.rejects(() => readFile(join(repo, '.ui-results/unit.json.ui-delivery.lock'), 'utf8'), { code: 'ENOENT' });
