@@ -72,6 +72,15 @@ async function withoutApproval(operation) {
   }
 }
 
+async function withApproval(definition, operation) {
+  const saved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
+  try { return await operation(); } finally {
+    if (saved === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = saved;
+  }
+}
+
 test('registers the deterministic UI delivery surface with exact OMP approval tiers', () => {
   const { api, tools } = extensionApi();
   uiDeliveryPolicy(api);
@@ -103,9 +112,7 @@ test('fails closed on every unparseable, alternate, destructive, or symlink diff
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
   const { repo, definition } = await fixture();
   const tool = tools.find((entry) => entry.name === 'ui_apply_patch');
-  const saved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
-  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
-  try {
+  await withApproval(definition, async () => {
     for (const patch of [
       'diff --git x/src/Card.tsx y/.omp/ui-delivery/tasks/task.json\n--- x/src/Card.tsx\n+++ y/.omp/ui-delivery/tasks/task.json\n',
       'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ /dev/null\n',
@@ -115,9 +122,29 @@ test('fails closed on every unparseable, alternate, destructive, or symlink diff
       () => execute(tool, { taskFile: '.omp/ui-delivery/tasks/task.json', patch }, repo),
       /unsafe|unparseable|destructive|symlink|diff policy/i,
     );
-  } finally {
-    if (saved === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256; else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = saved;
-  }
+  });
+});
+
+test('applies a same-path regular diff with standard index metadata', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\nindex 1111111111111111111111111111111111111111..2222222222222222222222222222222222222222 100644\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+  }, repo));
+  assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 2;\n');
+});
+
+test('applies a standard new regular-file diff', async () => {
+  const definition = task({ allowed_paths: ['src/New.tsx'] });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/New.tsx b/src/New.tsx\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..2222222222222222222222222222222222222222\n--- /dev/null\n+++ b/src/New.tsx\n@@ -0,0 +1 @@\n+export const New = 1;\n',
+  }, repo));
+  assert.equal(await readFile(join(repo, 'src/New.tsx'), 'utf8'), 'export const New = 1;\n');
 });
 
 async function bindCandidate(repo, definition) {
