@@ -62,15 +62,26 @@ async function verifiedStatus(repo: string, task: any): Promise<boolean> {
     const checkDigest = authorizationDigest(checkPolicy);
     const captureDigest = authorizationDigest(task);
     const records = (await readFile(join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), 'utf8')).split('\n').filter(Boolean).flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } }).filter((evidence) => evidence.taskId === task.task_id && evidence.approvedDesignHash === task.design_revision && evidence.candidateRevision === task.candidate_revision && evidence.candidateHash === task.candidate_hash);
-    const latest = (phaseRecords: typeof records, operation: string, key: string, id: string) => {
-      const start = phaseRecords.map((record, index) => ({ record, index })).filter(({ record }) => record.operation === operation && record[key] === id && record.attemptPhase === 'started').at(-1);
+    const latest = (operation: string, key: string, id: string) => {
+      const start = records.map((record, index) => ({ record, index })).filter(({ record }) => record.operation === operation && record[key] === id && record.attemptPhase === 'started').at(-1);
       if (!start || typeof start.record.attemptId !== 'string') return undefined;
-      return phaseRecords.slice(start.index + 1).find((record) => record.attemptPhase === 'completed' && record.attemptId === start.record.attemptId);
+      const completion = records.slice(start.index + 1).find((record) => record.attemptPhase === 'completed' && record.attemptId === start.record.attemptId);
+      return completion ? { started: start.record, completed: completion } : undefined;
     };
-    const checks = records.filter((record) => record.modelRoute === '@ui_code' && record.authorizationDigest === checkDigest);
-    const captures = records.filter((record) => record.modelRoute === '@ui_review' && record.authorizationDigest === captureDigest);
-    if (!task.approved_check_recipes.every((recipe: any) => latest(checks, 'ui_run_check', 'checkId', recipe.id)?.outcome === 'verified')) return false;
-    for (const recipe of task.capture_recipes) { const completed = latest(captures, 'ui_capture', 'recipeId', recipe.id); if (!completed || completed.outcome !== 'captured' || !await verifiedArtifact(repo, task, recipe.check_id, completed.artifacts, recipe)) return false; }
+    const phaseVerified = (
+      attempt: { started: Record<string, unknown>; completed: Record<string, unknown> } | undefined,
+      route: string, digest: string, outcome: string,
+    ) => attempt?.started.modelRoute === route && attempt.started.authorizationDigest === digest
+      && attempt.completed.modelRoute === route && attempt.completed.authorizationDigest === digest
+      && attempt.completed.outcome === outcome;
+    const captureRecipes = task.capture_recipes as Array<{ id: string; check_id: string; artifacts: Array<{ path: string }> }>;
+    const checkRecipes = task.approved_check_recipes as Array<{ id: string }>;
+    const captureCheckIds = new Set(captureRecipes.map((recipe) => recipe.check_id));
+    if (!checkRecipes.filter((recipe) => !captureCheckIds.has(recipe.id)).every((recipe) => phaseVerified(latest('ui_run_check', 'checkId', recipe.id), '@ui_code', checkDigest, 'verified'))) return false;
+    for (const recipe of captureRecipes) {
+      const attempt = latest('ui_capture', 'recipeId', recipe.id);
+      if (!phaseVerified(attempt, '@ui_review', captureDigest, 'captured') || !Array.isArray(attempt?.completed.artifacts) || !await verifiedArtifact(repo, task, recipe.check_id, attempt.completed.artifacts, recipe)) return false;
+    }
     return true;
   } catch { return false; }
 }
@@ -88,6 +99,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const args = params as { taskFile: string; checkId: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'check' }); const started = performance.now();
     if (!task.candidate_revision || !task.candidate_hash || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate hash does not match current worktree');
     const recipe = task.approved_check_recipes.find((entry: any) => entry.id === args.checkId); if (!recipe) throw new Error('unknown approved check');
+    if ((task.capture_recipes as Array<{ check_id: string }>).some((entry) => entry.check_id === args.checkId)) throw new Error('capture check is reviewer-only');
     const path = await outputPath(ctx.cwd, task, args.checkId, recipe.result_path); const before = await resultSnapshot(path); const attemptId = randomUUID(); const selector = { checkId: args.checkId }; let checked: any;
     await appendAttempt(ctx.cwd, task, evidenceRecord(task, attemptId, 'started', 'ui_run_check', selector, 'pending', [], 0));
     try {

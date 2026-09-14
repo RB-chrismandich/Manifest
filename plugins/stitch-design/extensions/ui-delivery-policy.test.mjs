@@ -34,12 +34,19 @@ function task(overrides = {}) {
   return {
     task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
     allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
-    approved_check_recipes: [{
-      id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
-      backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
-      write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
-    }],
-    capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }] }],
+    approved_check_recipes: [
+      {
+        id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
+        backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
+        write_paths: ['.ui-results/unit.json'],
+      },
+      {
+        id: 'capture-unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
+        backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
+        write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
+      },
+    ],
+    capture_recipes: [{ id: 'capture', check_id: 'capture-unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }] }],
     model_route: '@ui_code', repair_cycles: 0, outcome: 'unverified',
     ...overrides,
   };
@@ -96,7 +103,7 @@ test('requires the external digest for patch, check, and capture even when repos
   for (const [name, args, definition] of [
     ['ui_apply_patch', { taskFile: '.omp/ui-delivery/tasks/task.json', patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-x\n+y\n' }, task()],
     ['ui_run_check', { taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit' }, task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` })],
-    ['ui_capture', { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }, task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` })],
+    ['ui_capture', { taskFile: '.omp/ui-delivery/tasks/task.json', recipeId: 'capture' }, task({ state: 'reviewing', model_route: '@ui_review', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` })],
   ]) {
     const { repo } = await fixture(definition);
     if (name !== 'ui_apply_patch') {
@@ -314,7 +321,7 @@ test('rejects a zero-exit runner that leaves a pre-existing successful result un
 });
 
 test('rejects capture when a successful check leaves its nonempty artifact unchanged', async () => {
-  const definition = task({ state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
+  const definition = task({ state: 'reviewing', model_route: '@ui_review', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}` });
   const { api, tools } = extensionApi();
   const { repo } = await fixture(definition);
   await bindCandidate(repo, definition);
@@ -365,7 +372,7 @@ test('status requires candidate-bound evidence for every approved check and capt
 test('status invalidates historical check success after the latest rerun is unfinished or failed', async () => {
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
   });
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition); await bindCandidate(repo, definition);
@@ -383,7 +390,7 @@ test('status invalidates historical check success after the latest rerun is unfi
 test('status cannot let an older concurrent completion override a later-started failed attempt', async () => {
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
   });
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition); await bindCandidate(repo, definition);
@@ -402,7 +409,7 @@ test('status cannot let an older concurrent completion override a later-started 
 test('status cannot reuse evidence whose authorization digest predates an otherwise identical recipe ID', async () => {
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
   });
   const oldDigest = digest({ ...definition, approved_check_recipes: [{ ...definition.approved_check_recipes[0], argv: ['node', '--test', 'old.mjs'] }] });
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
@@ -418,7 +425,7 @@ test('status cannot reuse evidence whose authorization digest predates an otherw
 });
 
 test('status requires builder checks only for unreferenced recipes and reviewer capture for capture-only recipes', async () => {
-  const captureCheck = task().approved_check_recipes[0];
+  const captureCheck = task().approved_check_recipes.find((recipe) => recipe.id === 'capture-unit');
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
     candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
@@ -434,7 +441,7 @@ test('status requires builder checks only for unreferenced recipes and reviewer 
 });
 
 test('rejects ui_run_check for a capture-only recipe before invoking the runner', async () => {
-  const captureCheck = task().approved_check_recipes[0];
+  const captureCheck = task().approved_check_recipes.find((recipe) => recipe.id === 'capture-unit');
   const definition = task({
     state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}`,
     approved_check_recipes: [captureCheck, { ...captureCheck, id: 'build', result_path: '.ui-results/build.json', write_paths: ['.ui-results/build.json'] }],
@@ -447,7 +454,7 @@ test('rejects ui_run_check for a capture-only recipe before invoking the runner'
   });
   const { repo } = await fixture(definition); await bindCandidate(repo, definition);
   await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_run_check'), {
-    taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit',
+    taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'capture-unit',
   }, repo), /capture|review/i));
   assert.equal(calls, 0);
 });
@@ -456,7 +463,7 @@ test('status requires current regular capture artifacts with exact complete hash
   for (const scenario of ['missing', 'replaced', 'symlinked', 'wrong hash', 'incomplete']) {
     const definition = task({
       state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
-      candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+      candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
       approved_check_recipes: [{ ...task().approved_check_recipes[0], write_paths: ['.ui-results/unit.json', 'evidence/page.png', 'evidence/other.png'] }],
       capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }, { path: 'evidence/other.png', type: 'screenshot' }] }],
     });
@@ -487,7 +494,7 @@ test('status requires current regular capture artifacts with exact complete hash
 test('status never reports accepted work verified without matching local evidence', async () => {
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://missing'],
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://missing'], model_route: '@ui_review',
   });
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
   const { repo } = await fixture(definition);
