@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cp, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,10 +32,16 @@ for (const definition of cases) {
   await Promise.all([
     cp(join(fixtureRoot, 'contracts'), join(repo, 'contracts'), { recursive: true }),
     cp(join(fixtureRoot, 'programs'), join(repo, 'tools'), { recursive: true }),
+    cp(join(fixtureRoot, 'verifiers'), join(repo, '.omp/ui-delivery/verifiers'), { recursive: true }),
     mkdir(join(repo, 'site'), { recursive: true }),
     mkdir(join(repo, '.omp/ui-delivery/tasks'), { recursive: true }),
     mkdir(join(repo, '.ui-results'), { recursive: true }),
   ]);
+  const captureVerifier = '.omp/ui-delivery/verifiers/capture-screen.py';
+  const trustedVerifier = {
+    path: captureVerifier,
+    sha256: `sha256:${createHash('sha256').update(await readFile(join(repo, captureVerifier))).digest('hex')}`,
+  };
   const checkResult = '.ui-results/design-check.result.json';
   const capturePng = '.ui-results/screen.png';
   const captureResult = '.ui-results/capture.result.json';
@@ -54,8 +60,8 @@ for (const definition of cases) {
       },
       {
         id: 'capture-screen',
-        argv: ['/home/cptr/.venv/bin/python3', '/repo/tools/capture-screen.py', '/usr/bin/chromium', `/repo/${definition.target}`, `/repo/${capturePng}`, `/repo/${captureResult}`],
-        cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult],
+        argv: ['/home/cptr/.venv/bin/python3', `/repo/${captureVerifier}`, '/usr/bin/chromium', `/repo/${definition.target}`, `/repo/${capturePng}`, `/repo/${captureResult}`],
+        cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult], trusted_verifier: trustedVerifier,
       },
     ],
     capture_recipes: [{ id: 'screen-png', check_id: 'capture-screen', artifacts: [{ path: capturePng, type: 'image/png' }] }],

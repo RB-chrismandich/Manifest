@@ -6,10 +6,14 @@ import test from 'node:test';
 
 import { runCheck } from './checks.ts';
 
+const verifier = {
+  path: '.omp/ui-delivery/verifiers/verify.mjs',
+  sha256: 'sha256:f9974862b9b6c9cbb2ef52e20d18eec093825ec2b8fb7dde84abe593d480ed3f',
+};
 const recipe = {
-  id: 'unit', argv: ['node', '--test', 'test.mjs'], cwd: '.', timeout_ms: 500,
+  id: 'unit', argv: ['node', verifier.path], cwd: '.', timeout_ms: 500,
   backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-  result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'],
+  result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'], trusted_verifier: verifier,
 };
 
 function task(overrides = {}) {
@@ -28,6 +32,8 @@ async function fixture() {
   await mkdir(join(repo, 'src'), { recursive: true });
   await mkdir(join(repo, '.ui-results'), { recursive: true });
   await mkdir(join(repo, 'policy'), { recursive: true });
+  await mkdir(join(repo, '.omp/ui-delivery/verifiers'), { recursive: true });
+  await writeFile(join(repo, verifier.path), 'trusted verifier\n');
   await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 1;\n');
   await writeFile(join(repo, '.ui-results/unit.json'), '{"prior":true}\n');
   return repo;
@@ -43,7 +49,7 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executable, 'sandbox-exec');
   assert.deepEqual(calls[0].recipeArgv, recipe.argv);
-  assert.ok(calls[0].argv.includes('--test'));
+  assert.ok(calls[0].argv.includes(verifier.path));
   assert.ok(!calls[0].argv.includes('sh'));
   const canonicalRepo = await realpath(repo);
   assert.equal(calls[0].cwd, canonicalRepo);
@@ -91,6 +97,32 @@ test('rejects raw command input, unknown recipes, symlinked writes, and writable
   await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]) }));
 });
 
+test('rejects a candidate executable even when its recipe claims a trusted verifier', async () => {
+  const repo = await fixture();
+  const calls = [];
+  await assert.rejects(
+    () => runCheck({
+      repo,
+      task: task({ approved_check_recipes: [{ ...recipe, argv: ['node', 'src/Card.tsx'] }] }),
+      checkId: 'unit',
+      executor: executor(calls),
+    }),
+    /trusted verifier/,
+  );
+  assert.equal(calls.length, 0);
+});
+
+test('rejects verifier bytes that differ from its approved digest', async () => {
+  const repo = await fixture();
+  await writeFile(join(repo, verifier.path), 'tampered verifier\n');
+  const calls = [];
+  await assert.rejects(
+    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls) }),
+    /trusted verifier digest/,
+  );
+  assert.equal(calls.length, 0);
+});
+
 test('constructs Docker with fixed non-secret environment forwarded to the workload', async () => {
   const repo = await fixture();
   const calls = [];
@@ -128,7 +160,7 @@ test('uses Docker lifecycle cleanup for ordinary nonzero check results', async (
 test('passes fixed Docker workload argv through without resolving its container executable on the host', async () => {
   const repo = await fixture();
   const calls = [];
-  const containerArgv = ['ui-check-in-container', '--verify'];
+  const containerArgv = ['ui-check-in-container', `/repo/${verifier.path}`];
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, argv: containerArgv, backend: 'docker' }] }),
     checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, executor: executor(calls),

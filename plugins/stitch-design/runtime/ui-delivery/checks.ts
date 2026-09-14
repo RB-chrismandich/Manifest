@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { access, chmod, constants, lstat, mkdir, mkdtemp, open, realpath, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
@@ -43,6 +43,31 @@ async function provisionOutput(root: string, lexical: string): Promise<string> {
   return actual;
 }
 
+type TrustedVerifier = { path: string; sha256: string };
+async function trustedVerifier(root: string, allowedPaths: string[], recipe: { argv: string[]; trusted_verifier?: TrustedVerifier }): Promise<{ path: string; root: string }> {
+  const verifier = recipe.trusted_verifier;
+  if (!verifier || typeof verifier.path !== 'string' || !/^[^/].*$/.test(verifier.path) || !/^sha256:[a-f0-9]{64}$/i.test(verifier.sha256)) throw new Error('trusted verifier is required');
+  const declaredRoot = join(root, '.omp', 'ui-delivery', 'verifiers');
+  const requested = resolve(root, verifier.path);
+  if (!under(declaredRoot, requested) || allowedPaths.some((allowed) => under(resolve(root, allowed), requested))) throw new Error('trusted verifier path is unsafe');
+  const verifierRoot = await realpath(declaredRoot);
+  const stat = await lstat(requested);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('trusted verifier path is unsafe');
+  const actual = await realpath(requested);
+  if (!under(verifierRoot, actual)) throw new Error('trusted verifier escapes protected root');
+  const digest = `sha256:${createHash('sha256').update(await readFile(actual)).digest('hex')}`;
+  if (digest !== verifier.sha256.toLowerCase()) throw new Error('trusted verifier digest mismatch');
+  const verifierArgument = recipe.argv.some((argument) => {
+    const path = argument.startsWith('/repo/') ? join(root, argument.slice('/repo/'.length)) : resolve(root, argument);
+    return path === requested || path === actual;
+  });
+  if (!verifierArgument) throw new Error('trusted verifier is not the recipe entrypoint');
+  const executable = recipe.argv[0];
+  const executablePath = executable.startsWith('/repo/') ? join(root, executable.slice('/repo/'.length)) : resolve(root, executable);
+  if (allowedPaths.some((allowed) => under(resolve(root, allowed), executablePath))) throw new Error('candidate executable is forbidden');
+  return { path: actual, root: verifierRoot };
+}
+
 async function executeDirect(command: Command, outputLimitBytes: number, signal?: AbortSignal): Promise<Execution> {
   if (signal?.aborted) throw new Error('check aborted');
   return new Promise((resolveResult, rejectResult) => {
@@ -60,11 +85,12 @@ async function executeDirect(command: Command, outputLimitBytes: number, signal?
   });
 }
 
-export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir() }: { repo: string; task: { forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string }): Promise<CheckResult> {
+export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir() }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string }): Promise<CheckResult> {
   if (signal?.aborted) throw new Error('check aborted'); if (command !== undefined) throw new Error('raw commands are not accepted');
-  const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; write_paths: string[] } | undefined;
+  const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
   if (!recipe) throw new Error('unknown approved check'); if (!Array.isArray(recipe.write_paths) || recipe.write_paths.length === 0) throw new Error('check requires declared output paths'); if (!backends[recipe.backend]) throw new Error('selected sandbox backend unavailable');
   const lexicalRepo = resolve(repo); const root = await realpath(repo); const cwd = resolve(root, recipe.cwd); if (!under(root, cwd)) throw new Error('check cwd escapes repository');
+  const verifier = await trustedVerifier(root, task.allowed_paths, recipe);
   const runtime = recipe.backend === 'sandbox-exec' ? await approvedExecutable(recipe.argv) : undefined;
   const invokedArgv = runtime ? [runtime.executable, ...recipe.argv.slice(1).map((argument) => argument.startsWith('/') && under(lexicalRepo, argument) ? join(root, relative(lexicalRepo, argument)) : argument)] : recipe.argv;
   const writable: string[] = [];
@@ -80,7 +106,7 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
       catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
       masks.push({ source, target: join('/repo', relative(root, target)), readOnly: true });
     }
-    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), ...masks, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
+    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), ...masks, { source: verifier.root, target: join('/repo', relative(root, verifier.root)), readOnly: true }, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
     const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
     const dockerUid = recipe.backend === 'docker' ? process.getuid?.() : undefined; const dockerGid = recipe.backend === 'docker' ? process.getgid?.() : undefined;

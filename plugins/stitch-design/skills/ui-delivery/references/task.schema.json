@@ -73,7 +73,8 @@
           "timeout_ms",
           "backend",
           "result_path",
-          "write_paths"
+          "write_paths",
+          "trusted_verifier"
         ],
         "properties": {
           "id": {
@@ -116,6 +117,24 @@
               "type": "string",
               "minLength": 1,
               "pattern": "^(?!/)(?!.*\\.\\.)"
+            }
+          },
+          "trusted_verifier": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^\\.omp/ui-delivery/verifiers/(?!.*\\.\\.)[^/].*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-fA-F0-9]{64}$"
+              }
             }
           },
           "sandbox_image": {

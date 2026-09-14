@@ -64,7 +64,9 @@ Create a task JSON under `.omp/ui-delivery/tasks/` that satisfies
 - one `@ui_code` route, a design revision, narrow `allowed_paths`, and explicit
   forbidden policy paths;
 - fixed `argv`, relative `cwd`, timeout, sandbox backend, result path, and
-  separate output paths for every check; and
+  separate output paths for every check;
+- a `trusted_verifier` for every result-producing recipe: its
+  `.omp/ui-delivery/verifiers/` path and exact `sha256:` digest; and
 - capture recipes naming every evidence artifact.
 
 Checks cannot receive a raw command. Their outputs must not overlap candidate
@@ -114,11 +116,19 @@ check or review; `blocked` covers authorization, recovery, or repair limits.
 
 ## Verifier and sandbox boundaries
 
-A trusted verifier entrypoint must live outside `allowed_paths`; it treats the
-candidate as data. If a check executes candidate code, run it in a separate
-sandbox that has no permission to write the check result or evidence location;
-the trusted verifier alone records results. This prevents a candidate from
-turning its own output into evidence.
+Evidence-producing recipes run only when their declared verifier is a regular,
+non-symlink file below `.omp/ui-delivery/verifiers/`, outside every
+`allowed_paths` entry, present in fixed `argv`, and byte-for-byte equal to its
+approved SHA-256. The runtime rejects candidate-path executables, verifier
+paths that escape the protected root, and digest mismatches before mounting any
+output location. Docker masks `.omp` then remounts only the verified verifier
+root read-only; candidate files are read-only inputs.
+
+The verifier treats the candidate as data and is the only code permitted to
+author declared results or artifacts. Arbitrary candidate unit-test commands
+are not trusted evidence producers: if candidate code must execute, it runs in
+a separate sandbox with no result or artifact write mount, and the hash-bound
+verifier records the outcome.
 
 Checks use approved fixed argv and an OS sandbox. Docker checks require a
 digest-pinned image and run with no network, a read-only root filesystem, the
@@ -127,7 +137,8 @@ scratch mounts, and protected-path masks. On macOS, `sandbox-exec` has residual
 compatibility scope for `mach-lookup` and `file-read-metadata`; it is not a
 general read grant. Content reads remain limited to the repository, approved
 runtime/executable dependencies, scratch space, and required system paths;
-`.git`, `.omp`, `secrets`, and forbidden paths remain masked.
+`.git`, `.omp`, `secrets`, and forbidden paths remain masked except for the
+verified, read-only verifier root.
 
 ## Deterministic release pilot
 
