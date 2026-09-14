@@ -130,6 +130,7 @@ test('hashes path-delimited candidate entries and rejects an intermediate symlin
   ]);
   await writeFile(join(repo, 'c'), 'bc');
   await writeFile(join(repo, 'bc'), 'c');
+  const split = await candidateHash({ repo, task: approvedTask({ allowed_paths: ['ab', 'c'] }) });
   const joined = await candidateHash({ repo, task: approvedTask({ allowed_paths: ['a', 'bc'] }) });
   assert.notEqual(split, joined);
   assert.notEqual(
