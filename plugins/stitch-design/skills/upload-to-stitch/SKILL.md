@@ -21,12 +21,25 @@ retired and deliberately fails closed.
 This skill does not upload images, mockups, binary assets, or HTML. No
 policy-controlled MCP mutation exists for those asset types.
 
+## Required OMP preflight
+
+Before any mutation, confirm that this is an OMP host with the OMP UI-delivery
+policy extension loaded. Invoke `ui_delivery_status` for the approved task and
+require a successful response before using any Stitch MCP tool. Its approved
+authorization and policy-extension state are the precondition for every later
+step; an absent tool, error, unavailable extension, or unapproved result means
+stop without a mutation.
+
+On Claude, Cursor, Gemini, or any other non-OMP host, upload-to-stitch is
+unavailable even when a Stitch MCP server is configured. Stop; do not invoke
+`list_projects`, `mcp__stitch_upload_design_md`, or any other Stitch MCP tool.
+
 ## Workflow
 
 ### 1. Identify the target project
 
-Use `list_projects` to find the approved `projectId` before the mutation.
-Project listing discovers a target; it is not mutation readback.
+Only after the required OMP preflight, use `list_projects` to find the approved
+`projectId`. Project listing discovers a target; it is not mutation readback.
 
 ### 2. Confirm the authorized document
 

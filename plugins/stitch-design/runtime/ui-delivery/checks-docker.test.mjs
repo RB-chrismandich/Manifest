@@ -147,7 +147,7 @@ test('rejects a repository-resident Docker argv[0]', async () => {
     () => runCheck({
       repo,
       task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', argv: [`/repo/${verifier.path}`, `/repo/${verifier.path}`] }] }),
-      checkId: 'unit', backends: { 'sandbox-exec': true, docker: true },
+      checkId: 'unit', backends: { 'sandbox-exec': true, docker: true }, hostIdentity: nonRootHostIdentity,
       executor: async () => {
         executorCalled = true;
         return { exitCode: 0, stdout: verifierOutput(), stderr: '' };
