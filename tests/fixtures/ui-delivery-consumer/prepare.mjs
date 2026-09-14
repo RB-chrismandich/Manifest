@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const fixtureRoot = resolve(dirname(fileURLToPath(import.meta.url)));
 const requestedRoot = process.argv[2];
 if (requestedRoot !== undefined && !isAbsolute(requestedRoot)) throw new Error('preparation root must be absolute');
+if (requestedRoot) await mkdir(requestedRoot, { recursive: true });
 const outputRoot = requestedRoot ? await mkdtemp(join(requestedRoot, 'ui-delivery-consumer-')) : await mkdtemp(join(tmpdir(), 'ui-delivery-consumer-'));
 const chromeCandidates = [
   process.env.UI_DELIVERY_CHROME,
