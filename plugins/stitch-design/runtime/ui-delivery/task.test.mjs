@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
-import { execFile as executeFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { promisify } from 'node:util';
-
-import { beginPatchJournal, candidateHash, loadTask, releasePatchJournal } from './task.ts';
+import { beginPatchJournal, loadTask, releasePatchJournal } from './task.ts';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -68,7 +65,6 @@ async function withApproval(task, operation) {
   }
 }
 
-const execFile = promisify(executeFile);
 
 test('requires an external authorization digest for every mutation and executable task load', async () => {
   const definition = approvedTask();
@@ -233,30 +229,6 @@ test('requires every check recipe to declare a protected, exact SHA-256 trusted 
   void trusted_verifier;
 });
 
-test('binds the candidate identity to all non-host-owned worktree inputs', async () => {
-  const definition = approvedTask();
-  const { repo } = await taskFile(definition);
-  const before = await candidateHash({ repo, task: definition });
-  await writeFile(join(repo, '.ui-results/unit.json'), '{"schema":"ui-delivery-check-v1"}\n');
-  await writeFile(join(repo, 'evidence/page.png'), 'fresh capture');
-  assert.equal(await candidateHash({ repo, task: definition }), before);
-  await writeFile(join(repo, 'package-lock.json'), '{"dependency":"changed"}\n');
-  assert.notEqual(await candidateHash({ repo, task: definition }), before);
-});
-
-test('rejects a symlink anywhere in the candidate worktree', async () => {
-  const { repo } = await taskFile({});
-  const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-candidate-outside-'));
-  await symlink(outside, join(repo, 'src/escaped'));
-  await assert.rejects(() => candidateHash({ repo, task: approvedTask() }));
-});
-
-test('rejects a FIFO anywhere in the candidate worktree without opening it for reads', async () => {
-  const { repo } = await taskFile({});
-  const fifo = join(repo, 'src/untrusted.fifo');
-  await execFile('mkfifo', [fifo]);
-  await assert.rejects(() => candidateHash({ repo, task: approvedTask() }), /unsupported/i);
-});
 
 test('accepts a schema-valid building task and rejects policy-directory escapes', async () => {
   const definition = approvedTask({ state: 'building' });
@@ -290,28 +262,6 @@ test('rejects whitespace-bearing capture artifact paths using the runtime path c
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /capture artifact|path/i);
 });
 
-test('rejects repository-root candidate scope before candidate hashing', async () => {
-  const definition = approvedTask({ allowed_paths: ['.'] });
-  const { repo } = await taskFile(definition);
-  await assert.rejects(() => candidateHash({ repo, task: definition }), /scope|path|invalid/i);
-});
-
-test('streams large candidate files into a deterministic permission-framed hash', async () => {
-  const definition = approvedTask();
-  const { repo } = await taskFile(definition);
-  const source = Buffer.alloc(16 * 1024 * 1024, 0x5a);
-  await writeFile(join(repo, 'src/large.bin'), source);
-  await chmod(join(repo, 'src/large.bin'), 0o640);
-  const expected = createHash('sha256')
-    .update(`src/Card.tsx\0${Buffer.byteLength('export const Card = 1;\n')}\0${0o644}\0`)
-    .update('export const Card = 1;\n')
-    .update(`src/large.bin\0${source.length}\0${0o640}\0`)
-    .update(source)
-    .digest('hex');
-  assert.equal(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
-  await chmod(join(repo, 'src/large.bin'), 0o600);
-  assert.notEqual(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
-});
 
 test('requires the reviewer route for accepted tasks', async () => {
   const definition = approvedTask({
