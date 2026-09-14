@@ -1,6 +1,7 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { mkdir, open, lstat, realpath, readFile, rename, unlink, type FileHandle } from 'node:fs/promises';
+import { hostname, uptime } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 function canonical(value: unknown): string { if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`; if (value && typeof value === 'object') return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`; return JSON.stringify(value); }
@@ -37,6 +38,72 @@ type StatePersistence = {
 const statePersistence: StatePersistence = { open, rename, unlink };
 async function closeQuietly(handle: FileHandle | undefined): Promise<void> {
   if (handle) await handle.close().catch(() => undefined);
+}
+
+type MutationLockOwner = { pid: number; host: string; bootId: string; nonce: string };
+type LockSnapshot = { owner: MutationLockOwner; serialized: string; dev: number; ino: number };
+export type StitchMutationLockEnvironment = {
+  host: string;
+  bootId: string;
+  processExists(pid: number): boolean;
+};
+const localLockEnvironment: StitchMutationLockEnvironment = {
+  host: hostname(),
+  bootId: String(Math.floor(Date.now() / 1_000 - uptime())),
+  processExists(pid) {
+    try { process.kill(pid, 0); return true; }
+    catch (error) { return (error as NodeJS.ErrnoException).code !== 'ESRCH'; }
+  },
+};
+const maxLockBytes = 4_096;
+
+function validLockOwner(value: unknown): value is MutationLockOwner {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) return false;
+  const owner = value as Record<string, unknown>;
+  return Number.isSafeInteger(owner.pid) && owner.pid > 0
+    && typeof owner.host === 'string' && owner.host.length > 0 && owner.host.length <= 255
+    && typeof owner.bootId === 'string' && owner.bootId.length > 0 && owner.bootId.length <= 255
+    && typeof owner.nonce === 'string' && /^[0-9a-f-]{36}$/i.test(owner.nonce)
+    && Object.keys(owner).length === 4;
+}
+
+async function inspectMutationLock(lock: string): Promise<LockSnapshot | undefined> {
+  let before;
+  try { before = await lstat(lock); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || before.size > maxLockBytes) throw new Error('Stitch mutation lock is unsafe');
+  const handle = await open(lock, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.nlink !== 1 || stat.dev !== before.dev || stat.ino !== before.ino || stat.size > maxLockBytes) throw new Error('Stitch mutation lock is unsafe');
+    const serialized = await handle.readFile({ encoding: 'utf8' });
+    const after = await lstat(lock);
+    if (!after.isFile() || after.isSymbolicLink() || after.nlink !== 1 || after.dev !== stat.dev || after.ino !== stat.ino) throw new Error('Stitch mutation lock changed concurrently');
+    let owner: unknown;
+    try { owner = JSON.parse(serialized); } catch { throw new Error('Stitch mutation lock is malformed'); }
+    if (!validLockOwner(owner)) throw new Error('Stitch mutation lock is malformed');
+    return { owner, serialized, dev: stat.dev, ino: stat.ino };
+  } finally { await handle.close(); }
+}
+
+function staleLock(snapshot: LockSnapshot, environment: StitchMutationLockEnvironment): boolean {
+  if (snapshot.owner.host !== environment.host) return false;
+  if (snapshot.owner.bootId !== environment.bootId) return true;
+  try { return !environment.processExists(snapshot.owner.pid); } catch { return false; }
+}
+
+async function removeUnchangedStaleLock(lock: string, expected: LockSnapshot): Promise<boolean> {
+  const current = await inspectMutationLock(lock);
+  if (!current || current.dev !== expected.dev || current.ino !== expected.ino || current.serialized !== expected.serialized) return false;
+  await unlink(lock);
+  return true;
+}
+
+async function releaseMutationLock(lock: string, owned: LockSnapshot): Promise<void> {
+  try {
+    const current = await inspectMutationLock(lock);
+    if (!current || current.dev !== owned.dev || current.ino !== owned.ino || current.serialized !== owned.serialized) return;
+    await unlink(lock);
+  } catch { /* A replacement or unsafe lock is not ours to remove. */ }
 }
 
 export type StitchMutationState = {
@@ -77,18 +144,33 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
   }
 }
 
-export async function updateStitchMutationState({ repo, taskId, authorizationDigest, expectedVersion, state, persistence = statePersistence }: { repo: string; taskId: string; authorizationDigest: string; expectedVersion: number; state: Omit<StitchMutationState, 'authorizationDigest' | 'version'>; persistence?: StatePersistence }): Promise<StitchMutationState> {
+export async function updateStitchMutationState({ repo, taskId, authorizationDigest, expectedVersion, state, persistence = statePersistence, lockEnvironment = localLockEnvironment }: { repo: string; taskId: string; authorizationDigest: string; expectedVersion: number; state: Omit<StitchMutationState, 'authorizationDigest' | 'version'>; persistence?: StatePersistence; lockEnvironment?: StitchMutationLockEnvironment }): Promise<StitchMutationState> {
   const target = await stateFile(repo, taskId);
   const lock = `${target}.lock`;
   let handle: FileHandle | undefined;
   let temporaryHandle: FileHandle | undefined;
   let directoryHandle: FileHandle | undefined;
   let temporary: string | undefined;
-  let createdLock = false;
+  let ownedLock: LockSnapshot | undefined;
   let renamed = false;
   try {
-    handle = await persistence.open(lock, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
-    createdLock = true;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        handle = await persistence.open(lock, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+        const serialized = JSON.stringify({ pid: process.pid, host: lockEnvironment.host, bootId: lockEnvironment.bootId, nonce: randomUUID() });
+        await handle.write(serialized);
+        await handle.sync();
+        const acquired = await inspectMutationLock(lock);
+        if (!acquired || acquired.serialized !== serialized) throw new Error('Stitch mutation lock changed concurrently');
+        ownedLock = acquired;
+        break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || attempt !== 0) throw error;
+        const existing = await inspectMutationLock(lock);
+        if (!existing || !staleLock(existing, lockEnvironment) || !await removeUnchangedStaleLock(lock, existing)) throw new Error('Stitch mutation state changed concurrently');
+      }
+    }
+    if (!ownedLock) throw new Error('Stitch mutation state changed concurrently');
     const current = await loadStitchMutationState({ repo, taskId, authorizationDigest });
     const version = current?.version ?? 0;
     if (version !== expectedVersion) throw new Error('Stitch mutation state changed concurrently');
@@ -113,6 +195,6 @@ export async function updateStitchMutationState({ repo, taskId, authorizationDig
     await closeQuietly(temporaryHandle);
     if (temporary && !renamed) await persistence.unlink(temporary).catch(() => undefined);
     await closeQuietly(handle);
-    if (createdLock) await persistence.unlink(lock).catch(() => undefined);
+    if (ownedLock) await releaseMutationLock(lock, ownedLock);
   }
 }

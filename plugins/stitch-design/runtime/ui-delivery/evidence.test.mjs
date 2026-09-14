@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { link, mkdtemp, mkdir, open, readFile, readdir, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
@@ -107,6 +107,81 @@ test('does not unlink a mutation lock owned by a failed contender', async () => 
   }
 });
 
+const deadProcess = () => false;
+const liveProcess = () => true;
+function lockOwner({ host = hostname(), bootId = 'test-boot', pid = 987_654, nonce = '00000000-0000-4000-8000-000000000001' } = {}) {
+  return JSON.stringify({ pid, host, bootId, nonce });
+}
+const testLockEnvironment = { host: hostname(), bootId: 'test-boot', processExists: deadProcess };
+
+test('recovers a same-boot mutation lock after its owner process terminates', async () => {
+  const { repo } = await fixture();
+  const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+  await writeFile(lock, lockOwner(), { mode: 0o600 });
+  const state = await updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: {}, projectId: 'project-17' }, lockEnvironment: testLockEnvironment,
+  });
+  assert.equal(state.version, 1);
+  await assert.rejects(() => readFile(lock), { code: 'ENOENT' });
+});
+
+test('recovers a prior-boot mutation lock on this host', async () => {
+  const { repo } = await fixture();
+  const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+  await writeFile(lock, lockOwner({ bootId: 'prior-boot' }), { mode: 0o600 });
+  const state = await updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: {}, projectId: 'project-17' }, lockEnvironment: testLockEnvironment,
+  });
+  assert.equal(state.version, 1);
+});
+
+test('denies a live mutation lock and preserves its owner metadata', async () => {
+  const { repo } = await fixture();
+  const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+  const owner = lockOwner();
+  await writeFile(lock, owner, { mode: 0o600 });
+  await assert.rejects(() => updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: {}, projectId: 'project-17' }, lockEnvironment: { ...testLockEnvironment, processExists: liveProcess },
+  }), /concurrently|busy/i);
+  assert.equal(await readFile(lock, 'utf8'), owner);
+});
+
+test('denies malformed and foreign-host mutation locks', async () => {
+  for (const owner of ['not-json', lockOwner({ host: 'another-host' })]) {
+    const { repo } = await fixture();
+    const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+    await writeFile(lock, owner, { mode: 0o600 });
+    await assert.rejects(() => updateStitchMutationState({
+      repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+      state: { entries: {}, projectId: 'project-17' }, lockEnvironment: testLockEnvironment,
+    }), /malformed|concurrently|busy/i);
+    assert.equal(await readFile(lock, 'utf8'), owner);
+  }
+});
+
+test('preserves a contender lock that replaces its acquired mutation lock', async () => {
+  const { repo } = await fixture();
+  const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+  const contender = lockOwner({ nonce: '00000000-0000-4000-8000-000000000002' });
+  const persistence = {
+    async open(path, flags, mode) { return open(path, flags, mode); },
+    async rename(source, target) {
+      await rename(source, target);
+      await unlink(lock);
+      await writeFile(lock, contender, { mode: 0o600 });
+    },
+    unlink,
+  };
+  await updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: {}, projectId: 'project-17' }, persistence, lockEnvironment: testLockEnvironment,
+  });
+  assert.equal(await readFile(lock, 'utf8'), contender);
+});
+
 test('syncs consumed mutation state before rename and its directory after rename', async () => {
   const { repo } = await fixture();
   const evidenceDirectory = join(repo, '.omp/ui-delivery/evidence');
@@ -132,7 +207,7 @@ test('syncs consumed mutation state before rename and its directory after rename
 
   const temporary = events.find((event) => event.startsWith('sync:') && event.includes('.tmp'));
   const renamed = events.find((event) => event.startsWith('rename:'));
-  const directorySync = events.find((event) => event.startsWith('sync:') && !event.includes('.tmp'));
+  const directorySync = events.find((event) => event.startsWith('sync:') && !event.includes('.tmp') && !event.endsWith('.lock'));
   assert.ok(temporary);
   assert.ok(renamed);
   assert.ok(directorySync);
