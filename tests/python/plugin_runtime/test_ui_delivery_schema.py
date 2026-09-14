@@ -170,14 +170,13 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
     assert_invalid(validator, {**task, "outcome": "passed"})
     assert_invalid(validator, {**task, "unexpected": True})
 
+
 def test_task_schema_rejects_unsafe_ids_and_whitespace_paths(repo_root: Path) -> None:
     validator = _validator(repo_root)
     task = _accepted_task()
 
     assert_invalid(validator, {**task, "task_id": "../ui-delivery-17"})
-    assert_invalid(
-        validator, {**task, "allowed_paths": ["src/Checkout Card.tsx"]}
-    )
+    assert_invalid(validator, {**task, "allowed_paths": ["src/Checkout Card.tsx"]})
     assert_invalid(
         validator,
         _with_check_recipe(task, write_paths=["artifacts/check result.json"]),

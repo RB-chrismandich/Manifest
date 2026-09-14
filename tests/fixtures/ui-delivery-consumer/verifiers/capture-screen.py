@@ -34,6 +34,7 @@ def emit(passed):
         )
     sys.stdout.write(json.dumps(envelope) + "\n")
 
+
 def diagnostic(value):
     text = re.sub(r"file://\S+", "[approved local target]", value)
     text = re.sub(r"https?://\S+", "[url]", text)
