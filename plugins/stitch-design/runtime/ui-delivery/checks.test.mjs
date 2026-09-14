@@ -8,7 +8,7 @@ import { runCheck } from './checks.ts';
 
 const recipe = {
   id: 'unit', argv: ['node', '--test', 'test.mjs'], cwd: '.', timeout_ms: 500,
-  backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef',
+  backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'],
 };
 

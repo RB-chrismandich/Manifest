@@ -103,7 +103,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
                 "cwd": "apps/web",
                 "timeout_ms": 120000,
                 "backend": "sandbox-exec",
-                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 "result_path": "artifacts/checkout-ui.result.json",
                 "write_paths": [
                     "artifacts/checkout-ui.result.json",
@@ -251,7 +251,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
                 {
                     **task["approved_check_recipes"][0],
                     "backend": "docker",
-                    "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                    "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 }
             ],
         },
@@ -289,7 +289,7 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
                 ],
                 "timeout_ms": 1000,
                 "backend": "docker",
-                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 "result_path": "artifacts/checkout-ui.result.json",
             }
         ],
@@ -370,7 +370,7 @@ def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
                 ],
                 "timeout_ms": 1000,
                 "backend": "docker",
-                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
+                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 "result_path": "artifacts/checkout-ui.result.json",
             }
         ],

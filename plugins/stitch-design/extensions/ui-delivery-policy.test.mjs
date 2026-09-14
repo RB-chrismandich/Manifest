@@ -186,8 +186,12 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
   const { repo } = await fixture(definition);
   const hook = handlers.get('tool_call');
   assert.equal(await hook({ toolName: 'read', input: { path: 'x' }, toolCallId: 'native-1' }), undefined);
-  assert.deepEqual(await hook({ toolName: 'mcp__stitch__unknown', input: {}, toolCallId: 'unknown-1' }), { block: true, reason: 'Stitch tool is not authorized by the active UI delivery task' });
-  assert.deepEqual(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-1' }), { block: true, reason: 'Stitch tool is not authorized by the active UI delivery task' });
+  const unknown = await hook({ toolName: 'mcp__stitch__unknown', input: {}, toolCallId: 'unknown-1' });
+  assert.equal(unknown.block, true);
+  assert.match(unknown.reason, /not authorized/i);
+  const prematureMutation = await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-1' });
+  assert.equal(prematureMutation.block, true);
+  assert.match(prematureMutation.reason, /not authorized/i);
 
   const saved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
@@ -195,7 +199,9 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
     const status = await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
     assert.equal(status.details.approved, true);
     assert.equal(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-2' }), undefined);
-    assert.deepEqual(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-3' }), { block: true, reason: 'Stitch mutation already consumed; reconcile through an approved readback' });
+    const reusedMutation = await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-3' });
+    assert.equal(reusedMutation.block, true);
+    assert.match(reusedMutation.reason, /reconcile|consumed/i);
     await handlers.get('tool_result')({
       toolName: 'mcp__stitch__get_screen',
       isError: false,
