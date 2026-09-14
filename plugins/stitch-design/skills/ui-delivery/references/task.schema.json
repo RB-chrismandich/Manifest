@@ -6,6 +6,7 @@
     "task_id",
     "state",
     "design_revision",
+    "qualification_hash",
     "allowed_paths",
     "forbidden_policy_paths",
     "approved_check_recipes",
@@ -35,6 +36,10 @@
     "design_revision": {
       "type": "string",
       "minLength": 1
+    },
+    "qualification_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$"
     },
     "candidate_revision": {
       "type": "string",

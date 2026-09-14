@@ -15,15 +15,20 @@ function nonEmptyStrings(value: unknown): value is string[] { return Array.isArr
 function relativePath(value: unknown): value is string { return value === '.' || typeof value === 'string' && value.length > 0 && !/\s/.test(value) && !value.startsWith('/') && !value.includes('\\') && !value.includes('//') && !value.split('/').some((part) => part === '.' || part === '..' || !part); }
 
 export function authorizationDigest(task: DeliveryTask): string {
-  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization'].filter((key) => key in task).map((key) => [key, task[key]]));
+  const projection = Object.fromEntries(['task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization'].filter((key) => key in task).map((key) => [key, task[key]]));
   return canonicalJsonHash(projection);
+}
+
+export function assertActiveRuntimeQualification(task: DeliveryTask): void {
+  if (process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 !== task.qualification_hash) invalid('active runtime qualification mismatch');
 }
 
 function validate(task: unknown): asserts task is DeliveryTask {
   if (!task || typeof task !== 'object' || Array.isArray(task)) invalid('must be an object');
   const value = task as DeliveryTask;
-  for (const key of ['task_id', 'state', 'design_revision', 'model_route', 'outcome']) if (typeof value[key] !== 'string' || !value[key]) invalid(`missing ${key}`);
+  for (const key of ['task_id', 'state', 'design_revision', 'qualification_hash', 'model_route', 'outcome']) if (typeof value[key] !== 'string' || !value[key]) invalid(`missing ${key}`);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.task_id)) invalid('invalid task_id');
+  if (!/^sha256:[a-f0-9]{64}$/i.test(value.qualification_hash)) invalid('invalid qualification hash');
   if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays without whitespace');
   if (!Array.isArray(value.approved_check_recipes) || !value.approved_check_recipes.length) invalid('missing check recipes');
   if (!Array.isArray(value.capture_recipes) || !value.capture_recipes.length) invalid('missing capture recipes');
@@ -134,6 +139,7 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
       if (!['approved', 'candidate_ready'].includes(task.state)) invalid('mutation requires authorized lifecycle state');
     }
     if (process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== authorizationDigest(task)) invalid('external approval digest mismatch');
+    assertActiveRuntimeQualification(task);
   }
   const grant = task.stitch_grant;
   const grantExpiry = grant && typeof grant.expires_at === 'string' ? Date.parse(grant.expires_at) : Number.NaN;

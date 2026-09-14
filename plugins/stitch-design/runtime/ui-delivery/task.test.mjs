@@ -15,7 +15,7 @@ function canonical(value) {
 
 function authorizationDigest(task) {
   const projection = Object.fromEntries([
-    'task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths',
+    'task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths',
     'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization',
   ].filter((key) => key in task).map((key) => [key, task[key]]));
   return `sha256:${createHash('sha256').update(JSON.stringify(canonical(projection))).digest('hex')}`;
@@ -24,7 +24,7 @@ function authorizationDigest(task) {
 function approvedTask(overrides = {}) {
   return {
     task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
-    allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
+    qualification_hash: `sha256:${'a'.repeat(64)}`, allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
     approved_check_recipes: [{
       id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
       backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
@@ -55,10 +55,14 @@ async function taskFile(task, relative = '.omp/ui-delivery/tasks/task-17.json') 
 
 async function withApproval(task, operation) {
   const before = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  const activeBefore = process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = authorizationDigest(task);
+  process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = task.qualification_hash;
   try { return await operation(); } finally {
     if (before === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
     else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = before;
+    if (activeBefore === undefined) delete process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
+    else process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = activeBefore;
   }
 }
 
@@ -90,6 +94,20 @@ test('preserves authorization digest across lifecycle changes and invalidates re
   assert.notEqual(digest, authorizationDigest({ ...task, allowed_paths: ['src/Other.tsx'] }));
   assert.notEqual(digest, authorizationDigest({ ...task, approved_check_recipes: [{ ...task.approved_check_recipes[0], argv: ['evil'] }] }));
   assert.notEqual(digest, authorizationDigest({ ...task, stitch_grant: { project_id: 'different' } }));
+  assert.notEqual(digest, authorizationDigest({ ...task, qualification_hash: `sha256:${'b'.repeat(64)}` }));
+});
+
+test('requires the approved qualification hash to equal the trusted active runtime hash', async () => {
+  const definition = approvedTask();
+  const { repo, path } = await taskFile(definition);
+  await withApproval(definition, async () => {
+    delete process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
+    await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /qualification|runtime/i);
+    process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = `sha256:${'0'.repeat(64)}`;
+    await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /qualification|runtime/i);
+    process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = definition.qualification_hash;
+    await loadTask({ repo, taskFile: path, operation: 'patch' });
+  });
 });
 
 test('permits candidate lifecycle checks while reserving patches for approved or renewed repairing tasks', async () => {
