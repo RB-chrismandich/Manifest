@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
@@ -93,5 +95,20 @@ test('a restarted extension loads the protected consumed mutation state before a
     const replay = await restarted.handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input });
     assert.equal(replay.block, true);
     assert.match(replay.reason, /reconcil|consum/i);
+  });
+});
+
+test('revalidates the task lifecycle before each Stitch call instead of using an approved status snapshot', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+
+  await withApproval(definition, async () => {
+    await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    await writeFile(join(repo, '.omp/ui-delivery/tasks/task.json'), JSON.stringify({ ...definition, state: 'candidate_ready', candidate_revision: 'git:stale', candidate_hash: `sha256:${'a'.repeat(64)}` }));
+    const blocked = await handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input });
+    assert.equal(blocked.block, true);
+    assert.match(blocked.reason, /stale|authorized/i);
   });
 });

@@ -193,7 +193,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     try {
       if (!stitch) throw new Error('Stitch tool call is not authorized');
       const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
-      if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
+      if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
       const input = event.input;
       const projectId = input && typeof input === 'object' && (typeof input.projectId === 'string' ? input.projectId : typeof input.project_id === 'string' ? input.project_id : undefined);
       await stitch.policy.authorize({ projectId, toolName: event.toolName, input });
