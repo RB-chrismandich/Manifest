@@ -9,7 +9,7 @@ import pytest
 
 from manifest_agent.checks.aggregate import aggregate_results
 from manifest_agent.checks.registry import load_registry
-from test_shared_checks_review_regressions import (
+from tests.python.manifest_agent.test_shared_checks_review_regressions import (
     RECEIPT_NUMERIC_BOOLEAN_MUTATIONS,
     RECEIPT_SHAPE_MUTATIONS,
     context,
