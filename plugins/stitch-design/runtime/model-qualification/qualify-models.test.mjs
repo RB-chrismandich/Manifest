@@ -88,6 +88,30 @@ test('qualifies exact Astra selectors and reports their catalog capabilities', a
   assert.doesNotMatch(failureText(result), /sk-[A-Za-z0-9-]{20,}/);
 });
 
+test('ignores incomplete capabilities on catalog entries unrelated to selected selectors', async () => {
+  const candidateCatalog = catalog([
+    model(),
+    {
+      provider: 'openai-codex',
+      id: 'text-only',
+      selector: 'openai-codex/text-only',
+      input: [],
+      contextWindow: 8192,
+      maxTokens: 1024,
+      thinking: null,
+    },
+    {
+      provider: 'ollama',
+      id: 'unlisted',
+      selector: 'ollama/unlisted',
+      thinking: null,
+    },
+  ]);
+  const result = await invoke(qualificationArgs(overlay(), candidateCatalog));
+  assert.equal(result.status, 0, failureText(result));
+  assert.deepEqual(JSON.parse(result.stdout).roles, overlay().modelRoles);
+});
+
 test('produces the same qualification hash for equivalent JSON key orderings', async () => {
   const first = await invoke(qualificationArgs());
   const reorderedOverlay = {
