@@ -61,6 +61,35 @@ def _assert_valid(validator: Draft202012Validator, instance: dict[str, Any]) -> 
 def _assert_invalid(validator: Draft202012Validator, instance: dict[str, Any]) -> None:
     assert list(validator.iter_errors(instance))
 
+def _with_check_recipe(
+    task: dict[str, Any], **overrides: Any
+) -> dict[str, Any]:
+    recipe = task["approved_check_recipes"][0]
+    return {**task, "approved_check_recipes": [{**recipe, **overrides}]}
+
+
+def _docker_check_recipe() -> dict[str, Any]:
+    return {
+        "id": "checkout-ui",
+        "argv": ["npm", "run", "test:ui"],
+        "cwd": "apps/web",
+        "write_paths": [
+            "artifacts/checkout-ui.result.json",
+            "artifacts/checkout.png",
+        ],
+        "timeout_ms": 1000,
+        "backend": "docker",
+        "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "result_path": "artifacts/checkout-ui.result.json",
+    }
+
+
+def _capture_recipe() -> dict[str, Any]:
+    return {
+        "id": "checkout-capture",
+        "check_id": "checkout-ui",
+        "artifacts": [{"path": "artifacts/checkout.png", "type": "image"}],
+    }
 
 def _assert_no_response_format_conditionals(schema: Any) -> None:
     if isinstance(schema, dict):
@@ -243,15 +272,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
     _assert_invalid(
         validator, {key: value for key, value in task.items() if key != "evidence_refs"}
     )
-    _assert_invalid(
-        validator,
-        {
-            **task,
-            "approved_check_recipes": [
-                {**task["approved_check_recipes"][0], "env": ["CI"]}
-            ],
-        },
-    )
+    _assert_invalid(validator, _with_check_recipe(task, env=["CI"]))
     _assert_invalid(
         validator,
         {
@@ -288,55 +309,31 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         },
     )
     _assert_invalid(validator, {**task, "unexpected": True})
+    _assert_invalid(validator, _with_check_recipe(task, shell="npm test"))
+
     _assert_invalid(
         validator,
-        {
-            **task,
-            "approved_check_recipes": [
-                {**task["approved_check_recipes"][0], "shell": "npm test"}
-            ],
-        },
+        _with_check_recipe(
+            task, sandbox_image="registry.example/ui-check:latest"
+        ),
     )
 
     _assert_invalid(
         validator,
-        {
-            **task,
-            "approved_check_recipes": [
-                {
-                    **task["approved_check_recipes"][0],
-                    "sandbox_image": "registry.example/ui-check:latest",
-                }
-            ],
-        },
-    )
-
-    _assert_invalid(
-        validator,
-        {
-            **task,
-            "approved_check_recipes": [
-                {
-                    **task["approved_check_recipes"][0],
-                    "backend": "docker",
-                    "sandbox_image": "registry.example/ui-check@sha512:0123456789abcdef",
-                }
-            ],
-        },
+        _with_check_recipe(
+            task,
+            backend="docker",
+            sandbox_image="registry.example/ui-check@sha512:0123456789abcdef",
+        ),
     )
 
     _assert_valid(
         validator,
-        {
-            **task,
-            "approved_check_recipes": [
-                {
-                    **task["approved_check_recipes"][0],
-                    "backend": "docker",
-                    "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-                }
-            ],
-        },
+        _with_check_recipe(
+            task,
+            backend="docker",
+            sandbox_image="registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        ),
     )
     _assert_invalid(
         validator,
@@ -365,28 +362,8 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
         "design_revision": "stitch-revision-72",
         "allowed_paths": ["src/components/CheckoutCard.tsx"],
         "forbidden_policy_paths": [".claude/settings.json"],
-        "approved_check_recipes": [
-            {
-                "id": "checkout-ui",
-                "argv": ["npm", "run", "test:ui"],
-                "cwd": "apps/web",
-                "write_paths": [
-                    "artifacts/checkout-ui.result.json",
-                    "artifacts/checkout.png",
-                ],
-                "timeout_ms": 1000,
-                "backend": "docker",
-                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-                "result_path": "artifacts/checkout-ui.result.json",
-            }
-        ],
-        "capture_recipes": [
-            {
-                "id": "checkout-capture",
-                "check_id": "checkout-ui",
-                "artifacts": [{"path": "artifacts/checkout.png", "type": "image"}],
-            }
-        ],
+        "approved_check_recipes": [_docker_check_recipe()],
+        "capture_recipes": [_capture_recipe()],
         "model_route": "@ui_code",
         "repair_cycles": 0,
         "outcome": "unverified",
@@ -452,28 +429,8 @@ def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
         "design_revision": "stitch-revision-73",
         "allowed_paths": ["src/components/CheckoutCard.tsx"],
         "forbidden_policy_paths": [".claude/settings.json"],
-        "approved_check_recipes": [
-            {
-                "id": "checkout-ui",
-                "argv": ["npm", "run", "test:ui"],
-                "cwd": "apps/web",
-                "write_paths": [
-                    "artifacts/checkout-ui.result.json",
-                    "artifacts/checkout.png",
-                ],
-                "timeout_ms": 1000,
-                "backend": "docker",
-                "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-                "result_path": "artifacts/checkout-ui.result.json",
-            }
-        ],
-        "capture_recipes": [
-            {
-                "id": "checkout-capture",
-                "check_id": "checkout-ui",
-                "artifacts": [{"path": "artifacts/checkout.png", "type": "image"}],
-            }
-        ],
+        "approved_check_recipes": [_docker_check_recipe()],
+        "capture_recipes": [_capture_recipe()],
         "model_route": "@ui_code",
         "repair_cycles": 0,
         "evidence_refs": ["artifact://ui-delivery-19/error.json"],
