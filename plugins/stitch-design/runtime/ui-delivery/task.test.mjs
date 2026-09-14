@@ -110,6 +110,13 @@ test('requires the approved qualification hash to equal the trusted active runti
   });
 });
 
+test('rejects uppercase qualification hashes before executable authorization', async () => {
+  const definition = approvedTask({ qualification_hash: `sha256:${'A'.repeat(64)}` });
+  const { repo, path } = await taskFile(definition);
+
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /qualification hash/i);
+});
+
 test('permits candidate lifecycle checks while reserving patches for approved or renewed repairing tasks', async () => {
   for (const state of ['candidate_ready', 'reviewing', 'repairing']) {
     const definition = approvedTask({

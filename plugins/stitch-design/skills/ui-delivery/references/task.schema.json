@@ -39,7 +39,7 @@
     },
     "qualification_hash": {
       "type": "string",
-      "pattern": "^sha256:[a-fA-F0-9]{64}$"
+      "pattern": "^sha256:[a-f0-9]{64}$"
     },
     "candidate_revision": {
       "type": "string",

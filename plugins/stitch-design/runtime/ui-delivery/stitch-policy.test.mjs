@@ -339,6 +339,49 @@ test('reconciles generated screens through a persisted learned identity and sign
   await restarted.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screenId: 'screen-created', title: 'Checkout' } });
 });
 
+test('reconciles collection readbacks against one learned resource without input identity', async () => {
+  const generation = { projectId: 'project-17', prompt: 'Create a checkout screen' };
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [{
+        tool_name: 'mcp__stitch_generate_screen_from_text',
+        input_hash: hashStitchInput(generation),
+        max_uses: 1,
+        expected_readback: {
+          tool_name: 'mcp__stitch_list_screens',
+          predictable_fields: { title: 'Checkout' },
+          resource_identity: 'screen',
+        },
+      }],
+      readback_tools: ['mcp__stitch_list_screens'],
+    },
+  });
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now });
+
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' });
+  await policy.recordMutationResult({
+    toolName: 'mcp__stitch_generate_screen_from_text',
+    toolCallId: 'generate-1',
+    succeeded: true,
+    result: { projectId: 'project-17', screenId: 'screen-created' },
+  });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_list_screens', input: { projectId: 'project-17' }, toolCallId: 'readback-1' });
+  await assert.rejects(
+    () => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_list_screens', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screens: [{ screenId: 'other-screen', title: 'Checkout' }] } }),
+    /reconcil/i,
+  );
+  await assert.rejects(
+    () => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_list_screens', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screens: [{ screenId: 'screen-created', title: 'Checkout' }, { screenId: 'screen-created', title: 'Checkout' }] } }),
+    /reconcil/i,
+  );
+  await assert.rejects(
+    () => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_list_screens', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screens: [{ screenId: 'screen-created', title: 'Wrong title' }] } }),
+    /reconcil/i,
+  );
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_list_screens', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screens: [{ screenId: 'screen-created', title: 'Checkout' }] } });
+});
+
 test('reconciles generated variants through their learned screen identity', async () => {
   const generation = { projectId: 'project-17', selectedScreenIds: ['screen-1'], prompt: 'Create variants' };
   const definition = task({

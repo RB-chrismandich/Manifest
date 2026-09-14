@@ -147,6 +147,7 @@ def test_task_schema_enforces_required_fields_and_outcomes(repo_root: Path) -> N
     assert_invalid(validator, {**task, "state": "cancelled"})
     assert_invalid(validator, {**task, "outcome": "passed"})
     assert_invalid(validator, {**task, "unexpected": True})
+    assert_invalid(validator, {**task, "qualification_hash": "sha256:" + "B" * 64})
 
 
 def test_task_schema_rejects_unsafe_ids_and_whitespace_paths(repo_root: Path) -> None:

@@ -40,7 +40,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
   const value = task as DeliveryTask;
   for (const key of ['task_id', 'state', 'design_revision', 'qualification_hash', 'model_route', 'outcome']) if (typeof value[key] !== 'string' || !value[key]) invalid(`missing ${key}`);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.task_id)) invalid('invalid task_id');
-  if (!/^sha256:[a-f0-9]{64}$/i.test(value.qualification_hash)) invalid('invalid qualification hash');
+  if (!/^sha256:[a-f0-9]{64}$/.test(value.qualification_hash)) invalid('invalid qualification hash');
   if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || value.allowed_paths.includes('.') || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays without whitespace or repository root');
   if (!Array.isArray(value.approved_check_recipes) || !value.approved_check_recipes.length) invalid('missing check recipes');
   if (!Array.isArray(value.capture_recipes) || !value.capture_recipes.length) invalid('missing capture recipes');

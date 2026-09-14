@@ -25,6 +25,10 @@ const PROJECTLESS_READ_TOOLS: Record<string, true> = {
   mcp__stitch_list_projects: true,
   mcp__stitch_read_url_content: true,
 };
+const COLLECTION_READBACK_TOOLS: Record<string, true> = {
+  mcp__stitch_list_screens: true,
+  mcp__stitch_list_design_systems: true,
+};
 function kindFor(tool: StitchRegistryTool): StitchToolKind | undefined {
   if (!tool.name.startsWith('mcp__stitch_') || tool.sourceInfo?.source !== 'mcp' || !String(tool.sourceInfo?.path ?? '').includes('stitch') || !(tool.parameters ?? tool.inputSchema)) return undefined;
   if (READ_TOOLS[tool.name]) return 'read';
@@ -100,6 +104,17 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     }
     return undefined;
   };
+  const collectionRecords = (value: unknown): Record<string, unknown>[] => {
+    if (Array.isArray(value)) return value.flatMap((item) => {
+      const record = recordFrom(item);
+      return record ? [record, ...collectionRecords(record)] : collectionRecords(item);
+    });
+    const record = recordFrom(value);
+    return record ? Object.values(record).flatMap(collectionRecords) : [];
+  };
+  const predictableFieldsMatch = (record: Record<string, unknown>, expected: StitchReadback): boolean =>
+    validPredictableFields(expected.predictable_fields)
+      && Object.entries(expected.predictable_fields).every(([field, value]) => Object.hasOwn(record, field) && hashStitchInput(record[field]) === hashStitchInput(value));
   const validPredictableFields = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0 && Object.keys(value).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field));
   const validIdentityKind = (value: unknown): value is StitchIdentityKind => value === 'project' || value === 'screen' || value === 'design_system';
   const predictableReadback = (expected: StitchReadback): boolean => expected.response_hash === undefined && validPredictableFields(expected.predictable_fields) && validIdentityKind(expected.resource_identity);
@@ -113,8 +128,12 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     if (canonicalHash(expected.response_hash)) return expected.response_hash === hashStitchInput(observation);
     const identity = identities.get(entryKey);
     const record = recordFrom(observation);
-    return Boolean(identity && record && projectIdFrom(observation) === projectId && identityFrom(observation, identity.kind)?.value === identity.value && validPredictableFields(expected.predictable_fields)
-      && Object.entries(expected.predictable_fields).every(([field, value]) => Object.hasOwn(record, field) && hashStitchInput(record[field]) === hashStitchInput(value)));
+    if (!identity || !record || projectIdFrom(observation) !== projectId) return false;
+    if (COLLECTION_READBACK_TOOLS[expected.tool_name]) {
+      const matches = collectionRecords(observation).filter((candidate) => identityFrom(candidate, identity.kind)?.value === identity.value);
+      return matches.length === 1 && predictableFieldsMatch(matches[0], expected);
+    }
+    return identityFrom(observation, identity.kind)?.value === identity.value && predictableFieldsMatch(record, expected);
   };
   const readbackEntryFor = (toolName: string, input: unknown, recovery: boolean): string | undefined => {
     const candidates = [...entries].flatMap(([entryKey, lifecycle]) => {
@@ -124,7 +143,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
         && Boolean(mutation)
         && validExpectedReadback(mutation!)
         && mutation!.expected_readback.tool_name === toolName
-        && (!identity || identityFrom(input, identity.kind)?.value === identity.value)
+        && (COLLECTION_READBACK_TOOLS[toolName] || !identity || identityFrom(input, identity.kind)?.value === identity.value)
         && (recovery ? !mutationCalls.has(entryKey) : mutationCalls.has(entryKey))
         ? [entryKey]
         : [];
