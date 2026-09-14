@@ -98,6 +98,11 @@ function requireStringArray(value, field) {
   }
   return value;
 }
+function optionalStringArray(value, field) {
+  if (value === undefined || value === null) return [];
+  return requireStringArray(value, field);
+}
+
 
 function parseSelector(selector, field) {
   const value = requireString(selector, field);
@@ -143,8 +148,8 @@ function validateCatalog(catalog) {
     const id = requireString(model.id, `${field}.id`);
     const selector = requireString(model.selector, `${field}.selector`);
     if (models.has(selector)) fail('catalog.models', 'contains duplicate selectors');
-    const input = requireStringArray(model.input, `${field}.input`);
-    const thinking = requireStringArray(model.thinking, `${field}.thinking`);
+    const input = optionalStringArray(model.input, `${field}.input`);
+    const thinking = optionalStringArray(model.thinking, `${field}.thinking`);
     if (thinking.some((level) => !THINKING_LEVELS.has(level))) fail(`${field}.thinking`, 'contains an unsupported thinking level');
     if (!Number.isInteger(model.contextWindow) || model.contextWindow < 0) fail(`${field}.contextWindow`, 'must be a nonnegative integer');
     if (!Number.isInteger(model.maxTokens) || model.maxTokens < 0) fail(`${field}.maxTokens`, 'must be a nonnegative integer');
