@@ -6,6 +6,13 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "claude-compaction-continuity",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/session-continuity.json",
+            "reason": "Antigravity exposes no verified completed-compaction lifecycle sequence."
+          },
+          {
             "component_id": "codex-permission-request",
             "component_type": "hooks",
             "mode": "not_applicable",
@@ -197,6 +204,18 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "component_id": "session-checkpoint-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "component_id": "session-continuity-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "component_id": "skill-evolve-scripts",
             "component_type": "runtime",
             "mode": "imported",
@@ -323,6 +342,14 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "id": "session-checkpoint-references",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "id": "session-continuity-scripts",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "id": "skill-evolve-scripts",
             "path": "skills/skill-evolve/scripts"
           }
@@ -352,6 +379,15 @@
     },
     "codex": {
       "compatibility": {
+        "degraded": [
+          {
+            "component_id": "claude-compaction-continuity",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/session-continuity.json",
+            "reason": "Codex exposes no verified completed-compaction lifecycle sequence."
+          }
+        ],
         "native": [
           {
             "component_id": "compatibility-translator",
@@ -540,6 +576,18 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "component_id": "session-checkpoint-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "component_id": "session-continuity-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "component_id": "skill-evolve-scripts",
             "component_type": "runtime",
             "mode": "native",
@@ -680,6 +728,14 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "id": "session-checkpoint-references",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "id": "session-continuity-scripts",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "id": "skill-evolve-scripts",
             "path": "skills/skill-evolve/scripts"
           }
@@ -710,6 +766,13 @@
     "cursor": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "claude-compaction-continuity",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/session-continuity.json",
+            "reason": "Cursor exposes no verified completed-compaction lifecycle sequence."
+          },
           {
             "component_id": "codex-permission-request",
             "component_type": "hooks",
@@ -902,6 +965,18 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "component_id": "session-checkpoint-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "component_id": "session-continuity-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "component_id": "skill-evolve-scripts",
             "component_type": "runtime",
             "mode": "generated",
@@ -1028,6 +1103,14 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "id": "session-checkpoint-references",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "id": "session-continuity-scripts",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "id": "skill-evolve-scripts",
             "path": "skills/skill-evolve/scripts"
           }
@@ -1058,6 +1141,13 @@
     "devin": {
       "compatibility": {
         "degraded": [
+          {
+            "component_id": "claude-compaction-continuity",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/session-continuity.json",
+            "reason": "Devin exposes no verified completed-compaction lifecycle sequence."
+          },
           {
             "component_id": "codex-permission-request",
             "component_type": "hooks",
@@ -1250,6 +1340,18 @@
             "path": "skills/pr-smoke/scripts"
           },
           {
+            "component_id": "session-checkpoint-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "component_id": "session-continuity-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/session-checkpoint/scripts"
+          },
+          {
             "component_id": "skill-evolve-scripts",
             "component_type": "runtime",
             "mode": "native",
@@ -1374,6 +1476,14 @@
           {
             "id": "pr-smoke-scripts",
             "path": "skills/pr-smoke/scripts"
+          },
+          {
+            "id": "session-checkpoint-references",
+            "path": "skills/session-checkpoint/references"
+          },
+          {
+            "id": "session-continuity-scripts",
+            "path": "skills/session-checkpoint/scripts"
           },
           {
             "id": "skill-evolve-scripts",

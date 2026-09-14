@@ -120,3 +120,45 @@ If conversation continues after checkpoint:
 - Configuration files: [relevant configs]
 
 ````
+
+## Durable Continuity Payload
+
+When persistence is required, retain the summary above and derive the following
+JSON payload from it. Pass the completed payload to
+`session_continuity.py checkpoint --input <payload.json>`. Use concise evidence
+summaries, never raw transcripts or secrets.
+
+```json
+{
+  "source_session_id": "harness session identifier",
+  "original_goal": "The user's original goal, preserved without narrowing it",
+  "constraints": ["Immutable user, repository, and safety constraints"],
+  "decisions": [{"decision": "Accepted decision", "rationale": "Evidence-backed reason"}],
+  "repository": {
+    "path": "/absolute/repository/path",
+    "branch": "current branch",
+    "head": "full HEAD commit",
+    "dirty_tree": ["Exact git status --short entries"]
+  },
+  "completed_work": ["Concrete completed deliverable"],
+  "remaining_work": ["Work still required by the original goal"],
+  "verification_evidence": [{
+    "command": "Exact command that ran",
+    "outcome": "Exit status and concise result",
+    "evidence": "Durable result or artifact preserved in this checkpoint"
+  }],
+  "unresolved_uncertainty": ["Fact not established from authoritative state"],
+  "next_action": "Exactly one bounded action for the continuing session",
+  "live_operations": [{
+    "owner": "Session or actor currently responsible",
+    "handle": "Durable process, job, PR, or task handle",
+    "status": "Authoritatively observed current status",
+    "obligation": "How continuation must monitor without restarting or duplicating"
+  }],
+  "continuation_goal": "Copyable goal preserving objective, constraints, state checks, remaining work, verification duties, live-operation ownership, and the one next action"
+}
+```
+
+Use empty arrays when a list has no entries. Required scalar values must not be
+empty. The runtime stores a SHA-256 digest in its envelope and rejects later
+reads whose content no longer matches it.
