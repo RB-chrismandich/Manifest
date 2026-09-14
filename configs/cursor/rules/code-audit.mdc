@@ -1,12 +1,12 @@
 ---
-description: "Auto-trigger when changed behavior crosses a security boundary, or run on an explicit security review request. Gives focused security feedback without blocking user flow."
+description: "Auto-trigger for changed security-boundary behavior or an explicit security review request. Gives focused security feedback without blocking user flow."
 globs: ".claude/skills/code-audit/**"
 alwaysApply: false
 ---
 
 # code-audit
 
-Auto-trigger when changed behavior crosses a security boundary, or run on an explicit security review request. Gives focused security feedback without blocking user flow.
+Auto-trigger for changed security-boundary behavior or an explicit security review request. Gives focused security feedback without blocking user flow.
 
 <!-- Auto-generated from .claude/skills/code-audit/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

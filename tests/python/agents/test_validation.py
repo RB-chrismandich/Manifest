@@ -98,3 +98,82 @@ class TestValidationEngine:
         # Only agent1 is checked; agent2 is skipped
         assert any("agent1" in issue for issue in result["issues"])
         assert not any("agent2" in issue for issue in result["issues"])
+
+
+class TestConditionalReviewValidation:
+    def test_command_conditions_require_cross_verification_only_when_escalated(
+        self, tmp_path
+    ):
+        engine = _make_engine(tmp_path)
+        engine.criteria = {
+            "tier1": {
+                "cross_verification": {
+                    "enabled": True,
+                    "weight": 1.0,
+                    "threshold": 0.8,
+                }
+            },
+            "tier2": {},
+            "scoring": {"tier1_pass_threshold": 1.0, "tier2_acceptable_threshold": 0},
+            "command_overrides": {
+                "python-refactor": {
+                    "tier1_checks": [],
+                    "conditional_tier1_checks": {
+                        "review_mode": {"escalated": ["cross_verification"]}
+                    },
+                    "conditional_consensus": {
+                        "review_mode": {"escalated": {"threshold": 0.9}}
+                    },
+                }
+            },
+        }
+
+        single_agent = engine.validate(
+            {}, {"consensus_score": 0}, "review", "python-refactor", "single-agent"
+        )
+        escalated = engine.validate(
+            {}, {"consensus_score": 80}, "review", "python-refactor", "escalated"
+        )
+
+        assert "cross_verification" not in single_agent["tier1"]["checks"]
+        assert escalated["tier1"]["checks"]["cross_verification"]["threshold"] == 0.9
+        assert escalated["tier1"]["passed"] is False
+
+    def test_single_agent_failure_blocks_validation_without_consensus(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.criteria = {
+            "tier1": {},
+            "tier2": {},
+            "scoring": {"tier1_pass_threshold": 1.0, "tier2_acceptable_threshold": 0},
+            "command_overrides": {"python-refactor": {"tier1_checks": []}},
+        }
+
+        result = engine.validate(
+            {"reviewer": _incomplete()},
+            {"consensus_score": 0},
+            "review",
+            "python-refactor",
+            "single-agent",
+        )
+
+        assert result["tier1"]["passed"] is False
+        assert result["verdict"] == "BLOCKED"
+        assert result["tier1"]["failures"] == ["No completed successful review"]
+
+    def test_conditional_command_requires_explicit_review_mode(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.criteria = {
+            "tier1": {},
+            "tier2": {},
+            "command_overrides": {
+                "python-refactor": {
+                    "tier1_checks": [],
+                    "conditional_tier1_checks": {"review_mode": {"escalated": []}},
+                }
+            },
+        }
+
+        result = engine.validate({}, {}, "review", "python-refactor")
+
+        assert result["verdict"] == "BLOCKED"
+        assert result["tier1"]["failures"] == ["Review mode is required"]

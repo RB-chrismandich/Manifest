@@ -9,11 +9,12 @@ Analyze Bash/Shell scripts against security best practices, ShellCheck standards
 enterprise shell scripting guidelines. Generate a comprehensive refactoring report
 with prioritized recommendations.
 
-## Review and Verification
+## Review routing
 
-Follow the shared [review escalation contract](../refactor/references/review-escalation.md).
-Use one reviewing agent by default, run applicable check-only verification, and
-add independent review only when that contract's risk conditions require it.
+Use one capable reviewer by default. Add independent review only when a
+condition in the [review escalation contract](../refactor/references/review-escalation.md)
+is present; file, package, module, language, keyword, and unit counts do not
+independently escalate review.
 
 ## Task
 
@@ -58,7 +59,9 @@ find . -type f -exec grep -l "^#!/bin/bash\|^#!/bin/sh" {} \;
 
 ### Step 2: Run ShellCheck Analysis
 
-For each script, run ShellCheck:
+When ShellCheck is available as a trusted preinstalled static tool, run it for
+each script. Otherwise report the ShellCheck check as `unavailable` and include
+the missing-tool reason; never install it during review.
 
 ```bash
 shellcheck --severity=info script.sh
@@ -183,6 +186,15 @@ local var="value"  # Function-scoped variables
 **Date:** YYYY-MM-DD
 **Scripts Analyzed:** N
 **Overall Score:** XX/100
+
+**review_mode**: `single-agent` | `escalated`
+**escalation_reason**: `none` | concrete risk condition(s)
+
+## Checks
+
+| Command | Result | unavailable_reason |
+|---------|--------|--------------------|
+| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
 
 ---
 
@@ -333,7 +345,7 @@ local var="value"  # Function-scoped variables
 - **Be specific**: Every finding must have exact file:line location
 - **Be actionable**: Every finding must have a concrete fix
 - **Prioritize security**: Command injection and unsafe operations come first
-- **Run ShellCheck**: Always include actual ShellCheck output
+- **Run ShellCheck when available**: Otherwise report it as `unavailable`
 - **Show examples**: Include before/after code snippets
 
 ---
@@ -386,33 +398,23 @@ files=(*.txt)
 
 ## Testing Recommendations
 
-### Unit Testing with BATS
+### Testing during this review
 
-```bash
-# Install BATS
-npm install -g bats
+This review is check-only. Do not install BATS or other tooling, and do not run
+checkout-controlled test scripts, Docker images, or `setup.sh` from the target
+checkout. If a BATS or container scenario would be needed to establish a
+finding, report the check as `unavailable` with the missing verified-isolation
+or an already available preinstalled-tool reason. Recommend the command to the
+repository owner; do not execute it during this review.
 
-# Create test file: tests/bootstrap.bats
-@test "detect_platform identifies macOS" {
-  run detect_platform
-  [ "$status" -eq 0 ]
-  [[ "$PLATFORM" = "macos" ]]
-}
-```
-
-### Integration Testing
-
-```bash
-# Test in Docker containers
-docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 ./setup.sh --skip-auth
-docker run --rm -v "$PWD:/work" -w /work fedora:39 ./setup.sh --skip-auth
-```
+If you cannot provide enforced isolation for checkout-controlled execution,
+report these checks as `unavailable`.
 
 ---
 
 ## Related Tools
 
-- **ShellCheck**: Static analysis (already installed)
+- **ShellCheck**: Optional static analysis; report `unavailable` when absent
 - **shfmt**: Shell script formatter
 - **bashate**: OpenStack style checker
 - **bats**: Bash Automated Testing System
@@ -450,12 +452,9 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
-The [review escalation contract](../refactor/references/review-escalation.md) is the
-sole authority for whether to dispatch. Dispatch only when at least one of that
-contract's five risk conditions is present; each condition is independently
-sufficient. When available, use `sub-agent-dispatch.md` only for mechanism,
-configured model selection, and no-recursion guidance. This contract overrides
-any count or size threshold in that reference. Use native Task sub-agents on
-Claude or the `manifest-workspace:parallel-agent` fallback elsewhere. Explicitly
-select the configured **Sonnet** tier (`subagent_model: sonnet`). Dispatched
-agents perform their assigned review and do not re-dispatch.
+Follow the [dispatch mechanics](references/shell-refactor-dispatch.md) and the
+[review escalation contract](../refactor/references/review-escalation.md). Use
+the pinned `sonnet` model. Start with one capable reviewer; add independent
+review only when at least one of that contract's five risk conditions is
+present. This overrides any count or size threshold. Check commands are
+check-only. Unavailable checks are reported as `unavailable`, never pass.

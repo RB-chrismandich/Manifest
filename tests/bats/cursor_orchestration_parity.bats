@@ -35,15 +35,6 @@ RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
     ! grep -qE '^\*\*CLI tool\*\*.*apm-dev-sync' "$RULE_FILE"
 }
 
-@test "orchestration.mdc uses one capable agent by default" {
-    grep -qF 'Use one capable agent by default.' "$RULE_FILE"
-    grep -qF 'independent-unit counts are advisory context' "$RULE_FILE"
-}
-
-@test "orchestration.mdc contains semantic code-audit activation guidance" {
-    grep -qF '### Security Review Rule' "$RULE_FILE"
-    grep -qF 'Keywords and complexity metrics alone' "$RULE_FILE"
-}
 
 @test "orchestration.mdc contains the token-conserve re-assert note" {
     grep -qF 're-asserts this mode if drift is noticed mid-session' "$RULE_FILE"

@@ -1,0 +1,17 @@
+# GRF repository opt-in policy. Commit this file to .github/runner-manager.yml on the
+# repository's default branch. Nothing runs until enabled is set to true.
+
+# enabled gates every controller action for this repository. false means the
+# repository is discovered but excluded from admission, provisioning, and cleanup.
+enabled: false
+# profile selects the runner shape: "standard" or "dind". dind additionally requires
+# this repository's ID in the fleet's central dind_repository_ids allow-list.
+profile: standard
+# labels are added to every runner's self-hosted registration, alongside the labels
+# the controller always registers (self-hosted, Linux, host architecture).
+labels:
+  - grf
+# allow_external_forks permits pull requests from forks outside the trusted-owner
+# default. It only takes effect when this repository's ID is also in the fleet's
+# central external_fork_repository_ids allow-list.
+allow_external_forks: false

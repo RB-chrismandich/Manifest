@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest.local/schemas/toolchain.lock.schema.json",
+  "title": "Manifest toolchain lock",
+  "description": "Content-addressed provisioning lock for manifest provision. Every tool entry names the artifact kind (binary, python-env, node-env), its per-platform source, a sha256 that a real download/lockfile must satisfy, and an exe_sha256 that is the sole trust anchor toolchain.resolve() verifies against (never the store's own manifest.json) -- see exe_sha256 for its per-kind meaning. An entry with sha256 or exe_sha256: null is unattested and must resolve to BLOCKED, never PASS.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tools"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9._-]*$": {
+          "$ref": "#/$defs/toolEntry"
+        }
+      }
+    },
+    "caches": {
+      "description": "Store-provisioned, hash-anchored content caches (Correction 10, rule 2) -- distinct from `tools`: a cache entry names no executable, so `toolchain.resolve()` never touches it; `toolchain_npm_cache.resolve()` is its own verifier.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9._-]*$": {
+          "$ref": "#/$defs/cacheEntry"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256OrNull": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "toolEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "version",
+        "platforms"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "binary",
+            "python-env",
+            "node-env"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "platforms": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z0-9]+-[a-z0-9]+$": {
+              "$ref": "#/$defs/platformEntry"
+            }
+          }
+        }
+      }
+    },
+    "cacheEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_sha256",
+        "platforms"
+      ],
+      "properties": {
+        "source_sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "sha256 of the exact package-lock.json bytes this cache was primed from; a check compares the CANDIDATE's own copy against this before trusting the cache (`toolchain_npm_cache.resolve`)."
+        },
+        "platforms": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z0-9]+-[a-z0-9]+$": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "digest": {
+                  "$ref": "#/$defs/sha256OrNull",
+                  "description": "sha256 over the sorted set of the materialized npm cache's own `_cacache/index-v5` entry paths; null is unattested and must resolve to BLOCKED."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "platformEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "sha256",
+        "exe_sha256",
+        "path_in_archive"
+      ],
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "Hash of the downloaded archive/binary, verified by manifest provision before extraction."
+        },
+        "exe_sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "The trust anchor `toolchain.resolve()` verifies at every preflight; null is unattested and must resolve to BLOCKED, never PASS."
+        },
+        "package_json_sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "node-env only: sha256 of exact package.json bytes copied beside package-lock.json before npm ci; null is unattested."
+        },
+        "project_sha256": {
+          "$ref": "#/$defs/sha256OrNull",
+          "description": "python-env only: framed SHA-256 of effective local project/workspace metadata, including absent intermediate workspace candidates; provisioning verifies it before invoking uv. Null is unattested."
+        },
+        "python_provider": {
+          "description": "python-env only: exact external interpreter implementation, version, build, and executable SHA-256. Null means no portable provider was attested and provisioning must BLOCK with observed evidence.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "implementation",
+            "version",
+            "build",
+            "exe_sha256"
+          ],
+          "properties": {
+            "implementation": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "version": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "build": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "exe_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "path_in_archive": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "console_scripts": {
+          "description": "python-env / node-env only: every console-script relative path (under the materialized env's bin/) a registry check resolves through `store:<bundle>/<relative>`. Not individually hashed -- verified collectively via the bundle's single `exe_sha256` distribution-set digest, plus a per-script existence and launcher-provenance (inside-store) check.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "extra_executables": {
+          "description": "binary kind only: an additional subtree extracted from the SAME archive as the primary `bin/<bundle>` executable (no second download) and recorded at `bin/<name>`, independently hashed -- e.g. `node`'s `npm`: `path_in_archive` names the archive-relative subtree directory (`.../lib/node_modules/npm`), `executable_relative` the runnable file inside it (`bin/npm-cli.js`), and `exe_sha256` is that file's OWN hash -- never the primary tool's `exe_sha256`.",
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._-]*$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path_in_archive",
+                "executable_relative",
+                "exe_sha256"
+              ],
+              "properties": {
+                "path_in_archive": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "executable_relative": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "exe_sha256": {
+                  "$ref": "#/$defs/sha256OrNull"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

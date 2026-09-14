@@ -305,7 +305,7 @@ async def _execute(
     agents: list,
     prompt: str,
     mode: str,
-    command: None,
+    command: str | None,
 ) -> None:
     orchestrator = Orchestrator(
         agents,
@@ -315,7 +315,7 @@ async def _execute(
         enable_synthesis=runtime.args.synthesize,
         streaming=runtime.streaming,
     )
-    result = await orchestrator.execute(prompt, mode, command)
+    result = await orchestrator.execute(prompt, mode, command, runtime.args.review_mode)
     if runtime.args.output or not runtime.args.full_output:
         result["output_files"] = await orchestrator._write_output_files(
             result,

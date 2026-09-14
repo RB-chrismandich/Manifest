@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "invariants": [
+    {"id": "shared-checks.exit-status", "description": "PASS=0, FAIL=2, BLOCKED=3"}
+  ]
+}

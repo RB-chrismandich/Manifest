@@ -141,7 +141,11 @@ class Orchestrator:
         self.console = Console()
 
     async def execute(
-        self, prompt: str, mode: str = "prompt", command: str | None = None
+        self,
+        prompt: str,
+        mode: str = "prompt",
+        command: str | None = None,
+        review_mode: str = "single-agent",
     ) -> dict:
         """Run all agents concurrently and synthesize results"""
         start_time = time.time()
@@ -182,7 +186,7 @@ class Orchestrator:
         validation_result = None
         if self.validate:
             validation_result = self._validate_results(
-                agent_results, consensus, mode, command
+                agent_results, consensus, mode, command, review_mode
             )
             if self.logger:
                 self.logger.info(f"Validation verdict: {validation_result['verdict']}")
@@ -389,11 +393,16 @@ class Orchestrator:
         }
 
     def _validate_results(
-        self, results: dict, consensus: dict, mode: str, command: str | None = None
+        self,
+        results: dict,
+        consensus: dict,
+        mode: str,
+        command: str | None = None,
+        review_mode: str = "single-agent",
     ) -> dict:
-        """Validate results against success criteria"""
+        """Validate results against success criteria."""
         validator = ValidationEngine(self.config, self.logger)
-        return validator.validate(results, consensus, mode, command)
+        return validator.validate(results, consensus, mode, command, review_mode)
 
     def _resolve_output_dir(self, custom_output_dir: str | None = None) -> Path:
         """Resolve output directory with sandbox-aware fallback.

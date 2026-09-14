@@ -9,11 +9,12 @@ Analyze a Python codebase against best practices, security principles, and enter
 architecture standards. Generate a comprehensive refactoring report with prioritized
 recommendations.
 
-## Review and Verification
+## Review routing
 
-Follow the shared [review escalation contract](../refactor/references/review-escalation.md).
-Use one reviewing agent by default, run applicable check-only verification, and
-add independent review only when that contract's risk conditions require it.
+Use one capable reviewer by default. Add independent review only when a
+condition in the [review escalation contract](../refactor/references/review-escalation.md)
+is present; file, package, module, language, keyword, and unit counts do not
+independently escalate review.
 
 ## Task
 
@@ -137,6 +138,15 @@ Work through each category; the sequence within and across categories does not m
 
 **Date:** YYYY-MM-DD
 **Overall Score:** XX/100
+
+**review_mode**: `single-agent` | `escalated`
+**escalation_reason**: `none` | concrete risk condition(s)
+
+## Checks
+
+| Command | Result | unavailable_reason |
+|---------|--------|--------------------|
+| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
 
 ---
 
@@ -292,12 +302,9 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
-The [review escalation contract](../refactor/references/review-escalation.md) is the
-sole authority for whether to dispatch. Dispatch only when at least one of that
-contract's five risk conditions is present; each condition is independently
-sufficient. When available, use `sub-agent-dispatch.md` only for mechanism,
-configured model selection, and no-recursion guidance. This contract overrides
-any count or size threshold in that reference. Use native Task sub-agents on
-Claude or the `manifest-workspace:parallel-agent` fallback elsewhere. Explicitly
-select the configured **Sonnet** tier (`subagent_model: sonnet`). Dispatched
-agents perform their assigned review and do not re-dispatch.
+Follow the [dispatch mechanics](references/python-refactor-dispatch.md) and the
+[review escalation contract](../refactor/references/review-escalation.md). Use
+the pinned `sonnet` model. Start with one capable reviewer; add independent
+review only when at least one of that contract's five risk conditions is
+present. This overrides any count or size threshold. Check commands are
+check-only. Unavailable checks are reported as `unavailable`, never pass.

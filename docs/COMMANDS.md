@@ -19,6 +19,15 @@
 | [Error Handling & Testing](commands/reliability.md) | How does a command fail safely, and how do I test it? |
 | [Best Practices & Templates](commands/practices.md) | What are the conventions, and where is the full template? |
 
+## Shared check CLI
+
+Run the committed registry locally:
+`manifest check full --project-config config/project-checks.json --base HEAD --json`.
+Aggregate producer receipts with
+`manifest check-aggregate full --project-config config/project-checks.json --results-dir <dir>
+--context <context.json> --json`. JSON status maps to exit codes `PASS=0`, `FAIL=2`,
+and `BLOCKED=3`; aggregation fails closed when receipt provenance is incomplete.
+
 The table below is generated from the skill catalog — do not edit it by hand.
 
 ## Command Reference
@@ -143,7 +152,7 @@ _122 commands, generated from `.apm/skills/*/SKILL.md`._
 | Command | Description | When to use | Status |
 |---------|-------------|-------------|--------|
 | `/antipattern-detect` | Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via `manifest-workspace:learning-capture`. | Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. | available |
-| `/code-audit` | Auto-trigger when changed behavior crosses a security boundary, or run on an explicit security review request. Gives focused security feedback without blocking user flow. | Auto-trigger when changed behavior crosses a security boundary, or run on an explicit security review request. | available |
+| `/code-audit` | Auto-trigger for changed security-boundary behavior or an explicit security review request. Gives focused security feedback without blocking user flow. | Auto-trigger for changed security-boundary behavior or an explicit security review request. | available |
 | `/env-check` | Inspect the Manifest installation receipt and native harness inventories for availability and capability degradation using only bundle-local code and XDG state. | Inspect the Manifest installation receipt and native harness inventories for availability and capability degradation using only bundle-local code and XDG state. | available |
 | `/help` | Search the generated offline catalog of all Manifest domain commands by name, category, or description without scanning sibling installed plugins. | Search the generated offline catalog of all Manifest domain commands by name, category, or description without scanning sibling installed plugins. | available |
 | `/learning-capture` | Append, query, increment, and render structured lessons from an XDG-owned JSONL knowledge base; capture is advisory and independent of the primary task verdict. | Append, query, increment, and render structured lessons from an XDG-owned JSONL knowledge base; capture is advisory and independent of the primary task verdict. | available |
@@ -181,7 +190,7 @@ _122 commands, generated from `.apm/skills/*/SKILL.md`._
 | `/react-components` | Converts Stitch designs into modular Vite/React components, or syncs existing React components with the latest Stitch designs, using networked fetch and AST-based validation. | Converts Stitch designs into modular Vite/React components, or syncs existing React components with the latest Stitch designs, using networked fetch and AST-based validation. | available |
 | `/react-native` | Convert Stitch HTML designs to React Native components, or sync existing native components with the latest Stitch designs, using StyleSheet. | Convert Stitch HTML designs to React Native components, or sync existing native components with the latest Stitch designs, using StyleSheet. | available |
 | `/react-vite-dashboard` | Convert Stitch designs into production React + Vite dashboards with TanStack Query, accessible tokens from DESIGN.md, and Web3-ready patterns (ethers/viem). | Convert Stitch designs into production React + Vite dashboards with TanStack Query, accessible tokens from DESIGN. | available |
-| `/refactor` | Inspect a target file or codebase, detect language, and route to the matching refactoring engine (Python, Go, Node/TypeScript, Shell, Terraform) with parallel agent verification. | Inspect a target file or codebase, detect language, and route to the matching refactoring engine (Python, Go, Node/TypeScript, Shell, Terraform) with parallel agent verification. | available |
+| `/refactor` | Inspect a target file or codebase, detect language, and route to the matching refactoring engine. | Inspect a target file or codebase, detect language, and route to the matching refactoring engine. | available |
 | `/remotion` | Generate walkthrough videos from Stitch projects using Remotion with smooth transitions, zooming, and text overlays | Generate walkthrough videos from Stitch projects using Remotion with smooth transitions, zooming, and text overlays | available |
 | `/render-verify` | Run the render gate — faithful screenshots, hard font/frame assertions, pixel-scanned geometric limits. | Run the render gate — faithful screenshots, hard font/frame assertions, pixel-scanned geometric limits. | available |
 | `/review-round` | Run one adversarial design review round — parallel lens reviewers, skeptic-verified blockers, consensus gate. | Run one adversarial design review round — parallel lens reviewers, skeptic-verified blockers, consensus gate. | available |

@@ -50,6 +50,7 @@ STUB
     source "$COMMON_LIB"
     # shellcheck disable=SC1090
     source "$INSTALL_LIB"
+    MANIFEST_VERIFIED_UV_BIN="$MOCK_BIN/uv"
 }
 
 teardown() {
@@ -100,7 +101,7 @@ _install_healthy_venv_stub() {
         uv_sync_home_runtime
     '
     assert_success
-    assert_output --partial "uv not found"
+    assert_output --partial "verified uv was not established"
     [[ ! -f "$HOME/.local/bin/manifest" ]]
 }
 

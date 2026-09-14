@@ -8,11 +8,12 @@ description: Perform security, architecture, and quality analysis for Node.js/Ty
 Analyze a Node.js/TypeScript codebase against best practices, security principles, and
 modern ecosystem standards. Generate a comprehensive refactoring report.
 
-## Review and Verification
+## Review routing
 
-Follow the shared [review escalation contract](../refactor/references/review-escalation.md).
-Use one reviewing agent by default, run applicable check-only verification, and
-add independent review only when that contract's risk conditions require it.
+Use one capable reviewer by default. Add independent review only when a
+condition in the [review escalation contract](../refactor/references/review-escalation.md)
+is present; file, package, module, language, keyword, and unit counts do not
+independently escalate review.
 
 ## Task
 
@@ -53,7 +54,8 @@ Work through each category; the sequence within and across categories does not m
 
 - Read package.json, tsconfig.json, .eslintrc.*or eslint.config.*, .prettierrc
 - Check for existing tooling: Vitest/Jest, ESLint flat config, Prettier, Biome
-- Inspect dependency tree for known vulnerabilities: `npm audit --json`
+- For an untrusted checkout, do not run `npm audit`; report dependency audit
+  `unavailable` unless verified isolation is available.
 - Check Node.js engine requirements and ECMAScript target
 
 **Architecture**:
@@ -70,8 +72,9 @@ Work through each category; the sequence within and across categories does not m
   `eval()`, `Function()` constructor, `vm.runInNewContext()`;
   `child_process.exec()` with unsanitized input (use `execFile` instead);
   Regex DoS (ReDoS) patterns
-- Dependency security: `npm audit` findings, outdated packages with known
-  CVEs, prototype pollution-prone dependencies, supply chain risk
+- Dependency security: verified-isolation audit findings when available;
+  otherwise report the dependency audit as `unavailable`; outdated packages
+  with known CVEs, prototype pollution-prone dependencies, supply chain risk
   (typosquatting, etc.)
 - Secrets handling: hardcoded API keys, tokens, credentials; `.env` files
   committed to git; secrets in error messages or logs
@@ -131,6 +134,15 @@ Work through each category; the sequence within and across categories does not m
 **Node Version:** vXX.x
 **TypeScript:** X.X
 **Overall Score:** XX/100
+
+**review_mode**: `single-agent` | `escalated`
+**escalation_reason**: `none` | concrete risk condition(s)
+
+## Checks
+
+| Command | Result | unavailable_reason |
+|---------|--------|--------------------|
+| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
 
 ## Executive Summary
 
@@ -204,7 +216,8 @@ export default tseslint.config(
 - **Be ecosystem-aware**: Recommend modern Node.js patterns (ESM, native fetch, etc.)
 - **Be specific**: Every finding must have exact file:line location
 - **Be actionable**: Every finding must have a concrete fix
-- **Check dependencies**: npm audit is a first-class security check
+- **Check dependencies**: run dependency auditing only in verified isolation;
+  otherwise report it as `unavailable`
 - **Prefer TypeScript strict mode**: `any` is a code smell, not a feature
 
 ---
@@ -239,12 +252,9 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
-The [review escalation contract](../refactor/references/review-escalation.md) is the
-sole authority for whether to dispatch. Dispatch only when at least one of that
-contract's five risk conditions is present; each condition is independently
-sufficient. When available, use `sub-agent-dispatch.md` only for mechanism,
-configured model selection, and no-recursion guidance. This contract overrides
-any count or size threshold in that reference. Use native Task sub-agents on
-Claude or the `manifest-workspace:parallel-agent` fallback elsewhere. Explicitly
-select the configured **Sonnet** tier (`subagent_model: sonnet`). Dispatched
-agents perform their assigned review and do not re-dispatch.
+Follow the [dispatch mechanics](references/node-refactor-dispatch.md) and the
+[review escalation contract](../refactor/references/review-escalation.md). Use
+the pinned `sonnet` model. Start with one capable reviewer; add independent
+review only when at least one of that contract's five risk conditions is
+present. This overrides any count or size threshold. Check commands are
+check-only. Unavailable checks are reported as `unavailable`, never pass.

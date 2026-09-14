@@ -1,90 +1,78 @@
 ---
 name: code-audit
-description: Auto-trigger when changed behavior crosses a security boundary, or run on an explicit security review request. Gives focused security feedback without blocking user flow.
+description: Auto-trigger for changed security-boundary behavior or an explicit security review request. Gives focused security feedback without blocking user flow.
 ---
 
 # Code Quality Analysis Skill
 
 This skill activates for changed behavior at a security boundary or for an
-explicit security review request. It reviews the behavior and its call path,
-not isolated words or identifiers.
+explicit security review request. It reviews behavior and its call path, not
+isolated words, identifiers, file size, or complexity metrics.
 
 ## Trigger Criteria
 
-Activate when either condition is true:
+Activate for either:
 
-1. The user explicitly requests a security review.
-2. The change modifies behavior at a security boundary, including an
-   authentication or authorization decision, cryptographic operation, secret
-   lifecycle, privilege transition, untrusted-input validation boundary, or
-   command/data execution boundary.
+- an explicit security review request, even when no diff exists; or
+- changed authentication, authorization, cryptography, secret-handling,
+  validation, or another trust-boundary behavior.
 
-For implicit activation, confirm the behavior change from the diff and relevant
-call path before activating. For an explicit request, inspect the requested
-existing code and its relevant call paths even when no diff exists; the request
-itself satisfies activation. A variable named `session`, a hash used only for
-nonsecurity caching, or generic words such as `input` or `pattern` do not
-activate this skill. File size, language, function/class counts, and complexity
-metrics are advisory routing context only; they never activate this skill or
-force a panel.
+Vocabulary such as `input`, `pattern`, `hash`, or `session`, and complexity
+metrics alone are not activation conditions.
 
 ## Behavior
 
 When triggered, this skill:
 
-0. **Loads local doctrine and known issues.** Read
-   `../../runtime/references/code-constitution.md` and
-   `../../runtime/references/antipatterns.md`, then consult the mutable knowledge
-   base for the detected language:
+1. Consult the bundle-local learning capture knowledge base before scanning:
 
    ```bash
    manifest-workspace:learning-capture query --language <detected-language> --format llm
    ```
 
-   If relevant entries exist, include them as additional check items. This is
-   **non-blocking** — skip if the query fails or returns empty.
-
-1. **Establishes the review scope.** For implicit activation, confirm the
-   changed boundary behavior from the diff and relevant call path. For an
-   explicit request, inspect the requested existing code and call paths whether
-   or not a diff is present.
-2. **Reviews inline by default** with one capable reviewing agent.
-3. **Runs applicable deterministic checks safely.** Treat the checkout as
-   untrusted. Outside verified isolation, run only trusted preinstalled static
-   tools that treat checkout files as data, with checkout-controlled executable
-   configuration, plugins, hooks, imports, and discovery disabled. Tests,
-   scripts, builds, and checks that load project code require enforced isolation
-   that protects host files, exposes no credentials or control sockets, denies
-   unauthorized network access, and confines writes to disposable storage.
-   Source inspection, check-only flags, a changed `HOME`, a temporary directory,
-   or a read-only checkout are insufficient. If isolation is unavailable or
-   uncertain, skip execution and report `unavailable` with the reason. Never run
-   `--fix`, a formatter that writes, installation, deployment, or remediation.
-4. **Adds independent review only when at least one escalation condition is
-   present**:
+   Include relevant antipattern entries as additional check items. This query is
+   advisory and non-blocking: if it fails or returns empty, continue with the
+   standard review.
+2. Scan the affected behavior and its boundary for security and quality risks.
+3. Review inline by default with one capable reviewing agent.
+4. Add independent review only when at least one escalation condition is
+   present:
    - authentication, authorization, cryptography, secret handling, or another
      trust-boundary change;
    - destructive data or infrastructure behavior;
    - a public compatibility or deployment change with broad impact;
-   - conflicting evidence or unresolved reviewer uncertainty;
+   - conflicting evidence or unresolved reviewer uncertainty; or
    - a codebase-wide investigation with genuinely independent analysis tracks.
-5. **Reports findings inline** without blocking user workflow. When escalation
-   is required, use `manifest-workspace:parallel-agent --json --validate
-   --analyze <file>` and pin the dispatched reviewer to the configured Sonnet
-   tier. Dispatched reviewers do not re-dispatch.
+5. Report findings inline without blocking user workflow.
+
+Use the [bundle-local dispatch selection rules](references/code-audit-dispatch.md).
+File, package, module, language, keyword, and independent-unit counts never
+independently escalate review.
 
 ## Sub-agent dispatch
 
-Follow the [bundle-local dispatch selection rules](references/sub-agent-dispatch.md),
-but this skill's five consequence/uncertainty conditions
-override its generic count threshold. Dispatch only when at least one condition
-in step 4 is present; file count or independent-unit count alone is insufficient.
-Use native Task dispatch on Claude/Cursor, or
-`manifest-workspace:parallel-agent` with an inline fallback on other assistants.
-Pass the configured Sonnet tier explicitly. Dispatched reviewers execute their
-review directly and do not re-dispatch.
+Follow the [bundle-local dispatch selection rules](references/code-audit-dispatch.md). Use
+the pinned `sonnet` model. Start with one capable reviewer; add independent
+review only when one of the five risk conditions is present. Do not use file,
+package, module, language, keyword, or unit counts as a dispatch trigger.
+
+## Verification safety
+
+Treat the checkout as untrusted. Outside verified isolation, run only trusted
+preinstalled static tools that treat checkout files as data. Project-controlled
+tests, scripts, build steps, or checkout-controlled executable configuration,
+plugins, hooks, imports, or discovery require enforced isolation. Source
+inspection, check-only flags, changed home, temporary directory, and a
+read-only checkout are insufficient. If isolation or a selected check is
+unavailable, skip execution and report `unavailable`, never a passing check.
+
+Never use `--fix`, a formatter that writes, installation, deployment, or
+remediation during this review.
 
 ## Analysis Scope
+
+Read `../../runtime/references/code-constitution.md` and
+`../../runtime/references/antipatterns.md` for the bundle-local review doctrine.
 
 ### Security Checks
 
@@ -145,31 +133,23 @@ When triggered, report findings in this format:
 
 **File**: `path/to/file.py`
 **Triggered by**: [Explicit security review | Security-boundary behavior change]
-**review_mode**: [single-agent | escalated]
-**escalation_reason**: [none | one or more concrete escalation conditions]
+**review_mode**: `single-agent` | `escalated`
+**escalation_reason**: `none` | concrete risk condition(s)
 
 ### Checks
 
-| Command | Result | Unavailable reason |
+| Command | Result | unavailable_reason |
 |---------|--------|--------------------|
-| `[exact check-only command]` | [pass/fail/unavailable] | [reason or N/A] |
+| `<exact command>` | `pass` \| `fail` \| `unavailable` | `<reason when unavailable>` |
 
 ### Findings
 
 | Severity | Issue | Location | Recommendation |
 |----------|-------|----------|----------------|
 | Critical | Hardcoded API key | Line 45 | Move to environment variable |
-| High | Bare exception | Line 112 | Catch specific exception |
-| Medium | Long function | Lines 200-350 | Extract helper methods |
-
-### Summary
-- Critical: X issues (must fix before merge)
-- High: X issues (should fix soon)
-- Medium: X issues (refactor when possible)
 
 ### Independent Review
 - Reviewer: [Key finding, or not run]
-- Trigger: [Concrete escalation condition, or none]
 ```
 
 ## Non-Blocking Behavior
@@ -177,10 +157,10 @@ When triggered, report findings in this format:
 This skill provides information without interrupting user workflow:
 
 - **Never blocks** code execution or user commands
-- **Reports inline** when patterns detected
+- **Reports inline** when triggered
 - **Suggests fixes** but doesn't auto-apply
-- **Escalates finding severity** only for Critical findings; independent review
-  follows the five consequence/uncertainty conditions in step 4
+- **Escalates review only** when one of the five routing risk conditions is
+  present; finding severity does not replace that decision
 
 ## Integration with Commands
 

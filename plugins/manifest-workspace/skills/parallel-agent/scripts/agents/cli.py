@@ -143,6 +143,16 @@ def build_parser(roster: dict) -> argparse.ArgumentParser:
     parser.add_argument("prompt", nargs="?", help="Prompt to send to agents")
     parser.add_argument("--json", action="store_true", help="Output JSON format")
     parser.add_argument("--validate", action="store_true", help="Validate results")
+    parser.add_argument(
+        "--command",
+        help="Command policy name used for command-specific validation",
+    )
+    parser.add_argument(
+        "--review-mode",
+        choices=("single-agent", "escalated"),
+        default=None,
+        help="Review routing mode used for conditional validation",
+    )
     parser.add_argument("--review", metavar="FILE", help="Code review mode")
     parser.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
     parser.add_argument(
@@ -242,7 +252,7 @@ async def main():
 
     # Determine mode and prompt
     mode = "prompt"
-    command = None
+    command = args.command
 
     if args.review:
         if not Path(args.review).exists():
@@ -420,7 +430,7 @@ async def main():
         streaming=streaming,
     )
 
-    result = await orchestrator.execute(prompt, mode, command)
+    result = await orchestrator.execute(prompt, mode, command, args.review_mode)
 
     # Write output files (with custom directory if provided)
     if args.output or not args.full_output:

@@ -10,6 +10,8 @@
 | `--json` | Output JSON for programmatic parsing |
 | `--full-output` | Include complete agent outputs (no truncation) |
 | `--validate` | Check outputs against success criteria |
+| `--command <name>` | Apply command-specific validation policy |
+| `--review-mode <single-agent\|escalated>` | Required with a conditional `--command`; selects conditional checks |
 | `--review <file>` | Code review mode |
 | `--analyze <file>` | Bug/security analysis mode |
 | `--improve <file>` | Improve observation YAML mode |

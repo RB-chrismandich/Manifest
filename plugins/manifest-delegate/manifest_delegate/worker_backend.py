@@ -14,7 +14,7 @@ from manifest_model_policy import (
     classify_failure,
 )
 
-from . import backend, constants, envelope, jobstore, process
+from . import backend, constants, containment, envelope, jobstore, process
 
 
 @dataclass
@@ -149,16 +149,24 @@ def _capture_attempt(entry, argv, prompt_bytes, job_dir, budget, store, job_id):
         budget,
         on_pgid=process._make_pgid_persister(store, job_id),
     )
+    reaped = containment.reap(
+        job_dir, required=containment.is_contained(store.read(job_id))
+    )
     if len(captured) == 5:
         returncode, raw_output, pgid, timed_out, session_ref = captured
-        return _AttemptResult(
+        result = _AttemptResult(
             returncode=returncode,
             raw_output=raw_output,
             pgid=pgid,
             timed_out=timed_out,
             session_ref=session_ref,
         )
-    return _AttemptResult(*captured)
+    else:
+        result = _AttemptResult(*captured)
+    if reaped is False:
+        result.timed_out = True
+        result.task_failure_summary = "contained descendant reap failed"
+    return result
 
 
 def _classify_attempt(entry, selected, result):
@@ -350,14 +358,47 @@ def _finish_job(store, job_id, attempts, result, response, succeeded):
 
 def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
     """Run the bounded model chain and publish only durable safe output."""
-    chain, controller, attempts = _model_runtime(record)
-    if len(attempts) + len(chain) > 4:
-        return _fail_attempt_cap(store, job_id)
-    record, attempts, result, pending = _run_attempts(
-        store, job_id, entry, record, prompt_bytes, chain, controller
-    )
-    if pending is not None:
-        return pending
-    succeeded, response = _result_envelope(store, job_id, entry, record, result)
-    _warn_missing_session(entry, result)
-    return _finish_job(store, job_id, attempts, result, response, succeeded)
+    job_dir = store.job_dir(job_id)
+    _path, state, reason = containment.create(job_dir)
+
+    def _record_containment(current):
+        current["containment"] = {"state": state, "reason": reason}
+        return current
+
+    record = store.mutate(job_id, _record_containment)
+    try:
+        chain, controller, attempts = _model_runtime(record)
+        if len(attempts) + len(chain) > 4:
+            return _fail_attempt_cap(store, job_id)
+        record, attempts, result, pending = _run_attempts(
+            store, job_id, entry, record, prompt_bytes, chain, controller
+        )
+        if pending is not None:
+            return pending
+        succeeded, response = _result_envelope(store, job_id, entry, record, result)
+        _warn_missing_session(entry, result)
+        return _finish_job(store, job_id, attempts, result, response, succeeded)
+    finally:
+
+        def _containment_cleaned():
+            def _mark_cleaned(current):
+                containment_state = dict(current.get("containment") or {})
+                containment_state["state"] = containment.STATE_CLEANED
+                current["containment"] = containment_state
+                return current
+
+            _mark_cleaned.allow_terminal_reentry = True
+            store.mutate(job_id, _mark_cleaned)
+
+        if not containment.cleanup(
+            job_dir,
+            required=state == containment.STATE_CONTAINED,
+            on_cgroup_removed=_containment_cleaned,
+        ):
+
+            def _record_cleanup_failure(current):
+                current["containment_cleanup_failed"] = True
+                return current
+
+            _record_cleanup_failure.allow_terminal_reentry = True
+            store.mutate(job_id, _record_cleanup_failure)

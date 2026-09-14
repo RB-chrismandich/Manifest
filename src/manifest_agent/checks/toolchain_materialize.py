@@ -1,0 +1,495 @@
+"""Real materialization of `python-env` / `node-env` toolchain-store bundles.
+
+Split out of `toolchain_provision.py` to keep it under the Code
+Constitution's 500-line ceiling. Every subprocess this module runs resolves
+its engine through `toolchain.resolve()` first (`store:uv/bin/uv`,
+`store:node/bin/node`) -- never an ambient `uv`/`node`/`npm` found on
+`PATH`. Callers that want that invariant enforced in a test run these
+functions with `PATH=""` in the environment they pass in; the store bin
+directory each engine resolves to is appended explicitly, not inherited.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import io
+import json
+import os
+import shutil
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from . import toolchain
+from .toolchain_cache import OS_BASELINE_PATH
+from .toolchain_env_digest import trusted_python_provider
+
+_SYNC_TIMEOUT_SECONDS = 600.0
+_PYTHON_PROJECT_METADATA = {
+    "project-env": (
+        "pyproject.toml",
+        "configs/claude/scripts/manifest_model_policy/pyproject.toml",
+    ),
+    "config-env": (
+        "pyproject.toml",
+        "uv.lock",
+        "configs/pyproject.toml",
+        "configs/uv.lock",
+        "configs/claude/pyproject.toml",
+        "configs/claude/scripts/manifest_model_policy/pyproject.toml",
+    ),
+    "python-env": (
+        "pyproject.toml",
+        "uv.lock",
+        "config/pyproject.toml",
+        "config/uv.lock",
+        "config/toolchain/pyproject.toml",
+    ),
+}
+
+
+def python_project_metadata_digest(repo_root: Path, bundle: str) -> str:
+    """Hash every local project file that can select uv/Hatch build behavior."""
+    relative_paths = _PYTHON_PROJECT_METADATA.get(bundle)
+    if relative_paths is None:
+        raise MaterializationError(f"unknown python environment bundle: {bundle}")
+    root = repo_root.resolve(strict=True)
+    hasher = hashlib.sha256()
+    for relative in relative_paths:
+        candidate = root / relative
+        cursor = root
+        for component in Path(relative).parts:
+            cursor /= component
+            if cursor.is_symlink():
+                raise MaterializationError(f"unsafe project metadata: {relative}")
+        content = None
+        if candidate.exists():
+            path = candidate.resolve(strict=True)
+            if not path.is_relative_to(root):
+                raise MaterializationError(f"unsafe project metadata: {relative}")
+            nofollow = getattr(os, "O_NOFOLLOW", 0)
+            try:
+                with open(
+                    path,
+                    "rb",
+                    opener=lambda name, flags, nofollow=nofollow: os.open(
+                        name, flags | nofollow
+                    ),
+                ) as stream:
+                    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                        raise MaterializationError(
+                            f"unsafe project metadata: {relative}"
+                        )
+                    content = stream.read()
+            except OSError as error:
+                raise MaterializationError(
+                    f"unreadable project metadata: {relative}: {error}"
+                ) from error
+        name = relative.encode()
+        hasher.update(len(name).to_bytes(8, "big"))
+        hasher.update(name)
+        if content is None:
+            hasher.update(b"M")
+            continue
+        hasher.update(b"F")
+        hasher.update(len(content).to_bytes(8, "big"))
+        hasher.update(content)
+    return hasher.hexdigest()
+
+
+class MaterializationError(ValueError):
+    """A python-env/node-env materialization step failed or was blocked."""
+
+
+@dataclass(frozen=True)
+class MaterializeContext:
+    """The arguments every materialization path needs together."""
+
+    lock: Mapping
+    store: Path
+    platform: str
+    repo_root: Path
+    env: Mapping[str, str]
+    python_provider: Mapping[str, str] | None = None
+    attest_missing: bool = False
+
+
+def _engine_env(_base_env: Mapping[str, str], *bin_dirs: Path) -> dict[str, str]:
+    """Use only verified tool directories and the fixed OS command baseline."""
+    path = os.pathsep.join([*(str(d) for d in bin_dirs), *OS_BASELINE_PATH])
+    return {"PATH": path}
+
+
+def _run(argv: list[str], *, cwd: Path, env: Mapping[str, str]) -> None:
+    """Run `argv`, raising `MaterializationError` (never a raw traceback) on
+    a missing/unreadable executable or a hung process."""
+    try:
+        result = subprocess.run(
+            argv,
+            cwd=cwd,
+            env=dict(env),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=_SYNC_TIMEOUT_SECONDS,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise MaterializationError(f"{argv[0]} could not execute: {error}") from error
+    if result.returncode != 0:
+        raise MaterializationError(
+            f"{argv[0]} exited {result.returncode}: {result.stdout[-4000:]}"
+        )
+
+
+def _resolved_uv(ctx: MaterializeContext) -> Path:
+    if ctx.attest_missing:
+        path = Path(ctx.env.get("MANIFEST_VERIFIED_UV_BIN", ""))
+        token = ctx.env.get("MANIFEST_VERIFIED_UV_TOKEN", "")
+        expected = (
+            ctx.lock.get("tools", {})
+            .get("uv", {})
+            .get("platforms", {})
+            .get(ctx.platform, {})
+            .get("exe_sha256")
+        )
+        if (
+            not path.is_file()
+            or not os.access(path, os.X_OK)
+            or not isinstance(expected, str)
+            or token != f"sha256:{expected}"
+            or toolchain.sha256_file(path) != expected
+        ):
+            raise MaterializationError("verified uv acquisition token is invalid")
+        return path.resolve(strict=True)
+    resolved_uv = toolchain.resolve(
+        "store:uv/bin/uv",
+        lock=ctx.lock,
+        store=ctx.store,
+        platform=ctx.platform,
+        repo_root=ctx.repo_root,
+    )
+    if isinstance(resolved_uv, toolchain.BlockedReason):
+        raise MaterializationError(resolved_uv.reason)
+    return resolved_uv.executable
+
+
+def _trusted_python(ctx: MaterializeContext) -> Path:
+    """Authenticate the active provider before invoking uv."""
+    provider = trusted_python_provider()
+    if not ctx.attest_missing and not provider.matches(ctx.python_provider):
+        state = "is absent" if ctx.python_provider is None else "does not match"
+        raise MaterializationError(
+            f"Python provider pin {state}: {provider.lock_record()}"
+        )
+    return Path(sys.executable).resolve(strict=True)
+
+
+def _python_sync_env(
+    ctx: MaterializeContext, env_root: Path, uv_executable: Path, provider: Path
+) -> dict[str, str]:
+    env_root.mkdir(parents=True, exist_ok=True)
+    run_env = _engine_env(ctx.env, uv_executable.parent)
+    run_env.update(
+        {
+            "UV_PROJECT_ENVIRONMENT": str(env_root),
+            "UV_NO_MANAGED_PYTHON": "1",
+            "UV_PYTHON_DOWNLOADS": "never",
+            "UV_PYTHON": str(provider),
+            "UV_LINK_MODE": "copy",
+        }
+    )
+    return run_env
+
+
+def _remove_virtualenv_bootstrap_pth(env_root: Path) -> None:
+    for path in env_root.rglob("_virtualenv.pth"):
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or path.read_bytes() not in {b"import _virtualenv", b"import _virtualenv\n"}
+        ):
+            raise MaterializationError("unexpected virtualenv bootstrap .pth")
+        path.unlink()
+
+
+def materialize_python_env(
+    ctx: MaterializeContext,
+    env_root: Path,
+    *,
+    project_relative: str = "config/toolchain",
+) -> None:
+    """`uv sync --locked --no-dev` a python-env bundle into `env_root`,
+    directly against `project_relative`'s OWN real `pyproject.toml` /
+    `uv.lock` -- used for bundles that need a real, installed project
+    (its own `[project.scripts]` entry point), e.g. `config-env`'s
+    `bin/manifest` (`configs/claude/`). `project-env` (the ROOT project)
+    uses `materialize_project_env` below instead -- it deliberately never
+    installs the local project package.
+
+    The engine is the store-attested `uv` (never ambient); the interpreter
+    behind the venv is the ambient `python3` (out of scope for pinning --
+    Correction 3, rule 2). Raises `MaterializationError` -- including when
+    `uv` itself is not provisioned -- rather than ever falling back to a
+    `PATH`-found `uv`.
+    """
+    uv_executable = _resolved_uv(ctx)
+    provider = _trusted_python(ctx)
+    project = ctx.repo_root / project_relative
+    run_env = _python_sync_env(ctx, env_root, uv_executable, provider)
+    _run(
+        [
+            str(uv_executable),
+            "sync",
+            "--no-config",
+            "--locked",
+            "--no-dev",
+            "--no-editable",
+            "--python",
+            str(provider),
+            "--project",
+            str(project),
+        ],
+        cwd=project,
+        env=run_env,
+    )
+    _remove_virtualenv_bootstrap_pth(env_root)
+
+
+def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:
+    """`uv sync --frozen --all-groups --no-install-project` the ROOT
+    project's dependency set into `env_root` -- Correction 7 step 1.
+
+    `--frozen` forbids lock regeneration; `--no-config` disables discovery of
+    ambient or ancestor uv configuration. The committed root `uv.lock` bytes
+    are verified against the lock's `sha256` before this call, and the root
+    `pyproject.toml` plus the local path dependency's build metadata are bound
+    by `project_sha256`. The sync still runs against the real checkout because
+    `manifest-model-policy` is a checkout-relative path dependency.
+
+    `--no-install-project` is deliberate: this env carries the project's
+    DEPENDENCIES only, never a baked-in copy of `manifest_agent` itself --
+    a check that runs `store:project-env/bin/python -m pytest` puts the
+    CANDIDATE's own `src/` on `PYTHONPATH` so a candidate-local edit is
+    what gets tested, not a stale copy this env would otherwise freeze at
+    provision time.
+    """
+    uv_executable = _resolved_uv(ctx)
+    provider = _trusted_python(ctx)
+    run_env = _python_sync_env(ctx, env_root, uv_executable, provider)
+    _run(
+        [
+            str(uv_executable),
+            "sync",
+            "--no-config",
+            "--frozen",
+            "--all-groups",
+            "--no-install-project",
+            "--no-editable",
+            "--python",
+            str(provider),
+            "--project",
+            str(ctx.repo_root),
+        ],
+        cwd=ctx.repo_root,
+        env=run_env,
+    )
+    _remove_virtualenv_bootstrap_pth(env_root)
+
+
+def relocate_python_launchers(env_root: Path, final_root: Path) -> None:
+    """Replace the private staging prefix in generated text launchers."""
+    staged = os.fsencode(env_root)
+    final = os.fsencode(final_root)
+    for path in env_root.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        data = path.read_bytes()
+        if staged in data:
+            path.write_bytes(data.replace(staged, final))
+
+
+def _subtree_parent(root_fd: int, parts: tuple[str, ...]) -> int:
+    """Open/create a no-follow parent for a verified archive member."""
+    current_fd = os.dup(root_fd)
+    for component in parts:
+        try:
+            next_fd = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=current_fd,
+            )
+        except FileNotFoundError:
+            os.mkdir(component, 0o700, dir_fd=current_fd)
+            next_fd = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=current_fd,
+            )
+        os.close(current_fd)
+        current_fd = next_fd
+    return current_fd
+
+
+def _extract_member(
+    archive: tarfile.TarFile, member: tarfile.TarInfo, root_fd: int, relative: Path
+) -> None:
+    """Write one regular archive member through descriptor-relative paths."""
+    parent_fd = _subtree_parent(root_fd, relative.parts[:-1])
+    try:
+        if member.isdir():
+            try:
+                os.mkdir(relative.name, 0o700, dir_fd=parent_fd)
+            except FileExistsError as error:
+                mode = os.stat(
+                    relative.name, dir_fd=parent_fd, follow_symlinks=False
+                ).st_mode
+                if not stat.S_ISDIR(mode):
+                    raise MaterializationError(
+                        "archive extraction encountered a non-directory"
+                    ) from error
+            return
+        if not member.isfile():
+            return
+        extracted = archive.extractfile(member)
+        if extracted is None:
+            return
+        try:
+            fd = os.open(
+                relative.name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                member.mode | 0o200,
+                dir_fd=parent_fd,
+            )
+            with os.fdopen(fd, "wb") as output:
+                shutil.copyfileobj(extracted, output)
+        finally:
+            extracted.close()
+    finally:
+        os.close(parent_fd)
+
+
+def extract_subtree(data: bytes, prefix: str, destination: Path) -> None:
+    """Extract regular members below `prefix` through no-follow descriptors."""
+    destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+    root_fd = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
+            for member in archive.getmembers():
+                if not member.name.startswith(prefix) or member.name == prefix:
+                    continue
+                relative = Path(member.name[len(prefix) :].lstrip("/"))
+                if (
+                    relative.parts
+                    and not relative.is_absolute()
+                    and ".." not in relative.parts
+                ):
+                    _extract_member(archive, member, root_fd, relative)
+    finally:
+        os.close(root_fd)
+
+
+def _copy_attested_node_project(ctx: MaterializeContext, env_root: Path) -> None:
+    project = ctx.repo_root / "config" / "toolchain"
+    env_entry = (ctx.lock.get("tools") or {}).get("node-env") or {}
+    env_platform = (env_entry.get("platforms") or {}).get(ctx.platform) or {}
+    expected = {
+        "package.json": env_platform.get("package_json_sha256"),
+        "package-lock.json": env_platform.get("sha256"),
+    }
+    for name, expected_digest in expected.items():
+        if not isinstance(expected_digest, str):
+            raise MaterializationError(
+                f"toolchain: node-env unattested {name} for {ctx.platform}"
+            )
+        try:
+            data = (project / name).read_bytes()
+        except OSError as error:
+            raise MaterializationError(
+                f"node-env project file unavailable: {name}: {error}"
+            ) from error
+        if hashlib.sha256(data).hexdigest() != expected_digest:
+            raise MaterializationError(f"toolchain: node-env {name} digest mismatch")
+        (env_root / name).write_bytes(data)
+
+
+def materialize_node_env(
+    ctx: MaterializeContext, env_root: Path, fetcher: Callable[[str], bytes]
+) -> None:
+    """`npm ci` a node-env bundle into `env_root`, driven entirely by
+    store-attested tools: `node` from the store, and `npm-cli.js` extracted
+    from the SAME hash-verified node archive `node`'s own bundle already
+    trusts -- never an ambient `node`/`npm` on `PATH`."""
+    resolved_node = toolchain.resolve(
+        "store:node/bin/node",
+        lock=ctx.lock,
+        store=ctx.store,
+        platform=ctx.platform,
+        repo_root=ctx.repo_root,
+    )
+    if isinstance(resolved_node, toolchain.BlockedReason):
+        raise MaterializationError(resolved_node.reason)
+    node_entry = (ctx.lock.get("tools") or {}).get("node") or {}
+    node_platform = node_entry.get("platforms", {}).get(ctx.platform) or {}
+    node_url = node_platform.get("url")
+    if not node_url:
+        raise MaterializationError("toolchain: node unattested for " + ctx.platform)
+    archive = fetcher(node_url)
+    if hashlib.sha256(archive).hexdigest() != node_platform.get("sha256"):
+        raise MaterializationError("toolchain: node digest mismatch")
+    node_exe_prefix = node_platform["path_in_archive"].rsplit("/bin/node", 1)[0]
+    env_root.mkdir(parents=True, exist_ok=True)
+    npm_root = Path(tempfile.mkdtemp(prefix=".npm-cli-", dir=env_root))
+    try:
+        extract_subtree(archive, f"{node_exe_prefix}/lib/node_modules/npm/", npm_root)
+        npm_cli = npm_root / "bin" / "npm-cli.js"
+        if not npm_cli.is_file():
+            raise MaterializationError(
+                "toolchain: verified node archive lacks npm-cli.js"
+            )
+        _copy_attested_node_project(ctx, env_root)
+        run_env = _engine_env(ctx.env, resolved_node.executable.parent)
+        _run(
+            [str(resolved_node.executable), str(npm_cli), "ci", "--ignore-scripts"],
+            cwd=env_root,
+            env=run_env,
+        )
+    finally:
+        shutil.rmtree(npm_root)
+
+
+def node_env_console_scripts(env_root: Path, names: list[str]) -> dict[str, str]:
+    """Map each requested console-script name to its relative path under
+    `env_root/node_modules/.bin` -- `npm ci`'s own linked-bin symlinks."""
+    scripts: dict[str, str] = {}
+    for name in names:
+        candidate = env_root / "node_modules" / ".bin" / name
+        if candidate.exists():
+            scripts[name] = str(candidate.relative_to(env_root))
+    return scripts
+
+
+def python_env_console_scripts(env_root: Path, names: list[str]) -> dict[str, str]:
+    """Map each requested console-script name to its relative path under
+    `env_root/bin` -- `uv sync`'s own generated launchers."""
+    scripts: dict[str, str] = {}
+    for name in names:
+        candidate = env_root / "bin" / name
+        if candidate.exists():
+            scripts[name] = str(candidate.relative_to(env_root))
+    return scripts
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    """Load one UTF-8 JSON document whose top-level value is an object."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise MaterializationError(f"JSON object required: {path}")
+    return document

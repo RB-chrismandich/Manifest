@@ -11,6 +11,14 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
 
+## Risk-based review routing
+
+Use a single capable reviewer by default. Independent review is risk-based:
+escalate only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment impact, conflicting evidence or unresolved
+uncertainty, or genuinely independent codebase-wide tracks. Counts of files,
+packages, modules, languages, keywords, and units do not independently escalate.
+
 ## Token Economy (always on)
 
 Apply at all times, in every session:

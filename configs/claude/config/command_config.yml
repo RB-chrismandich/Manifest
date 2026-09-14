@@ -8,14 +8,13 @@ thresholds:
   docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
   docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique imports/modules
 
-  # Advisory complexity signals; these alone do not activate code-audit or fan-out
+  # Advisory complexity signals; never independently activate code-audit or review fan-out.
   skill_file_lines: 500           # File > 500 lines
   skill_function_count: 10        # > 10 functions per file
   skill_class_count: 5            # > 5 classes per file
   skill_cyclomatic_complexity: 15  # Cyclomatic complexity > 15
 
-# Security search vocabulary only, never sufficient to activate code-audit.
-# Activation is defined in skill_policies.yml implicit_invocation_triggers.
+# Security search vocabulary only; semantic activation is in skill_policies.yml.
 security_patterns:
   # Authentication/authorization
   - auth
@@ -45,8 +44,7 @@ security_patterns:
   - escape
   - filter
 
-# Agent-interpreted review contract, not an executable permission sandbox.
-# The six review policies below share this consequence/uncertainty gate.
+# Canonical review-routing policy. Counts and vocabulary never escalate alone.
 review_escalation:
   default_mode: single-agent
   conditions:
@@ -60,6 +58,8 @@ review_escalation:
     conflicting_evidence_or_unresolved_uncertainty OR codebase_wide_independent_tracks
   non_triggers:
     - file_size
+    - package_count
+    - module_count
     - language
     - generic_keyword
     - independent_unit_count
@@ -78,11 +78,6 @@ review_escalation:
       - changed_home
       - temporary_directory
       - read_only_checkout
-    isolation_requirements:
-      - protect_original_checkout_and_host_files
-      - expose_no_credentials_or_host_control_sockets
-      - deny_unauthorized_network_access
-      - confine_writes_to_disposable_storage
     unavailable_isolation_result: skip_and_report_unavailable
     forbidden_operations:
       - automatic_fixes
@@ -90,17 +85,6 @@ review_escalation:
       - installations
       - deployments
       - remediation
-    instructions: >-
-      Treat the reviewed checkout as untrusted. Outside verified isolation, run only
-      trusted preinstalled static tools that treat checkout files as data, with
-      checkout-controlled executable configuration, plugins, hooks, imports, and
-      executable discovery disabled. Project-controlled tests, scripts, build steps,
-      and checks that load project code require enforced isolation satisfying every
-      isolation requirement above. Source inspection, check-only flags, a changed HOME,
-      a temporary directory, or a read-only checkout do not establish isolation. If
-      isolation is unavailable or uncertain, skip execution and report unavailable
-      with the reason. Never apply fixes, write formatting changes, install, deploy,
-      or remediate. Record each command and result.
   report_fields:
     - review_mode
     - escalation_reason
@@ -942,8 +926,10 @@ tool_policies:
     subagent_rationale: Router; forwards one target to the pipefail and errexit engines, which each fan out on their own.
   refactor:
     subagents: conditional
-    subagent_trigger: independent_units >= 3
+    subagent_trigger: *review_risk_trigger
     subagent_model: sonnet
+    parallel_agents: conditional
+    trigger_condition: *review_risk_trigger
   pr-manage:
     subagents: never
     subagent_rationale: Router; resolves intent then hands off to exactly one PR skill, which owns its own dispatch.

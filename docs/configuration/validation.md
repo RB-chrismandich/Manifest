@@ -119,15 +119,13 @@ scoring:
 ```yaml
 command_overrides:
   python-refactor:
-    tier1_required: true
-    tier1_checks:
-      - security
-      - error_handling
-      - breaking_changes
-      - cross_verification
+    tier1_checks: [security, error_handling, breaking_changes]
+    conditional_tier1_checks:
+      review_mode: {escalated: [cross_verification]}
+    conditional_consensus:
+      review_mode: {escalated: {threshold: 0.80}}
     tier2_required: true
-    tier2_threshold: 0.80  # Higher threshold for refactoring
-    consensus_threshold: 0.80
+    tier2_threshold: 0.80
 
   docs-generate-diagrams:
     tier1_required: false
@@ -148,19 +146,13 @@ Validation behavior is customized through the `command_overrides` section of
 ```yaml
 command_overrides:
   python-refactor:
-    tier1_required: true
-    tier1_checks:
-      - security
-      - error_handling
-      - breaking_changes
-      - cross_verification
+    tier1_checks: [security, error_handling, breaking_changes]
+    conditional_tier1_checks:
+      review_mode: {escalated: [cross_verification]}
+    conditional_consensus:
+      review_mode: {escalated: {threshold: 0.80}}
     tier2_required: true
     tier2_threshold: 0.80
-    consensus_threshold: 0.80
-    consensus_action:
-      high: auto_proceed          # >=80%: Use unified recommendation
-      medium: show_disagreements  # 50-79%: Highlight to user
-      low: block_and_escalate     # <50%: Human review required
 
   docs-improve-readme:
     tier1_required: false
@@ -173,6 +165,10 @@ command_overrides:
 When `parallel_agent.py --validate` runs with a `--command` context, the
 matching override replaces the default tier requirements for that run; the
 result reports `command_overrides_applied: true`.
+
+For a conditional refactor command, pass both flags: `--command python-refactor
+--review-mode single-agent` or `--review-mode escalated`. Omitting the mode
+blocks validation rather than selecting the less strict path.
 
 #### How Overrides Work
 

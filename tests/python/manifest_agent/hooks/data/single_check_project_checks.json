@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "checks": [
+    {
+      "id": "check.custom",
+      "category": "test",
+      "group": "test",
+      "argv": ["__PYTHON__", "__SCRIPT__"],
+      "cwd": ".",
+      "inputs": ["a.txt"],
+      "dependencies": [],
+      "timeout_seconds": 30,
+      "selection": "project",
+      "tool": "python",
+      "version": "__PYVERSION__",
+      "honors_status_contract": false
+    }
+  ],
+  "profiles": {
+    "quick": ["check.custom"],
+    "full": ["check.custom"],
+    "security": ["check.custom"],
+    "release": ["check.custom"]
+  },
+  "debt_baseline": "config/debt-baseline.json",
+  "preservation": "config/check-preservation.json"
+}

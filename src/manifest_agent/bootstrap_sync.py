@@ -404,7 +404,10 @@ def _recover_unfinished(
             raise RuntimeError("bootstrap cutover recovery is ambiguous")
     if saga.plugin_change is not None:
         change = _deserialize_change(saga.plugin_change)
-        current = config_path.read_bytes() if config_path.exists() else b""
+        try:
+            current = config_path.read_bytes()
+        except FileNotFoundError:
+            current = b""
         current_hash = content_sha256(current)
         if current_hash != change.before_sha256:
             rollback_plugin_enabled(config_path, change)

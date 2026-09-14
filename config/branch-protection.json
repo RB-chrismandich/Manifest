@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "PR #901 live protection smoke: checks-only solo-maintainer correction",
+  "branch": "main",
+  "workflow": ".github/workflows/ci.yml",
+  "required_status_checks": {
+    "strict": true,
+    "app_id": 15368,
+    "jobs": ["lint", "test", "validate", "checks-aggregate-full"]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": null,
+  "required_conversation_resolution": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "restrictions": null
+}

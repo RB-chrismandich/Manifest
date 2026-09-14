@@ -124,25 +124,22 @@ jq -s '.[0] * .[1]' \
 
 **File**: `orchestration_prompt.md`
 
-**Purpose**: Create multi-agent workflows that coordinate sub-agents, parallel tools, and complex validation.
+**Purpose**: Create multi-agent workflows that coordinate bounded work,
+parallel tools, and complex validation without confusing workload fan-out with
+independent review.
 
 **When to use**:
 
 - Multi-service architectures (microservices, monorepos)
-- Complex workflows requiring multiple validation phases
-- Projects needing sub-agent delegation
+- Complex multi-step workflows
+- Projects needing sub-agent delegation for genuinely independent work
 
-**How to use**:
-
-1. Copy `orchestration_prompt.md` to your project's `.claude/headless_prompt.md`
-2. Replace all `[PLACEHOLDERS]` with your project specifics
-3. Test with a simple multi-component change
-
-**Example projects**:
-
-- Microservices with event-driven communication
-- Monorepos with shared libraries
-- Multi-language codebases
+Use one capable reviewing agent by default. Add independent review only for a
+trust-boundary change, destructive behavior, broad compatibility or deployment
+change, conflicting evidence or unresolved uncertainty, or a codebase-wide
+investigation with genuinely independent tracks. File, package, module,
+language, keyword, and independent-unit counts never trigger independent
+review.
 
 ---
 

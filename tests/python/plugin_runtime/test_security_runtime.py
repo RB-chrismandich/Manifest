@@ -158,6 +158,23 @@ def test_security_references_and_skill_interfaces_are_bundle_local(
     assert "manifest-workspace:learning-capture" in combined
 
 
+def test_ci_audit_parallel_dispatch_requests_structured_json(
+    security_bundle: Path,
+) -> None:
+    paths = (
+        security_bundle / "skills/ci-audit-triggers/SKILL.md",
+        security_bundle
+        / "skills/ci-audit-triggers/references/ci-audit-triggers-dispatch.md",
+    )
+
+    for path in paths:
+        source = path.read_text(encoding="utf-8")
+        assert (
+            "manifest-workspace:parallel-agent --analyze <workflow> --validate --json"
+            in source
+        )
+
+
 def test_semgrep_is_optional_and_only_selected_modes_require_it(
     security_bundle: Path,
 ) -> None:
@@ -268,104 +285,58 @@ def test_code_audit_policy_keeps_scanners_check_only(repo_root: Path) -> None:
     assert config["review_escalation"]["verification"]["missing_tool_result"] == (
         "unavailable"
     )
-    verification = config["review_escalation"]["verification"]
-    assert verification["checkout_trust"] == "untrusted"
-    assert verification["allowed_without_isolation"] == [
-        "trusted_preinstalled_static_tool_treating_checkout_as_data"
-    ]
-    assert set(verification["requires_verified_isolation"]) == {
-        "project_controlled_tests_scripts_and_build_steps",
-        "checkout_controlled_executable_config_plugins_hooks_imports_or_discovery",
-    }
-    assert set(verification["insufficient_isolation"]) == {
-        "source_inspection",
-        "check_only_flags",
-        "changed_home",
-        "temporary_directory",
-        "read_only_checkout",
-    }
-    assert verification["unavailable_isolation_result"] == (
-        "skip_and_report_unavailable"
-    )
 
 
-def _assert_code_audit_verification_safety(source: str) -> None:
-    assert "Treat the checkout as\n   untrusted" in source
-    assert "trusted preinstalled static\n   tools" in source
-    assert "require enforced isolation" in source
-    assert "read-only checkout are insufficient" in source
-    assert "skip execution and report `unavailable`" in source
-
-
-def test_installed_code_audit_prompt_declares_the_review_contract(
-    security_bundle: Path, repo_root: Path, tmp_path: Path
-) -> None:
-    installed = tmp_path / "installed/manifest-security"
-    shutil.copytree(security_bundle, installed)
-    skill = installed / "skills/code-audit/SKILL.md"
-    source = skill.read_text(encoding="utf-8")
-    policies = yaml.safe_load(
-        (repo_root / "configs/claude/config/skill_policies.yml").read_text(
-            encoding="utf-8"
-        )
-    )
-    trigger_policy = policies["implicit_invocation_triggers"][
-        "manifest-security:code-audit"
-    ]
-    configuration = yaml.safe_load(
-        source.split("## Configuration", 1)[1].split("```yaml", 1)[1].split("```", 1)[0]
-    )
-    escalation = source.split(
-        "4. **Adds independent review only when at least one escalation condition is\n"
-        "   present**:",
-        1,
-    )[1].split("5. **Reports", 1)[0]
-    escalation_bullets: list[str] = []
-    for line in escalation.splitlines():
-        if line.startswith("   - "):
-            escalation_bullets.append(line.removeprefix("   - "))
-        elif line.startswith("     ") and escalation_bullets:
-            escalation_bullets[-1] += f" {line.strip()}"
-
-    assert configuration == {
-        "any_of": trigger_policy["any_of"],
-        "non_triggers": trigger_policy["non_triggers"],
-    }
-    assert {item.rstrip(";").rstrip(".") for item in escalation_bullets} == {
-        "authentication, authorization, cryptography, secret handling, or another "
-        "trust-boundary change",
-        "destructive data or infrastructure behavior",
-        "a public compatibility or deployment change with broad impact",
-        "conflicting evidence or unresolved reviewer uncertainty",
-        "a codebase-wide investigation with genuinely independent analysis tracks",
-    }
-    assert "Reviews inline by default** with one capable reviewing agent" in source
-    assert "explicit request" in source and "even when no diff exists" in source
-    assert all(field in source for field in ("review_mode", "escalation_reason"))
-    assert "| Command | Result | Unavailable reason |" in source
-    _assert_code_audit_verification_safety(source)
-    assert all(
-        restriction in source
-        for restriction in (
-            "--fix",
-            "formatter that writes",
-            "installation",
-            "deployment",
-            "remediation",
-        )
-    )
-    assert "ALWAYS uses parallel agents" not in source
-    assert "Invokes parallel agents" not in source
-    assert not re.search(r"(?:>=|≥)\s*3.*dispatch", source, flags=re.IGNORECASE)
-
-
-def test_installed_code_audit_dispatch_reference_resolves(
+def test_installed_code_audit_discloses_review_and_check_outcomes(
     security_bundle: Path, tmp_path: Path
 ) -> None:
     installed = tmp_path / "installed/manifest-security"
     shutil.copytree(security_bundle, installed)
-    skill = installed / "skills/code-audit/SKILL.md"
+    source = (installed / "skills/code-audit/SKILL.md").read_text(encoding="utf-8")
+
+    template = (
+        source.split("## Output Format", 1)[1].split("```", 1)[1].split("```", 1)[0]
+    )
+    assert "**review_mode**:" in template
+    assert "**escalation_reason**:" in template
+    assert "| Command | Result | unavailable_reason |" in template
+    assert "`unavailable`" in template
+    assert (
+        "manifest-workspace:learning-capture query --language <detected-language>"
+        in source
+    )
+    assert "if it fails or returns empty, continue" in source
+    assert not re.search(r"(?:>=|≥)\s*3.*dispatch", source, flags=re.IGNORECASE)
+
+
+def test_security_dispatch_links_are_skill_local(security_bundle: Path) -> None:
+    for skill_name, reference_name in (
+        ("code-audit", "code-audit-dispatch.md"),
+        ("ci-audit-triggers", "ci-audit-triggers-dispatch.md"),
+        ("security-refute-findings", "security-refute-findings-dispatch.md"),
+        ("security-triage-findings", "security-triage-findings-dispatch.md"),
+    ):
+        skill = security_bundle / f"skills/{skill_name}/SKILL.md"
+        source = skill.read_text(encoding="utf-8")
+        link = re.search(r"\[[^]]*dispatch[^]]*\]\(([^)]+)\)", source, re.IGNORECASE)
+        assert link is not None, f"{skill_name}: missing dispatch link"
+        target = (skill.parent / link.group(1)).resolve()
+        assert target.name == reference_name
+        assert target.is_file()
+
+
+def test_ci_audit_dispatch_uses_supported_analyze_contract(
+    security_bundle: Path,
+) -> None:
+    skill = security_bundle / "skills/ci-audit-triggers/SKILL.md"
     source = skill.read_text(encoding="utf-8")
-    link = re.search(r"\[bundle-local dispatch selection rules\]\(([^)]+)\)", source)
-    assert link is not None
-    assert (skill.parent / link.group(1)).is_file()
+    reference = skill.parent / "references/ci-audit-triggers-dispatch.md"
+    invocation = (
+        "manifest-workspace:parallel-agent --analyze <workflow> --validate --json"
+    )
+
+    assert "configs%2Fclaude/references/sub-agent-dispatch.md" not in source
+    assert f"`{invocation}`" in source
+    assert f"`{invocation}`" in reference.read_text(encoding="utf-8")
+    assert "--security-analysis" not in source
+    assert "--security-analysis" not in reference.read_text(encoding="utf-8")

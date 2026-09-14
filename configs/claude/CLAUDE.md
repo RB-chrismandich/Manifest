@@ -3,6 +3,14 @@
 This document defines how Claude should leverage parallel LLM agents
 (Gemini, Cursor, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
 
+## Risk-based review routing
+
+Use a single capable reviewer by default. Independent review is risk-based:
+escalate only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment impact, conflicting evidence or unresolved
+uncertainty, or genuinely independent codebase-wide tracks. Counts of files,
+packages, modules, languages, keywords, and units do not independently escalate.
+
 ## Token Economy (always on)
 
 Apply at all times, in every session:
@@ -82,11 +90,11 @@ Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
 
 ## Proactive Decision Framework
 
-Use one capable agent by default. Add independent review only for a trust-boundary
-change, destructive behavior, a broad public compatibility or deployment change,
-conflicting evidence or unresolved uncertainty, or a codebase-wide investigation
-with genuinely independent tracks. File size, language, generic keywords, and
-independent-unit counts are advisory context; they do not trigger a panel.
+Use risk-based review routing. One capable reviewer is the default. Escalate
+only for a trust-boundary change, destructive behavior, broad compatibility or
+deployment impact, conflicting evidence or unresolved uncertainty, or genuinely
+independent codebase-wide tracks. File, package, module, language, keyword, and
+independent-unit counts are not escalation conditions.
 
 ## Validation Criteria
 
@@ -112,11 +120,10 @@ Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 **Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
 `claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
 
-### Security Review Skill
+### Auto-Triggered Skill
 
-`code-audit` activates for an explicit security-review request or a confirmed
-change in behavior at a security boundary. Keywords and complexity metrics alone
-do not activate it. Feedback remains inline and non-blocking.
+`code-audit` activates for an explicit security review or changed behavior at a
+security boundary; vocabulary and complexity metrics alone do not activate it.
 
 ## Plan Management
 

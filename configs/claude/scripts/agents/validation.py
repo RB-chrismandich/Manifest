@@ -38,20 +38,30 @@ class ValidationEngine:
         consensus: dict,
         mode: str,
         command: str | None = None,
+        review_mode: str | None = None,
     ) -> dict:
-        """Validate results against tier1 and tier2 criteria"""
-        # Get command-specific overrides
+        """Validate results against tier1 and tier2 criteria."""
         overrides = {}
         if command and "command_overrides" in self.criteria:
             overrides = self.criteria["command_overrides"].get(command, {})
 
-        # Tier 1 validation (critical)
-        tier1_result = self._validate_tier1(agent_results, consensus, overrides)
+        if overrides.get("conditional_tier1_checks") and review_mode is None:
+            return {
+                "tier1": {
+                    "passed": False,
+                    "score": 0,
+                    "checks": {},
+                    "failures": ["Review mode is required"],
+                },
+                "tier2": {"score": 0, "checks": {}, "concerns": []},
+                "verdict": "BLOCKED",
+                "command_overrides_applied": True,
+            }
 
-        # Tier 2 validation (quality)
+        tier1_result = self._validate_tier1(
+            agent_results, consensus, overrides, review_mode
+        )
         tier2_result = self._validate_tier2(agent_results, overrides)
-
-        # Compute overall verdict
         verdict = self._compute_verdict(tier1_result, tier2_result, overrides)
 
         return {
@@ -61,20 +71,50 @@ class ValidationEngine:
             "command_overrides_applied": bool(overrides),
         }
 
+    @staticmethod
+    def _required_tier1_checks(
+        overrides: dict, review_mode: str | None
+    ) -> set[str] | None:
+        """Return command-required checks; ``None`` preserves global defaults."""
+        if "tier1_checks" not in overrides:
+            return None
+        required = set(overrides["tier1_checks"])
+        for _condition, checks in overrides.get("conditional_tier1_checks", {}).items():
+            required.update(checks.get(review_mode, []))
+        return required
+
+    @staticmethod
+    def _consensus_threshold(
+        default: float, overrides: dict, review_mode: str
+    ) -> float:
+        """Resolve a review-mode-specific consensus threshold."""
+        conditional = overrides.get("conditional_consensus", {})
+        selected = conditional.get("review_mode", {}).get(review_mode, {})
+        return selected.get("threshold", default)
+
     def _validate_tier1(
-        self, agent_results: dict, consensus: dict, overrides: dict
+        self, agent_results: dict, consensus: dict, overrides: dict, review_mode: str
     ) -> dict:
         """Validate Tier 1 (critical) criteria"""
         criteria = self.criteria.get("tier1", {})
+        required_checks = self._required_tier1_checks(overrides, review_mode)
         checks = {}
         failures = []
         total_weight = 0
         score = 0
 
         # Cross-verification check
-        if criteria.get("cross_verification", {}).get("enabled", True):
+        if (
+            "cross_verification" in criteria
+            and criteria["cross_verification"].get("enabled", True)
+            and (required_checks is None or "cross_verification" in required_checks)
+        ):
             weight = criteria["cross_verification"]["weight"]
-            threshold = criteria["cross_verification"].get("threshold", 0.80)
+            threshold = self._consensus_threshold(
+                criteria["cross_verification"].get("threshold", 0.80),
+                overrides,
+                review_mode,
+            )
             consensus_score = consensus.get("consensus_score", 0) / 100.0
 
             passed = consensus_score >= threshold
@@ -94,7 +134,9 @@ class ValidationEngine:
                 )
 
         # Security checks
-        if "security" in criteria:
+        if "security" in criteria and (
+            required_checks is None or "security" in required_checks
+        ):
             weight = criteria["security"]["weight"]
             security_result = self._check_security(agent_results, criteria["security"])
             checks["security"] = security_result
@@ -107,7 +149,9 @@ class ValidationEngine:
                 failures.extend(security_result.get("issues", []))
 
         # Error handling checks
-        if "error_handling" in criteria:
+        if "error_handling" in criteria and (
+            required_checks is None or "error_handling" in required_checks
+        ):
             weight = criteria["error_handling"]["weight"]
             error_result = self._check_error_handling(
                 agent_results, criteria["error_handling"]
@@ -122,7 +166,9 @@ class ValidationEngine:
                 failures.extend(error_result.get("issues", []))
 
         # Breaking changes checks
-        if "breaking_changes" in criteria:
+        if "breaking_changes" in criteria and (
+            required_checks is None or "breaking_changes" in required_checks
+        ):
             weight = criteria["breaking_changes"]["weight"]
             breaking_result = self._check_breaking_changes(
                 agent_results, criteria["breaking_changes"]
@@ -136,10 +182,25 @@ class ValidationEngine:
             else:
                 failures.extend(breaking_result.get("issues", []))
 
+        completed_reviews = [
+            name
+            for name, result in agent_results.items()
+            if result.get("status") == "complete"
+        ]
+        if not completed_reviews:
+            checks["review_execution"] = {
+                "passed": False,
+                "completed_agents": [],
+                "non_completed_agents": {
+                    name: result.get("status", "unavailable")
+                    for name, result in agent_results.items()
+                },
+            }
+            failures.append("No completed successful review")
+
         # Overall tier1 pass/fail
         passed = len(failures) == 0
         final_score = score / total_weight if total_weight > 0 else 0
-
         return {
             "passed": passed,
             "score": final_score,
@@ -244,7 +305,6 @@ class ValidationEngine:
         concerns = []
         total_weight = 0
         score = 0
-
         # Bug detection
         if "bug_detection" in criteria:
             weight = criteria["bug_detection"]["weight"]
