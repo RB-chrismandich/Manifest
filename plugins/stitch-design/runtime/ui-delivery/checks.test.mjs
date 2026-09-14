@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { constants } from 'node:fs';
+import { access, chmod, mkdir, mkdtemp, open, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -26,6 +28,7 @@ function verifierOutput({ result = { schema: 'ui-delivery-check-v1', required: 1
   return `${JSON.stringify({ schema: 'ui-delivery-verifier-output-v1', result, artifacts })}\n`;
 }
 const mockBackends = { 'sandbox-exec': true, docker: true };
+const sandboxExecAvailable = process.platform === 'darwin' && await access('/usr/bin/sandbox-exec', constants.X_OK).then(() => true, () => false);
 function executor(calls, stdout = verifierOutput()) {
   return async (command) => {
     calls.push(command);
@@ -127,7 +130,7 @@ test('grants the sandbox read and write access to its scratch directory', async 
   assert.match(profile, /\(allow file-write\* \(literal "\/dev\/null"\) \(subpath \(param "SCRATCH"\)\)\)/);
 });
 
-test('allows only the digest-checked verifier beneath protected .omp state', async () => {
+test('allows only the digest-checked verifier beneath protected .omp state', { skip: !sandboxExecAvailable }, async () => {
   const repo = await fixture();
   const sibling = join(repo, '.omp/ui-delivery/sibling-state.txt');
   await writeFile(sibling, 'protected sibling\n');
@@ -147,6 +150,20 @@ test('allows only the digest-checked verifier beneath protected .omp state', asy
     sibling,
   ]);
   assert.equal(stdout, 'trusted verifier\n');
+});
+
+test('preserves a verifier envelope split within a UTF-8 scalar', { skip: !sandboxExecAvailable }, async () => {
+  const repo = await fixture();
+  const output = verifierOutput({ result: { label: 'é' } });
+  const script = `const output = Buffer.from(${JSON.stringify(output)}); const split = output.indexOf(Buffer.from('é')) + 1; process.stdout.write(output.subarray(0, split)); setTimeout(() => process.stdout.write(output.subarray(split)), 10);`;
+  await writeFile(join(repo, verifier.path), script);
+  const sha256 = `sha256:${createHash('sha256').update(script).digest('hex')}`;
+  await runCheck({
+    repo,
+    task: task({ approved_check_recipes: [{ ...recipe, trusted_verifier: { ...verifier, sha256 } }] }),
+    checkId: 'unit',
+  });
+  assert.deepEqual(JSON.parse(await readFile(join(repo, '.ui-results/unit.json'), 'utf8')), { label: 'é' });
 });
 
 test('parameterizes SBPL paths and permits required runtime and system reads without network access', async () => {
@@ -367,4 +384,25 @@ test('does not remove an output lock it did not create', async () => {
   await running;
   assert.equal(await readFile(lock, 'utf8'), 'replacement');
   await rm(lock);
+});
+
+test('removes a lock created before its owner token write fails', async () => {
+  const repo = await fixture();
+  const handle = await open(join(repo, 'prototype-probe'), 'w');
+  const prototype = Object.getPrototypeOf(handle);
+  await handle.close();
+  const originalWriteFile = prototype.writeFile;
+  prototype.writeFile = async function (data, ...args) {
+    if (String(data).length === 36) throw new Error('owner write failed');
+    return originalWriteFile.call(this, data, ...args);
+  };
+  try {
+    await assert.rejects(
+      () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends }),
+      /owner write failed/,
+    );
+    await assert.rejects(() => readFile(join(repo, '.ui-results/unit.json.ui-delivery.lock'), 'utf8'), { code: 'ENOENT' });
+  } finally {
+    prototype.writeFile = originalWriteFile;
+  }
 });

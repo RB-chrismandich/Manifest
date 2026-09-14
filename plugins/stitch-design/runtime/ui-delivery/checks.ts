@@ -94,11 +94,11 @@ async function provisionOutput(root: string, lexical: string): Promise<string> {
   return actual;
 }
 
-type OutputLock = { path: string; owner: string };
+type OutputLock = { path: string; owner: string; dev: number; ino: number; ownerWritten: boolean };
 async function releaseOutputLocks(locks: OutputLock[]): Promise<void> {
   for (const lock of [...locks].reverse()) try {
     const [contents, stat] = await Promise.all([readFile(lock.path, 'utf8'), lstat(lock.path)]);
-    if (contents === lock.owner && stat.isFile() && !stat.isSymbolicLink() && stat.nlink === 1) await unlink(lock.path);
+    if (stat.isFile() && !stat.isSymbolicLink() && stat.nlink === 1 && (lock.ownerWritten ? contents === lock.owner : stat.dev === lock.dev && stat.ino === lock.ino)) await unlink(lock.path);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
@@ -116,12 +116,15 @@ async function acquireOutputLocks(outputs: string[]): Promise<OutputLock[]> {
         if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('check output is busy');
         throw error;
       }
+      const stat = await handle.stat();
+      const lock = { path, owner, dev: stat.dev, ino: stat.ino, ownerWritten: false };
+      locks.push(lock);
       try {
         await handle.writeFile(owner, 'utf8');
+        lock.ownerWritten = true;
       } finally {
         await handle.close();
       }
-      locks.push({ path, owner });
     }
     return locks;
   } catch (error) {
@@ -169,16 +172,20 @@ async function executeDirect(command: Command, outputLimitBytes: number, signal?
   if (signal?.aborted) throw new Error('check aborted');
   return new Promise((resolveResult, rejectResult) => {
     const child = spawn(command.executable, command.argv, { cwd: command.cwd, env: command.env, shell: false, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
-    const stdoutHash = createHash('sha256'); const stderrHash = createHash('sha256'); let stdout = ''; let stderr = ''; let stdoutBytes = 0; let stderrBytes = 0; let settled = false;
-    const collect = (current: string, chunk: Buffer) => Buffer.concat([Buffer.from(current), chunk]).subarray(0, outputLimitBytes).toString();
+    const stdoutHash = createHash('sha256'); const stderrHash = createHash('sha256'); const stdoutChunks: Buffer[] = []; const stderrChunks: Buffer[] = []; let stdoutKept = 0; let stderrKept = 0; let stdoutBytes = 0; let stderrBytes = 0; let settled = false;
+    const collect = (chunks: Buffer[], kept: number, chunk: Buffer) => {
+      const remaining = outputLimitBytes - kept;
+      if (remaining > 0) chunks.push(Buffer.from(chunk.subarray(0, remaining)));
+      return Math.min(outputLimitBytes, kept + chunk.length);
+    };
     const terminate = async (reason: Error) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); try { process.kill(-child.pid!, 'SIGKILL'); } catch {} if (command.containerName) await new Promise<void>((done) => { const remover = spawn(command.executable, ['rm', '--force', command.containerName], { env: command.env, stdio: 'ignore' }); remover.once('close', () => done()); remover.once('error', () => done()); }); rejectResult(reason); };
     const aborted = () => { void terminate(new Error('check aborted')); };
     const timer = setTimeout(() => { void terminate(new Error('check timed out')); }, command.timeoutMs);
     signal?.addEventListener('abort', aborted, { once: true });
-    child.stdout.on('data', (chunk: Buffer) => { stdoutHash.update(chunk); stdoutBytes += chunk.length; if (Buffer.byteLength(stdout) < outputLimitBytes) stdout = collect(stdout, chunk); });
-    child.stderr.on('data', (chunk: Buffer) => { stderrHash.update(chunk); stderrBytes += chunk.length; if (Buffer.byteLength(stderr) < outputLimitBytes) stderr = collect(stderr, chunk); });
+    child.stdout.on('data', (chunk: Buffer) => { stdoutHash.update(chunk); stdoutBytes += chunk.length; stdoutKept = collect(stdoutChunks, stdoutKept, chunk); });
+    child.stderr.on('data', (chunk: Buffer) => { stderrHash.update(chunk); stderrBytes += chunk.length; stderrKept = collect(stderrChunks, stderrKept, chunk); });
     child.once('error', (error) => { void terminate(error); });
-    child.once('close', (exitCode) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); resolveResult({ exitCode: exitCode ?? 1, stdout, stderr, stdoutHash: `sha256:${stdoutHash.digest('hex')}`, stderrHash: `sha256:${stderrHash.digest('hex')}`, stdoutBytes, stderrBytes, stdoutTruncated: stdoutBytes > Buffer.byteLength(stdout), stderrTruncated: stderrBytes > Buffer.byteLength(stderr) }); });
+    child.once('close', (exitCode) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); const stdout = Buffer.concat(stdoutChunks, stdoutKept).toString(); const stderr = Buffer.concat(stderrChunks, stderrKept).toString(); resolveResult({ exitCode: exitCode ?? 1, stdout, stderr, stdoutHash: `sha256:${stdoutHash.digest('hex')}`, stderrHash: `sha256:${stderrHash.digest('hex')}`, stdoutBytes, stderrBytes, stdoutTruncated: stdoutBytes > stdoutKept, stderrTruncated: stderrBytes > stderrKept }); });
   });
 }
 
