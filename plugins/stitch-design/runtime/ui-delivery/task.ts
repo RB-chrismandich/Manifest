@@ -28,7 +28,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if (!Number.isInteger(value.repair_cycles) || value.repair_cycles < 0 || value.repair_cycles > 2) invalid('invalid repair cycles');
   const states = new Set(['draft', 'approved', 'building', 'candidate_ready', 'reviewing', 'repairing', 'accepted', 'blocked', 'failed']);
   if (!states.has(value.state)) invalid('invalid state');
-  if (value.model_route !== '@ui_code') invalid('invalid model route');
+  if (!['@ui_code', '@ui_review'].includes(value.model_route)) invalid('invalid model route');
   if ((value.state === 'accepted' && value.outcome !== 'verified') || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome mismatch');
   if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/i.test(value.candidate_hash))) invalid('candidate binding required');
   if (['accepted', 'blocked', 'failed'].includes(value.state) && !nonEmptyStrings(value.evidence_refs)) invalid('terminal evidence required');
@@ -78,7 +78,19 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
   let task: unknown; try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);
   if (mutation || operation) {
-    if ((operation === 'patch' && task.state !== 'approved') || ((operation === 'check' || operation === 'capture') && !['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(task.state)) || (!operation && task.state !== 'approved' && task.state !== 'candidate_ready')) invalid('operation requires authorized lifecycle state');
+    if (operation === 'patch') {
+      if (task.model_route !== '@ui_code') invalid('patch requires @ui_code model route');
+      if (task.state !== 'approved') invalid('patch requires approved lifecycle state');
+    } else if (operation === 'check') {
+      if (task.model_route !== '@ui_code') invalid('check requires @ui_code model route');
+      if (!['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(task.state)) invalid('check requires candidate lifecycle state');
+    } else if (operation === 'capture') {
+      if (task.model_route !== '@ui_review') invalid('capture requires @ui_review model route');
+      if (!['reviewing', 'accepted'].includes(task.state)) invalid('capture requires reviewing or accepted lifecycle state');
+    } else {
+      if (task.model_route !== '@ui_code') invalid('mutation requires @ui_code model route');
+      if (!['approved', 'candidate_ready'].includes(task.state)) invalid('mutation requires authorized lifecycle state');
+    }
     if (process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== authorizationDigest(task)) invalid('external approval digest mismatch');
   }
   const grant = task.stitch_grant;
