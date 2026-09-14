@@ -145,15 +145,13 @@ are not trusted evidence producers: if candidate code must execute, it runs in
 a separate sandbox with no result or artifact write mount, and the hash-bound
 verifier records the outcome.
 
-Checks use approved fixed argv and an OS sandbox. Docker checks require a
-digest-pinned image and run with no network, a read-only root filesystem, the
-host caller's non-root UID/GID, fixed non-secret environment, exact output and
-scratch mounts, and protected-path masks. On macOS, `sandbox-exec` has residual
-compatibility scope for `mach-lookup` and `file-read-metadata`; it is not a
-general read grant. Content reads remain limited to the repository, approved
-runtime/executable dependencies, scratch space, and required system paths;
-`.git`, `.omp`, `secrets`, and forbidden paths remain masked except for the
-verified, read-only verifier root.
+Checks execute exclusively through the approved Docker backend using fixed argv.
+Docker requires a digest-pinned image and runs with no network, a read-only root
+filesystem, the host caller's non-root UID/GID, fixed non-secret environment,
+exact output and scratch mounts, and protected-path masks. macOS requires
+Docker for check execution; every host-native sandbox backend is unsupported.
+`.git`, `.omp`, `secrets`, and forbidden paths remain
+masked except for the verified, read-only verifier root.
 
 ## Deterministic release pilot
 
