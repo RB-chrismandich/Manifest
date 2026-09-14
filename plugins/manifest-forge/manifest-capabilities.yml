@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-forge
-  version: 0.3.0
+  version: 0.4.0
   description: Git forge, issue tracking, pull request, and release lifecycle workflows.
   category: version-control
 components:
