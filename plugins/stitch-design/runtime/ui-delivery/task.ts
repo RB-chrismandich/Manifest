@@ -54,25 +54,29 @@ async function walk(root: string, current: string, files: string[]): Promise<voi
   if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), files); return; }
   if (stat.isFile()) files.push(current);
 }
+async function assertNoSymlinkPath(root: string, candidate: string): Promise<void> {
+  let current = root;
+  for (const part of relative(root, candidate).split(sep)) { if (!part) continue; current = join(current, part); if ((await lstat(current)).isSymbolicLink()) throw new Error('candidate path contains symlink'); }
+}
 export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
-  const root = await realpath(repo);
-  const files: string[] = [];
-  for (const allowed of task.allowed_paths) { const path = resolve(root, allowed); if (!within(root, path)) throw new Error('allowed path escapes repository'); try { await walk(root, path, files); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; } }
-  files.sort(); const hash = createHash('sha256'); for (const path of files) hash.update(await readFile(path));
+  const root = await realpath(repo); const files: string[] = [];
+  for (const allowed of task.allowed_paths) { const path = resolve(root, allowed); if (!within(root, path)) throw new Error('allowed path escapes repository'); try { await assertNoSymlinkPath(root, path); await walk(root, path, files); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; } }
+  files.sort(); const hash = createHash('sha256');
+  for (const path of files) { const relativePath = relative(root, path); const bytes = await readFile(path); hash.update(Buffer.from(`${relativePath}\0${bytes.length}\0`)); hash.update(bytes); }
   return `sha256:${hash.digest('hex')}`;
 }
 
-export async function loadTask({ repo, taskFile, mutation = false, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; now?: Date }): Promise<DeliveryTask> {
+export async function loadTask({ repo, taskFile, mutation = false, operation, now = new Date() }: { repo: string; taskFile: string; mutation?: boolean; operation?: 'patch' | 'check' | 'capture'; now?: Date }): Promise<DeliveryTask> {
   const root = await realpath(repo); const tasks = join(root, '.omp', 'ui-delivery', 'tasks');
   let actual: string; try { actual = await realpath(resolve(root, taskFile)); } catch { invalid('task file does not exist'); }
   if (!within(tasks, actual)) invalid('task file is outside policy directory');
   let task: unknown; try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);
-  if (mutation) {
-    if (task.state !== 'approved' && task.state !== 'candidate_ready') invalid('mutation requires approved state');
+  if (mutation || operation) {
+    if ((operation === 'patch' && task.state !== 'approved') || ((operation === 'check' || operation === 'capture') && !['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(task.state)) || (!operation && task.state !== 'approved' && task.state !== 'candidate_ready')) invalid('operation requires authorized lifecycle state');
     if (process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== authorizationDigest(task)) invalid('external approval digest mismatch');
   }
   const grant = task.stitch_grant;
-  if (mutation && grant && (!grant.expires_at || Number.isNaN(Date.parse(grant.expires_at)) || Date.parse(grant.expires_at) <= now.getTime())) invalid('Stitch grant expired');
+  if ((mutation || operation) && grant && (!grant.expires_at || Number.isNaN(Date.parse(grant.expires_at)) || Date.parse(grant.expires_at) <= now.getTime())) invalid('Stitch grant expired');
   return task;
 }
