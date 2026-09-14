@@ -188,7 +188,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
             taskId: task.task_id,
             authorizationDigest: digest,
             expectedVersion: next.version,
-            state: { entries: next.entries, ...(next.projectId ? { projectId: next.projectId } : {}) },
+            state: { entries: next.entries, ...(next.identities && Object.keys(next.identities).length ? { identities: next.identities } : {}), ...(next.projectId ? { projectId: next.projectId } : {}) },
           }),
         }),
       };
@@ -332,7 +332,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
     if (stitch.policy.classify(event.toolName) === 'mutation') {
       if (event.isError) await stitch.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
-      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, succeeded: true });
+      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: details, succeeded: true });
     }
     if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.state() === 'mutation_unknown') {
       if (!projectId) throw new Error('Stitch project binding is required');

@@ -42,6 +42,7 @@ async function closeQuietly(handle: FileHandle | undefined): Promise<void> {
 export type StitchMutationState = {
   authorizationDigest: string;
   entries: Record<string, 'pending' | 'consumed' | 'reconciled'>;
+  identities?: Record<string, { kind: 'project' | 'screen' | 'design_system'; value: string }>;
   projectId?: string;
   version: number;
 };
@@ -64,6 +65,7 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
       || Array.isArray(state.entries)
       || Object.getPrototypeOf(state.entries) !== Object.prototype
       || Object.entries(state.entries).some(([key, value]) => !key || !['pending', 'consumed', 'reconciled'].includes(value))
+      || (state.identities !== undefined && (!state.identities || typeof state.identities !== 'object' || Array.isArray(state.identities) || Object.getPrototypeOf(state.identities) !== Object.prototype || Object.entries(state.identities).some(([key, value]) => !key || !value || typeof value !== 'object' || !['project', 'screen', 'design_system'].includes(value.kind) || typeof value.value !== 'string' || !value.value)))
       || !Number.isInteger(state.version)
       || state.version < 0
       || (state.projectId !== undefined && (typeof state.projectId !== 'string' || !state.projectId))
@@ -91,8 +93,10 @@ export async function updateStitchMutationState({ repo, taskId, authorizationDig
     const version = current?.version ?? 0;
     if (version !== expectedVersion) throw new Error('Stitch mutation state changed concurrently');
     const entries = state.entries;
+    const identities = state.identities;
     if (!entries || typeof entries !== 'object' || Array.isArray(entries) || Object.getPrototypeOf(entries) !== Object.prototype || Object.entries(entries).some(([key, value]) => !key || !['pending', 'consumed', 'reconciled'].includes(value))) throw new Error('Stitch state entries are invalid');
-    const next: StitchMutationState = { authorizationDigest, entries, ...(state.projectId ? { projectId: state.projectId } : {}), version: version + 1 };
+    if (identities !== undefined && (!identities || typeof identities !== 'object' || Array.isArray(identities) || Object.getPrototypeOf(identities) !== Object.prototype || Object.entries(identities).some(([key, value]) => !key || !value || typeof value !== 'object' || !['project', 'screen', 'design_system'].includes(value.kind) || typeof value.value !== 'string' || !value.value))) throw new Error('Stitch state identities are invalid');
+    const next: StitchMutationState = { authorizationDigest, entries, ...(identities ? { identities } : {}), ...(state.projectId ? { projectId: state.projectId } : {}), version: version + 1 };
     temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`);
     temporaryHandle = await persistence.open(temporary, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
     await temporaryHandle.write(JSON.stringify(next));

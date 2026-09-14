@@ -37,18 +37,24 @@ export interface StitchPolicy {
   authorize(request: { projectId?: string; toolName: string; input: unknown; toolCallId: string }): Promise<void>;
   recordDispatchInterrupted(request: { toolCallId: string }): Promise<void>;
   recordDispatchFailed(request: { toolCallId: string }): Promise<void>;
-  recordMutationResult(request: { toolName: string; toolCallId: string; projectId?: string; succeeded: boolean }): Promise<void>;
+  recordMutationResult(request: { toolName: string; toolCallId: string; projectId?: string; result?: unknown; succeeded: boolean }): Promise<void>;
   recordReadback(request: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void>;
   state(): string;
 }
 
 type MutationLifecycle = 'pending' | 'consumed' | 'reconciled';
-type StitchState = { entries?: Record<string, MutationLifecycle>; projectId?: string; version?: number };
-type PersistedStitchState = { entries: Record<string, MutationLifecycle>; projectId: string; version: number };
-type StitchReadback = { tool_name: string; response_hash?: string; predictable_fields?: Record<string, unknown> };
+type StitchIdentityKind = 'project' | 'screen' | 'design_system';
+type StitchIdentity = { kind: StitchIdentityKind; value: string };
+type StitchState = { entries?: Record<string, MutationLifecycle>; identities?: Record<string, StitchIdentity>; projectId?: string; version?: number };
+type PersistedStitchState = { entries: Record<string, MutationLifecycle>; identities: Record<string, StitchIdentity>; projectId: string; version: number };
+type StitchReadback = { tool_name: string; response_hash?: string; predictable_fields?: Record<string, unknown>; resource_identity?: StitchIdentityKind };
 type StitchGrant = { project_id?: string; expires_at?: string; mutations?: { tool_name: string; input_hash: string; max_uses: number; expected_readback: StitchReadback }[]; readback_tools?: string[] };
 
 export function createStitchPolicy({ task, registry, now = () => new Date(), state, persist }: { task: Record<string, unknown>; registry: unknown[]; now?: () => Date; state?: StitchState; persist?: (state: PersistedStitchState) => Promise<PersistedStitchState> }): StitchPolicy {
+  const identities = new Map<string, StitchIdentity>(Object.entries(state?.identities ?? {}).filter((entry): entry is [string, StitchIdentity] => {
+    const value = entry[1];
+    return Boolean(value) && typeof value === 'object' && ['project', 'screen', 'design_system'].includes(value.kind) && typeof value.value === 'string' && Boolean(value.value);
+  }));
   const entries = new Map<string, MutationLifecycle>(Object.entries(state?.entries ?? {}).filter((entry): entry is [string, MutationLifecycle] => ['pending', 'consumed', 'reconciled'].includes(entry[1])));
   const mutationCalls = new Map<string, string>();
   const readbacks = new Map<string, string>();
@@ -58,9 +64,11 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
   let version = Number.isInteger(state?.version) ? state.version : 0;
   const save = async (): Promise<void> => {
     if (!persist) return;
-    const saved = await persist({ entries: Object.fromEntries(entries), projectId: discoveredProjectId ?? '', version });
+    const saved = await persist({ entries: Object.fromEntries(entries), identities: Object.fromEntries(identities), projectId: discoveredProjectId ?? '', version });
     entries.clear();
+    identities.clear();
     for (const [key, value] of Object.entries(saved.entries)) if (['pending', 'consumed', 'reconciled'].includes(value)) entries.set(key, value as MutationLifecycle);
+    for (const [key, value] of Object.entries(saved.identities ?? {})) if (value && typeof value === 'object' && ['project', 'screen', 'design_system'].includes(value.kind) && typeof value.value === 'string' && value.value) identities.set(key, value as StitchIdentity);
     discoveredProjectId = saved.projectId || undefined;
     version = saved.version ?? version;
   };
@@ -70,33 +78,53 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
   };
   const unresolvedEntry = (): string | undefined => [...entries].find(([, lifecycle]) => lifecycle !== 'reconciled')?.[0];
   const canonicalHash = (value: unknown): value is string => typeof value === 'string' && /^sha256:[a-f0-9]{64}$/.test(value);
-  const projectIdFrom = (value: unknown): string | undefined => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-    const record = value as Record<string, unknown>;
-    return typeof record.projectId === 'string' ? record.projectId : typeof record.project_id === 'string' ? record.project_id : undefined;
+  const projectIdFrom = (value: unknown): string | undefined => identityFrom(value, 'project')?.value;
+  const identityKeys: Record<StitchIdentityKind, readonly string[]> = {
+    project: ['projectId', 'project_id'],
+    screen: ['screenId', 'screen_id'],
+    design_system: ['designSystemId', 'design_system_id'],
+  };
+  const identityContainers: Record<StitchIdentityKind, readonly string[]> = {
+    project: ['project'],
+    screen: ['screen'],
+    design_system: ['designSystem', 'design_system'],
+  };
+  const recordFrom = (value: unknown): Record<string, unknown> | undefined =>
+    value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  const identityFrom = (value: unknown, kind: StitchIdentityKind): StitchIdentity | undefined => {
+    const record = recordFrom(value);
+    if (!record) return undefined;
+    for (const candidate of [record, ...identityContainers[kind].map((key) => recordFrom(record[key]))]) {
+      if (!candidate) continue;
+      for (const key of identityKeys[kind]) if (typeof candidate[key] === 'string' && candidate[key]) return { kind, value: candidate[key] };
+    }
+    return undefined;
   };
   const validPredictableFields = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0 && Object.keys(value).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field));
+  const validIdentityKind = (value: unknown): value is StitchIdentityKind => value === 'project' || value === 'screen' || value === 'design_system';
+  const predictableReadback = (expected: StitchReadback): boolean => expected.response_hash === undefined && validPredictableFields(expected.predictable_fields) && validIdentityKind(expected.resource_identity);
   const validExpectedReadback = (mutation: NonNullable<StitchGrant['mutations']>[number]): boolean => {
     const expected = mutation.expected_readback;
-    if (!READBACK_TOOLS[expected.tool_name] || !grant?.readback_tools?.includes(expected.tool_name)) return false;
-    return mutation.tool_name === 'mcp__stitch_create_project'
-      ? expected.response_hash === undefined && validPredictableFields(expected.predictable_fields)
-      : canonicalHash(expected.response_hash) && expected.predictable_fields === undefined;
+    return Boolean(READBACK_TOOLS[expected.tool_name] && grant?.readback_tools?.includes(expected.tool_name)
+      && ((canonicalHash(expected.response_hash) && expected.predictable_fields === undefined && expected.resource_identity === undefined) || predictableReadback(expected)));
   };
-  const matchesReadback = (mutation: NonNullable<StitchGrant['mutations']>[number], observation: unknown, projectId: string): boolean => {
+  const matchesReadback = (mutation: NonNullable<StitchGrant['mutations']>[number], entryKey: string, observation: unknown, projectId: string): boolean => {
     const expected = mutation.expected_readback;
-    if (mutation.tool_name !== 'mcp__stitch_create_project') return canonicalHash(expected.response_hash) && expected.response_hash === hashStitchInput(observation);
-    if (!validPredictableFields(expected.predictable_fields) || typeof observation !== 'object' || !observation || Array.isArray(observation) || projectIdFrom(observation) !== projectId) return false;
-    const record = observation as Record<string, unknown>;
-    return Object.entries(expected.predictable_fields).every(([field, value]) => Object.hasOwn(record, field) && hashStitchInput(record[field]) === hashStitchInput(value));
+    if (canonicalHash(expected.response_hash)) return expected.response_hash === hashStitchInput(observation);
+    const identity = identities.get(entryKey);
+    const record = recordFrom(observation);
+    return Boolean(identity && record && projectIdFrom(observation) === projectId && identityFrom(observation, identity.kind)?.value === identity.value && validPredictableFields(expected.predictable_fields)
+      && Object.entries(expected.predictable_fields).every(([field, value]) => Object.hasOwn(record, field) && hashStitchInput(record[field]) === hashStitchInput(value)));
   };
-  const readbackEntryFor = (toolName: string, recovery: boolean): string | undefined => {
+  const readbackEntryFor = (toolName: string, input: unknown, recovery: boolean): string | undefined => {
     const candidates = [...entries].flatMap(([entryKey, lifecycle]) => {
       const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
+      const identity = identities.get(entryKey);
       return lifecycle === 'consumed'
         && Boolean(mutation)
         && validExpectedReadback(mutation!)
         && mutation!.expected_readback.tool_name === toolName
+        && (!identity || identityFrom(input, identity.kind)?.value === identity.value)
         && (recovery ? !mutationCalls.has(entryKey) : mutationCalls.has(entryKey))
         ? [entryKey]
         : [];
@@ -113,8 +141,10 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
         if (PROJECTLESS_READ_TOOLS[toolName]) return;
         const boundProjectId = grant?.project_id ?? discoveredProjectId;
         if (!projectId || projectId !== boundProjectId) throw new Error('Stitch tool call is not authorized');
-        const activeEntry = readbackEntryFor(toolName, false);
-        const recoveredEntry = mutationCalls.size === 0 ? readbackEntryFor(toolName, true) : undefined;
+        const activeEntry = readbackEntryFor(toolName, input, false);
+        const recoveredEntry = mutationCalls.size === 0 ? readbackEntryFor(toolName, input, true) : undefined;
+        const expectsReadback = [...entries].some(([entryKey, lifecycle]) => lifecycle === 'consumed' && grant?.mutations?.some((mutation) => `${mutation.tool_name}:${mutation.input_hash}` === entryKey && mutation.expected_readback.tool_name === toolName));
+        if (expectsReadback && !(activeEntry ?? recoveredEntry)) throw new Error('Stitch readback does not match learned resource identity');
         if (activeEntry ?? recoveredEntry) readbacks.set(toolCallId, activeEntry ?? recoveredEntry!);
         return;
       }
@@ -137,17 +167,23 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       if (!entryKey || mutationCalls.get(entryKey) !== toolCallId) throw new Error('Stitch mutation cannot be reconciled');
       entries.set(entryKey, 'consumed'); await save();
     },
-    async recordMutationResult({ toolName, toolCallId, projectId, succeeded }: { toolName: string; toolCallId: string; projectId?: string; succeeded: boolean }): Promise<void> {
+    async recordMutationResult({ toolName, toolCallId, projectId, result, succeeded }: { toolName: string; toolCallId: string; projectId?: string; result?: unknown; succeeded: boolean }): Promise<void> {
       const entryKey = unresolvedEntry();
-      if (!entryKey || mutationCalls.get(entryKey) !== toolCallId || !succeeded || !entryKey.startsWith(`${toolName}:`) || (toolName === 'mcp__stitch_create_project' && !projectId)) throw new Error('Stitch mutation cannot be reconciled');
-      if (toolName === 'mcp__stitch_create_project') discoveredProjectId = projectId;
+      const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
+      const mutationResult = result ?? (projectId ? { projectId } : undefined);
+      const learnedProjectId = projectId ?? projectIdFrom(mutationResult);
+      const identityKind = mutation?.expected_readback.resource_identity;
+      const identity = identityKind && validIdentityKind(identityKind) ? identityFrom(mutationResult, identityKind) : undefined;
+      if (!entryKey || !mutation || mutationCalls.get(entryKey) !== toolCallId || !succeeded || !entryKey.startsWith(`${toolName}:`) || (toolName === 'mcp__stitch_create_project' && !learnedProjectId) || (identityKind !== undefined && !identity)) throw new Error('Stitch mutation cannot be reconciled');
+      if (toolName === 'mcp__stitch_create_project') discoveredProjectId = learnedProjectId;
+      if (identity) identities.set(entryKey, identity);
       entries.set(entryKey, 'consumed'); await save();
     },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
       const boundProjectId = grant?.project_id ?? discoveredProjectId;
       const entryKey = unresolvedEntry();
       const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
-      if (!entryKey || !mutation || !validExpectedReadback(mutation) || readbacks.get(toolCallId) !== entryKey || !boundProjectId || boundProjectId !== projectId || mutation.expected_readback.tool_name !== toolName || !matchesReadback(mutation, observation, projectId) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled');
+      if (!entryKey || !mutation || !validExpectedReadback(mutation) || readbacks.get(toolCallId) !== entryKey || !boundProjectId || boundProjectId !== projectId || mutation.expected_readback.tool_name !== toolName || !matchesReadback(mutation, entryKey, observation, projectId) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled');
       readbacks.delete(toolCallId);
       entries.set(entryKey, 'reconciled'); await save();
     },

@@ -54,7 +54,7 @@ test('binds approved mutations to the project discovered by create-project readb
     stitch_grant: {
       expires_at: '2030-01-01T00:00:00Z',
       mutations: [
-        { tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Bounded project' } } },
+        { tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Bounded project' }, resource_identity: 'project' } },
         { tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(generation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: hashStitchInput({ screen: { id: 'screen-created' } }) } },
       ],
       readback_tools: ['mcp__stitch_get_project', 'mcp__stitch_get_screen'],
@@ -226,10 +226,9 @@ test('recovers a unique persisted consumed mutation only through its exact resta
     now: () => now,
     state: { ...saved, entries: Object.fromEntries(definition.stitch_grant.mutations.map((mutation) => [`${mutation.tool_name}:${mutation.input_hash}`, 'consumed'])) },
   });
-  await ambiguous.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: {}, toolCallId: 'ambiguous-read' });
   await assert.rejects(
-    () => ambiguous.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'ambiguous-read', reconciled: true, observation: readback }),
-    /reconcil/i,
+    () => ambiguous.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: {}, toolCallId: 'ambiguous-read' }),
+    /reconcil|identity/i,
   );
 });
 
@@ -290,6 +289,85 @@ test('reconciles only a readback whose observed payload matches the grant-bound 
 });
 
 
+
+test('reconciles generated screens through a persisted learned identity and signed predictable fields', async () => {
+  const generation = { projectId: 'project-17', prompt: 'Create a checkout screen' };
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [{
+        tool_name: 'mcp__stitch_generate_screen_from_text',
+        input_hash: hashStitchInput(generation),
+        max_uses: 1,
+        expected_readback: {
+          tool_name: 'mcp__stitch_get_screen',
+          predictable_fields: { title: 'Checkout' },
+          resource_identity: 'screen',
+        },
+      }],
+    },
+  });
+  let saved;
+  const persist = async (state) => {
+    saved = structuredClone({ ...state, version: state.version + 1 });
+    return saved;
+  };
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now, persist });
+
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' });
+  await policy.recordMutationResult({
+    toolName: 'mcp__stitch_generate_screen_from_text',
+    toolCallId: 'generate-1',
+    succeeded: true,
+    result: { projectId: 'project-17', screenId: 'screen-created' },
+  });
+
+  const restarted = createStitchPolicy({ task: definition, registry, now: () => now, state: saved, persist });
+  await assert.rejects(
+    () => restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17', screenId: 'other-screen' }, toolCallId: 'wrong-input' }),
+    /reconcil|authorized|identity/i,
+  );
+  await restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17', screenId: 'screen-created' }, toolCallId: 'readback-1' });
+  await assert.rejects(
+    () => restarted.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screenId: 'other-screen', title: 'Checkout' } }),
+    /reconcil/i,
+  );
+  await assert.rejects(
+    () => restarted.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screenId: 'screen-created', title: 'Wrong title' } }),
+    /reconcil/i,
+  );
+  await restarted.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screenId: 'screen-created', title: 'Checkout' } });
+});
+
+test('reconciles generated variants through their learned screen identity', async () => {
+  const generation = { projectId: 'project-17', selectedScreenIds: ['screen-1'], prompt: 'Create variants' };
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [{
+        tool_name: 'mcp__stitch_generate_variants',
+        input_hash: hashStitchInput(generation),
+        max_uses: 1,
+        expected_readback: {
+          tool_name: 'mcp__stitch_get_screen',
+          predictable_fields: { title: 'Checkout variant' },
+          resource_identity: 'screen',
+        },
+      }],
+    },
+  });
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now });
+
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_variants', input: generation, toolCallId: 'variants-1' });
+  await policy.recordMutationResult({
+    toolName: 'mcp__stitch_generate_variants',
+    toolCallId: 'variants-1',
+    succeeded: true,
+    result: { projectId: 'project-17', screenId: 'screen-variant' },
+  });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17', screenId: 'screen-variant' }, toolCallId: 'readback-1' });
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { projectId: 'project-17', screenId: 'screen-variant', title: 'Checkout variant' } });
+});
 
 test('checks mutation grant expiry against an injected clock at authorization time', async () => {
   let clock = new Date('2026-09-14T00:00:00Z');

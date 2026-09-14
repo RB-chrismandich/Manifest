@@ -52,7 +52,7 @@ test('surfaces a successful create-project result without project identity and k
   const definition = task({
     stitch_grant: {
       expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Bounded project' } } }],
+      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Bounded project' }, resource_identity: 'project' } }],
       readback_tools: ['mcp__stitch_get_project'],
     },
   });
