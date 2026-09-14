@@ -13,7 +13,7 @@ export interface StitchPolicy {
   authorize(request: { projectId: string; toolName: string; input: unknown }): Promise<void>;
   recordDispatchInterrupted(): void;
   recordDispatchFailed(): void;
-  recordReadback(request: { toolName: string; reconciled: boolean }): void;
+  recordReadback(request: { projectId: string; toolName: string; reconciled: boolean }): void;
   state(): string;
 }
 
@@ -21,16 +21,18 @@ export function createStitchPolicy({ task, registry, now = () => new Date() }: {
   let lifecycle = 'ready'; let used = false; const classified = new Map(registry.filter(isStitchRegistryTool).map((tool) => [tool.name, kindFor(tool)]).filter((entry): entry is [string, StitchToolKind] => Boolean(entry[1])));
   const grant = task.stitch_grant as { project_id?: string; expires_at?: string; mutations?: { tool_name: string; input_hash: string; max_uses: number }[]; readback_tools?: string[] } | undefined;
   return {
-    classify(toolName: string): Kind | 'unknown' { return classified.get(toolName) ?? 'unknown'; },
+    classify(toolName: string): StitchToolKind | 'unknown' { return classified.get(toolName) ?? 'unknown'; },
     async authorize({ projectId, toolName, input }: { projectId: string; toolName: string; input: unknown }): Promise<void> {
-      if (classified.get(toolName) === 'read') return;
+      const kind = classified.get(toolName);
+      if (!grant || task.state !== 'approved' || grant.project_id !== projectId || Date.parse(grant.expires_at ?? '') <= now().getTime()) throw new Error('Stitch tool call is not authorized');
+      if (kind === 'read') return;
       if (lifecycle === 'mutation_unknown') throw new Error('Stitch mutation requires readback reconciliation');
       if (used) throw new Error('Stitch mutation grant is already consumed');
-      if (classified.get(toolName) !== 'mutation' || !grant || task.state !== 'approved' || grant.project_id !== projectId || Date.parse(grant.expires_at ?? '') <= now().getTime()) throw new Error('Stitch tool call is not authorized');
+      if (kind !== 'mutation') throw new Error('Stitch tool call is not authorized');
       const mutation = grant.mutations?.find((entry) => entry.tool_name === toolName); if (!mutation || mutation.max_uses !== 1 || mutation.input_hash !== hashStitchInput(input)) throw new Error('Stitch mutation does not match one-shot grant'); used = true; lifecycle = 'mutation_unknown';
     },
     recordDispatchInterrupted(): void { lifecycle = 'mutation_unknown'; }, recordDispatchFailed(): void { lifecycle = 'mutation_unknown'; },
-    recordReadback({ toolName, reconciled }: { toolName: string; reconciled: boolean }): void { if (lifecycle !== 'mutation_unknown' || !grant?.readback_tools?.includes(toolName) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled'); lifecycle = 'reconciled'; },
+    recordReadback({ projectId, toolName, reconciled }: { projectId: string; toolName: string; reconciled: boolean }): void { if (lifecycle !== 'mutation_unknown' || grant?.project_id !== projectId || !grant?.readback_tools?.includes(toolName) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled'); lifecycle = 'reconciled'; },
     state(): string { return lifecycle; },
   };
 }
