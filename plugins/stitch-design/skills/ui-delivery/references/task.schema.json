@@ -54,7 +54,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^(?:\\.|(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"
+        "pattern": "^(?!\\.$)(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"
       }
     },
     "forbidden_policy_paths": {
@@ -278,8 +278,7 @@
             ],
             "properties": {
               "tool_name": {
-                "type": "string",
-                "minLength": 1
+                "enum": ["mcp__stitch_create_project", "mcp__stitch_generate_screen_from_text", "mcp__stitch_edit_screens", "mcp__stitch_generate_variants", "mcp__stitch_upload_design_md", "mcp__stitch_create_design_system_from_design_md", "mcp__stitch_update_design_system", "mcp__stitch_apply_design_system"]
               },
               "input_hash": {
                 "type": "string",
@@ -293,7 +292,7 @@
                 "additionalProperties": false,
                 "required": ["tool_name", "response_hash"],
                 "properties": {
-                  "tool_name": {"type": "string", "minLength": 1},
+                  "tool_name": {"enum": ["mcp__stitch_get_screen", "mcp__stitch_list_screens", "mcp__stitch_get_project", "mcp__stitch_list_projects", "mcp__stitch_list_design_systems", "mcp__stitch_read_url_content"]},
                   "response_hash": {"type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$"}
                 }
               }
@@ -304,8 +303,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "string",
-            "minLength": 1
+            "enum": ["mcp__stitch_get_screen", "mcp__stitch_list_screens", "mcp__stitch_get_project", "mcp__stitch_list_projects", "mcp__stitch_list_design_systems", "mcp__stitch_read_url_content"]
           }
         }
       }
@@ -372,6 +370,22 @@
         "properties": {
           "outcome": {
             "const": "verified"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "model_route": {
+            "const": "@ui_review"
           }
         }
       }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -111,11 +111,10 @@ test('requires the approved qualification hash to equal the trusted active runti
 });
 
 test('permits candidate lifecycle checks while reserving patches for approved or renewed repairing tasks', async () => {
-  for (const state of ['candidate_ready', 'reviewing', 'repairing', 'accepted']) {
+  for (const state of ['candidate_ready', 'reviewing', 'repairing']) {
     const definition = approvedTask({
       state, candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`,
-      outcome: state === 'accepted' ? 'verified' : 'unverified',
-      ...(state === 'accepted' ? { evidence_refs: ['artifact://task-17/evidence'] } : {}),
+      outcome: 'unverified',
       ...(state === 'repairing' ? { repair_cycles: 1, repair_authorization: { cycle: 1, nonce: 'renewed-repair' } } : {}),
     });
     const { repo, path } = await taskFile(definition);
@@ -125,6 +124,12 @@ test('permits candidate lifecycle checks while reserving patches for approved or
       else await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }));
     });
   }
+  const accepted = approvedTask({
+    state: 'accepted', model_route: '@ui_review', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'verified', evidence_refs: ['artifact://task-17/evidence'],
+  });
+  const { repo: acceptedRepo, path: acceptedPath } = await taskFile(accepted);
+  await withApproval(accepted, () => loadTask({ repo: acceptedRepo, taskFile: acceptedPath }));
   const approved = approvedTask();
   const { repo, path } = await taskFile(approved);
   await withApproval(approved, () => loadTask({ repo, taskFile: path, operation: 'patch' }));
@@ -201,17 +206,18 @@ test('rejects malformed grant expiry even for status-facing task loads', async (
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
 });
 
-test('rejects unsafe task IDs and noncanonical paths before any operation', async () => {
+test('rejects unsafe task IDs, repository-root candidate scope, and noncanonical paths before any operation', async () => {
   for (const override of [
     { task_id: '../task-17' },
     { task_id: 'task 17' },
+    { allowed_paths: ['.'] },
     { allowed_paths: ['src/Card View.tsx'] },
     { forbidden_policy_paths: ['policy/baseline file.json'] },
     { forbidden_policy_paths: ['./policy/baseline.json'] },
     { allowed_paths: ['src//Card.tsx'] },
   ]) {
     const { repo, path } = await taskFile(override);
-    await assert.rejects(() => loadTask({ repo, taskFile: path }), /task_id|path|invalid/i);
+    await assert.rejects(() => loadTask({ repo, taskFile: path }), /task_id|path|scope|invalid/i);
   }
 });
 
@@ -273,30 +279,62 @@ test('rejects whitespace-bearing capture artifact paths using the runtime path c
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /capture artifact|path/i);
 });
 
-test('excludes the entire protected .omp namespace from stable candidate hashes', async () => {
+test('rejects repository-root candidate scope before candidate hashing', async () => {
   const definition = approvedTask({ allowed_paths: ['.'] });
   const { repo } = await taskFile(definition);
-  const before = await candidateHash({ repo, task: definition });
-  await mkdir(join(repo, '.omp/unrelated'), { recursive: true });
-  await writeFile(join(repo, '.omp/unrelated/verifier.mjs'), 'host-owned verifier mutation');
-  assert.equal(await candidateHash({ repo, task: definition }), before);
+  await assert.rejects(() => candidateHash({ repo, task: definition }), /scope|path|invalid/i);
 });
 
-test('streams large candidate files into a deterministic framed hash', async () => {
+test('streams large candidate files into a deterministic permission-framed hash', async () => {
   const definition = approvedTask();
   const { repo } = await taskFile(definition);
   const source = Buffer.alloc(16 * 1024 * 1024, 0x5a);
   await writeFile(join(repo, 'src/large.bin'), source);
+  await chmod(join(repo, 'src/large.bin'), 0o640);
   const expected = createHash('sha256')
-    .update(`src/Card.tsx\0${Buffer.byteLength('export const Card = 1;\n')}\0`)
+    .update(`src/Card.tsx\0${Buffer.byteLength('export const Card = 1;\n')}\0${0o644}\0`)
     .update('export const Card = 1;\n')
-    .update(`src/large.bin\0${source.length}\0`)
+    .update(`src/large.bin\0${source.length}\0${0o640}\0`)
     .update(source)
     .digest('hex');
   assert.equal(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
-  assert.equal(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
+  await chmod(join(repo, 'src/large.bin'), 0o600);
+  assert.notEqual(await candidateHash({ repo, task: definition }), `sha256:${expected}`);
 });
 
+test('requires the reviewer route for accepted tasks', async () => {
+  const definition = approvedTask({
+    state: 'accepted', candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`,
+    evidence_refs: ['artifact://task-17/evidence'], outcome: 'verified',
+  });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /route|review/i);
+});
+
+test('rejects duplicate artifact paths within and across capture recipes', async () => {
+  for (const capture_recipes of [
+    [{ id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }, { path: 'evidence/page.png', type: 'image/png' }] }],
+    [
+      { id: 'capture-a', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }] },
+      { id: 'capture-b', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'image/png' }] },
+    ],
+  ]) {
+    const { repo, path } = await taskFile({ capture_recipes });
+    await assert.rejects(() => loadTask({ repo, taskFile: path }), /duplicate|capture artifact/i);
+  }
+});
+
+test('rejects grants with tools outside the exact supported Stitch inventory', async () => {
+  const definition = approvedTask({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'stitch.edit_screen', input_hash: 'sha256:input', max_uses: 1, expected_readback: { tool_name: 'stitch.get_screen', response_hash: `sha256:${'a'.repeat(64)}` } }],
+      readback_tools: ['stitch.get_screen'],
+    },
+  });
+  const { repo, path } = await taskFile(definition);
+  await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*tool|grant/i);
+});
 test('admits only one task ID to the repository patch transaction', async () => {
   const { repo } = await taskFile({});
   await mkdir(join(repo, '.omp/ui-delivery/evidence'), { recursive: true });

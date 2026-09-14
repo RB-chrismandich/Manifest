@@ -15,8 +15,9 @@ const canonical = (value) => {
   if (value && typeof value === 'object') return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`;
   return JSON.stringify(value);
 };
+const qualificationHash = `sha256:${createHash('sha256').update('ui-delivery-consumer-qualification-v1').digest('hex')}`;
 const authorizationDigest = (task) => {
-  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant'].filter((key) => key in task).map((key) => [key, task[key]]));
+  const projection = Object.fromEntries(['task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant'].filter((key) => key in task).map((key) => [key, task[key]]));
   return `sha256:${createHash('sha256').update(canonical(projection)).digest('hex')}`;
 };
 const writeJson = (path, value) => writeFile(path, `${JSON.stringify(value)}\n`, 'utf8');
@@ -54,6 +55,7 @@ for (const definition of cases) {
     task_id: `consumer-pilot-${definition.id}-v1`,
     state: 'approved',
     design_revision: `approved-${definition.id}-v1`,
+    qualification_hash: qualificationHash,
     allowed_paths: ['site'],
     forbidden_policy_paths: ['.omp'],
     approved_check_recipes: [
@@ -75,6 +77,7 @@ for (const definition of cases) {
   await writeJson(taskPath, task);
   launches.push({
     id: definition.id, repo, task: taskPath, external_approval_sha256: authorizationDigest(task),
+    active_qualification_sha256: qualificationHash,
     astra_model_route: 'openai-codex/gpt-6-astra:high', target: definition.target,
   });
 }

@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs';
 import { lstat, readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { canonicalJsonHash } from './evidence.ts';
-
+import { STITCH_MUTATION_TOOL_NAMES, STITCH_READ_TOOL_NAMES } from './stitch-policy.ts';
 export type DeliveryTask = Record<string, any>;
 
 function within(root: string, candidate: string): boolean {
@@ -29,14 +29,14 @@ function validate(task: unknown): asserts task is DeliveryTask {
   for (const key of ['task_id', 'state', 'design_revision', 'qualification_hash', 'model_route', 'outcome']) if (typeof value[key] !== 'string' || !value[key]) invalid(`missing ${key}`);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.task_id)) invalid('invalid task_id');
   if (!/^sha256:[a-f0-9]{64}$/i.test(value.qualification_hash)) invalid('invalid qualification hash');
-  if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays without whitespace');
+  if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || value.allowed_paths.includes('.') || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays without whitespace or repository root');
   if (!Array.isArray(value.approved_check_recipes) || !value.approved_check_recipes.length) invalid('missing check recipes');
   if (!Array.isArray(value.capture_recipes) || !value.capture_recipes.length) invalid('missing capture recipes');
   if (!Number.isInteger(value.repair_cycles) || value.repair_cycles < 0 || value.repair_cycles > 2) invalid('invalid repair cycles');
   const states = new Set(['draft', 'approved', 'building', 'candidate_ready', 'reviewing', 'repairing', 'accepted', 'blocked', 'failed']);
   if (!states.has(value.state)) invalid('invalid state');
   if (!['@ui_code', '@ui_review'].includes(value.model_route)) invalid('invalid model route');
-  if ((value.state === 'accepted' && value.outcome !== 'verified') || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome mismatch');
+  if ((value.state === 'accepted' && (value.outcome !== 'verified' || value.model_route !== '@ui_review')) || (value.state === 'blocked' && value.outcome !== 'blocked') || (value.state === 'failed' && value.outcome !== 'failed') || (!['accepted', 'blocked', 'failed'].includes(value.state) && value.outcome !== 'unverified')) invalid('state/outcome/model route mismatch');
   if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/i.test(value.candidate_hash))) invalid('candidate binding required');
   if (['accepted', 'blocked', 'failed'].includes(value.state) && !nonEmptyStrings(value.evidence_refs)) invalid('terminal evidence required');
   if (value.state === 'repairing' && (!value.repair_authorization || typeof value.repair_authorization !== 'object' || !Number.isInteger(value.repair_authorization.cycle) || value.repair_authorization.cycle !== value.repair_cycles || value.repair_authorization.cycle < 1 || typeof value.repair_authorization.nonce !== 'string' || !value.repair_authorization.nonce)) invalid('repairing requires renewed cycle-bound authorization');
@@ -50,18 +50,23 @@ function validate(task: unknown): asserts task is DeliveryTask {
     if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image))) invalid('docker image must be digest pinned');
   }
   const captureIds = new Set<string>();
+  const artifactPaths = new Set<string>();
   for (const recipe of value.capture_recipes) {
     if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || captureIds.has(recipe.id) || typeof recipe.check_id !== 'string' || !ids.has(recipe.check_id) || !Array.isArray(recipe.artifacts) || recipe.artifacts.length < 1) invalid('invalid capture recipe');
     captureIds.add(recipe.id);
     const check = value.approved_check_recipes.find((entry: Record<string, unknown>) => entry.id === recipe.check_id);
-    for (const artifact of recipe.artifacts) if (!artifact || typeof artifact !== 'object' || !relativePath(artifact.path) || typeof artifact.type !== 'string' || !artifact.type || !Array.isArray(check?.write_paths) || !check.write_paths.includes(artifact.path)) invalid('invalid capture artifact');
+    for (const artifact of recipe.artifacts) {
+      if (!artifact || typeof artifact !== 'object' || !relativePath(artifact.path) || typeof artifact.type !== 'string' || !artifact.type || !Array.isArray(check?.write_paths) || !check.write_paths.includes(artifact.path)) invalid('invalid capture artifact');
+      if (artifactPaths.has(artifact.path)) invalid('duplicate capture artifact path');
+      artifactPaths.add(artifact.path);
+    }
   }
   const grant = value.stitch_grant;
   if (grant !== undefined) {
-    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations)) invalid('invalid Stitch grant');
+    if (!grant || typeof grant !== 'object' || !Array.isArray(grant.mutations) || !nonEmptyStrings(grant.readback_tools) || !grant.readback_tools.every((tool: string) => STITCH_READ_TOOL_NAMES.includes(tool as typeof STITCH_READ_TOOL_NAMES[number]))) invalid('invalid Stitch grant');
     for (const mutation of grant.mutations) {
       const expected = mutation?.expected_readback;
-      if (!expected || typeof expected !== 'object' || typeof expected.tool_name !== 'string' || !expected.tool_name || !/^sha256:[a-f0-9]{64}$/i.test(expected.response_hash)) invalid('invalid Stitch readback expectation');
+      if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !expected || typeof expected !== 'object' || !STITCH_READ_TOOL_NAMES.includes(expected.tool_name) || !/^sha256:[a-f0-9]{64}$/i.test(expected.response_hash)) invalid('invalid Stitch grant tool');
     }
   }
 }
@@ -100,13 +105,14 @@ export async function releasePatchJournal(repo: string): Promise<void> {
   await unlink(patchJournalPath(repo));
 }
 export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
+  validate(task);
   const root = await realpath(repo); const files: string[] = [];
   await walk(root, root, task, files);
   files.sort(); const hash = createHash('sha256');
   for (const path of files) {
     const candidatePath = relative(root, path);
     const stat = await lstat(path);
-    hash.update(Buffer.from(`${candidatePath}\0${stat.size}\0`));
+    hash.update(Buffer.from(`${candidatePath}\0${stat.size}\0${stat.mode & 0o777}\0`));
     for await (const chunk of createReadStream(path)) hash.update(chunk);
   }
   return `sha256:${hash.digest('hex')}`;

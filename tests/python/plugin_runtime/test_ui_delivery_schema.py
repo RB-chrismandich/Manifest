@@ -61,7 +61,7 @@ def _accepted_task() -> dict[str, Any]:
             }
         ],
         "capture_recipes": [capture_recipe()],
-        "model_route": "@ui_code",
+        "model_route": "@ui_review",
         "repair_cycles": 2,
         "evidence_refs": ["artifact://ui-delivery-17/review.json"],
         "outcome": "verified",
@@ -85,6 +85,7 @@ def test_task_schema_accepts_authorized_lifecycle_states(repo_root: Path) -> Non
     task = _accepted_task()
 
     assert_valid(validator, task)
+    assert_invalid(validator, {**task, "model_route": "@ui_code"})
     for state in TASK_STATES:
         outcome = "verified" if state == "accepted" else "unverified"
         if state in {"blocked", "failed"}:
@@ -128,16 +129,16 @@ def _stitch_grant() -> dict[str, Any]:
         "expires_at": "2030-01-01T00:00:00Z",
         "mutations": [
             {
-                "tool_name": "stitch.edit_screen",
+                "tool_name": "mcp__stitch_edit_screens",
                 "input_hash": "sha256:8d5f2e",
                 "max_uses": 1,
                 "expected_readback": {
-                    "tool_name": "stitch.get_screen",
+                    "tool_name": "mcp__stitch_get_screen",
                     "response_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 },
             }
         ],
-        "readback_tools": ["stitch.get_screen"],
+        "readback_tools": ["mcp__stitch_get_screen"],
     }
 
 
@@ -175,6 +176,22 @@ def test_task_schema_enforces_grant_contract(repo_root: Path) -> None:
         validator,
         {**task, "stitch_grant": {**stitch_grant, "expires_at": "not-a-date"}},
     )
+    assert_invalid(
+        validator,
+        {
+            **task,
+            "stitch_grant": {
+                **stitch_grant,
+                "mutations": [
+                    {**stitch_grant["mutations"][0], "tool_name": "stitch.edit_screen"}
+                ],
+            },
+        },
+    )
+    assert_invalid(
+        validator,
+        {**task, "stitch_grant": {**stitch_grant, "readback_tools": ["stitch.get_screen"]}},
+    )
     assert_valid(validator, {**task, "stitch_grant": stitch_grant})
 
 
@@ -209,6 +226,7 @@ def test_task_schema_rejects_unsafe_ids_and_whitespace_paths(repo_root: Path) ->
     task = _accepted_task()
 
     assert_invalid(validator, {**task, "task_id": "../ui-delivery-17"})
+    assert_invalid(validator, {**task, "allowed_paths": ["."]})
     assert_invalid(validator, {**task, "allowed_paths": ["src/Checkout Card.tsx"]})
     for noncanonical in ("./src/CheckoutCard.tsx", "src//CheckoutCard.tsx"):
         assert_invalid(validator, {**task, "allowed_paths": [noncanonical]})
@@ -311,7 +329,12 @@ def test_task_schema_requires_evidence_for_terminal_candidate_states(
         ("failed", "failed"),
         ("blocked", "blocked"),
     ):
-        terminal = {**candidate, "state": state, "outcome": outcome}
+        terminal = {
+            **candidate,
+            "state": state,
+            "outcome": outcome,
+            **({"model_route": "@ui_review"} if state == "accepted" else {}),
+        }
         assert_invalid(validator, terminal)
         assert_valid(
             validator,
