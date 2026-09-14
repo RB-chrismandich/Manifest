@@ -194,7 +194,7 @@
       }
     },
     "model_route": {
-      "const": "@ui_code"
+      "enum": ["@ui_code", "@ui_review"]
     },
     "repair_cycles": {
       "type": "integer",
