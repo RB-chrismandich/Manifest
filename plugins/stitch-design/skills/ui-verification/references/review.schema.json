@@ -58,5 +58,35 @@
         "minLength": 1
       }
     }
-  }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "const": "accepted"
+        },
+        "findings": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    {
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "repair_required",
+            "blocked",
+            "failed"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  ]
 }
