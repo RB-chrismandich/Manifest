@@ -218,9 +218,9 @@ def test_stitch_contract_inventories_omp_delivery_assets(
 
 
 def test_upload_skill_limits_mcp_upload_to_markdown(stitch_bundle: Path) -> None:
-    skill = (
-        stitch_bundle / "skills/upload-to-stitch/SKILL.md"
-    ).read_text(encoding="utf-8")
+    skill = (stitch_bundle / "skills/upload-to-stitch/SKILL.md").read_text(
+        encoding="utf-8"
+    )
 
     assert "DESIGN.md` or Markdown document" in skill
     assert "mcp__stitch_upload_design_md" in skill
@@ -230,6 +230,7 @@ def test_upload_skill_limits_mcp_upload_to_markdown(stitch_bundle: Path) -> None
     assert "image/jpeg" not in skill
     assert "image/webp" not in skill
     assert "text/html" not in skill
+
 
 def test_direct_stitch_upload_script_fails_closed(
     stitch_bundle: Path, tmp_path: Path
