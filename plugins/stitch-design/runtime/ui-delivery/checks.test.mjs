@@ -9,11 +9,11 @@ import { runCheck } from './checks.ts';
 const recipe = {
   id: 'unit', argv: ['node', '--test', 'test.mjs'], cwd: '.', timeout_ms: 500,
   backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef',
-  result_path: '.ui-results/unit.json',
+  result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'],
 };
 
 function task(overrides = {}) {
-  return { allowed_paths: ['src/Card.tsx', '.ui-results/unit.json'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
+  return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
 }
 
 function executor(calls, stdout = 'x'.repeat(64)) {
@@ -48,6 +48,8 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   assert.equal(calls[0].cwd, await realpath(repo));
   assert.equal(calls[0].env.TOKEN, undefined);
   assert.equal(calls[0].env.HOME, undefined);
+  assert.ok(calls[0].mounts.some((mount) => mount.source === join(await realpath(repo), '.ui-results/unit.json') && !mount.readOnly));
+  assert.ok(!calls[0].mounts.some((mount) => mount.source === join(await realpath(repo), 'src/Card.tsx') && !mount.readOnly));
   assert.deepEqual(result.argv, recipe.argv);
 });
 
@@ -70,15 +72,20 @@ test('rejects raw command input, unknown recipes, symlinked writes, and writable
   const repo = await fixture();
   const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-outside-'));
   await symlink(outside, join(repo, 'src/linked'));
-  for (const candidate of [
-    task({ allowed_paths: ['.git'] }),
-    task({ allowed_paths: ['.'] }),
-    task({ allowed_paths: ['policy'] }),
-    task({ allowed_paths: ['src/linked'] }),
+  for (const writePaths of [
+    ['.git'],
+    ['.'],
+    ['policy'],
+    ['src/linked'],
+    [],
   ]) {
-    await assert.rejects(() => runCheck({ repo, task: candidate, checkId: 'unit', executor: executor([]) }));
+    await assert.rejects(() => runCheck({
+      repo,
+      task: task({ approved_check_recipes: [{ ...recipe, write_paths: writePaths }] }),
+      checkId: 'unit',
+      executor: executor([]),
+    }));
   }
-  await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'missing', executor: executor([]) }));
   await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]) }));
 });
 

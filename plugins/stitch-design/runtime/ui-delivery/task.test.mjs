@@ -24,10 +24,11 @@ function authorizationDigest(task) {
 function approvedTask(overrides = {}) {
   return {
     task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
-    allowed_paths: ['src/Card.tsx', '.ui-results/unit.json', 'evidence/page.png'], forbidden_policy_paths: ['policy/baseline.json'],
+    allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
     approved_check_recipes: [{
       id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
       backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
+      write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
     }],
     capture_recipes: [{
       id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }],
@@ -91,7 +92,7 @@ test('preserves authorization digest across lifecycle changes and invalidates re
 });
 
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
-  const definition = approvedTask({ allowed_paths: ['src/Card.tsx', '.ui-results', 'evidence'] });
+  const definition = approvedTask();
   const { repo } = await taskFile(definition);
   await mkdir(join(repo, '.ui-results'), { recursive: true });
   await mkdir(join(repo, 'evidence'), { recursive: true });
@@ -118,6 +119,8 @@ test('accepts a schema-valid building task and rejects policy-directory escapes'
 test('rejects malformed recipes and empty capture evidence before an operation starts', async () => {
   for (const override of [
     { approved_check_recipes: [{ ...approvedTask().approved_check_recipes[0], result_path: undefined }] },
+    { approved_check_recipes: [{ ...approvedTask().approved_check_recipes[0], write_paths: [] }] },
+    { approved_check_recipes: [{ ...approvedTask().approved_check_recipes[0], write_paths: ['.ui-results/unit.json'] }] },
     { capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [] }] },
   ]) {
     const { repo, path } = await taskFile(override);

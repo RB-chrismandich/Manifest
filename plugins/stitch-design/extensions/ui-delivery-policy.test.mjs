@@ -31,10 +31,11 @@ function execute(tool, args, cwd, signal = new AbortController().signal) {
 function task(overrides = {}) {
   return {
     task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
-    allowed_paths: ['src/Card.tsx', '.ui-results/unit.json', 'evidence/page.png'], forbidden_policy_paths: ['policy/baseline.json'],
+    allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
     approved_check_recipes: [{
       id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
       backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
+      write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
     }],
     capture_recipes: [{ id: 'capture', check_id: 'unit', artifacts: [{ path: 'evidence/page.png', type: 'screenshot' }] }],
     model_route: '@ui_code', repair_cycles: 0, outcome: 'unverified',

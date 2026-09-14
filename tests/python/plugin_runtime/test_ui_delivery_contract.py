@@ -105,6 +105,10 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
                 "backend": "sandbox-exec",
                 "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
                 "result_path": "artifacts/checkout-ui.result.json",
+                "write_paths": [
+                    "artifacts/checkout-ui.result.json",
+                    "artifacts/checkout.png",
+                ],
                 "artifacts": [{"path": "artifacts/checkout-ui.xml", "type": "junit"}],
             }
         ],
@@ -174,6 +178,7 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
         validator,
         {**task, "approved_check_recipes": ["npm run test:ui -- CheckoutCard"]},
     )
+    _assert_invalid(validator, {**task, "approved_check_recipes": [{key: value for key, value in task["approved_check_recipes"][0].items() if key != "write_paths"}]})
     _assert_invalid(validator, {key: value for key, value in task.items() if key != "capture_recipes"})
     _assert_invalid(validator, {key: value for key, value in task.items() if key != "evidence_refs"})
     _assert_invalid(validator, {**task, "approved_check_recipes": [{**task["approved_check_recipes"][0], "env": ["CI"]}]})
@@ -278,6 +283,10 @@ def test_task_state_requirements_follow_lifecycle_boundaries(repo_root: Path) ->
                 "id": "checkout-ui",
                 "argv": ["npm", "run", "test:ui"],
                 "cwd": "apps/web",
+                "write_paths": [
+                    "artifacts/checkout-ui.result.json",
+                    "artifacts/checkout.png",
+                ],
                 "timeout_ms": 1000,
                 "backend": "docker",
                 "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
@@ -355,6 +364,10 @@ def test_blocked_and_failed_tasks_can_terminate_before_a_candidate_exists(
                 "id": "checkout-ui",
                 "argv": ["npm", "run", "test:ui"],
                 "cwd": "apps/web",
+                "write_paths": [
+                    "artifacts/checkout-ui.result.json",
+                    "artifacts/checkout.png",
+                ],
                 "timeout_ms": 1000,
                 "backend": "docker",
                 "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef",
