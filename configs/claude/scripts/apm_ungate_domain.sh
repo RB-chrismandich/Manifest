@@ -129,7 +129,7 @@ if [[ ${#reclaim_list[@]} -eq 0 ]]; then
     echo "  before trusting this as clean."
 else
     echo "APM-deployed files to reclaim:"
-    printf '  %s\n' "${reclaim_list[@]}"
+    printf '  %s\n' ${reclaim_list[@]+"${reclaim_list[@]}"}
 fi
 echo ""
 
@@ -151,7 +151,7 @@ echo "Un-gated: '$DOMAIN' removed from $REGISTRY"
 # Paths in the lockfile are home-relative. Anything that escapes $HOME is
 # refused rather than followed — a corrupted lockfile must not drive rm -rf.
 reclaimed=0
-for rel in "${reclaim_list[@]}"; do
+for rel in ${reclaim_list[@]+"${reclaim_list[@]}"}; do
     case "$rel" in
         /* | *..*)
             err "refusing to reclaim suspicious path: $rel"
