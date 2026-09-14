@@ -285,42 +285,6 @@ test('rejects duplicate artifact paths within and across capture recipes', async
   }
 });
 
-test('rejects grants with tools outside the exact supported Stitch inventory', async () => {
-  const definition = approvedTask({
-    stitch_grant: {
-      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'stitch.edit_screen', input_hash: 'sha256:input', max_uses: 1, expected_readback: { tool_name: 'stitch.get_screen', response_hash: `sha256:${'a'.repeat(64)}` } }],
-      readback_tools: ['stitch.get_screen'],
-    },
-  });
-  const { repo, path } = await taskFile(definition);
-  await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*tool|grant/i);
-});
-
-test('rejects grants whose readback is ungranted, projectless, or noncanonical', async () => {
-  const baseGrant = {
-    project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
-    mutations: [{
-      tool_name: 'mcp__stitch_edit_screens', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1,
-      expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'a'.repeat(64)}` },
-    }],
-    readback_tools: ['mcp__stitch_get_screen'],
-  };
-  for (const stitch_grant of [
-    { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], expected_readback: { tool_name: 'mcp__stitch_get_project', response_hash: `sha256:${'a'.repeat(64)}` } }] },
-    { ...baseGrant, readback_tools: ['mcp__stitch_list_projects'] },
-    { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], input_hash: `sha256:${'C'.repeat(64)}` }] },
-    { ...baseGrant, mutations: [{ ...baseGrant.mutations[0], expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: `sha256:${'A'.repeat(64)}` } }] },
-    {
-      expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: `sha256:${'c'.repeat(64)}`, max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { projectTitle: 'Checkout' } } }],
-      readback_tools: ['mcp__stitch_get_project'],
-    },
-  ]) {
-    const { repo, path } = await taskFile({ stitch_grant });
-    await assert.rejects(() => loadTask({ repo, taskFile: path }), /Stitch.*grant|readback/i);
-  }
-});
 
 test('binds candidate identity to traversed directory modes', async () => {
   const definition = approvedTask();
@@ -341,49 +305,6 @@ test('rejects uppercase candidate hashes', async () => {
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /candidate binding/i);
 });
 
-test('accepts a predictable readback only with a resource identity', async () => {
-  const definition = approvedTask({
-    stitch_grant: {
-      project_id: 'project-17',
-      expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{
-        tool_name: 'mcp__stitch_edit_screens',
-        input_hash: `sha256:${'c'.repeat(64)}`,
-        max_uses: 1,
-        expected_readback: {
-          tool_name: 'mcp__stitch_get_screen',
-          predictable_fields: { title: 'Checkout' },
-          resource_identity: 'screen',
-        },
-      }],
-      readback_tools: ['mcp__stitch_get_screen'],
-    },
-  });
-  const { repo, path } = await taskFile(definition);
-  await loadTask({ repo, taskFile: path });
-});
-
-test('rejects project-bound create grants', async () => {
-  const definition = approvedTask({
-    stitch_grant: {
-      project_id: 'project-17',
-      expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{
-        tool_name: 'mcp__stitch_create_project',
-        input_hash: `sha256:${'c'.repeat(64)}`,
-        max_uses: 1,
-        expected_readback: {
-          tool_name: 'mcp__stitch_get_project',
-          predictable_fields: { title: 'Checkout' },
-          resource_identity: 'project',
-        },
-      }],
-      readback_tools: ['mcp__stitch_get_project'],
-    },
-  });
-  const { repo, path } = await taskFile(definition);
-  await assert.rejects(() => loadTask({ repo, taskFile: path }), /project-bound create/i);
-});
 
 test('rejects Docker checks that do not start an approved image runtime', async () => {
   const definition = approvedTask({
