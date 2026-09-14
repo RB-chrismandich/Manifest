@@ -119,6 +119,7 @@ function evidenceRecord(task: any, attemptId: string, attemptPhase: 'started' | 
 async function appendAttempt(repo: string, task: any, record: Record<string, unknown>): Promise<void> { await appendEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record }); }
 
 export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck } = {}): void {
+  if (typeof pi.on !== 'function') throw new Error('required tool_call and tool_result enforcement hooks are unavailable');
   const checkRunner = deps.runCheck ?? defaultRunCheck;
   let stitch: { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string } | undefined;
   pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) {
@@ -187,8 +188,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       throw error;
     }
   } });
-  const hookable = pi as unknown as { on?: (event: string, handler: (event: any) => Promise<unknown>) => void };
-  hookable.on?.('tool_call', async (event) => {
+  pi.on('tool_call', async (event) => {
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
       if (!stitch) throw new Error('Stitch tool call is not authorized');
@@ -202,7 +202,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
     }
   });
-  hookable.on?.('tool_result', async (event) => {
+  pi.on('tool_result', async (event) => {
     if (!stitch || typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
     if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');

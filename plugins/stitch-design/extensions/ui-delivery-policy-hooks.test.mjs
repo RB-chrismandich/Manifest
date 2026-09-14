@@ -6,10 +6,19 @@ import test from 'node:test';
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
 import { execute, extensionApi, fixture, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 
+test('fails package activation before registering tools when required enforcement hooks are unavailable', () => {
+  const { api, tools, handlers } = extensionApi({ hooks: false });
+
+  assert.throws(() => uiDeliveryPolicy(api), /tool_call.*tool_result|tool_result.*tool_call|enforcement hooks/i);
+  assert.deepEqual(tools, []);
+  assert.deepEqual([...handlers.keys()], []);
+});
+
 test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__stitch_ one-shot mutation/readback flow', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definition = taskWithStitchGrant(input);
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  assert.deepEqual([...handlers.keys()].sort(), ['tool_call', 'tool_result']);
   const { repo } = await fixture(definition);
   const hook = handlers.get('tool_call');
   assert.equal(await hook({ toolName: 'read', input: { path: 'x' }, toolCallId: 'native-1' }), undefined);

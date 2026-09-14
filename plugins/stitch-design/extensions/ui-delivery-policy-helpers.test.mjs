@@ -7,21 +7,19 @@ import { registerUiDeliveryPolicy } from './ui-delivery-policy.ts';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 import { candidateHash as calculateCandidateHash } from '../runtime/ui-delivery/task.ts';
 
-export function extensionApi() {
+export function extensionApi({ hooks = true } = {}) {
   const tools = []; const handlers = new Map();
   const schema = { strict: () => schema, optional: () => schema };
-  return {
-    tools, handlers,
-    api: {
-      zod: { object: () => schema, string: () => schema },
-      registerTool: (tool) => tools.push(tool),
-      on: (event, handler) => handlers.set(event, handler),
-      getAllTools: () => [
-        { name: 'mcp__stitch_get_screen', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: { type: 'object' } },
-        { name: 'mcp__stitch_generate_screen_from_text', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: { type: 'object' } },
-      ],
-    },
+  const api = {
+    zod: { object: () => schema, string: () => schema },
+    registerTool: (tool) => tools.push(tool),
+    getAllTools: () => [
+      { name: 'mcp__stitch_get_screen', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: { type: 'object' } },
+      { name: 'mcp__stitch_generate_screen_from_text', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: { type: 'object' } },
+    ],
   };
+  if (hooks) api.on = (event, handler) => handlers.set(event, handler);
+  return { tools, handlers, api };
 }
 
 export function execute(tool, args, cwd, signal = new AbortController().signal) {
