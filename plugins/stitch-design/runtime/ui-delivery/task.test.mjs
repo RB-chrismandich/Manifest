@@ -148,7 +148,15 @@ test('requires renewed reviewer authorization after coordinator transitions a ca
     if (previous === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
     else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = previous;
   }
+
   await withApproval(reviewer, () => loadTask({ repo, taskFile: path, operation: 'capture' }));
+});
+test('requires a build check distinct from capture-only checks', async () => {
+  const definition = approvedTask({
+    state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
+  });
+  const { repo, path } = await taskFile(definition);
+  await withApproval(definition, () => assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'check' }), /build|capture/i));
 });
 
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {

@@ -417,6 +417,41 @@ test('status cannot reuse evidence whose authorization digest predates an otherw
   assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
 });
 
+test('status requires builder checks only for unreferenced recipes and reviewer capture for capture-only recipes', async () => {
+  const captureCheck = task().approved_check_recipes[0];
+  const definition = task({
+    state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
+    approved_check_recipes: [captureCheck, { ...captureCheck, id: 'build', result_path: '.ui-results/build.json', write_paths: ['.ui-results/build.json'] }],
+  });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+  const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+  await appendAttempt(evidenceFile, definition, { attemptId: 'build-1', operation: 'ui_run_check', checkId: 'build', outcome: 'verified' });
+  await appendCaptureEvidence(evidenceFile, definition, repo);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+});
+
+test('rejects ui_run_check for a capture-only recipe before invoking the runner', async () => {
+  const captureCheck = task().approved_check_recipes[0];
+  const definition = task({
+    state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'0'.repeat(64)}`,
+    approved_check_recipes: [captureCheck, { ...captureCheck, id: 'build', result_path: '.ui-results/build.json', write_paths: ['.ui-results/build.json'] }],
+  });
+  const { api, tools } = extensionApi(); let calls = 0;
+  policyWithCheckRunner(api, async () => {
+    calls += 1;
+    await writeFile(join(repo, '.ui-results/unit.json'), JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }));
+    return success();
+  });
+  const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_run_check'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json', checkId: 'unit',
+  }, repo), /capture|review/i));
+  assert.equal(calls, 0);
+});
+
 test('status requires current regular capture artifacts with exact complete hashes', async () => {
   for (const scenario of ['missing', 'replaced', 'symlinked', 'wrong hash', 'incomplete']) {
     const definition = task({
