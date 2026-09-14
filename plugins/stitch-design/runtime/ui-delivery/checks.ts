@@ -12,6 +12,43 @@ const PROTECTED = ['.git', '.omp', 'secrets'];
 function under(root: string, path: string): boolean { const rel = relative(root, path); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..'); }
 function protectedPath(root: string, path: string, forbidden: string[]): boolean { const rel = relative(root, path); return rel === '' || [...PROTECTED, ...forbidden].some((item) => rel === item || rel.startsWith(`${item}${sep}`) || item.startsWith(`${rel}${sep}`)); }
 function output(text: string, limit: number, hash?: string, bytes?: number, truncated?: boolean) { const source = Buffer.from(text); const actual = bytes ?? source.length; return { text: source.subarray(0, limit).toString(), bytes: actual, truncated: truncated ?? actual > limit, hash: hash ?? `sha256:${createHash('sha256').update(source).digest('hex')}` }; }
+
+const VERIFIER_ENVELOPE_LIMIT = 4 * 1024 * 1024;
+type VerifierEnvelope = { schema: 'ui-delivery-verifier-output-v1'; result: Record<string, unknown>; artifacts: Array<{ path: string; encoding: 'base64'; data: string }> };
+function safeDockerMountPath(path: string): void {
+  if (!path || /[,\r\n=]/.test(path)) throw new Error('unsafe Docker mount path');
+}
+function verifierEnvelope(stdout: string, writePaths: string[], resultPath: string): VerifierEnvelope {
+  if (Buffer.byteLength(stdout) > VERIFIER_ENVELOPE_LIMIT) throw new Error('verifier output exceeds protocol limit');
+  const lines = stdout.split('\n').filter(Boolean);
+  if (lines.length !== 1) throw new Error('verifier output must be one envelope');
+  let value: unknown;
+  try { value = JSON.parse(lines[0]); } catch { throw new Error('verifier output is malformed'); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('verifier output is malformed');
+  const envelope = value as Partial<VerifierEnvelope>;
+  if (envelope.schema !== 'ui-delivery-verifier-output-v1' || !envelope.result || typeof envelope.result !== 'object' || Array.isArray(envelope.result) || !Array.isArray(envelope.artifacts) || !writePaths.includes(resultPath)) throw new Error('verifier output is malformed');
+  const seen = new Set<string>([resultPath]);
+  let artifactBytes = 0;
+  for (const artifact of envelope.artifacts) {
+    if (!artifact || typeof artifact !== 'object' || typeof artifact.path !== 'string' || typeof artifact.data !== 'string' || artifact.encoding !== 'base64' || !writePaths.includes(artifact.path) || seen.has(artifact.path)) throw new Error('verifier artifact is malformed');
+    const bytes = Buffer.from(artifact.data, 'base64');
+    if (bytes.toString('base64') !== artifact.data) throw new Error('verifier artifact is malformed');
+    artifactBytes += bytes.length;
+    if (artifactBytes > VERIFIER_ENVELOPE_LIMIT) throw new Error('verifier artifacts exceed protocol limit');
+    seen.add(artifact.path);
+  }
+  return envelope as VerifierEnvelope;
+}
+async function persistVerifierOutputs(root: string, envelope: VerifierEnvelope, outputs: Map<string, string>, resultPath: string): Promise<void> {
+  const result = outputs.get(resultPath);
+  if (!result) throw new Error('verifier result path is unavailable');
+  await writeFile(result, `${JSON.stringify(envelope.result)}\n`, { mode: 0o600, flag: 'w' });
+  for (const artifact of envelope.artifacts) {
+    const target = outputs.get(artifact.path);
+    if (!target) throw new Error('verifier artifact path is unavailable');
+    await writeFile(target, Buffer.from(artifact.data, 'base64'), { mode: 0o600, flag: 'w' });
+  }
+}
 async function approvedExecutable(argv: string[]): Promise<{ executable: string; runtime: string; extras: { executable: string; runtime: string }[] }> {
   const requested = argv[0];
   const candidates = requested.startsWith('/') ? [requested] : ['/usr/bin', '/bin', '/opt/homebrew/bin', '/usr/local/bin'].map((root) => join(root, requested));
@@ -87,36 +124,65 @@ async function executeDirect(command: Command, outputLimitBytes: number, signal?
 }
 
 export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir() }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string }): Promise<CheckResult> {
-  if (signal?.aborted) throw new Error('check aborted'); if (command !== undefined) throw new Error('raw commands are not accepted');
-  const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
-  if (!recipe) throw new Error('unknown approved check'); if (!Array.isArray(recipe.write_paths) || recipe.write_paths.length === 0) throw new Error('check requires declared output paths'); if (!backends[recipe.backend]) throw new Error('selected sandbox backend unavailable');
-  const lexicalRepo = resolve(repo); const root = await realpath(repo); const cwd = resolve(root, recipe.cwd); if (!under(root, cwd)) throw new Error('check cwd escapes repository');
+  if (signal?.aborted) throw new Error('check aborted');
+  if (command !== undefined) throw new Error('raw commands are not accepted');
+  const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; result_path: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
+  if (!recipe) throw new Error('unknown approved check');
+  if (!Array.isArray(recipe.write_paths) || recipe.write_paths.length === 0 || typeof recipe.result_path !== 'string') throw new Error('check requires declared output paths');
+  if (!backends[recipe.backend]) throw new Error('selected sandbox backend unavailable');
+  const lexicalRepo = resolve(repo);
+  const root = await realpath(repo);
+  const cwd = resolve(root, recipe.cwd);
+  if (!under(root, cwd)) throw new Error('check cwd escapes repository');
   const verifier = await trustedVerifier(root, task.allowed_paths, recipe);
   const runtime = recipe.backend === 'sandbox-exec' ? await approvedExecutable(recipe.argv) : undefined;
   const invokedArgv = runtime ? [runtime.executable, ...recipe.argv.slice(1).map((argument) => argument.startsWith('/') && under(lexicalRepo, argument) ? join(root, relative(lexicalRepo, argument)) : argument)] : recipe.argv;
-  const writable: string[] = [];
-  for (const value of recipe.write_paths ?? []) { const lexical = resolve(root, value); if (!under(root, lexical) || protectedPath(root, lexical, task.forbidden_policy_paths ?? [])) throw new Error('writable protected path'); writable.push(await provisionOutput(root, lexical)); }
+  const outputs = new Map<string, string>();
+  for (const value of recipe.write_paths) {
+    const lexical = resolve(root, value);
+    if (!under(root, lexical) || protectedPath(root, lexical, task.forbidden_policy_paths ?? [])) throw new Error('writable protected path');
+    outputs.set(value, await provisionOutput(root, lexical));
+  }
   const protectedPaths = [...new Set(['.git', '.omp', 'secrets', ...(task.forbidden_policy_paths ?? [])])];
   const scratch = await realpath(await mkdtemp(join(scratchRoot, 'ui-delivery-check-')));
   try {
     const masks: Mount[] = [];
     if (recipe.backend === 'docker') for (const [index, forbidden] of protectedPaths.entries()) {
-      const target = resolve(root, forbidden); if (!under(root, target)) throw new Error('forbidden path escapes repository');
+      const target = resolve(root, forbidden);
+      if (!under(root, target)) throw new Error('forbidden path escapes repository');
       const source = join(scratch, 'masks', String(index));
-      try { const targetStat = await lstat(target); if (targetStat.isSymbolicLink() || (!targetStat.isDirectory() && !targetStat.isFile())) throw new Error('protected Docker path is unsafe'); if (targetStat.isDirectory()) await mkdir(source, { recursive: true, mode: 0o700 }); else { await mkdir(dirname(source), { recursive: true, mode: 0o700 }); await writeFile(source, '', { mode: 0o600, flag: 'wx' }); } }
-      catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
+      try {
+        const targetStat = await lstat(target);
+        if (targetStat.isSymbolicLink() || (!targetStat.isDirectory() && !targetStat.isFile())) throw new Error('protected Docker path is unsafe');
+        if (targetStat.isDirectory()) await mkdir(source, { recursive: true, mode: 0o700 });
+        else { await mkdir(dirname(source), { recursive: true, mode: 0o700 }); await writeFile(source, '', { mode: 0o600, flag: 'wx' }); }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+        throw error;
+      }
       masks.push({ source, target: join('/repo', relative(root, target)), readOnly: true });
     }
-    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), ...masks, { source: verifier.root, target: join('/repo', relative(root, verifier.root)), readOnly: true }, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
+    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...masks, { source: verifier.root, target: join('/repo', relative(root, verifier.root)), readOnly: true }, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
+    if (recipe.backend === 'docker') for (const mount of mounts) { safeDockerMountPath(mount.source); safeDockerMountPath(mount.target); }
     const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
-    const dockerUid = recipe.backend === 'docker' ? process.getuid?.() : undefined; const dockerGid = recipe.backend === 'docker' ? process.getgid?.() : undefined;
+    const dockerUid = recipe.backend === 'docker' ? process.getuid?.() : undefined;
+    const dockerGid = recipe.backend === 'docker' ? process.getgid?.() : undefined;
     if (recipe.backend === 'docker' && (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! < 0 || dockerGid! < 0)) throw new Error('Docker requires POSIX user IDs');
     const deniedReads = protectedPaths.map((path, index) => ['-D', `DENY_${index}=${resolve(root, path)}`] as string[]).flat();
     const extraParameters = runtime ? runtime.extras.flatMap((entry, index) => ['-D', `EXTRA_EXEC_${index}=${entry.executable}`, '-D', `EXTRA_RUNTIME_${index}=${entry.runtime}`]) : [];
-    const spec: Command = recipe.backend === 'sandbox-exec' ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...deniedReads, ...writable.flatMap((path, index) => ['-D', `WRITE_${index}=${path}`]), '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${protectedPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH")) ${writable.map((_, index) => `(subpath (param "WRITE_${index}"))`).join(' ')} ) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts } : (() => { if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned'); return { executable: 'docker', argv: ['run', '--rm', '--name', containerName, '--user', `${dockerUid}:${dockerGid}`, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', '--env', 'HOME=/tmp/ui-delivery', '--env', 'TMPDIR=/tmp/ui-delivery', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName }; })();
-    let execution: Execution;
-    if (executor) execution = await Promise.race([executor(spec), new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error('check timed out')), spec.timeoutMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('check aborted')); }, { once: true }); })]); else execution = await executeDirect(spec, outputLimitBytes, signal);
+    const spec: Command = recipe.backend === 'sandbox-exec'
+      ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...deniedReads, '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${protectedPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH"))) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts }
+      : (() => {
+        if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned');
+        return { executable: 'docker', argv: ['run', '--rm', '--name', containerName, '--user', `${dockerUid}:${dockerGid}`, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', '--env', 'HOME=/tmp/ui-delivery', '--env', 'TMPDIR=/tmp/ui-delivery', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...recipe.argv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName };
+      })();
+    const execution = executor
+      ? await Promise.race([executor(spec), new Promise<never>((_, reject) => { const timer = setTimeout(() => reject(new Error('check timed out')), spec.timeoutMs); signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('check aborted')); }, { once: true }); })])
+      : await executeDirect(spec, Math.max(outputLimitBytes, VERIFIER_ENVELOPE_LIMIT), signal);
+    if (execution.exitCode === 0) await persistVerifierOutputs(root, verifierEnvelope(execution.stdout, recipe.write_paths, recipe.result_path), outputs, recipe.result_path);
     return { argv: recipe.argv, exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };
-  } finally { await rm(scratch, { recursive: true, force: true }); }
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
 }

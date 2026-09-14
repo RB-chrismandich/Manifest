@@ -61,6 +61,22 @@ test('status invalidates historical check success after the latest rerun is unfi
   assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
 });
 
+test('status fails closed when any nonempty evidence line is malformed', async () => {
+  const definition = task({
+    state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
+  });
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition); await bindCandidate(repo, definition);
+  const evidenceFile = join(repo, '.omp/ui-delivery/evidence/task-17.jsonl');
+  await appendAttempt(evidenceFile, definition, { attemptId: 'unit-1', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified' });
+  await appendCaptureEvidence(evidenceFile, definition, repo);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+  await appendFile(evidenceFile, '{malformed\n');
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+});
+
 test('status cannot let an older concurrent completion override a later-started failed attempt', async () => {
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',

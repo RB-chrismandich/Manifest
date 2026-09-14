@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readdir, realpath, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -20,7 +20,11 @@ function task(overrides = {}) {
   return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
 }
 
-function executor(calls, stdout = 'x'.repeat(64)) {
+function verifierOutput({ result = { schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 }, artifacts = [] } = {}) {
+  return `${JSON.stringify({ schema: 'ui-delivery-verifier-output-v1', result, artifacts })}\n`;
+}
+const mockBackends = { 'sandbox-exec': true, docker: true };
+function executor(calls, stdout = verifierOutput()) {
   return async (command) => {
     calls.push(command);
     return { exitCode: 0, stdout, stderr: 'stderr' };
@@ -44,7 +48,7 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   const calls = [];
   const result = await runCheck({
     repo, task: task(), checkId: 'unit', environment: { HOME: '/ambient', TOKEN: 'secret', CI: '1' },
-    executor: executor(calls),
+    executor: executor(calls), backends: mockBackends,
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executable, 'sandbox-exec');
@@ -56,7 +60,7 @@ test('runs a file-allowlisted check from the read-only repository cwd with fixed
   assert.equal(calls[0].env.TOKEN, undefined);
   assert.notEqual(calls[0].env.HOME, '/ambient');
   assert.equal(calls[0].env.HOME, calls[0].env.TMPDIR);
-  assert.ok(calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, '.ui-results/unit.json') && !mount.readOnly));
+  assert.ok(!calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, '.ui-results/unit.json') && !mount.readOnly));
   assert.ok(!calls[0].mounts.some((mount) => mount.source === join(canonicalRepo, 'src/Card.tsx') && !mount.readOnly));
   assert.deepEqual(result.argv, recipe.argv);
 });
@@ -67,7 +71,7 @@ test('parameterizes SBPL paths and permits required runtime and system reads wit
   await mkdir(join(repo, crafted), { recursive: true });
   const calls = [];
   await runCheck({
-    repo, task: task({ allowed_paths: [crafted] }), checkId: 'unit', executor: executor(calls),
+    repo, task: task({ allowed_paths: [crafted] }), checkId: 'unit', executor: executor(calls), backends: mockBackends,
   });
   const [command] = calls;
   assert.ok(command.argv.includes('-D'));
@@ -92,9 +96,10 @@ test('rejects raw command input, unknown recipes, symlinked writes, and writable
       task: task({ approved_check_recipes: [{ ...recipe, write_paths: writePaths }] }),
       checkId: 'unit',
       executor: executor([]),
+      backends: mockBackends,
     }));
   }
-  await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]) }));
+  await assert.rejects(() => runCheck({ repo, task: task(), checkId: 'unit', command: 'node --test; touch owned', executor: executor([]), backends: mockBackends }));
 });
 
 test('rejects a candidate executable even when its recipe claims a trusted verifier', async () => {
@@ -106,6 +111,7 @@ test('rejects a candidate executable even when its recipe claims a trusted verif
       task: task({ approved_check_recipes: [{ ...recipe, argv: ['node', 'src/Card.tsx'] }] }),
       checkId: 'unit',
       executor: executor(calls),
+      backends: mockBackends,
     }),
     /trusted verifier/,
   );
@@ -121,6 +127,7 @@ test('rejects a candidate entrypoint placed before the trusted verifier', async 
       task: task({ approved_check_recipes: [{ ...recipe, argv: ['node', 'src/Card.tsx', verifier.path] }] }),
       checkId: 'unit',
       executor: executor(calls),
+      backends: mockBackends,
     }),
     /trusted verifier/,
   );
@@ -132,7 +139,7 @@ test('rejects verifier bytes that differ from its approved digest', async () => 
   await writeFile(join(repo, verifier.path), 'tampered verifier\n');
   const calls = [];
   await assert.rejects(
-    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls) }),
+    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends }),
     /trusted verifier digest/,
   );
   assert.equal(calls.length, 0);
@@ -193,11 +200,11 @@ test('terminates the workload and removes scratch on timeout or abort before ret
   const calls = [];
   controller.abort();
   await assert.rejects(() => runCheck({
-    repo, task: task(), checkId: 'unit', signal: controller.signal, scratchRoot, executor: executor(calls),
+    repo, task: task(), checkId: 'unit', signal: controller.signal, scratchRoot, executor: executor(calls), backends: mockBackends,
   }));
   assert.equal(calls.length, 0);
   await assert.rejects(() => runCheck({
-    repo, task: task({ approved_check_recipes: [{ ...recipe, timeout_ms: 1 }] }), checkId: 'unit', scratchRoot,
+    repo, task: task({ approved_check_recipes: [{ ...recipe, timeout_ms: 1 }] }), checkId: 'unit', scratchRoot, backends: mockBackends,
     executor: async (command) => {
       calls.push(command);
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -205,4 +212,28 @@ test('terminates the workload and removes scratch on timeout or abort before ret
     },
   }));
   assert.deepEqual(await readdir(scratchRoot), []);
+});
+
+test('writes verifier-declared results only after the sandbox exits without mounting outputs', async () => {
+  const repo = await fixture();
+  const calls = [];
+  await runCheck({ repo, task: task(), checkId: 'unit', executor: executor(calls), backends: mockBackends });
+  assert.deepEqual(JSON.parse(await readFile(join(repo, '.ui-results/unit.json'), 'utf8')), {
+    schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0,
+  });
+  assert.equal(calls[0].mounts.some((mount) => !mount.readOnly && mount.target.startsWith('/repo/.ui-results')), false);
+});
+
+test('keeps comma-bearing declared outputs out of Docker mount options', async () => {
+  const repo = await fixture();
+  const calls = [];
+  const resultPath = '.ui-results/unit,ro=false.json';
+  await runCheck({
+    repo,
+    task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', result_path: resultPath, write_paths: [resultPath] }] }),
+    checkId: 'unit',
+    executor: executor(calls),
+    backends: mockBackends,
+  });
+  assert.equal(calls[0].argv.filter((argument) => argument.includes(resultPath)).length, 0);
 });

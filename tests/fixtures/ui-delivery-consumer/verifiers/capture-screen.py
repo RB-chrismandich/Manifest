@@ -1,32 +1,38 @@
+import base64
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-chrome_path, target_path, png_path, result_path = sys.argv[1:]
+chrome_path, target_path = sys.argv[1:]
 target = Path(target_path).resolve()
-png = Path(png_path).resolve()
-result = Path(result_path).resolve()
+png = Path("/tmp/ui-delivery/screen.png")
 profile = Path("/tmp/ui-delivery/chrome-profile")
 crash_dumps = Path("/tmp/ui-delivery/crash-dumps")
 
 
 def emit(passed):
-    result.write_text(
-        json.dumps(
+    envelope = {
+        "schema": "ui-delivery-verifier-output-v1",
+        "result": {
+            "schema": "ui-delivery-check-v1",
+            "required": 1,
+            "passed": 1 if passed else 0,
+            "failed": 0 if passed else 1,
+            "skipped": 0,
+        },
+        "artifacts": [],
+    }
+    if passed:
+        envelope["artifacts"].append(
             {
-                "schema": "ui-delivery-check-v1",
-                "required": 1,
-                "passed": 1 if passed else 0,
-                "failed": 0 if passed else 1,
-                "skipped": 0,
+                "path": ".ui-results/screen.png",
+                "encoding": "base64",
+                "data": base64.b64encode(png.read_bytes()).decode("ascii"),
             }
         )
-        + "\n",
-        encoding="utf-8",
-    )
-
+    sys.stdout.write(json.dumps(envelope) + "\n")
 
 def diagnostic(value):
     text = re.sub(r"file://\S+", "[approved local target]", value)

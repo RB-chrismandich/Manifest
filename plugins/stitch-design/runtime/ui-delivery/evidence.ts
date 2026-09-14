@@ -30,8 +30,7 @@ export async function appendEvidence({ repo, evidenceFile, record }: { repo: str
 
 export type StitchMutationState = {
   authorizationDigest: string;
-  lifecycle: 'ready' | 'mutation_unknown' | 'reconciled';
-  used: boolean;
+  entries: Record<string, 'pending' | 'consumed' | 'reconciled'>;
   projectId?: string;
   version: number;
 };
@@ -47,7 +46,17 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
     const stat = await lstat(target);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Stitch state file is unsafe');
     const state = JSON.parse(await readFile(target, 'utf8')) as StitchMutationState;
-    if (state.authorizationDigest !== authorizationDigest || !['ready', 'mutation_unknown', 'reconciled'].includes(state.lifecycle) || typeof state.used !== 'boolean' || !Number.isInteger(state.version) || state.version < 0 || (state.projectId !== undefined && (typeof state.projectId !== 'string' || !state.projectId))) return undefined;
+    if (
+      state.authorizationDigest !== authorizationDigest
+      || !state.entries
+      || typeof state.entries !== 'object'
+      || Array.isArray(state.entries)
+      || Object.getPrototypeOf(state.entries) !== Object.prototype
+      || Object.entries(state.entries).some(([key, value]) => !key || !['pending', 'consumed', 'reconciled'].includes(value))
+      || !Number.isInteger(state.version)
+      || state.version < 0
+      || (state.projectId !== undefined && (typeof state.projectId !== 'string' || !state.projectId))
+    ) return undefined;
     return state;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
@@ -64,7 +73,9 @@ export async function updateStitchMutationState({ repo, taskId, authorizationDig
     const current = await loadStitchMutationState({ repo, taskId, authorizationDigest });
     const version = current?.version ?? 0;
     if (version !== expectedVersion) throw new Error('Stitch mutation state changed concurrently');
-    const next: StitchMutationState = { authorizationDigest, lifecycle: state.lifecycle, used: state.used, ...(state.projectId ? { projectId: state.projectId } : {}), version: version + 1 };
+    const entries = state.entries;
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries) || Object.getPrototypeOf(entries) !== Object.prototype || Object.entries(entries).some(([key, value]) => !key || !['pending', 'consumed', 'reconciled'].includes(value))) throw new Error('Stitch state entries are invalid');
+    const next: StitchMutationState = { authorizationDigest, entries, ...(state.projectId ? { projectId: state.projectId } : {}), version: version + 1 };
     const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`);
     await writeFile(temporary, JSON.stringify(next), { mode: 0o600, flag: 'wx' });
     await rename(temporary, target);

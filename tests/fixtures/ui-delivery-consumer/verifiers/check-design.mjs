@@ -1,14 +1,18 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const [contractPath, targetPath, resultPath] = process.argv.slice(2);
-if (![contractPath, targetPath, resultPath].every(Boolean)) throw new Error('usage: check-design.mjs CONTRACT TARGET RESULT');
+const [contractPath, targetPath] = process.argv.slice(2);
+if (![contractPath, targetPath].every(Boolean)) throw new Error('usage: check-design.mjs CONTRACT TARGET');
 
 const exactText = (source, tag, expected) => new RegExp(`<${tag}\\b[^>]*>\\s*${expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*</${tag}>`, 'i').test(source);
 const classPresent = (source, expected) => new RegExp(`class=["'][^"']*\\b${expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^"']*["']`, 'i').test(source);
-const failure = async () => {
-  await writeFile(resolve(resultPath), `${JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 0, failed: 1, skipped: 0 })}\n`, 'utf8');
-  process.exitCode = 1;
+const emit = (passed) => {
+  process.stdout.write(`${JSON.stringify({
+    schema: 'ui-delivery-verifier-output-v1',
+    result: { schema: 'ui-delivery-check-v1', required: 1, passed: passed ? 1 : 0, failed: passed ? 0 : 1, skipped: 0 },
+    artifacts: [],
+  })}\n`);
+  if (!passed) process.exitCode = 1;
 };
 
 try {
@@ -24,8 +28,8 @@ try {
     source.includes(requirements.summary) &&
     classPresent(source, requirements.layout_class) &&
     normalized.includes(requirements.layout_css.toLowerCase());
-  if (!passed) await failure();
-  else await writeFile(resolve(resultPath), `${JSON.stringify({ schema: 'ui-delivery-check-v1', required: 1, passed: 1, failed: 0, skipped: 0 })}\n`, 'utf8');
+  if (!passed) emit(false);
+  else emit(true);
 } catch {
-  await failure();
+  emit(false);
 }

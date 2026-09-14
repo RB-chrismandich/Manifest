@@ -59,12 +59,12 @@ for (const definition of cases) {
     approved_check_recipes: [
       {
         id: 'design-contract',
-        argv: [process.execPath, join(repo, checkVerifier), join(repo, 'contracts', definition.contract), join(repo, definition.target), join(repo, checkResult)],
+        argv: [process.execPath, join(repo, checkVerifier), join(repo, 'contracts', definition.contract), join(repo, definition.target)],
         cwd: '.', timeout_ms: 30000, backend: 'sandbox-exec', result_path: checkResult, write_paths: [checkResult], trusted_verifier: designVerifier,
       },
       {
         id: 'capture-screen',
-        argv: ['/home/cptr/.venv/bin/python3', `/repo/${captureVerifier}`, '/usr/bin/chromium', `/repo/${definition.target}`, `/repo/${capturePng}`, `/repo/${captureResult}`],
+        argv: ['/home/cptr/.venv/bin/python3', `/repo/${captureVerifier}`, '/usr/bin/chromium', `/repo/${definition.target}`],
         cwd: '.', timeout_ms: 30000, backend: 'docker', sandbox_image: 'ghcr.io/open-webui/computer@sha256:bbcf59b541dba201ca91084a1f7857ca617b94aa0f770b0fd2dd279e2e56a7ce', result_path: captureResult, write_paths: [capturePng, captureResult], trusted_verifier: captureTrustedVerifier,
       },
     ],
