@@ -96,6 +96,7 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
   validate(task);
   await assertNoPendingPatchJournal(await realpath(repo), task.task_id);
   if (mutation || operation) {
+    if (operation === 'patch') {
       if (task.model_route !== '@ui_code') invalid('patch requires @ui_code model route');
       if (task.state !== 'approved' && task.state !== 'repairing') invalid('patch requires approved or renewed repairing lifecycle state');
     } else if (operation === 'check') {

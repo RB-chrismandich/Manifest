@@ -71,9 +71,15 @@ the trusted coordinator approve a manifest containing:
   `.omp/ui-delivery/verifiers/` path and exact `sha256:` digest; and
 - capture recipes naming every evidence artifact.
 
-Checks cannot receive a raw command. Their outputs must not overlap candidate
-paths, `.git`, `.omp`, `secrets`, or a forbidden policy path. Docker recipes
-also require a digest-pinned image.
+Checks cannot receive a raw command. Candidate code and verifier subprocesses receive
+the repository read-only and no declared result or artifact output path. A verifier
+must emit exactly one bounded `ui-delivery-verifier-output-v1` JSON object on stdout:
+its `result` is written by the host to `result_path`, and each base64 `artifacts`
+entry names a unique declared non-result `write_paths` path. The host validates the
+envelope only after the subprocess exits successfully, then writes those outputs.
+Outputs must not overlap candidate paths, `.git`, `.omp`, `secrets`, or a forbidden
+policy path. Docker recipes also require a digest-pinned image; mount source and
+target paths reject mount-option delimiters.
 
 The coordinator computes the canonical authorization digest over the approved
 policy projection (`task_id`, design revision, path rules, checks, captures,
@@ -98,6 +104,10 @@ and requires fresh coordinator authorization.
    only `.omp/ui-delivery` protected state and declared check outputs are
    excluded. It may run named build checks only. A check referenced by a capture
    recipe is capture-only and `ui_run_check` rejects it.
+   Before the worktree changes, the runtime atomically records a protected
+   pending patch journal. A later failure rolls back both patch and task when
+   possible; otherwise the journal remains and blocks status and replay until a
+   trusted recovery resolves the uncertainty.
 4. The trusted coordinator confirms the current candidate hash and the latest
    builder-check attempts under the builder digest. It then atomically changes
    the exact task to `reviewing` with `model_route: "@ui_review"`, computes the

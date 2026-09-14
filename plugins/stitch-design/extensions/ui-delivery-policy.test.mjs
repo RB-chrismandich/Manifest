@@ -50,6 +50,16 @@ test('fails closed on every unparseable, alternate, destructive, or symlink diff
   });
 });
 
+test('rejects Git-quoted paths with spaces before patch mutation', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git "a/src/Card View.tsx" "b/src/Card View.tsx"\n--- "a/src/Card View.tsx"\n+++ "b/src/Card View.tsx"\n@@ -0,0 +1 @@\n+x\n',
+  }, repo), /unsafe|unparseable|path/i));
+});
+
 test('applies a same-path regular diff with standard index metadata', async () => {
   const definition = task();
   const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
@@ -160,6 +170,22 @@ test('rejects an unsafe evidence directory before updating the candidate task', 
   const persisted = JSON.parse(await readFile(join(repo, '.omp/ui-delivery/tasks/task.json'), 'utf8'));
   assert.equal(persisted.state, 'approved');
   assert.equal(persisted.candidate_hash, undefined);
+});
+
+test('fails closed on a durable pending patch journal', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await writeFile(join(repo, '.omp/ui-delivery/evidence/task-17.patch-pending.json'), '{"state":"pending"}');
+  await withApproval(definition, async () => {
+    for (const toolName of ['ui_delivery_status', 'ui_apply_patch']) {
+      const args = toolName === 'ui_delivery_status'
+        ? { taskFile: '.omp/ui-delivery/tasks/task.json' }
+        : { taskFile: '.omp/ui-delivery/tasks/task.json', patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n' };
+      await assert.rejects(() => execute(tools.find((entry) => entry.name === toolName), args, repo), /recovery|pending/i);
+    }
+  });
+  assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 1;\n');
 });
 
 test('patch atomically binds the candidate, preserves authorization, records evidence, and enables its check', async () => {
