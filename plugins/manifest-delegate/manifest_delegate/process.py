@@ -244,7 +244,7 @@ def _read_bounded_file(path, cap, job_dir):
         return "", True
 
 
-def _launch_backend(argv, transport, job_dir):
+def _launch_backend(argv, transport, job_dir, before_popen=None):
     """Popen the backend with its own session (setsid) holding a lifetime flock.
     The lock fd is opened in the parent and passed via pass_fds (so close_fds
     does not close it); preexec flocks it in the child. Returns (proc, pgid)."""
@@ -258,6 +258,9 @@ def _launch_backend(argv, transport, job_dir):
         os.path.join(job_dir, BACKEND_LOCK_FILENAME), os.O_CREAT | os.O_RDWR, 0o600
     )
     fcntl.flock(lock_fd, fcntl.LOCK_EX)
+    if before_popen is not None and not before_popen():
+        os.close(lock_fd)
+        return None, None
     try:
         proc = subprocess.Popen(
             argv,
@@ -377,12 +380,16 @@ def _collect_capture(entry, capture, proc, pgid, job_dir, stdout_path, timed_out
     return proc.returncode, combined, stderr, pgid, timed_out, session_ref, truncated
 
 
-def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
+def _spawn_backend(
+    entry, argv, prompt_bytes, job_dir, budget, on_pgid=None, before_popen=None
+):
     stdout_path = os.path.join(job_dir, "output.txt")
     _replace_owned_output(stdout_path, job_dir)
     _log_backend_invocation(entry, argv, prompt_bytes, job_dir)
     transport = (entry.get("input") or {}).get("transport", "stdin")
-    proc, pgid = _launch_backend(argv, transport, job_dir)
+    proc, pgid = _launch_backend(argv, transport, job_dir, before_popen=before_popen)
+    if proc is None:
+        return 1, "", None, False, None
     if on_pgid:
         on_pgid(pgid)
     capture = _start_capture(proc, transport, prompt_bytes)
