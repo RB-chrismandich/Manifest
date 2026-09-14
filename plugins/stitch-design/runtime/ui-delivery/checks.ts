@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { access, chmod, constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, unlink, writeFile } from 'node:fs/promises';
+import { chmod, constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 export type CheckResult = { argv: string[]; exitCode: number; stdout: { text: string; bytes: number; truncated: boolean; hash: string }; stderr: { text: string; bytes: number; truncated: boolean; hash: string } };
 type Mount = { source: string; target: string; readOnly: boolean };
@@ -50,30 +50,9 @@ async function persistVerifierOutputs(root: string, envelope: VerifierEnvelope, 
     await writeFile(target, Buffer.from(artifact.data, 'base64'), { mode: 0o600, flag: 'w' });
   }
 }
-const APPROVED_RUNTIME_BASENAMES: Record<string, true> = { node: true };
 const APPROVED_DOCKER_RUNTIME_BASENAMES: Record<string, true> = { node: true, python3: true };
 function approvedDockerRuntime(argv: string[]): void {
   if (!APPROVED_DOCKER_RUNTIME_BASENAMES[argv[0]]) throw new Error('approved Docker runtime is unavailable');
-}
-async function approvedExecutable(root: string, argv: string[]): Promise<{ executable: string; runtime: string; extras: { executable: string; runtime: string }[] }> {
-  const requested = argv[0];
-  if (!APPROVED_RUNTIME_BASENAMES[requested]) throw new Error('approved executable is unavailable');
-  const candidates = [
-    ...(process.env.PATH ?? '').split(delimiter).filter((entry) => entry.startsWith('/')).map((entry) => join(entry, requested)),
-    process.execPath,
-  ];
-  let executable: string | undefined;
-  for (const candidate of candidates) try {
-    const lexical = resolve(candidate);
-    const actual = await realpath(lexical);
-    await access(actual, constants.X_OK);
-    if (!under(root, lexical) && !under(root, actual)) { executable = actual; break; }
-  } catch {}
-  if (!executable) throw new Error('approved executable is unavailable');
-  const runtimeOf = (path: string) => /^\/opt\/homebrew\//.test(path) ? '/opt/homebrew' : /^\/Applications\/[^/]+\.app/.exec(path)?.[0] ?? dirname(path);
-  const extras: { executable: string; runtime: string }[] = [];
-  for (const value of argv.slice(1)) if (value.startsWith('/')) try { const actual = await realpath(value); await access(actual, constants.X_OK); if (['/usr/bin', '/bin', '/opt/homebrew', '/usr/local', '/Applications'].some((candidateRoot) => actual.startsWith(`${candidateRoot}/`))) extras.push({ executable: actual, runtime: runtimeOf(actual) }); } catch {}
-  return { executable, runtime: runtimeOf(executable), extras };
 }
 async function validateOutputParent(root: string, lexical: string): Promise<void> {
   const parent = dirname(lexical);
@@ -214,20 +193,17 @@ function executeInjected(executor: (command: Command) => Promise<Execution>, com
   return promise;
 }
 
-export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { 'sandbox-exec': process.platform === 'darwin', docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir(), hostIdentity = process }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string; hostIdentity?: Pick<typeof process, 'getuid' | 'getgid'> }): Promise<CheckResult> {
+export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir(), hostIdentity = process }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string; hostIdentity?: Pick<typeof process, 'getuid' | 'getgid'> }): Promise<CheckResult> {
   if (signal?.aborted) throw new Error('check aborted');
   if (command !== undefined) throw new Error('raw commands are not accepted');
-  const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'sandbox-exec' | 'docker'; sandbox_image?: string; result_path: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
+  const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'docker'; sandbox_image: string; result_path: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
   if (!recipe) throw new Error('unknown approved check');
   if (!Array.isArray(recipe.write_paths) || recipe.write_paths.length === 0 || typeof recipe.result_path !== 'string') throw new Error('check requires declared output paths');
-  if (!backends[recipe.backend]) throw new Error('selected sandbox backend unavailable');
-  const lexicalRepo = resolve(repo);
+  if (!backends.docker || recipe.backend !== 'docker') throw new Error('Docker is the only supported sandbox backend');
   const root = await realpath(repo);
   const cwd = resolve(root, recipe.cwd);
   if (!under(root, cwd)) throw new Error('check cwd escapes repository');
   const verifier = await trustedVerifier(root, task.allowed_paths, recipe);
-  const runtime = recipe.backend === 'sandbox-exec' ? await approvedExecutable(root, recipe.argv) : undefined;
-  const invokedArgv = runtime ? [runtime.executable, ...recipe.argv.slice(1).map((argument) => argument.startsWith('/') && under(lexicalRepo, argument) ? join(root, relative(lexicalRepo, argument)) : argument)] : recipe.argv;
   const outputPaths = new Map<string, string>();
   for (const value of recipe.write_paths) {
     const lexical = resolve(root, value);
@@ -264,27 +240,21 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
       await writeFile(source, '', { mode: 0o000, flag: 'wx' });
       masks.push({ source, target: join('/repo', relative(root, output)), readOnly: true });
     }
-    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...masks, ...(recipe.backend === 'docker' ? [{ source: verifier.path, target: verifier.dockerTarget, readOnly: true }] : []), { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
-    if (recipe.backend === 'docker') for (const mount of mounts) { safeDockerMountPath(mount.source); safeDockerMountPath(mount.target); }
-    const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
+    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...masks, { source: verifier.path, target: verifier.dockerTarget, readOnly: true }];
+    for (const mount of mounts) { safeDockerMountPath(mount.source); safeDockerMountPath(mount.target); }
+    const env: Record<string, string> = { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
-    const dockerUid = recipe.backend === 'docker' ? hostIdentity.getuid?.() : undefined;
-    const dockerGid = recipe.backend === 'docker' ? hostIdentity.getgid?.() : undefined;
-    if (recipe.backend === 'docker' && (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! <= 0 || dockerGid! <= 0)) throw new Error('Docker requires non-root POSIX user IDs');
-    const deniedReadPaths = [...new Set([...protectedPaths.map((path) => resolve(root, path)), ...outputs.values()])];
-    const deniedReads = deniedReadPaths.map((path, index) => ['-D', `DENY_${index}=${path}`] as string[]).flat();
-    const extraParameters = runtime ? runtime.extras.flatMap((entry, index) => ['-D', `EXTRA_EXEC_${index}=${entry.executable}`, '-D', `EXTRA_RUNTIME_${index}=${entry.runtime}`]) : [];
-    const verifierParameters = runtime ? ['-D', `VERIFIER=${verifier.path}`, '-D', `VERIFIER_ROOT=${verifier.root}`] : [];
-    const dockerArgv = recipe.backend === 'docker'
-      ? recipe.argv.map((argument, index) => index <= 1 && (argument.startsWith('/repo/') ? join(root, argument.slice('/repo/'.length)) : resolve(root, argument)) === verifier.path ? verifier.dockerTarget : argument)
-      : recipe.argv;
-    const spec: Command = recipe.backend === 'sandbox-exec'
-      ? { executable: 'sandbox-exec', argv: ['-D', `REPO=${root}`, '-D', `RUNTIME=${runtime!.runtime}`, '-D', `EXEC=${runtime!.executable}`, '-D', `SCRATCH=${scratch}`, ...extraParameters, ...verifierParameters, ...deniedReads, '-p', `(version 1) (deny default) (allow process-exec (literal (param "EXEC")) ${runtime!.extras.map((_, index) => `(literal (param "EXTRA_EXEC_${index}"))`).join(' ')}) (allow process-fork) (allow sysctl-read) (allow mach-lookup) (allow file-read-metadata) (allow file-read* (literal "/") (literal "/dev/null") (subpath (param "REPO")) (subpath (param "RUNTIME")) (subpath (param "SCRATCH")) ${runtime!.extras.map((_, index) => `(subpath (param "EXTRA_RUNTIME_${index}"))`).join(' ')} (subpath "/usr") (subpath "/System") (subpath "/Library")) (deny file-read* ${deniedReadPaths.map((_, index) => `(subpath (param "DENY_${index}"))`).join(' ')}) (allow file-read-metadata (literal (param "VERIFIER_ROOT"))) (allow file-read* (literal (param "VERIFIER"))) (allow file-write* (literal "/dev/null") (subpath (param "SCRATCH"))) (deny network*)`, '--', ...invokedArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts }
-      : (() => {
-        approvedDockerRuntime(recipe.argv);
-        if (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned');
-        return { executable: 'docker', argv: ['run', '--rm', '--name', containerName, '--user', `${dockerUid}:${dockerGid}`, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', '--env', 'HOME=/tmp/ui-delivery', '--env', 'TMPDIR=/tmp/ui-delivery', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--workdir', `/repo/${recipe.cwd}`, recipe.sandbox_image, ...dockerArgv], cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName };
-      })();
+    const dockerUid = hostIdentity.getuid?.();
+    const dockerGid = hostIdentity.getgid?.();
+    if (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! <= 0 || dockerGid! <= 0) throw new Error('Docker requires non-root POSIX user IDs');
+    const dockerArgv = recipe.argv.map((argument, index) => index <= 1 && (argument.startsWith('/repo/') ? join(root, argument.slice('/repo/'.length)) : resolve(root, argument)) === verifier.path ? verifier.dockerTarget : argument);
+    approvedDockerRuntime(recipe.argv);
+    if (!/^(?!-)[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image)) throw new Error('Docker image must be digest pinned');
+    const spec: Command = {
+      executable: 'docker',
+      argv: ['run', '--rm', '--name', containerName, '--user', `${dockerUid}:${dockerGid}`, '--network', 'none', '--read-only', '--env', 'PATH=/usr/bin:/bin', '--env', 'HOME=/tmp/ui-delivery', '--env', 'TMPDIR=/tmp/ui-delivery', ...mounts.flatMap((mount) => ['--mount', `type=bind,source=${mount.source},target=${mount.target}${mount.readOnly ? ',readonly' : ''}`]), '--mount', 'type=tmpfs,target=/tmp/ui-delivery,tmpfs-size=67108864', '--workdir', `/repo/${recipe.cwd}`, '--', recipe.sandbox_image, ...dockerArgv],
+      cwd, env, timeoutMs: recipe.timeout_ms, recipeArgv: recipe.argv, mounts, containerName,
+    };
     const execution = executor
       ? await executeInjected(executor, spec, signal)
       : await executeDirect(spec, Math.max(outputLimitBytes, VERIFIER_ENVELOPE_LIMIT), signal);

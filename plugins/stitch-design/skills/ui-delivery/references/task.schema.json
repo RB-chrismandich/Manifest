@@ -77,6 +77,7 @@
           "cwd",
           "timeout_ms",
           "backend",
+          "sandbox_image",
           "result_path",
           "write_paths",
           "trusted_verifier"
@@ -104,10 +105,7 @@
             "maximum": 120000
           },
           "backend": {
-            "enum": [
-              "sandbox-exec",
-              "docker"
-            ]
+            "const": "docker"
           },
           "result_path": {
             "type": "string",
@@ -141,7 +139,7 @@
           },
           "sandbox_image": {
             "type": "string",
-            "pattern": "^[^@\\s]+@sha256:[a-fA-F0-9]{64}$"
+            "pattern": "^(?!-)[^@\\s]+@sha256:[a-fA-F0-9]{64}$"
           },
           "artifacts": {
             "type": "array",
@@ -487,52 +485,6 @@
         "properties": {
           "outcome": {
             "const": "unverified"
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "approved_check_recipes": {
-            "contains": {
-              "type": "object",
-              "properties": {
-                "backend": {
-                  "const": "docker"
-                }
-              },
-              "required": [
-                "backend"
-              ]
-            }
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "approved_check_recipes": {
-            "items": {
-              "if": {
-                "properties": {
-                  "backend": {
-                    "const": "docker"
-                  }
-                }
-              },
-              "then": {
-                "allOf": [
-                  {"required": ["sandbox_image"]},
-                  {
-                    "properties": {
-                      "argv": {
-                        "prefixItems": [{"enum": ["node", "python3"]}]
-                      }
-                    }
-                  }
-                ]
-              }
-            }
           }
         }
       }

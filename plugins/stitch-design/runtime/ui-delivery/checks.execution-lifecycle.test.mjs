@@ -13,10 +13,10 @@ const verifier = {
 };
 const recipe = {
   id: 'unit', argv: ['node', verifier.path], cwd: '.', timeout_ms: 500,
-  backend: 'sandbox-exec', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  backend: 'docker', sandbox_image: 'registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'], trusted_verifier: verifier,
 };
-const mockBackends = { 'sandbox-exec': true, docker: true };
+const mockBackends = { docker: true };
 
 function task(overrides = {}) {
   return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };

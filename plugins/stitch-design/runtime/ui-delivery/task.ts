@@ -54,12 +54,12 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if (value.state === 'repairing' && (!value.repair_authorization || typeof value.repair_authorization !== 'object' || !Number.isInteger(value.repair_authorization.cycle) || value.repair_authorization.cycle !== value.repair_cycles || value.repair_authorization.cycle < 1 || typeof value.repair_authorization.nonce !== 'string' || !value.repair_authorization.nonce)) invalid('repairing requires renewed cycle-bound authorization');
   const ids = new Set<string>();
   for (const recipe of value.approved_check_recipes) {
-    if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || ids.has(recipe.id) || !nonEmptyStrings(recipe.argv) || !relativePath(recipe.cwd) || !relativePath(recipe.result_path) || !nonEmptyStrings(recipe.write_paths) || !recipe.write_paths.every(relativePath) || !recipe.write_paths.includes(recipe.result_path) || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || !['sandbox-exec', 'docker'].includes(recipe.backend)) invalid('invalid check recipe');
+    if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || ids.has(recipe.id) || !nonEmptyStrings(recipe.argv) || !relativePath(recipe.cwd) || !relativePath(recipe.result_path) || !nonEmptyStrings(recipe.write_paths) || !recipe.write_paths.every(relativePath) || !recipe.write_paths.includes(recipe.result_path) || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || recipe.backend !== 'docker') invalid('invalid check recipe');
     const verifier = recipe.trusted_verifier;
     if (!verifier || typeof verifier !== 'object' || !/^\.omp\/ui-delivery\/verifiers\/(?!.*\.\.)[^/].*$/.test(verifier.path) || !/^sha256:[a-f0-9]{64}$/i.test(verifier.sha256)) invalid('invalid trusted verifier');
     for (const writePath of recipe.write_paths) if (writePath === '.' || writePath === '.git' || writePath === '.omp' || writePath === 'secrets' || value.allowed_paths.some((allowed: string) => allowed === writePath || allowed.startsWith(`${writePath}/`) || writePath.startsWith(`${allowed}/`))) invalid('check output overlaps candidate scope');
     ids.add(recipe.id);
-    if (recipe.backend === 'docker' && (typeof recipe.sandbox_image !== 'string' || !/^[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image) || !['node', 'python3'].includes(recipe.argv[0]))) invalid('docker recipe must start with an approved image runtime');
+    if (typeof recipe.sandbox_image !== 'string' || !/^(?!-)[^@\s]+@sha256:[a-f0-9]{64}$/i.test(recipe.sandbox_image) || !['node', 'python3'].includes(recipe.argv[0])) invalid('docker recipe must start with an approved image runtime');
   }
   const captureIds = new Set<string>();
   const artifactPaths = new Set<string>();

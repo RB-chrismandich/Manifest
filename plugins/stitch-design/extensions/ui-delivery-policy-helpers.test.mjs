@@ -36,13 +36,13 @@ export function task(overrides = {}) {
     approved_check_recipes: [
       {
         id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
-        backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
+        backend: 'docker', sandbox_image: `registry.example/ui-check@sha256:${'c'.repeat(64)}`, result_path: '.ui-results/unit.json',
         write_paths: ['.ui-results/unit.json'],
         trusted_verifier: { path: '.omp/ui-delivery/verifiers/unit.mjs', sha256: verifierHash },
       },
       {
         id: 'capture-unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
-        backend: 'sandbox-exec', result_path: '.ui-results/unit.json',
+        backend: 'docker', sandbox_image: `registry.example/ui-check@sha256:${'c'.repeat(64)}`, result_path: '.ui-results/unit.json',
         write_paths: ['.ui-results/unit.json', 'evidence/page.png'],
         trusted_verifier: { path: '.omp/ui-delivery/verifiers/capture.mjs', sha256: verifierHash },
       },
