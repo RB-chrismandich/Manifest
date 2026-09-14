@@ -28,9 +28,12 @@ export async function appendEvidence({ repo, evidenceFile, record }: { repo: str
   if (parent !== evidenceRoot) throw new Error('evidence path is not authorized');
   const target = join(parent, basename(requested));
   try {
-    if (!isBelow(evidenceRoot, await realpath(target))) throw new Error('evidence path escapes directory');
+    const metadata = await lstat(target);
+    if (metadata.isSymbolicLink() || !isBelow(evidenceRoot, await realpath(target))) {
+      throw new Error('evidence path escapes directory');
+    }
   } catch (error) {
-    if (error instanceof Error && error.message.includes('escapes')) throw error;
+    if (error instanceof Error && (error.message.includes('escapes') || (error as NodeJS.ErrnoException).code !== 'ENOENT')) throw error;
   }
   await appendFile(target, `${JSON.stringify(record)}\n`, { encoding: 'utf8', flag: 'a' });
 }

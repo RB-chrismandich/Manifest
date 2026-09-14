@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -20,12 +20,12 @@ async function fixture() {
 
 test('authorizes an existing path beneath an allowed task path', async () => {
   const { repo, task } = await fixture();
-  assert.equal(await authorizePath({ repo, task, path: 'src/Card.tsx' }), join(repo, 'src/Card.tsx'));
+  assert.equal(await authorizePath({ repo, task, path: 'src/Card.tsx' }), await realpath(join(repo, 'src/Card.tsx')));
 });
 
 test('authorizes a new file when its existing ancestor is an allowed path', async () => {
   const { repo, task } = await fixture();
-  assert.equal(await authorizePath({ repo, task, path: 'src/NewCard.tsx' }), join(repo, 'src/NewCard.tsx'));
+  assert.equal(await authorizePath({ repo, task, path: 'src/NewCard.tsx' }), join(await realpath(repo), 'src/NewCard.tsx'));
 });
 
 test('rejects traversal and sibling-prefix confusion outside allowed paths', async () => {
