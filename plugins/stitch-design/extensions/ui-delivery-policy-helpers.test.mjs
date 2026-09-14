@@ -32,7 +32,7 @@ const verifierHash = `sha256:${createHash('sha256').update(verifierSource).diges
 export function task(overrides = {}) {
   return {
     task_id: 'task-17', state: 'approved', design_revision: 'stitch-r17',
-    allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
+    qualification_hash: `sha256:${'a'.repeat(64)}`, allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'],
     approved_check_recipes: [
       {
         id: 'unit', argv: ['node', '--test'], cwd: '.', timeout_ms: 1_000,
@@ -57,7 +57,7 @@ export function taskWithStitchGrant(input) {
   return task({
     stitch_grant: {
       project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
-      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(input), max_uses: 1 }],
+      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(input), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: hashStitchInput({ projectId: 'project-17' }) } }],
       readback_tools: ['mcp__stitch_get_screen'],
     },
   });
@@ -66,7 +66,7 @@ export function taskWithStitchGrant(input) {
 export function digest(value) {
   const canonical = (entry) => Array.isArray(entry) ? entry.map(canonical)
     : entry && typeof entry === 'object' ? Object.fromEntries(Object.keys(entry).sort().map((key) => [key, canonical(entry[key])])) : entry;
-  const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization']
+  const projection = Object.fromEntries(['task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization']
     .filter((key) => key in value).map((key) => [key, value[key]]));
   return `sha256:${createHash('sha256').update(JSON.stringify(canonical(projection))).digest('hex')}`;
 }
@@ -80,6 +80,7 @@ export async function fixture(definition = task()) {
   await writeFile(join(repo, '.omp/ui-delivery/verifiers/unit.mjs'), verifierSource);
   await writeFile(join(repo, '.omp/ui-delivery/verifiers/capture.mjs'), verifierSource);
   await writeFile(join(repo, '.omp/ui-delivery/tasks/task.json'), JSON.stringify(definition));
+  process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = definition.qualification_hash;
   return { repo, definition };
 }
 
@@ -94,10 +95,14 @@ export async function withoutApproval(operation) {
 
 export async function withApproval(definition, operation) {
   const saved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  const active = process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
   process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = digest(definition);
+  process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = definition.qualification_hash;
   try { return await operation(); } finally {
     if (saved === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
     else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = saved;
+    if (active === undefined) delete process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256;
+    else process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 = active;
   }
 }
 
