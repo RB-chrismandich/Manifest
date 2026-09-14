@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 
 import { runCheck } from './checks.ts';
 
+const execFileAsync = promisify(execFile);
 const verifier = {
   path: '.omp/ui-delivery/verifiers/verify.mjs',
   sha256: 'sha256:f9974862b9b6c9cbb2ef52e20d18eec093825ec2b8fb7dde84abe593d480ed3f',
@@ -296,10 +299,75 @@ test('writes verifier-declared results only after the sandbox exits without moun
   assert.equal(calls[0].mounts.some((mount) => !mount.readOnly && mount.target.startsWith('/repo/.ui-results')), false);
 });
 
+test('rejects overlapping host-output attempts without cross-attributing verifier envelopes', async () => {
+  const repo = await fixture();
+  const shared = '.ui-results/shared.json';
+  const firstOnly = '.ui-results/first.json';
+  const secondOnly = '.ui-results/second.json';
+  const firstRecipe = { ...recipe, id: 'first', result_path: shared, write_paths: [shared, firstOnly] };
+  const secondRecipe = { ...recipe, id: 'second', result_path: shared, write_paths: [shared, secondOnly] };
+  let entered;
+  const firstEntered = new Promise((resolve) => { entered = resolve; });
+  let release;
+  const firstRelease = new Promise((resolve) => { release = resolve; });
+  const first = runCheck({
+    repo, task: task({ approved_check_recipes: [firstRecipe] }), checkId: 'first', backends: mockBackends,
+    executor: async () => {
+      entered();
+      await firstRelease;
+      return { exitCode: 0, stdout: verifierOutput({ result: { attempt: 'first' } }), stderr: '' };
+    },
+  });
+  await firstEntered;
+  try {
+    await assert.rejects(
+      () => runCheck({
+        repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends,
+        executor: async () => ({ exitCode: 0, stdout: verifierOutput({ result: { attempt: 'second' } }), stderr: '' }),
+      }),
+      /output is busy/,
+    );
+  } finally {
+    release();
+    await first;
+  }
+  assert.deepEqual(JSON.parse(await readFile(join(repo, shared), 'utf8')), { attempt: 'first' });
+  await runCheck({
+    repo, task: task({ approved_check_recipes: [secondRecipe] }), checkId: 'second', backends: mockBackends,
+    executor: async () => ({ exitCode: 0, stdout: verifierOutput({ result: { attempt: 'second' } }), stderr: '' }),
+  });
+  assert.deepEqual(JSON.parse(await readFile(join(repo, shared), 'utf8')), { attempt: 'second' });
+  assert.equal((await readdir(join(repo, '.ui-results'))).some((path) => path.endsWith('.ui-delivery.lock')), false);
+});
+
+test('does not remove an output lock it did not create', async () => {
+  const repo = await fixture();
+  let entered;
+  const enteredPromise = new Promise((resolve) => { entered = resolve; });
+  let release;
+  const releasePromise = new Promise((resolve) => { release = resolve; });
+  const running = runCheck({
+    repo, task: task(), checkId: 'unit', backends: mockBackends,
+    executor: async () => {
+      entered();
+      await releasePromise;
+      return { exitCode: 0, stdout: verifierOutput(), stderr: '' };
+    },
+  });
+  await enteredPromise;
+  const lock = join(repo, '.ui-results/unit.json.ui-delivery.lock');
+  await writeFile(lock, 'replacement', 'utf8');
+  release();
+  await running;
+  assert.equal(await readFile(lock, 'utf8'), 'replacement');
+  await rm(lock);
+});
+
 test('keeps comma-bearing declared outputs out of Docker mount options', async () => {
   const repo = await fixture();
   const calls = [];
   const resultPath = '.ui-results/unit,ro=false.json';
+
   await runCheck({
     repo,
     task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker', result_path: resultPath, write_paths: [resultPath] }] }),
@@ -308,4 +376,16 @@ test('keeps comma-bearing declared outputs out of Docker mount options', async (
     backends: mockBackends,
   });
   assert.equal(calls[0].argv.filter((argument) => argument.includes(resultPath)).length, 0);
+});
+test('prepares pilot checks with node for trusted runtime resolution', async () => {
+  const { stdout } = await execFileAsync(process.execPath, ['tests/fixtures/ui-delivery-consumer/prepare.mjs', tmpdir()]);
+  const prepared = JSON.parse(stdout);
+  try {
+    for (const launch of prepared.cases) {
+      const preparedTask = JSON.parse(await readFile(launch.task, 'utf8'));
+      assert.equal(preparedTask.approved_check_recipes[0].argv[0], 'node');
+    }
+  } finally {
+    await rm(dirname(prepared.cases[0].repo), { recursive: true, force: true });
+  }
 });

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { access, chmod, constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
 
@@ -71,10 +71,13 @@ async function approvedExecutable(root: string, argv: string[]): Promise<{ execu
   for (const value of argv.slice(1)) if (value.startsWith('/')) try { const actual = await realpath(value); await access(actual, constants.X_OK); if (['/usr/bin', '/bin', '/opt/homebrew', '/usr/local', '/Applications'].some((candidateRoot) => actual.startsWith(`${candidateRoot}/`))) extras.push({ executable: actual, runtime: runtimeOf(actual) }); } catch {}
   return { executable, runtime: runtimeOf(executable), extras };
 }
-async function provisionOutput(root: string, lexical: string): Promise<string> {
+async function validateOutputParent(root: string, lexical: string): Promise<void> {
   const parent = dirname(lexical);
   const parentStat = await lstat(parent);
   if (!parentStat.isDirectory() || parentStat.isSymbolicLink() || await realpath(parent) !== parent) throw new Error('output parent is unsafe');
+}
+async function provisionOutput(root: string, lexical: string): Promise<string> {
+  await validateOutputParent(root, lexical);
   try {
     const stat = await lstat(lexical);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('output file is unsafe');
@@ -89,6 +92,42 @@ async function provisionOutput(root: string, lexical: string): Promise<string> {
   const actual = await realpath(lexical);
   if (actual !== lexical || !under(root, actual)) throw new Error('symlinked writes are forbidden');
   return actual;
+}
+
+type OutputLock = { path: string; owner: string };
+async function releaseOutputLocks(locks: OutputLock[]): Promise<void> {
+  for (const lock of [...locks].reverse()) try {
+    const [contents, stat] = await Promise.all([readFile(lock.path, 'utf8'), lstat(lock.path)]);
+    if (contents === lock.owner && stat.isFile() && !stat.isSymbolicLink() && stat.nlink === 1) await unlink(lock.path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+async function acquireOutputLocks(outputs: string[]): Promise<OutputLock[]> {
+  const locks: OutputLock[] = [];
+  try {
+    for (const outputPath of [...new Set(outputs)].sort()) {
+      const path = `${outputPath}.ui-delivery.lock`;
+      const owner = randomUUID();
+      let handle;
+      try {
+        handle = await open(path, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('check output is busy');
+        throw error;
+      }
+      try {
+        await handle.writeFile(owner, 'utf8');
+      } finally {
+        await handle.close();
+      }
+      locks.push({ path, owner });
+    }
+    return locks;
+  } catch (error) {
+    await releaseOutputLocks(locks);
+    throw error;
+  }
 }
 
 type TrustedVerifier = { path: string; sha256: string };
@@ -157,15 +196,20 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
   const verifier = await trustedVerifier(root, task.allowed_paths, recipe);
   const runtime = recipe.backend === 'sandbox-exec' ? await approvedExecutable(root, recipe.argv) : undefined;
   const invokedArgv = runtime ? [runtime.executable, ...recipe.argv.slice(1).map((argument) => argument.startsWith('/') && under(lexicalRepo, argument) ? join(root, relative(lexicalRepo, argument)) : argument)] : recipe.argv;
-  const outputs = new Map<string, string>();
+  const outputPaths = new Map<string, string>();
   for (const value of recipe.write_paths) {
     const lexical = resolve(root, value);
     if (!under(root, lexical) || protectedPath(root, lexical, task.forbidden_policy_paths ?? [])) throw new Error('writable protected path');
-    outputs.set(value, await provisionOutput(root, lexical));
+    await validateOutputParent(root, lexical);
+    outputPaths.set(value, lexical);
   }
+  const locks = await acquireOutputLocks([...outputPaths.values()]);
+  const outputs = new Map<string, string>();
   const protectedPaths = [...new Set(['.git', '.omp', 'secrets', ...(task.forbidden_policy_paths ?? [])])];
-  const scratch = await realpath(await mkdtemp(join(scratchRoot, 'ui-delivery-check-')));
+  let scratch: string | undefined;
   try {
+    for (const [value, lexical] of outputPaths) outputs.set(value, await provisionOutput(root, lexical));
+    scratch = await realpath(await mkdtemp(join(scratchRoot, 'ui-delivery-check-')));
     const masks: Mount[] = [];
     if (recipe.backend === 'docker') for (const [index, forbidden] of protectedPaths.entries()) {
       const target = resolve(root, forbidden);
@@ -203,6 +247,7 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     if (execution.exitCode === 0) await persistVerifierOutputs(root, verifierEnvelope(execution.stdout, recipe.write_paths, recipe.result_path), outputs, recipe.result_path);
     return { argv: recipe.argv, exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };
   } finally {
-    await rm(scratch, { recursive: true, force: true });
+    if (scratch) await rm(scratch, { recursive: true, force: true });
+    await releaseOutputLocks(locks);
   }
 }

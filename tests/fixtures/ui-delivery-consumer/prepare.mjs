@@ -59,7 +59,7 @@ for (const definition of cases) {
     approved_check_recipes: [
       {
         id: 'design-contract',
-        argv: [process.execPath, join(repo, checkVerifier), join(repo, 'contracts', definition.contract), join(repo, definition.target)],
+        argv: ['node', join(repo, checkVerifier), join(repo, 'contracts', definition.contract), join(repo, definition.target)],
         cwd: '.', timeout_ms: 30000, backend: 'sandbox-exec', result_path: checkResult, write_paths: [checkResult], trusted_verifier: designVerifier,
       },
       {
