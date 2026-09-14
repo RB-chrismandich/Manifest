@@ -91,6 +91,19 @@ test('accepts a predictable readback only with a resource identity', async () =>
   await loadTask({ repo, taskFile: path });
 });
 
+test('rejects duplicate mutation authorization keys despite different readback entries', async () => {
+  const grant = standardGrant();
+  await expectRejectedGrant(standardGrant({
+    mutations: [
+      grant.mutations[0],
+      {
+        ...grant.mutations[0],
+        expected_readback: { tool_name: 'mcp__stitch_get_screen', response_hash: SHA256('d') },
+      },
+    ],
+  }), /duplicate.*mutation|grant/i);
+});
+
 test('rejects project-bound create grants', async () => {
   await expectRejectedGrant(standardGrant({
     mutations: [{

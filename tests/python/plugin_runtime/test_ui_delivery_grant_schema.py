@@ -216,15 +216,46 @@ def test_grant_schema_requires_canonical_hashes_and_tools(repo_root: Path) -> No
     )
 
 
-def test_grant_schema_requires_valid_expiration(repo_root: Path) -> None:
+def test_grant_schema_requires_canonical_real_utc_expiration(repo_root: Path) -> None:
     validator = _validator(repo_root)
     task = _accepted_task()
 
-    assert_invalid(
+    for expires_at in (
+        "not-a-date",
+        "2024-02-31T00:00:00Z",
+        "2030-01-01T00:00:00+00:00",
+    ):
+        assert_invalid(
+            validator,
+            {**task, "stitch_grant": {**_stitch_grant(), "expires_at": expires_at}},
+        )
+    assert_valid(
         validator,
-        {**task, "stitch_grant": {**_stitch_grant(), "expires_at": "not-a-date"}},
+        {
+            **task,
+            "stitch_grant": {
+                **_stitch_grant(),
+                "expires_at": "2024-02-29T00:00:00Z",
+            },
+        },
     )
 
+
+def test_grant_schema_rejects_exact_duplicate_mutation_entries(repo_root: Path) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+    grant = _stitch_grant()
+
+    assert_invalid(
+        validator,
+        {
+            **task,
+            "stitch_grant": {
+                **grant,
+                "mutations": [grant["mutations"][0], grant["mutations"][0]],
+            },
+        },
+    )
 
 def test_grant_schema_accepts_readback_for_existing_project(repo_root: Path) -> None:
     validator = _validator(repo_root)
