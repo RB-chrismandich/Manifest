@@ -201,7 +201,7 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
     assert.equal(await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-2' }), undefined);
     const reusedMutation = await hook({ toolName: 'mcp__stitch__edit_screen', input, toolCallId: 'edit-3' });
     assert.equal(reusedMutation.block, true);
-    assert.match(reusedMutation.reason, /reconcile|consumed/i);
+    assert.match(reusedMutation.reason, /reconcil|consum/i);
     await handlers.get('tool_result')({
       toolName: 'mcp__stitch__get_screen',
       isError: false,
