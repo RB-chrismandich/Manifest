@@ -76,6 +76,7 @@ try:
     if len(content) <= 8 or content[:8] != b"\x89PNG\r\n\x1a\n":
         raise RuntimeError("capture is not a PNG")
     emit(True)
+# constitution: exempt C-ERR — this top-level fixture boundary must turn every browser or capture failure into its stable failed-result contract
 except Exception as error:
     sys.stderr.write(f"capture failed: {str(error)[:4080]}\n")
     emit(False)
