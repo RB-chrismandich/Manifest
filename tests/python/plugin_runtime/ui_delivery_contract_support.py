@@ -6,14 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
-
-
-@pytest.fixture
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
 
 
 def frontmatter(path: Path) -> dict[str, Any]:
@@ -41,7 +35,7 @@ def assert_invalid(validator: Draft202012Validator, instance: dict[str, Any]) ->
 def docker_check_recipe() -> dict[str, Any]:
     return {
         "id": "checkout-ui",
-        "argv": ["npm", "run", "test:ui"],
+        "argv": ["node", ".omp/ui-delivery/verifiers/check-ui.mjs"],
         "cwd": "apps/web",
         "write_paths": [
             "artifacts/checkout-ui.result.json",
@@ -51,9 +45,11 @@ def docker_check_recipe() -> dict[str, Any]:
         "backend": "docker",
         "sandbox_image": "registry.example/ui-check@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "result_path": "artifacts/checkout-ui.result.json",
+        "trusted_verifier": {
+            "path": ".omp/ui-delivery/verifiers/check-ui.mjs",
+            "sha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
     }
-
-
 
 
 def assert_no_response_format_conditionals(document: Any) -> None:
@@ -70,6 +66,8 @@ def assert_no_response_format_conditionals(document: Any) -> None:
     elif isinstance(document, list):
         for value in document:
             assert_no_response_format_conditionals(value)
+
+
 def capture_recipe() -> dict[str, Any]:
     return {
         "id": "checkout-capture",
