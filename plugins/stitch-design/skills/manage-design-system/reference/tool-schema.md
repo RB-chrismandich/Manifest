@@ -21,8 +21,8 @@ Unknown Stitch tools are denied. The inventory covers the bundled
 
 ## Upload `DESIGN.md`
 
-Dispatch `mcp__stitch_upload_design_md` only through the ui-delivery policy
-extension. The request must match the externally approved task digest, project,
+Route `mcp__stitch_upload_design_md` only through the `/stitch-design:ui-delivery`
+policy extension. The request must match the externally approved task digest, project,
 and exact content; then reconcile it using the approved post-mutation readback.
 The retired `upload_to_stitch.py` script deliberately rejects every upload
 invocation and must not be used.
