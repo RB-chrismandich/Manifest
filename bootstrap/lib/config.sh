@@ -548,6 +548,12 @@ services:
       - flash    # Balanced (default)
       - advanced  # Maximum capability
 
+  # Jules is a remote task backend, not a local harness/deploy target.
+  jules:
+    enabled: $ENABLE_JULES
+    command: jules
+    description: "Remote GitHub tasks via Jules CLI; authenticate with jules login"
+
   # Devin CLI - Cognition's terminal coding agent (devin)
   # Install: brew install --cask devin-cli
   #          (or curl -fsSL https://cli.devin.ai/install.sh | bash)
@@ -567,12 +573,6 @@ services:
       - auto     # Use the account's default model (default)
     auth:
       - ~/.local/share/devin/credentials.toml
-
-  # Jules is a remote task backend, not a local harness/deploy target.
-  jules:
-    enabled: $ENABLE_JULES
-    command: jules
-    description: "Remote GitHub tasks via Jules CLI; authenticate with jules login"
 
   # apm (Agent Package Manager) - build/deploy layer under evaluation (feature 522).
   # No longer installed by bootstrap: the pinned-wheel path was retired with
