@@ -4,6 +4,29 @@
   "harnesses": {
     "antigravity": {
       "compatibility": {
+        "degraded": [
+          {
+            "component_id": "stitch-omp-extension",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "extensions/ui-delivery-policy.ts",
+            "reason": "OMP extension"
+          },
+          {
+            "component_id": "stitch-omp-mcp-definition",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": ".mcp.json",
+            "reason": "OMP MCP definition"
+          },
+          {
+            "component_id": "stitch-omp-package",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "package.json",
+            "reason": "OMP package manifest"
+          }
+        ],
         "imported": [
           {
             "component_id": "design-lens-reviewer",
@@ -133,6 +156,29 @@
     },
     "codex": {
       "compatibility": {
+        "degraded": [
+          {
+            "component_id": "stitch-omp-extension",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "extensions/ui-delivery-policy.ts",
+            "reason": "OMP extension"
+          },
+          {
+            "component_id": "stitch-omp-mcp-definition",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": ".mcp.json",
+            "reason": "OMP MCP definition"
+          },
+          {
+            "component_id": "stitch-omp-package",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "package.json",
+            "reason": "OMP package manifest"
+          }
+        ],
         "native": [
           {
             "component_id": "design-lens-reviewer",
@@ -262,6 +308,29 @@
     },
     "cursor": {
       "compatibility": {
+        "degraded": [
+          {
+            "component_id": "stitch-omp-extension",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "extensions/ui-delivery-policy.ts",
+            "reason": "OMP extension"
+          },
+          {
+            "component_id": "stitch-omp-mcp-definition",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": ".mcp.json",
+            "reason": "OMP MCP definition"
+          },
+          {
+            "component_id": "stitch-omp-package",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "package.json",
+            "reason": "OMP package manifest"
+          }
+        ],
         "generated": [
           {
             "component_id": "design-lens-reviewer",
@@ -391,6 +460,29 @@
     },
     "devin": {
       "compatibility": {
+        "degraded": [
+          {
+            "component_id": "stitch-omp-extension",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "extensions/ui-delivery-policy.ts",
+            "reason": "OMP extension"
+          },
+          {
+            "component_id": "stitch-omp-mcp-definition",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": ".mcp.json",
+            "reason": "OMP MCP definition"
+          },
+          {
+            "component_id": "stitch-omp-package",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "package.json",
+            "reason": "OMP package manifest"
+          }
+        ],
         "native": [
           {
             "component_id": "design-lens-reviewer",
@@ -548,5 +640,5 @@
     "skills/upload-to-stitch",
     "skills/ux-review"
   ],
-  "version": "0.3.0"
+  "version": "0.4.0"
 }
