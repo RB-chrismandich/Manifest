@@ -156,6 +156,16 @@ def test_task_schema_enforces_authorized_bounded_lifecycle_semantics(
 
     candidate_ready = {**task, "state": "candidate_ready", "outcome": "unverified"}
     _assert_valid(validator, candidate_ready)
+
+    for state in ("candidate_ready", "reviewing"):
+        _assert_valid(
+            validator,
+            {**candidate_ready, "state": state, "model_route": "@ui_review"},
+        )
+    _assert_invalid(
+        validator,
+        {**candidate_ready, "model_route": "@unknown_route"},
+    )
     _assert_invalid(
         validator,
         {key: value for key, value in candidate_ready.items() if key != "candidate_revision"},
