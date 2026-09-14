@@ -109,7 +109,6 @@ async function inspectMutationLock(lock: string): Promise<LockSnapshot | undefin
 
 function staleLock(snapshot: LockSnapshot, environment: StitchMutationLockEnvironment): boolean {
   if (snapshot.owner.host !== environment.host) return false;
-  if (snapshot.owner.bootId !== environment.bootId) return true;
   try { return !environment.processExists(snapshot.owner.pid); } catch { return false; }
 }
 

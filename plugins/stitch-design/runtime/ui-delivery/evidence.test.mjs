@@ -157,6 +157,18 @@ test('denies a live mutation lock and preserves its owner metadata', async () =>
   assert.equal(await readFile(lock, 'utf8'), owner);
 });
 
+test('denies a same-host live mutation lock despite a differing boot identity', async () => {
+  const { repo } = await fixture();
+  const lock = join(repo, '.omp/ui-delivery/evidence/task-17.stitch-state.json.lock');
+  const owner = lockOwner({ bootId: 'different-boot' });
+  await writeFile(lock, owner, { mode: 0o600 });
+  await assert.rejects(() => updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:approved', expectedVersion: 0,
+    state: { entries: {}, projectId: 'project-17' }, lockEnvironment: { ...testLockEnvironment, processExists: liveProcess },
+  }), /concurrently|busy/i);
+  assert.equal(await readFile(lock, 'utf8'), owner);
+});
+
 test('denies malformed and foreign-host mutation locks', async () => {
   for (const owner of ['not-json', lockOwner({ host: 'another-host' })]) {
     const { repo } = await fixture();
