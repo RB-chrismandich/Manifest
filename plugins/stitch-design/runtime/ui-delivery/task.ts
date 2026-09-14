@@ -11,7 +11,7 @@ function within(root: string, candidate: string): boolean {
 }
 function invalid(message: string): never { throw new Error(`Invalid UI delivery task: ${message}`); }
 function nonEmptyStrings(value: unknown): value is string[] { return Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'string' && entry.length > 0); }
-function relativePath(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.split(/[\\/]/).includes('..'); }
+function relativePath(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && !/\s/.test(value) && !value.startsWith('/') && !value.split(/[\\/]/).includes('..'); }
 
 export function authorizationDigest(task: DeliveryTask): string {
   const projection = Object.fromEntries(['task_id', 'design_revision', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant', 'repair_authorization'].filter((key) => key in task).map((key) => [key, task[key]]));
@@ -22,7 +22,8 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if (!task || typeof task !== 'object' || Array.isArray(task)) invalid('must be an object');
   const value = task as DeliveryTask;
   for (const key of ['task_id', 'state', 'design_revision', 'model_route', 'outcome']) if (typeof value[key] !== 'string' || !value[key]) invalid(`missing ${key}`);
-  if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.task_id)) invalid('invalid task_id');
+  if (!nonEmptyStrings(value.allowed_paths) || !nonEmptyStrings(value.forbidden_policy_paths) || !value.allowed_paths.every(relativePath) || !value.forbidden_policy_paths.every(relativePath)) invalid('paths must be non-empty relative string arrays without whitespace');
   if (!Array.isArray(value.approved_check_recipes) || !value.approved_check_recipes.length) invalid('missing check recipes');
   if (!Array.isArray(value.capture_recipes) || !value.capture_recipes.length) invalid('missing capture recipes');
   if (!Number.isInteger(value.repair_cycles) || value.repair_cycles < 0 || value.repair_cycles > 2) invalid('invalid repair cycles');
@@ -51,19 +52,32 @@ function validate(task: unknown): asserts task is DeliveryTask {
   }
 }
 
-async function walk(root: string, current: string, files: string[]): Promise<void> {
+function excludedCandidatePath(path: string, task: DeliveryTask): boolean {
+  if (path === '.omp/ui-delivery' || path.startsWith('.omp/ui-delivery/')) return true;
+  const outputs = task.approved_check_recipes.flatMap((recipe: { write_paths?: unknown }) => Array.isArray(recipe.write_paths) ? recipe.write_paths : []);
+  return outputs.some((output: string) => path === output || path.startsWith(`${output}/`));
+}
+async function walk(root: string, current: string, task: DeliveryTask, files: string[]): Promise<void> {
+  const rel = relative(root, current);
+  if (excludedCandidatePath(rel, task)) return;
   const stat = await lstat(current);
   if (stat.isSymbolicLink()) throw new Error('candidate contains symlink');
-  if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), files); return; }
+  if (stat.isDirectory()) { for (const name of await readdir(current)) await walk(root, join(current, name), task, files); return; }
   if (stat.isFile()) files.push(current);
 }
-async function assertNoSymlinkPath(root: string, candidate: string): Promise<void> {
-  let current = root;
-  for (const part of relative(root, candidate).split(sep)) { if (!part) continue; current = join(current, part); if ((await lstat(current)).isSymbolicLink()) throw new Error('candidate path contains symlink'); }
+export function patchJournalPath(repo: string, taskId: string): string { return join(repo, '.omp', 'ui-delivery', 'evidence', `${taskId}.patch-pending.json`); }
+async function assertNoPendingPatchJournal(repo: string, taskId: string): Promise<void> {
+  try {
+    const stat = await lstat(patchJournalPath(repo, taskId));
+    if (!stat.isFile() || stat.isSymbolicLink()) invalid('patch recovery state is invalid');
+    invalid('patch recovery is pending');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
 }
 export async function candidateHash({ repo, task }: { repo: string; task: DeliveryTask }): Promise<string> {
   const root = await realpath(repo); const files: string[] = [];
-  for (const allowed of task.allowed_paths) { const path = resolve(root, allowed); if (!within(root, path)) throw new Error('allowed path escapes repository'); try { await assertNoSymlinkPath(root, path); await walk(root, path, files); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; } }
+  await walk(root, root, task, files);
   files.sort(); const hash = createHash('sha256');
   for (const path of files) { const relativePath = relative(root, path); const bytes = await readFile(path); hash.update(Buffer.from(`${relativePath}\0${bytes.length}\0`)); hash.update(bytes); }
   return `sha256:${hash.digest('hex')}`;
@@ -80,8 +94,8 @@ export async function loadTask({ repo, taskFile, mutation = false, operation, no
   const actual = await resolveTaskFile({ repo, taskFile });
   let task: unknown; try { task = JSON.parse(await readFile(actual, 'utf8')); } catch { invalid('task file is not JSON'); }
   validate(task);
+  await assertNoPendingPatchJournal(await realpath(repo), task.task_id);
   if (mutation || operation) {
-    if (operation === 'patch') {
       if (task.model_route !== '@ui_code') invalid('patch requires @ui_code model route');
       if (task.state !== 'approved' && task.state !== 'repairing') invalid('patch requires approved or renewed repairing lifecycle state');
     } else if (operation === 'check') {

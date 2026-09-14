@@ -183,6 +183,18 @@ test('rejects malformed grant expiry even for status-facing task loads', async (
   await assert.rejects(() => loadTask({ repo, taskFile: path }), /expiry|date|grant/i);
 });
 
+test('rejects unsafe task IDs and whitespace-bearing paths before any operation', async () => {
+  for (const override of [
+    { task_id: '../task-17' },
+    { task_id: 'task 17' },
+    { allowed_paths: ['src/Card View.tsx'] },
+    { forbidden_policy_paths: ['policy/baseline file.json'] },
+  ]) {
+    const { repo, path } = await taskFile(override);
+    await assert.rejects(() => loadTask({ repo, taskFile: path }), /task_id|path|invalid/i);
+  }
+});
+
 test('requires every check recipe to declare a protected, exact SHA-256 trusted verifier', async () => {
   const definition = approvedTask();
   const { trusted_verifier, ...withoutVerifier } = definition.approved_check_recipes[0];
@@ -191,39 +203,22 @@ test('requires every check recipe to declare a protected, exact SHA-256 trusted 
   void trusted_verifier;
 });
 
-test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
+test('binds the candidate identity to all non-host-owned worktree inputs', async () => {
   const definition = approvedTask();
   const { repo } = await taskFile(definition);
-  await mkdir(join(repo, '.ui-results'), { recursive: true });
-  await mkdir(join(repo, 'evidence'), { recursive: true });
   const before = await candidateHash({ repo, task: definition });
   await writeFile(join(repo, '.ui-results/unit.json'), '{"schema":"ui-delivery-check-v1"}\n');
   await writeFile(join(repo, 'evidence/page.png'), 'fresh capture');
   assert.equal(await candidateHash({ repo, task: definition }), before);
-  await writeFile(join(repo, 'src/Card.tsx'), 'export const Card = 2;\n');
+  await writeFile(join(repo, 'package-lock.json'), '{"dependency":"changed"}\n');
   assert.notEqual(await candidateHash({ repo, task: definition }), before);
 });
 
-test('hashes path-delimited candidate entries and rejects an intermediate symlink escape', async () => {
+test('rejects a symlink anywhere in the candidate worktree', async () => {
   const { repo } = await taskFile({});
-  await Promise.all([
-    writeFile(join(repo, 'ab'), 'a'),
-    writeFile(join(repo, 'a'), 'ab'),
-    writeFile(join(repo, 'renamed'), 'same'),
-    writeFile(join(repo, 'original'), 'same'),
-  ]);
-  await writeFile(join(repo, 'c'), 'bc');
-  await writeFile(join(repo, 'bc'), 'c');
-  const split = await candidateHash({ repo, task: approvedTask({ allowed_paths: ['ab', 'c'] }) });
-  const joined = await candidateHash({ repo, task: approvedTask({ allowed_paths: ['a', 'bc'] }) });
-  assert.notEqual(split, joined);
-  assert.notEqual(
-    await candidateHash({ repo, task: approvedTask({ allowed_paths: ['original'] }) }),
-    await candidateHash({ repo, task: approvedTask({ allowed_paths: ['renamed'] }) }),
-  );
   const outside = await mkdtemp(join(tmpdir(), 'ui-delivery-candidate-outside-'));
   await symlink(outside, join(repo, 'src/escaped'));
-  await assert.rejects(() => candidateHash({ repo, task: approvedTask({ allowed_paths: ['src/escaped'] }) }));
+  await assert.rejects(() => candidateHash({ repo, task: approvedTask() }));
 });
 
 test('accepts a schema-valid building task and rejects policy-directory escapes', async () => {
