@@ -145,6 +145,13 @@ def _worker_alive(store, job_id, record):
 
 
 def _backend_preexec(job_dir):
+    """Return a child preexec_fn that starts a new session (so the backend gets
+    its own process group for clean timeout kills) AND writes that group id to
+    <job_dir>/backend.pgid before exec. The write happens in the forked child,
+    so the pgid is recoverable even if the parent worker is SIGKILLed in the
+    window between Popen() returning and the parent's on_pgid persist — closing
+    the pre-persist orphan race. Runs post-fork/pre-exec: uses only raw syscalls
+    (async-signal-safe-ish), reports nothing (no stdio) and never raises out."""
     pgid_path = os.path.join(job_dir, BACKEND_PGID_FILENAME)
     join = containment.join_hook(job_dir)
 

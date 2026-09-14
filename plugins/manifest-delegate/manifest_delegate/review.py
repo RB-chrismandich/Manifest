@@ -259,6 +259,10 @@ def cmd_review(args, backends, user_config, services_disabled):
         )
         return 2
 
+    if (entry.get("execution") or {}).get("read_only") is False:
+        print("delegate: backend does not support read-only reviews", file=sys.stderr)
+        return 2
+
     model_tier = backend.resolve_model_tier(entry, user_config, args.model)
     ready_error, ready_code = task._check_task_backend_ready(
         entry, user_config, services_disabled, model_tier

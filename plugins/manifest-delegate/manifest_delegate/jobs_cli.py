@@ -6,7 +6,7 @@ import signal
 import sys
 import time
 
-from . import backend, constants, containment, jobstore, process, task
+from . import backend, constants, containment, jobstore, process, remote_jobs, task
 
 
 def cmd_status(args):
@@ -43,6 +43,8 @@ def cmd_status(args):
         else None
     )
     record = store.reap_if_dead(resolved)
+    if record.get("execution_kind") == "remote_session":
+        return remote_jobs.status(store, args, record)
     while args.wait and record.get("state") not in jobstore.SETTLED_STATES:
         if deadline and time.time() >= deadline:
             break
@@ -74,6 +76,10 @@ def cmd_result(args):
         return 2
 
     record = store.reap_if_dead(resolved)
+    if record.get("execution_kind") == "remote_session":
+        record = remote_jobs.refresh(store, record)
+        remote_jobs.render(record, args.json)
+        return 0 if record["state"] == "completed" else 1
     if record.get("state") not in jobstore.SETTLED_STATES:
         print(
             f"delegate: still running; delegate.py status {resolved} --wait",
@@ -344,6 +350,12 @@ def cmd_cancel(args):
         return failure
 
     record = store.read(resolved)
+    if record.get("execution_kind") == "remote_session":
+        print(
+            "delegate: remote cancellation is unsupported; stop the task in Jules using its session URL",
+            file=sys.stderr,
+        )
+        return 2
     expected = getattr(args, "expected_version", None)
     version_failure = _validate_cancel_version(record, expected)
     if version_failure is not None:

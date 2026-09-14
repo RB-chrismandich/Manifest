@@ -109,6 +109,7 @@ load_bootstrap_libs() {
         "config.sh"
         "install.sh"
         "auth.sh"
+        "jules.sh"
         "deploy.sh"
         "mcp.sh"
         "skillclaw.sh"
@@ -279,6 +280,7 @@ main() {
         check_rsync || install_failures=$((install_failures + 1))
         check_cursor || install_failures=$((install_failures + 1))
         check_devin || install_failures=$((install_failures + 1))
+        check_jules || install_failures=$((install_failures + 1))
         if [[ $install_failures -gt 0 ]]; then
             print_warning "$install_failures install step(s) failed — continuing with remaining setup"
         fi
@@ -337,6 +339,7 @@ main() {
         if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
             check_devin_auth || auth_failures=$((auth_failures + 1))
         fi
+        check_jules_auth || auth_failures=$((auth_failures + 1))
 
         # GitHub CLI auth check
         if [[ "$ENABLE_GH" == true ]]; then
