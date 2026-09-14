@@ -229,10 +229,11 @@ function success() {
 }
 
 function evidenceRecord(definition, { attemptId, attemptPhase, operation = 'ui_run_check', outcome, artifacts = [], ...extra }) {
+  const evidenceTask = operation === 'ui_run_check' ? { ...definition, model_route: '@ui_code' } : definition;
   return {
     taskId: definition.task_id, approvedDesignHash: definition.design_revision,
     candidateRevision: definition.candidate_revision, candidateHash: definition.candidate_hash,
-    modelRoute: definition.model_route, authorizationDigest: digest(definition),
+    modelRoute: evidenceTask.model_route, authorizationDigest: digest(evidenceTask),
     attemptId, attemptPhase, operation, outcome, elapsedMs: 0, artifacts,
     stdoutHash: 'sha256:stdout', stderrHash: 'sha256:stderr', ...extra,
   };
@@ -328,7 +329,7 @@ test('rejects capture when a successful check leaves its nonempty artifact uncha
 test('status requires candidate-bound evidence for every approved check and capture before verified', async () => {
   const definition = task({
     state: 'accepted', outcome: 'verified', candidate_revision: 'git:abc',
-    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'],
+    candidate_hash: `sha256:${'0'.repeat(64)}`, evidence_refs: ['artifact://task-17/evidence'], model_route: '@ui_review',
     approved_check_recipes: [
       ...task().approved_check_recipes,
       { ...task().approved_check_recipes[0], id: 'visual', result_path: '.ui-results/visual.json', write_paths: ['.ui-results/visual.json'] },
@@ -349,6 +350,16 @@ test('status requires candidate-bound evidence for every approved check and capt
     artifacts: [{ path: 'evidence/page.png', hash: `sha256:${createHash('sha256').update(page).digest('hex')}` }],
   });
   assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, true);
+  await appendAttempt(evidenceFile, definition, {
+    attemptId: 'unit-2', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified',
+    modelRoute: '@ui_review', authorizationDigest: digest(definition),
+  });
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
+  await appendAttempt(evidenceFile, definition, {
+    attemptId: 'unit-3', operation: 'ui_run_check', checkId: 'unit', outcome: 'verified',
+    authorizationDigest: digest(definition),
+  });
+  assert.equal((await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo)).details.verified, false);
 });
 
 test('status invalidates historical check success after the latest rerun is unfinished or failed', async () => {
