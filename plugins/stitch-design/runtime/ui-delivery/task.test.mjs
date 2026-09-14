@@ -78,14 +78,14 @@ test('rejects a repository task that self-asserts approved without the parent au
   await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /approval/i);
 });
 
-test('preserves authorization digest across lifecycle changes and invalidates recipes paths or grants', () => {
+test('binds authorization digests to lifecycle state as well as recipes paths and grants', () => {
   const task = approvedTask({
     state: 'candidate_ready', candidate_revision: 'git:abc',
     candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
     evidence_refs: ['artifact://task-17/evidence.json'],
   });
   const digest = authorizationDigest(task);
-  assert.equal(digest, authorizationDigest({ ...task, state: 'reviewing', repair_cycles: 1, outcome: 'unverified', evidence_refs: ['artifact://new'] }));
+  assert.notEqual(digest, authorizationDigest({ ...task, state: 'reviewing', repair_cycles: 1, outcome: 'unverified', evidence_refs: ['artifact://new'] }));
   assert.notEqual(digest, authorizationDigest({ ...task, allowed_paths: ['src/Other.tsx'] }));
   assert.notEqual(digest, authorizationDigest({ ...task, approved_check_recipes: [{ ...task.approved_check_recipes[0], argv: ['evil'] }] }));
   assert.notEqual(digest, authorizationDigest({ ...task, stitch_grant: { project_id: 'different' } }));
@@ -107,6 +107,48 @@ test('permits candidate lifecycle states for checks while reserving mutation aut
   const approved = approvedTask();
   const { repo, path } = await taskFile(approved);
   await withApproval(approved, () => loadTask({ repo, taskFile: path, operation: 'patch' }));
+});
+
+test('binds patch and check to builders while reserving reviewer capture for review lifecycle', async () => {
+  const candidate = approvedTask({
+    state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
+  });
+  const reviewer = { ...candidate, state: 'reviewing', model_route: '@ui_review' };
+  const acceptedReviewer = { ...reviewer, state: 'accepted', outcome: 'verified', evidence_refs: ['artifact://task-17/evidence'] };
+  for (const [definition, operation, allowed] of [
+    [approvedTask(), 'patch', true],
+    [{ ...approvedTask(), model_route: '@ui_review' }, 'patch', false],
+    [candidate, 'check', true],
+    [{ ...candidate, model_route: '@ui_review' }, 'check', false],
+    [reviewer, 'capture', true],
+    [acceptedReviewer, 'capture', true],
+    [{ ...reviewer, model_route: '@ui_code' }, 'capture', false],
+    [candidate, 'capture', false],
+  ]) {
+    const { repo, path } = await taskFile(definition);
+    await withApproval(definition, async () => {
+      if (allowed) await loadTask({ repo, taskFile: path, operation });
+      else await assert.rejects(() => loadTask({ repo, taskFile: path, operation }));
+    });
+  }
+});
+
+test('requires renewed reviewer authorization after coordinator transitions a candidate to review', async () => {
+  const builder = approvedTask({
+    state: 'candidate_ready', candidate_revision: 'git:abc', candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
+  });
+  const reviewer = { ...builder, state: 'reviewing', model_route: '@ui_review' };
+  const { repo, path } = await taskFile(builder);
+  const previous = process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+  process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = authorizationDigest(builder);
+  try {
+    await writeFile(path, JSON.stringify(reviewer));
+    await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'capture' }), /approval/i);
+  } finally {
+    if (previous === undefined) delete process.env.UI_DELIVERY_APPROVED_TASK_SHA256;
+    else process.env.UI_DELIVERY_APPROVED_TASK_SHA256 = previous;
+  }
+  await withApproval(reviewer, () => loadTask({ repo, taskFile: path, operation: 'capture' }));
 });
 
 test('hashes only sorted allowed regular-file bytes, excluding declared result and capture outputs', async () => {
