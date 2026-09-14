@@ -328,6 +328,27 @@ def test_project_checks_schema_is_strict_and_matches_runtime_shape():
     assert check["additionalProperties"] is False
     assert schema["properties"]["profiles"]["additionalProperties"] is False
 
+def test_repo_owned_exit_two_is_fail_with_diagnostics(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    script = root / "tools/project_checks/probe.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("import sys\nprint('detail', file=sys.stderr)\nsys.exit(2)\n")
+    check = load_registry(
+        registry(
+            tmp_path / "checks.json",
+            argv=[sys.executable, "tools/project_checks/probe.py"],
+            honors=True,
+        )
+    )["checks"][0]
+    result = execute_check(
+        check, materialize_candidate(root, tmp_path / "candidate"), {}
+    )
+    assert result.status == "FAIL"
+    assert result.diagnostics == "detail\n"
+
+
+
 
 
 
