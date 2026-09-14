@@ -122,12 +122,8 @@ def test_task_schema_requires_candidate_identity_and_allows_review_route(
     assert_invalid(validator, {**candidate, "candidate_hash": "sha256:8d5f2e"})
 
 
-def test_task_schema_enforces_grant_and_required_contract_fields(
-    repo_root: Path,
-) -> None:
-    validator = _validator(repo_root)
-    task = _accepted_task()
-    stitch_grant = {
+def _stitch_grant() -> dict[str, Any]:
+    return {
         "project_id": "stitch-project-17",
         "expires_at": "2030-01-01T00:00:00Z",
         "mutations": [
@@ -144,6 +140,12 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
         "readback_tools": ["stitch.get_screen"],
     }
 
+
+def test_task_schema_enforces_grant_contract(repo_root: Path) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+    stitch_grant = _stitch_grant()
+
     assert_invalid(
         validator,
         {
@@ -154,19 +156,18 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
             },
         },
     )
+    mutation_without_readback = {
+        key: value
+        for key, value in stitch_grant["mutations"][0].items()
+        if key != "expected_readback"
+    }
     assert_invalid(
         validator,
         {
             **task,
             "stitch_grant": {
                 **stitch_grant,
-                "mutations": [
-                    {
-                        key: value
-                        for key, value in stitch_grant["mutations"][0].items()
-                        if key != "expected_readback"
-                    }
-                ],
+                "mutations": [mutation_without_readback],
             },
         },
     )
@@ -175,6 +176,12 @@ def test_task_schema_enforces_grant_and_required_contract_fields(
         {**task, "stitch_grant": {**stitch_grant, "expires_at": "not-a-date"}},
     )
     assert_valid(validator, {**task, "stitch_grant": stitch_grant})
+
+
+def test_task_schema_enforces_required_fields_and_outcomes(repo_root: Path) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+
     for field in (
         "allowed_paths",
         "forbidden_policy_paths",
