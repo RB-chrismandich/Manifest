@@ -33,7 +33,7 @@ const registry = [
 ];
 
 test('allows a registered read tool and the exact one-shot approved mutation', async () => {
-  const policy = createStitchPolicy({ task: task(), registry, now });
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   assert.equal(policy.classify('mcp__stitch__get_screen'), 'read');
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input });
 });
@@ -42,7 +42,7 @@ test('denies unknown tools and schemas that do not establish a read or mutation 
   const policy = createStitchPolicy({
     task: task(),
     registry: [{ name: 'mcp__stitch__unknown', sourceInfo: { source: 'mcp', path: '<mcp:stitch>', scope: 'project', origin: 'package' }, parameters: {} }],
-    now,
+    now: () => now,
   });
   assert.equal(policy.classify('mcp__stitch__unknown'), 'unknown');
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__unknown', input }));
@@ -53,30 +53,47 @@ test('denies missing, expired, wrong-project, and wrong-input mutation grants', 
     task({ stitch_grant: undefined }),
     task({ stitch_grant: { ...task().stitch_grant, expires_at: '2020-01-01T00:00:00Z' } }),
   ]) {
-    const policy = createStitchPolicy({ task: candidate, registry, now });
+    const policy = createStitchPolicy({ task: candidate, registry, now: () => now });
     await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input }));
   }
-  const policy = createStitchPolicy({ task: task(), registry, now });
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await assert.rejects(() => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch__edit_screen', input }));
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input: { ...input, prompt: 'different' } }));
 });
 
 test('blocks reuse and retries after an interrupted mutation until permitted readback reconciles it', async () => {
-  const policy = createStitchPolicy({ task: task(), registry, now });
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input });
   policy.recordDispatchInterrupted();
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input }));
-  assert.throws(() => policy.recordReadback({ toolName: 'mcp__stitch__get_screen', reconciled: false }));
-  policy.recordReadback({ toolName: 'mcp__stitch__get_screen', reconciled: true });
+  assert.throws(() => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch__get_screen', reconciled: false }));
+  policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch__get_screen', reconciled: true });
   assert.equal(policy.state(), 'reconciled');
 });
 
 test('does not automatically retry a failed mutation and permits no second use after successful readback', async () => {
-  const policy = createStitchPolicy({ task: task(), registry, now });
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input });
   policy.recordDispatchFailed(new Error('timeout'));
-  policy.recordReadback({ toolName: 'mcp__stitch__get_screen', reconciled: true });
+  policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch__get_screen', reconciled: true });
   await assert.rejects(() => policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input }));
+});
+
+test('binds Stitch reads and readback reconciliation to the approved project', async () => {
+  const policy = createStitchPolicy({ task: task(), registry, now: () => now });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__get_screen', input: {} });
+  await assert.rejects(
+    () => policy.authorize({ projectId: 'other-project', toolName: 'mcp__stitch__get_screen', input: {} }),
+    /not authorized/i,
+  );
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch__edit_screen', input });
+  assert.throws(
+    () => policy.recordReadback({ projectId: 'other-project', toolName: 'mcp__stitch__get_screen', reconciled: true }),
+    /cannot reconcile/i,
+  );
+  assert.equal(policy.state(), 'mutation_unknown');
+  policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch__get_screen', reconciled: true });
+  assert.equal(policy.state(), 'reconciled');
 });
 
 test('checks mutation grant expiry against an injected clock at authorization time', async () => {
