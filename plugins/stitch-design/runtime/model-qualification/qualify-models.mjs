@@ -102,6 +102,12 @@ function optionalStringArray(value, field) {
   if (value === undefined || value === null) return [];
   return requireStringArray(value, field);
 }
+function optionalNonnegativeInteger(value, field) {
+  if (value === undefined || value === null) return undefined;
+  if (!Number.isInteger(value) || value < 0) fail(field, 'must be a nonnegative integer');
+  return value;
+}
+
 
 
 function parseSelector(selector, field) {
@@ -151,15 +157,15 @@ function validateCatalog(catalog) {
     const input = optionalStringArray(model.input, `${field}.input`);
     const thinking = optionalStringArray(model.thinking, `${field}.thinking`);
     if (thinking.some((level) => !THINKING_LEVELS.has(level))) fail(`${field}.thinking`, 'contains an unsupported thinking level');
-    if (!Number.isInteger(model.contextWindow) || model.contextWindow < 0) fail(`${field}.contextWindow`, 'must be a nonnegative integer');
-    if (!Number.isInteger(model.maxTokens) || model.maxTokens < 0) fail(`${field}.maxTokens`, 'must be a nonnegative integer');
+    const contextWindow = optionalNonnegativeInteger(model.contextWindow, `${field}.contextWindow`);
+    const maxTokens = optionalNonnegativeInteger(model.maxTokens, `${field}.maxTokens`);
     models.set(selector, {
       provider,
       id,
       selector,
       input: [...input].sort(),
-      contextWindow: model.contextWindow,
-      maxTokens: model.maxTokens,
+      contextWindow,
+      maxTokens,
       thinking: [...thinking].sort(),
     });
   }
@@ -184,8 +190,8 @@ function qualify(overlay, catalog, localOnly) {
     const model = models.get(selected.selector);
     if (!model) fail(`overlay.modelRoles.${role}`, 'references a catalog selector that is missing');
     if (!model.thinking.includes(selected.thinking)) fail(`overlay.modelRoles.${role}`, `requires ${selected.thinking} thinking support`);
-    if (model.contextWindow < MIN_CONTEXT_WINDOW) fail(`catalog model for ${role}`, 'context window is below the qualification floor');
-    if (model.maxTokens < MIN_MAX_TOKENS) fail(`catalog model for ${role}`, 'max tokens are below the qualification floor');
+    if (!Number.isInteger(model.contextWindow) || model.contextWindow < MIN_CONTEXT_WINDOW) fail(`catalog model for ${role}`, 'context window is below the qualification floor');
+    if (!Number.isInteger(model.maxTokens) || model.maxTokens < MIN_MAX_TOKENS) fail(`catalog model for ${role}`, 'max tokens are below the qualification floor');
     if ((role === 'designer' || role === 'ui_review') && !model.input.includes('image')) fail(`catalog model for ${role}`, 'image input is required');
     if (localOnly && !LOCAL_PROVIDERS.has(model.provider)) fail(`overlay.modelRoles.${role}`, 'cloud provider is not permitted in local-only mode');
     selectedProviders.add(model.provider);
