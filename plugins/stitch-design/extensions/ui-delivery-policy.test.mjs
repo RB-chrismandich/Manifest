@@ -152,7 +152,7 @@ test('applies same-file hunks whose payload lines resemble unified-diff file hea
     taskFile: '.omp/ui-delivery/tasks/task.json',
     patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n--- example\n+++ example\n',
   }, repo));
-  assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), '+ example\n');
+  assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), '++ example\n');
 });
 
 test('rejects a same-file hunk whose declared line count does not match its payload', async () => {
@@ -161,7 +161,7 @@ test('rejects a same-file hunk whose declared line count does not match its payl
   const { repo } = await fixture(definition);
   await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
     taskFile: '.omp/ui-delivery/tasks/task.json',
-    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +2 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1,2 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
   }, repo), /malformed|unparseable|hunk/i));
 });
 

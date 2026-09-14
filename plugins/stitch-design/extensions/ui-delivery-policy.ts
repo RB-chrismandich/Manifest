@@ -39,8 +39,8 @@ function diffTargets(patch: string): string[] {
       const hunk = /^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@(?: .*)?$/.exec(lines[index]);
       if (!hunk) throw new Error(lines[index].startsWith('@@ ') ? 'malformed hunk header' : 'malformed hunk body');
       index += 1; hunks += 1;
-      let [oldRemaining, newRemaining] = parseRange(hunk[1], hunk[2]);
-      const [, parsedNewCount] = parseRange(hunk[3], hunk[4]); newRemaining = parsedNewCount;
+      const [, oldCount] = parseRange(hunk[1], hunk[2]); let oldRemaining = oldCount;
+      const [, newCount] = parseRange(hunk[3], hunk[4]); let newRemaining = newCount;
       let markerAllowed = false;
       while (oldRemaining > 0 || newRemaining > 0) {
         const line = lines[index++];
