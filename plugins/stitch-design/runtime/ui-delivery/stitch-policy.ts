@@ -90,6 +90,20 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     const record = observation as Record<string, unknown>;
     return Object.entries(expected.predictable_fields).every(([field, value]) => Object.hasOwn(record, field) && hashStitchInput(record[field]) === hashStitchInput(value));
   };
+  const readbackEntryFor = (toolName: string, recovery: boolean): string | undefined => {
+    const candidates = [...entries].flatMap(([entryKey, lifecycle]) => {
+      const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
+      return lifecycle === 'consumed'
+        && Boolean(mutation)
+        && validExpectedReadback(mutation!)
+        && mutation!.expected_readback.tool_name === toolName
+        && (recovery ? !mutationCalls.has(entryKey) : mutationCalls.has(entryKey))
+        ? [entryKey]
+        : [];
+    });
+    return candidates.length === 1 ? candidates[0] : undefined;
+  };
+
   return {
     classify(toolName: string): StitchToolKind | 'unknown' { return classified.get(toolName) ?? 'unknown'; },
     async authorize({ projectId, toolName, input, toolCallId }: { projectId?: string; toolName: string; input: unknown; toolCallId: string }): Promise<void> {
@@ -99,8 +113,9 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
         if (PROJECTLESS_READ_TOOLS[toolName]) return;
         const boundProjectId = grant?.project_id ?? discoveredProjectId;
         if (!projectId || projectId !== boundProjectId) throw new Error('Stitch tool call is not authorized');
-        const entryKey = unresolvedEntry();
-        if (entryKey && entries.get(entryKey) === 'consumed' && mutationCalls.has(entryKey)) readbacks.set(toolCallId, entryKey);
+        const activeEntry = readbackEntryFor(toolName, false);
+        const recoveredEntry = mutationCalls.size === 0 ? readbackEntryFor(toolName, true) : undefined;
+        if (activeEntry ?? recoveredEntry) readbacks.set(toolCallId, activeEntry ?? recoveredEntry!);
         return;
       }
       const mutation = grant?.mutations?.find((entry) => entry.tool_name === toolName && entry.input_hash === hashStitchInput(input));
