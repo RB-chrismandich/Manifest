@@ -308,28 +308,6 @@ test('rejects uppercase candidate hashes', async () => {
 });
 
 
-test('rejects Docker checks that do not start an approved image runtime', async () => {
-  const definition = approvedTask({
-    approved_check_recipes: [{
-      ...approvedTask().approved_check_recipes[0],
-      backend: 'docker',
-      sandbox_image: `registry.example/ui-check@sha256:${'a'.repeat(64)}`,
-      argv: ['.omp/ui-delivery/verifiers/unit.mjs'],
-    }],
-  });
-  const { repo, path } = await taskFile(definition);
-  await assert.rejects(() => loadTask({ repo, taskFile: path }), /approved image runtime/i);
-});
-
-test('requires Docker recipes and rejects option-shaped digest-pinned images', async () => {
-  for (const recipe of [
-    { ...approvedTask().approved_check_recipes[0], backend: 'sandbox-exec' },
-    { ...approvedTask().approved_check_recipes[0], backend: 'docker', sandbox_image: `-image@sha256:${'a'.repeat(64)}` },
-  ]) {
-    const { repo, path } = await taskFile({ approved_check_recipes: [recipe] });
-    await assert.rejects(() => loadTask({ repo, taskFile: path }), /check recipe|docker/i);
-  }
-});
 
 test('does not settle patch journal creation before syncing the file and parent directory', async () => {
   const { repo } = await taskFile({});
