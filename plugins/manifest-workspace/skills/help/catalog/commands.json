@@ -255,7 +255,7 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements.",
+      "description": "Focused accessibility evidence audit for semantics, keyboard use, contrast, labels, and error announcements.",
       "name": "a11y-audit",
       "qualified_name": "stitch-design:a11y-audit"
     },
@@ -269,7 +269,7 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Use when kicking off or resuming a full adversarial, spec-first UI design pass \u2014 scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the design loop sibling skills end to end.",
+      "description": "Run an approved, bounded adversarial UI design lifecycle.",
       "name": "design-loop",
       "qualified_name": "stitch-design:design-loop"
     },
@@ -304,7 +304,7 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server.",
+      "description": "Generate approved, bounded Stitch design mutations with exact readback evidence.",
       "name": "generate-design",
       "qualified_name": "stitch-design:generate-design"
     },
@@ -367,7 +367,7 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Run one adversarial design review round \u2014 parallel lens reviewers, skeptic-verified blockers, consensus gate.",
+      "description": "Run one bounded adversarial review round for an exact UI candidate.",
       "name": "review-round",
       "qualified_name": "stitch-design:review-round"
     },
@@ -409,7 +409,21 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Upload local assets (images, mockups, HTML, design markdown) to a Stitch project. ALWAYS use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits.",
+      "description": "Own an approved, bounded UI build lifecycle with authorized changes and evidence.",
+      "name": "ui-delivery",
+      "qualified_name": "stitch-design:ui-delivery"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
+      "description": "Review an exact UI candidate read-only and return bounded evidence-based verdicts.",
+      "name": "ui-verification",
+      "qualified_name": "stitch-design:ui-verification"
+    },
+    {
+      "bundle": "stitch-design",
+      "category": "design",
+      "description": "Upload authorized local assets to Stitch and reconcile them by readback.",
       "name": "upload-to-stitch",
       "qualified_name": "stitch-design:upload-to-stitch"
     },

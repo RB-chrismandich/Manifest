@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "state",
+    "design_revision",
+    "allowed_paths",
+    "forbidden_policy_paths",
+    "approved_check_recipes",
+    "capture_recipes",
+    "model_route",
+    "repair_cycles",
+    "outcome"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "approved",
+        "building",
+        "candidate_ready",
+        "reviewing",
+        "repairing",
+        "accepted",
+        "blocked",
+        "failed"
+      ]
+    },
+    "design_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$"
+    },
+    "allowed_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+      }
+    },
+    "forbidden_policy_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+      }
+    },
+    "approved_check_recipes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "argv",
+          "cwd",
+          "timeout_ms",
+          "backend",
+          "result_path",
+          "write_paths",
+          "trusted_verifier"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "cwd": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120000
+          },
+          "backend": {
+            "enum": [
+              "sandbox-exec",
+              "docker"
+            ]
+          },
+          "result_path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+          },
+          "write_paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+            }
+          },
+          "trusted_verifier": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^\\.omp/ui-delivery/verifiers/(?!.*\\.\\.)[^/].*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-fA-F0-9]{64}$"
+              }
+            }
+          },
+          "sandbox_image": {
+            "type": "string",
+            "pattern": "^[^@\\s]+@sha256:[a-fA-F0-9]{64}$"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "type"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+                },
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "capture_recipes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "check_id",
+          "artifacts"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "check_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "type"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!.*\\s)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+                },
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "model_route": {
+      "enum": ["@ui_code", "@ui_review"]
+    },
+    "repair_cycles": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "repair_authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cycle", "nonce"],
+      "properties": {
+        "cycle": { "type": "integer", "minimum": 1, "maximum": 2 },
+        "nonce": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "outcome": {
+      "enum": [
+        "verified",
+        "failed",
+        "blocked",
+        "unverified"
+      ]
+    },
+    "stitch_grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "mutations",
+        "readback_tools"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$"
+        },
+        "mutations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tool_name",
+              "input_hash",
+              "max_uses"
+            ],
+            "properties": {
+              "tool_name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "input_hash": {
+                "type": "string",
+                "minLength": 1
+              },
+              "max_uses": {
+                "const": 1
+              }
+            }
+          }
+        },
+        "readback_tools": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": { "const": "repairing" }
+        }
+      },
+      "then": {
+        "required": ["repair_authorization"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "candidate_ready",
+              "reviewing",
+              "repairing",
+              "accepted"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "candidate_revision",
+          "candidate_hash"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "accepted",
+              "blocked",
+              "failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "evidence_refs"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "verified"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "blocked"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "failed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "draft",
+              "approved",
+              "building",
+              "candidate_ready",
+              "reviewing",
+              "repairing"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "unverified"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "approved_check_recipes": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "backend": {
+                  "const": "docker"
+                }
+              },
+              "required": [
+                "backend"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "approved_check_recipes": {
+            "items": {
+              "if": {
+                "properties": {
+                  "backend": {
+                    "const": "docker"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "sandbox_image"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
