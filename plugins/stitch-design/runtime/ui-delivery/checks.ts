@@ -49,7 +49,7 @@ async function executeDirect(command: Command, outputLimitBytes: number, signal?
     const child = spawn(command.executable, command.argv, { cwd: command.cwd, env: command.env, shell: false, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     const stdoutHash = createHash('sha256'); const stderrHash = createHash('sha256'); let stdout = ''; let stderr = ''; let stdoutBytes = 0; let stderrBytes = 0; let settled = false;
     const collect = (current: string, chunk: Buffer) => Buffer.concat([Buffer.from(current), chunk]).subarray(0, outputLimitBytes).toString();
-    const terminate = async (reason: Error) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); try { process.kill(-child.pid!, 'SIGKILL'); } catch {} if (command.containerName) await new Promise<void>((done) => { const remover = spawn('docker', ['rm', '--force', command.containerName], { stdio: 'ignore' }); remover.once('close', () => done()); remover.once('error', () => done()); }); rejectResult(reason); };
+    const terminate = async (reason: Error) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); try { process.kill(-child.pid!, 'SIGKILL'); } catch {} if (command.containerName) await new Promise<void>((done) => { const remover = spawn(command.executable, ['rm', '--force', command.containerName], { env: command.env, stdio: 'ignore' }); remover.once('close', () => done()); remover.once('error', () => done()); }); rejectResult(reason); };
     const aborted = () => { void terminate(new Error('check aborted')); };
     const timer = setTimeout(() => { void terminate(new Error('check timed out')); }, command.timeoutMs);
     signal?.addEventListener('abort', aborted, { once: true });
@@ -80,7 +80,7 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
       masks.push({ source, target: join('/repo', relative(root, target)), readOnly: true });
     }
     const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...writable.map((source) => ({ source, target: join('/repo', relative(root, source)), readOnly: false })), ...masks, { source: scratch, target: '/tmp/ui-delivery', readOnly: false }];
-    const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' };
+    const env: Record<string, string> = recipe.backend === 'sandbox-exec' ? { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: scratch, TMPDIR: scratch } : { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
     const containerName = `ui-delivery-${randomUUID()}`;
     const deniedReads = ['.git', '.omp', 'secrets', ...(task.forbidden_policy_paths ?? [])].map((path, index) => ['-D', `DENY_${index}=${resolve(root, path)}`] as string[]).flat();
     const extraParameters = runtime ? runtime.extras.flatMap((entry, index) => ['-D', `EXTRA_EXEC_${index}=${entry.executable}`, '-D', `EXTRA_RUNTIME_${index}=${entry.runtime}`]) : [];
