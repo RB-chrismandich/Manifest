@@ -78,14 +78,14 @@ test('rejects a repository task that self-asserts approved without the parent au
   await assert.rejects(() => loadTask({ repo, taskFile: path, operation: 'patch' }), /approval/i);
 });
 
-test('binds authorization digests to lifecycle state as well as recipes paths and grants', () => {
+test('preserves authorization digest across lifecycle changes and invalidates recipes paths or grants', () => {
   const task = approvedTask({
     state: 'candidate_ready', candidate_revision: 'git:abc',
     candidate_hash: `sha256:${'a'.repeat(64)}`, outcome: 'unverified',
     evidence_refs: ['artifact://task-17/evidence.json'],
   });
   const digest = authorizationDigest(task);
-  assert.notEqual(digest, authorizationDigest({ ...task, state: 'reviewing', repair_cycles: 1, outcome: 'unverified', evidence_refs: ['artifact://new'] }));
+  assert.equal(digest, authorizationDigest({ ...task, state: 'reviewing', repair_cycles: 1, outcome: 'unverified', evidence_refs: ['artifact://new'] }));
   assert.notEqual(digest, authorizationDigest({ ...task, allowed_paths: ['src/Other.tsx'] }));
   assert.notEqual(digest, authorizationDigest({ ...task, approved_check_recipes: [{ ...task.approved_check_recipes[0], argv: ['evil'] }] }));
   assert.notEqual(digest, authorizationDigest({ ...task, stitch_grant: { project_id: 'different' } }));
