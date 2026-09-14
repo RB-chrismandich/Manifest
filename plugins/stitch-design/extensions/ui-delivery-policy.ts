@@ -56,17 +56,21 @@ async function verifiedArtifact(repo: string, task: any, checkId: string, expect
   return true;
 }
 async function verifiedStatus(repo: string, task: any): Promise<boolean> {
-  if (task.state !== 'accepted' || task.outcome !== 'verified' || !task.candidate_hash || await candidateHash({ repo, task }) !== task.candidate_hash) return false;
+  if (task.state !== 'accepted' || task.outcome !== 'verified' || task.model_route !== '@ui_review' || !task.candidate_hash || await candidateHash({ repo, task }) !== task.candidate_hash) return false;
   try {
-    const digest = authorizationDigest(task);
-    const records = (await readFile(join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), 'utf8')).split('\n').filter(Boolean).flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } }).filter((evidence) => evidence.taskId === task.task_id && evidence.approvedDesignHash === task.design_revision && evidence.candidateRevision === task.candidate_revision && evidence.candidateHash === task.candidate_hash && evidence.modelRoute === task.model_route && evidence.authorizationDigest === digest);
-    const latest = (operation: string, key: string, id: string) => {
-      const start = records.map((record, index) => ({ record, index })).filter(({ record }) => record.operation === operation && record[key] === id && record.attemptPhase === 'started').at(-1);
+    const checkPolicy = { ...task, model_route: '@ui_code' };
+    const checkDigest = authorizationDigest(checkPolicy);
+    const captureDigest = authorizationDigest(task);
+    const records = (await readFile(join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), 'utf8')).split('\n').filter(Boolean).flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } }).filter((evidence) => evidence.taskId === task.task_id && evidence.approvedDesignHash === task.design_revision && evidence.candidateRevision === task.candidate_revision && evidence.candidateHash === task.candidate_hash);
+    const latest = (phaseRecords: typeof records, operation: string, key: string, id: string) => {
+      const start = phaseRecords.map((record, index) => ({ record, index })).filter(({ record }) => record.operation === operation && record[key] === id && record.attemptPhase === 'started').at(-1);
       if (!start || typeof start.record.attemptId !== 'string') return undefined;
-      return records.slice(start.index + 1).find((record) => record.attemptPhase === 'completed' && record.attemptId === start.record.attemptId);
+      return phaseRecords.slice(start.index + 1).find((record) => record.attemptPhase === 'completed' && record.attemptId === start.record.attemptId);
     };
-    if (!task.approved_check_recipes.every((recipe: any) => latest('ui_run_check', 'checkId', recipe.id)?.outcome === 'verified')) return false;
-    for (const recipe of task.capture_recipes) { const completed = latest('ui_capture', 'recipeId', recipe.id); if (!completed || completed.outcome !== 'captured' || !await verifiedArtifact(repo, task, recipe.check_id, completed.artifacts, recipe)) return false; }
+    const checks = records.filter((record) => record.modelRoute === '@ui_code' && record.authorizationDigest === checkDigest);
+    const captures = records.filter((record) => record.modelRoute === '@ui_review' && record.authorizationDigest === captureDigest);
+    if (!task.approved_check_recipes.every((recipe: any) => latest(checks, 'ui_run_check', 'checkId', recipe.id)?.outcome === 'verified')) return false;
+    for (const recipe of task.capture_recipes) { const completed = latest(captures, 'ui_capture', 'recipeId', recipe.id); if (!completed || completed.outcome !== 'captured' || !await verifiedArtifact(repo, task, recipe.check_id, completed.artifacts, recipe)) return false; }
     return true;
   } catch { return false; }
 }
