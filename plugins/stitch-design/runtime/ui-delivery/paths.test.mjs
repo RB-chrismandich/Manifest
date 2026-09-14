@@ -54,3 +54,9 @@ test('always rejects task, policy, git, and secret paths even when requested as 
     await assert.rejects(() => authorizePath({ repo, task, path }));
   }
 });
+
+test('treats a root forbidden policy path as covering every repository path', async () => {
+  const { repo, task } = await fixture();
+  task.forbidden_policy_paths = ['.'];
+  await assert.rejects(() => authorizePath({ repo, task, path: 'src/Card.tsx' }), /protected path/i);
+});

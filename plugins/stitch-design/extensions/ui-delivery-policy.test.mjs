@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -42,6 +42,7 @@ test('fails closed on every unparseable, alternate, destructive, or symlink diff
       'diff --git x/src/Card.tsx y/.omp/ui-delivery/tasks/task.json\n--- x/src/Card.tsx\n+++ y/.omp/ui-delivery/tasks/task.json\n',
       'diff --git a/src/Card.tsx b/src/Card.tsx\n--- a/src/Card.tsx\n+++ /dev/null\n',
       'diff --git a/src/Card.tsx b/src/Card.tsx\nnew mode 120000\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n',
+      'diff --git a/src/NewExecutable.tsx b/src/NewExecutable.tsx\nnew file mode 100755\n--- /dev/null\n+++ b/src/NewExecutable.tsx\n@@ -0,0 +1 @@\n+export const NewExecutable = 1;\n',
       'diff --git a/src/Card.tsx b/src/Renamed.tsx\nsimilarity index 100%\nrename from src/Card.tsx\nrename to src/Renamed.tsx\n',
     ]) await assert.rejects(
       () => execute(tool, { taskFile: '.omp/ui-delivery/tasks/task.json', patch }, repo),
@@ -79,6 +80,29 @@ test('applies a same-path regular diff with standard index metadata', async () =
     patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\nindex 1111111111111111111111111111111111111111..2222222222222222222222222222222222222222 100644\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
   }, repo));
   assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 2;\n');
+});
+
+test('applies a content-only patch to an existing executable with 100755 index metadata', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await chmod(join(repo, 'src/Card.tsx'), 0o755);
+  await withApproval(definition, () => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\nindex 1111111111111111111111111111111111111111..2222222222222222222222222222222222222222 100755\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+  }, repo));
+  assert.equal(await readFile(join(repo, 'src/Card.tsx'), 'utf8'), 'export const Card = 2;\n');
+  assert.equal((await lstat(join(repo, 'src/Card.tsx'))).mode & 0o777, 0o755);
+});
+
+test('rejects executable index metadata when the existing file is not executable', async () => {
+  const definition = task();
+  const { api, tools } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  await withApproval(definition, () => assert.rejects(() => execute(tools.find((entry) => entry.name === 'ui_apply_patch'), {
+    taskFile: '.omp/ui-delivery/tasks/task.json',
+    patch: 'diff --git a/src/Card.tsx b/src/Card.tsx\nindex 1111111111111111111111111111111111111111..2222222222222222222222222222222222222222 100755\n--- a/src/Card.tsx\n+++ b/src/Card.tsx\n@@ -1 +1 @@\n-export const Card = 1;\n+export const Card = 2;\n',
+  }, repo), /executable|mismatched|diff metadata/i));
 });
 
 test('applies same-file hunks whose payload lines resemble unified-diff file headers', async () => {

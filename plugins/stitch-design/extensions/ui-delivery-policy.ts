@@ -15,7 +15,7 @@ class GitApplyRejectedError extends Error {
   constructor() { super('git apply rejected patch'); }
 }
 
-function diffTargets(patch: string): string[] {
+async function diffTargets(repo: string, patch: string): Promise<string[]> {
   const lines = patch.split('\n'); const targets: string[] = [];
   const parseRange = (start: string, count: string | undefined): [number, number] => {
     const parsedStart = Number(start); const parsedCount = count === undefined ? 1 : Number(count);
@@ -35,7 +35,16 @@ function diffTargets(patch: string): string[] {
         if (!/^index 0{7,64}\.\.[0-9a-f]{7,}(?: 100644)?$/i.test(lines[index++])) throw new Error('malformed new-file metadata');
       }
     } else if (/^(?:new|old) mode|^(?:rename|copy) |^similarity index|^dissimilarity index|^Binary /.test(lines[index] ?? '')) throw new Error('destructive or symlink diff policy');
-    else if (/^index [0-9a-f]{7,}\.\.[0-9a-f]{7,}(?: 100644)?$/i.test(lines[index])) index += 1;
+    else {
+      const indexMetadata = /^index [0-9a-f]{7,}\.\.[0-9a-f]{7,}(?: (100644|100755))?$/i.exec(lines[index] ?? '');
+      if (indexMetadata) {
+        index += 1;
+        if (indexMetadata[1]) {
+          const stat = await lstat(join(repo, newPath));
+          if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o777) !== (Number.parseInt(indexMetadata[1], 8) & 0o777)) throw new Error('unsafe executable or mismatched diff metadata');
+        }
+      }
+    }
     if ((created && (oldPath !== newPath || lines[index++] !== '--- /dev/null' || lines[index++] !== `+++ b/${newPath}`)) || (!created && (oldPath !== newPath || lines[index++] !== `--- a/${oldPath}` || lines[index++] !== `+++ b/${newPath}`))) throw new Error('unsafe or destructive diff policy');
     let hunks = 0;
     while (index < lines.length && !lines[index].startsWith('diff --git ')) {
@@ -199,7 +208,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'patch' });
       const started = performance.now();
       await prepareEvidenceDirectory(ctx.cwd);
-      const changedFiles = diffTargets(args.patch);
+      const changedFiles = await diffTargets(ctx.cwd, args.patch);
       for (const target of changedFiles) await authorizePath({ repo: ctx.cwd, task, path: target });
       await beginPatchJournal({
         repo: ctx.cwd,
