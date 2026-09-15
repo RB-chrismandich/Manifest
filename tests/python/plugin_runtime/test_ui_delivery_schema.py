@@ -107,11 +107,20 @@ def test_task_schema_forbids_repair_authorization_outside_repairing_state(
 
     assert_invalid(
         validator,
-        {**task, "state": "accepted", "repair_authorization": {"cycle": 2, "nonce": "stale-repair"}},
+        {
+            **task,
+            "state": "accepted",
+            "repair_authorization": {"cycle": 2, "nonce": "stale-repair"},
+        },
     )
     assert_invalid(
         validator,
-        {**task, "state": "building", "outcome": "unverified", "repair_authorization": {"cycle": 1, "nonce": "premature"}},
+        {
+            **task,
+            "state": "building",
+            "outcome": "unverified",
+            "repair_authorization": {"cycle": 1, "nonce": "premature"},
+        },
     )
 
 
@@ -388,7 +397,11 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
     review_at_cycle_1 = {**review, "repair_cycles": 1}
     assert_valid(
         validator,
-        {**review_at_cycle_1, "verdict": "repair_required", "findings": ["Incorrect spacing."]},
+        {
+            **review_at_cycle_1,
+            "verdict": "repair_required",
+            "findings": ["Incorrect spacing."],
+        },
     )
     assert_invalid(
         validator,
