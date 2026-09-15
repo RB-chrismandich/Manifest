@@ -9,18 +9,18 @@
 # A PR that adds or removes a skill MUST change the matching partition count and
 # catalog expected_total in the same commit, and give the new skill a bundle or
 # classify it as an independent marketplace addon.
-domain_expected_total: 122
+domain_expected_total: 124
 addon_expected_total: 0
 # Eight canonical domains plus the policy addon. This deliberately excludes
 # independent marketplace addons from the policy partition.
-policy_expected_total: 122
+policy_expected_total: 124
 independent_addon_expected_total: 0
 # Marketplace addons are intentionally installable without selecting a domain
 # bundle, but still appear in the global catalog and reference-validation gate.
 independent_addons: {}
 # The exact global mirror/catalog count, including independent marketplace
 # addons. Consumers that inspect every installed skill must use this field.
-expected_total: 122
+expected_total: 124
 
 # Codex loads skill names, descriptions, and paths into the initial model prompt,
 # capped at 2% of context (or 8,000 characters when context is unknown). Keep only
@@ -204,7 +204,7 @@ bundles:
     - token-benchmark
     - token-conserve
 
-  stitch-design:  # 24 skills
+  stitch-design:  # 26 skills
     - a11y-audit
     - code-to-design
     - design-loop
@@ -227,5 +227,7 @@ bundles:
     - spec-amend
     - stitch-loop
     - taste-design
+    - ui-delivery
+    - ui-verification
     - upload-to-stitch
     - ux-review

@@ -1,0 +1,15 @@
+{
+  "fixture_metadata": {
+    "design_source": "hand-authored approved contract",
+    "stitch_credentials": "unavailable",
+    "external_design_reference": "consumer-pilot-existing-v1"
+  },
+  "target": "site/account.html",
+  "requirements": {
+    "title": "Account portal",
+    "heading": "Your account",
+    "summary": "Manage your plan, billing, and security in one place.",
+    "layout_class": "account-shell",
+    "layout_css": "grid-template-columns: 18rem 1fr"
+  }
+}

@@ -158,16 +158,15 @@ repos:
     hooks:
       - id: eslint
         types_or: [javascript, jsx, ts, tsx]
-        # Vendored content (e.g. the Stitch Design Skills family) ships its own
-        # .ts/.js scripts but has no eslint.config.js of its own, and this repo
-        # has never set up flat-config eslint (dormant per the
-        # additional_dependencies note above) — running eslint against it just
-        # fails on a missing config, not real findings.
+        # Vendored content and audit fixtures ship .ts/.js without a shared
+        # eslint.config.js, and this repo has never set up flat-config eslint
+        # (dormant per the additional_dependencies note above). Running eslint
+        # against them fails on missing configuration rather than code findings.
         #
         # plugins/stitch-design/ is where that family lives after the cutover;
-        # .apm/skills/ is its generated mirror. Excluding only the mirror left
-        # the real source linted, which is how a dormant hook started failing.
-        exclude: ^(templates/|\.Jules/|\.apm/skills/|plugins/stitch-design/|plugins/manifest-code-quality/skills/project-scaffold/templates/)
+        # .apm/skills/ is its generated mirror. The audit-seeded fixtures are
+        # deliberately malformed inputs for repository quality checks.
+        exclude: ^(templates/|\.Jules/|\.apm/skills/|plugins/stitch-design/|plugins/manifest-code-quality/skills/project-scaffold/templates/|tests/fixtures/)
         additional_dependencies:
           - eslint@9.18.0
 

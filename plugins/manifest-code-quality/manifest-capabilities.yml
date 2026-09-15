@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-code-quality
-  version: 0.3.0
+  version: 0.4.0
   description: Code analysis, refactoring, verification, and test-quality workflows.
   category: code-quality
 components:
@@ -11,6 +11,7 @@ components:
   agents: []
   hooks: []
   runtime:
+    - {id: review-escalation-reference, path: skills/refactor/references/review-escalation.md}
     - {id: constitution-scripts, path: skills/code-audit-constitution/scripts}
     - {id: constitution-config, path: skills/code-audit-constitution/config}
     - {id: constitution-references, path: skills/code-audit-constitution/references}
@@ -18,7 +19,6 @@ components:
     - {id: smoke-vendor, path: skills/smoke-manage/vendor}
     - {id: scaffold-templates, path: skills/project-scaffold/templates}
     - {id: code-audit-references, path: skills/code-audit/references}
-    - {id: review-escalation-reference, path: skills/refactor/references/review-escalation.md}
   guidance: []
 capabilities:
   mcp:

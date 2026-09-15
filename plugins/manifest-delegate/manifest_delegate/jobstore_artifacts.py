@@ -163,6 +163,7 @@ class JobArtifactsMixin:
             os.replace(temporary, path)
             os.chmod(path, 0o600)
             _fsync_directory(job_dir)
+        # constitution: exempt C-ERR — cleanup preserves atomic replacement across all interruptions before re-raising
         except BaseException:
             with contextlib.suppress(OSError):
                 os.unlink(temporary)

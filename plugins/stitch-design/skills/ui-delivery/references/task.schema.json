@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "state",
+    "design_revision",
+    "qualification_hash",
+    "allowed_paths",
+    "forbidden_policy_paths",
+    "approved_check_recipes",
+    "capture_recipes",
+    "model_route",
+    "repair_cycles",
+    "outcome"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "approved",
+        "building",
+        "candidate_ready",
+        "reviewing",
+        "repairing",
+        "accepted",
+        "blocked",
+        "failed"
+      ]
+    },
+    "design_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "qualification_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "candidate_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "allowed_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(?!\\.$)(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"
+      }
+    },
+    "forbidden_policy_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(?:\\.|(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"
+      }
+    },
+    "approved_check_recipes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "argv",
+          "cwd",
+          "timeout_ms",
+          "backend",
+          "sandbox_image",
+          "result_path",
+          "write_paths",
+          "trusted_verifier"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "prefixItems": [
+              {
+                "enum": [
+                  "node",
+                  "python3"
+                ]
+              }
+            ],
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "cwd": {
+            "type": "string",
+            "pattern": "^(?:\\.|(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120000
+          },
+          "backend": {
+            "const": "docker"
+          },
+          "result_path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"
+          },
+          "write_paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"
+            }
+          },
+          "trusted_verifier": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^\\.omp/ui-delivery/verifiers/(?!.*\\.\\.)[^/].*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-fA-F0-9]{64}$"
+              }
+            }
+          },
+          "sandbox_image": {
+            "type": "string",
+            "pattern": "^(?!-)[^@\\s]+@sha256:[a-fA-F0-9]{64}$"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "type"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?:\\.|(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"
+                },
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "capture_recipes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "check_id",
+          "artifacts"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "check_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "type"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?:\\.|(?!/)(?!.*\\s)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"
+                },
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "model_route": {
+      "enum": ["@ui_code", "@ui_review"]
+    },
+    "repair_cycles": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "repair_authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cycle", "nonce"],
+      "properties": {
+        "cycle": { "type": "integer", "minimum": 1, "maximum": 2 },
+        "nonce": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "outcome": {
+      "enum": [
+        "verified",
+        "failed",
+        "blocked",
+        "unverified"
+      ]
+    },
+    "stitch_grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "mutations",
+        "readback_tools"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:[0-9]{2}(?:0[48]|[2468][048]|[13579][26])|(?:0[48]|[2468][048]|[13579][26])00)-02-29|[0-9]{4}-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12][0-9]|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12][0-9]|30)|02-(?:0[1-9]|1[0-9]|2[0-8])))T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$"
+        },
+        "mutations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tool_name",
+              "input_hash",
+              "max_uses",
+              "expected_readback"
+            ],
+            "properties": {
+              "tool_name": {
+                "enum": ["mcp__stitch_create_project", "mcp__stitch_generate_screen_from_text", "mcp__stitch_edit_screens", "mcp__stitch_generate_variants", "mcp__stitch_upload_design_md", "mcp__stitch_create_design_system_from_design_md", "mcp__stitch_update_design_system", "mcp__stitch_apply_design_system"]
+              },
+              "input_hash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              },
+              "max_uses": {
+                "const": 1
+              },
+              "expected_readback": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["tool_name"],
+                "properties": {
+                  "tool_name": {"enum": ["mcp__stitch_get_screen", "mcp__stitch_list_screens", "mcp__stitch_get_project", "mcp__stitch_list_design_systems"]},
+                  "response_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+                  "predictable_fields": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "propertyNames": {"pattern": "^(?!project_id$)[a-z][a-z0-9_]*$"}
+                  },
+                  "resource_identity": {"enum": ["project", "screen", "design_system"]}
+                },
+                "oneOf": [
+                  {
+                    "required": ["tool_name", "response_hash"],
+                    "not": {"anyOf": [{"required": ["predictable_fields"]}, {"required": ["resource_identity"]}]}
+                  },
+                  {
+                    "required": ["tool_name", "predictable_fields", "resource_identity"],
+                    "not": {"required": ["response_hash"]}
+                  }
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {"properties": {"tool_name": {"const": "mcp__stitch_create_project"}}, "required": ["tool_name"]},
+                "then": {
+                  "properties": {
+                    "expected_readback": {
+                      "required": ["predictable_fields", "resource_identity"],
+                      "properties": {"resource_identity": {"const": "project"}}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "readback_tools": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": ["mcp__stitch_get_screen", "mcp__stitch_list_screens", "mcp__stitch_get_project", "mcp__stitch_list_design_systems"]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mutations": {
+                "contains": {
+                  "properties": {"tool_name": {"const": "mcp__stitch_create_project"}},
+                  "required": ["tool_name"]
+                }
+              }
+            },
+            "required": ["mutations"]
+          },
+          "then": {"not": {"required": ["project_id"]}}
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": { "const": "repairing" }
+        }
+      },
+      "then": {
+        "required": ["repair_authorization"]
+      },
+      "else": {
+        "not": {
+          "required": ["repair_authorization"]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "candidate_ready",
+              "reviewing",
+              "repairing",
+              "accepted"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "candidate_revision",
+          "candidate_hash"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "accepted",
+              "blocked",
+              "failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "evidence_refs"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "verified"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "model_route": {
+            "const": "@ui_review"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "blocked"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "failed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "draft",
+              "approved",
+              "building",
+              "candidate_ready",
+              "reviewing",
+              "repairing"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "unverified"
+          }
+        }
+      }
+    }
+  ]
+}
