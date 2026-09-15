@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { link, mkdtemp, mkdir, open, readFile, readdir, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { chmod, link, mkdtemp, mkdir, open, readFile, readdir, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -47,6 +47,13 @@ test('reads authorized regular evidence and treats a missing evidence file as ab
   assert.equal(await readEvidence({ repo, evidenceFile }), '{"record":true}\n');
   await unlink(evidenceFile);
   assert.equal(await readEvidence({ repo, evidenceFile }), undefined);
+});
+
+test('rejects a group- or world-writable evidence file even with expected type and link count', async () => {
+  const { repo, evidenceFile } = await fixture();
+  await appendEvidence({ repo, evidenceFile, record: binding });
+  await chmod(evidenceFile, 0o666);
+  await assert.rejects(() => readEvidence({ repo, evidenceFile }), /unsafe/i);
 });
 
 test('refuses evidence missing any required identity or bounded-output hash', async () => {
@@ -97,6 +104,23 @@ test('rejects malformed existing mutation state instead of treating it as absent
     () => loadStitchMutationState({ repo, taskId: 'task-17', authorizationDigest: 'sha256:approved' }),
     /malformed/i,
   );
+});
+
+test('treats mutation state left under a superseded authorization digest as absent and safely reinitializes it under the newly approved digest', async () => {
+  const { repo } = await fixture();
+  await updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:previous', expectedVersion: 0,
+    state: { entries: { mutation: 'consumed' }, projectId: 'project-17' },
+  });
+  const stale = await loadStitchMutationState({ repo, taskId: 'task-17', authorizationDigest: 'sha256:reapproved' });
+  assert.equal(stale, undefined);
+  const next = await updateStitchMutationState({
+    repo, taskId: 'task-17', authorizationDigest: 'sha256:reapproved', expectedVersion: 0,
+    state: { entries: {}, projectId: 'project-17' },
+  });
+  assert.equal(next.authorizationDigest, 'sha256:reapproved');
+  assert.equal(next.version, 1);
+  assert.deepEqual(next.entries, {});
 });
 
 test('does not unlink a mutation lock owned by a failed contender', async () => {

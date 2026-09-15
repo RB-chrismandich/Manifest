@@ -7,6 +7,11 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 function canonical(value: unknown): string { if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`; if (value && typeof value === 'object') return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`; return JSON.stringify(value); }
 export function canonicalJsonHash(value: unknown): string { return `sha256:${createHash('sha256').update(canonical(value)).digest('hex')}`; }
 function below(root: string, candidate: string): boolean { const rel = relative(root, candidate); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..'); }
+const trustedOwner = typeof process.getuid === 'function' ? process.getuid() : undefined;
+function assertTrustedFile(stat: { uid?: number; mode: number }, label: string): void {
+  if (trustedOwner !== undefined && stat.uid !== trustedOwner) throw new Error(`${label} is unsafe`);
+  if ((stat.mode & 0o022) !== 0) throw new Error(`${label} is unsafe`);
+}
 export async function prepareEvidenceDirectory(repo: string): Promise<string> {
   const root = await realpath(repo); let current = root;
   for (const part of ['.omp', 'ui-delivery']) { current = join(current, part); const stat = await lstat(current); if (!stat.isDirectory() || stat.isSymbolicLink() || !below(root, await realpath(current))) throw new Error('evidence policy directory is unsafe'); }
@@ -32,6 +37,7 @@ export async function readEvidence({ repo, evidenceFile }: { repo: string; evide
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.nlink !== 1) throw new Error('evidence file is unsafe');
+    assertTrustedFile(stat, 'evidence file');
     return await handle.readFile({ encoding: 'utf8' });
   } finally {
     await handle.close();
@@ -147,7 +153,8 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
     if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Stitch state file is unsafe');
     const state = JSON.parse(await readFile(target, 'utf8')) as StitchMutationState;
     if (
-      state.authorizationDigest !== authorizationDigest
+      typeof state.authorizationDigest !== 'string'
+      || !state.authorizationDigest
       || !state.entries
       || typeof state.entries !== 'object'
       || Array.isArray(state.entries)
@@ -158,6 +165,7 @@ export async function loadStitchMutationState({ repo, taskId, authorizationDiges
       || state.version < 0
       || (state.projectId !== undefined && (typeof state.projectId !== 'string' || !state.projectId))
     ) throw new Error('Stitch mutation state is malformed');
+    if (state.authorizationDigest !== authorizationDigest) return undefined;
     return state;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
