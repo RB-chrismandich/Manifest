@@ -1,0 +1,10 @@
+{
+  "required_symbol": "parse_assignment",
+  "public_criteria": ["split_once", "trim_fields", "reject_missing_separator", "reject_empty_key"],
+  "hidden_cases": [
+    {"input": "A=one=two", "result": ["A", "one=two"]},
+    {"input": " key = value ", "result": ["key", "value"]},
+    {"input": "missing", "error": "ValueError"},
+    {"input": " =value", "error": "ValueError"}
+  ]
+}

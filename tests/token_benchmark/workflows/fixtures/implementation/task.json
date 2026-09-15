@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "implementation",
+  "kind": "artifact_implementation",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Return JSON containing one solution.py artifact that implements parse_assignment.",
+  "artifacts": {
+    "starter.py": "def parse_assignment(value: str) -> tuple[str, str]:\n    key, parsed = value.split('=')\n    return key, parsed\n",
+    "public_contract.txt": "Trim whitespace around the key and value. Preserve '=' characters after the first separator. Reject input without a separator and reject an empty trimmed key."
+  },
+  "output_contract": {
+    "files": {"solution.py": "string"}
+  }
+}

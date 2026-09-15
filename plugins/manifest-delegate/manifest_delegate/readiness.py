@@ -102,6 +102,25 @@ def _probe_version_and_auth(backend_id, readiness, row):
         row["state"] = "not_authenticated"
         row["fix"] = readiness.get("login_fix", "login required")
         row["identity"] = auth_out or None
+    elif readiness.get("auth_success_pattern") and re.search(
+        r"(?im)^\s*error:", auth_out
+    ):
+        row["state"] = "error"
+        row["fix"] = (
+            "repository access probe failed; inspect the backend's auth probe diagnostics"
+        )
+    elif readiness.get("auth_success_pattern") and not re.search(
+        readiness["auth_success_pattern"], auth_out
+    ):
+        row["state"] = "error"
+        row["fix"] = "authentication/repository access unverified; " + readiness.get(
+            "login_fix", "login required"
+        )
+    elif readiness.get("auth_success_pattern"):
+        row["state"] = "ready"
+        row["fix"] = "—"
+        # Repository rows establish access, not an authenticated account name.
+        row["identity"] = None
     else:
         row["state"] = "ready"
         row["fix"] = "—"
@@ -111,7 +130,8 @@ def _probe_version_and_auth(backend_id, readiness, row):
 _AUTH_ERROR_PATTERN = re.compile(
     r"not logged in|not authenticated|unauthorized|unauthenticated|"
     r"login required|please log ?in|please login|auth(?:entication)? error|"
-    r"invalid (?:api key|token|credentials)|no (?:api key|credentials) found",
+    r"invalid (?:api key|token|credentials)|no (?:api key|credentials) found|"
+    r"without a valid client|forget to login",
     re.IGNORECASE,
 )
 

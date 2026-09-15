@@ -50,18 +50,19 @@ audit() {
     assert_output --partial "Usage"
 }
 
-@test "an inherited premium dispatch is a violation" {
+@test "unattributed premium dispatch is incomplete evidence" {
     dispatch a1 general-purpose - claude-opus-5
     audit
     assert_failure
-    assert_output --partial "INHERITED PREMIUM DISPATCHES: 1"
+    assert_equal "$status" 2
+    assert_output --partial "Unattributed premium: 1"
 }
 
 @test "an explicitly requested premium model is a permitted exception" {
     dispatch a1 general-purpose opus claude-opus-5
     audit
     assert_success
-    assert_output --partial "INHERITED PREMIUM DISPATCHES: 0"
+    assert_output --partial "Unattributed premium: 0"
 }
 
 @test "an inherited NON-premium dispatch is not a violation" {
@@ -70,12 +71,12 @@ audit() {
     assert_success
 }
 
-@test "a frontmatter-pinned agent is not a violation (the hook must skip it)" {
+@test "current frontmatter does not prove a historical pin" {
     printf -- '---\nname: verifier\nmodel: opus\n---\nb\n' > "$AGENTS/verifier.md"
     dispatch a1 verifier - claude-opus-5
     audit
-    assert_success
-    assert_output --partial "frontmatter:opus"
+    assert_equal "$status" 2
+    assert_output --partial "unattributed-premium"
 }
 
 @test "Fable counts as premium (derived from the price table, not a name list)" {
@@ -85,11 +86,12 @@ audit() {
 }
 
 @test "the workflow channel is reported but not audited by default" {
+    dispatch a1 general-purpose sonnet claude-sonnet-5
     dispatch w1 workflow-subagent - claude-opus-5 workflow
     audit
     assert_success
     assert_output --partial "NOT AUDITED HERE"
-    assert_output --partial "1 inherited-premium"
+    assert_output --partial "workflow: 1 dispatch(es)"
 }
 
 @test "--channel workflow audits the workflow channel instead" {
@@ -110,35 +112,36 @@ audit() {
     dispatch a2 general-purpose haiku claude-haiku-4-5
     audit
     assert_success
-    assert_output --partial "OK — no inherited premium-model dispatches"
+    assert_output --partial "OK — scoped observed dispatch evidence only"
 }
 
-@test "fork is not a violation (it ignores model by design; no fix exists)" {
+@test "fork is unsupported rather than counted as pinned" {
     dispatch f1 fork - claude-opus-5
     audit
-    assert_success
-    assert_output --partial "unpinnable premium"
-    assert_output --partial "INHERITED PREMIUM DISPATCHES: 0"
+    assert_equal "$status" 2
+    assert_output --partial "fork: 1 dispatch(es), unsupported"
 }
 
 @test "an unpriced model is surfaced, never silently passed" {
     dispatch a1 general-purpose - claude-unknown-9
     audit
-    assert_output --partial "unclassified models"
+    assert_equal "$status" 2
+    assert_output --partial "unclassified-model"
 }
 
-@test "the violation names the offending dispatch" {
+@test "incomplete evidence identifies the model without task descriptions" {
     dispatch a1 pr-review-toolkit:thing - claude-opus-5
     audit
     assert_failure
-    assert_output --partial "pr-review-toolkit:thing"
-    assert_output --partial "agent-a1.meta.json"
+    assert_output --partial "served=claude-opus-5"
+    assert_output --partial "unattributed-premium"
 }
 
 @test "dispatches before --since are outside the window" {
     dispatch a1 general-purpose - claude-opus-5
     run python3 "$AUDIT" --audit --root "$ROOT" --since "2027-01-01T00:00:00Z"
-    assert_success
+    assert_equal "$status" 2
+    assert_output --partial "0 dispatch(es)"
 }
 
 @test "a missing transcript root is an error, not a false pass" {

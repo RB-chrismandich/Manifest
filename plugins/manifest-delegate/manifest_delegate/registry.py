@@ -134,6 +134,34 @@ def _validate_registry_entry(entry, path, seen_ids, seen_aliases):
     _validate_registry_aliases(entry, entry_id, path, seen_ids, seen_aliases)
     _validate_registry_argv_fields(entry, entry_id, path)
     _validate_registry_input_shape(entry, entry_id, path)
+    execution = entry.get("execution")
+    if execution is not None:
+        expected = {
+            "kind": "remote_session",
+            "driver": "jules_cli",
+            "read_only": False,
+            "model_selection": False,
+            "resume": False,
+            "cancel": False,
+        }
+        if execution != expected or entry.get("resume") or entry.get("model_args"):
+            raise RegistryError(
+                f"registry {path}: unsupported remote execution capabilities"
+            )
+        if entry.get("default_tier") != "auto" or entry.get("transfer"):
+            raise RegistryError(
+                f"registry {path}: remote backend requires auto model and no transfer"
+            )
+    success_pattern = (entry.get("readiness") or {}).get("auth_success_pattern")
+    if success_pattern is not None:
+        import re
+
+        try:
+            re.compile(success_pattern)
+        except (TypeError, re.error) as exc:
+            raise RegistryError(
+                f"registry {path}: invalid auth success pattern"
+            ) from exc
 
     # Belt-and-braces: scan every remaining string leaf for the bypass
     # tokens too, in case a future field carries one (D8 re-validation

@@ -3,7 +3,7 @@
 import json
 import sys
 
-from . import backend, jobstore
+from . import backend, jobstore, remote_task
 from .task_dispatch import _dispatch_task as _dispatch_task
 from .task_policy import (
     build_dispatch_extra,
@@ -37,6 +37,12 @@ from .task_resolution import (
 
 
 def _handle_fallback_rejection(store, args, resume_record):
+    if resume_record and resume_record.get("execution_kind") == "remote_session":
+        print(
+            "delegate: remote resume is unsupported; use the session URL",
+            file=sys.stderr,
+        )
+        return 2
     decision = getattr(args, "fallback_decision", None)
     if resume_record is not None and decision == "reject":
         expected = getattr(args, "expected_version", None)
@@ -70,6 +76,15 @@ def _handle_fallback_rejection(store, args, resume_record):
 
 
 def _resolve_task_records(store, args, backends, user_config, resume_record):
+    if any(
+        getattr(args, name, None) for name in ("remote_write", "repo", "remote_base")
+    ):
+        return (
+            None,
+            None,
+            None,
+            "delegate: remote options require a remote-session backend",
+        )
     second_opinion, error = _resolve_task_second_opinion(store, args)
     if error:
         return None, None, None, error
@@ -122,6 +137,24 @@ def cmd_task(args, backends, user_config, services_disabled):
     handled = _handle_fallback_rejection(store, args, resume_record)
     if handled is not None:
         return handled
+    # Resume ownership overrides the configured default backend. This preserves
+    # local resume semantics when the default is a remote-only backend.
+    selected, _ = _resolve_task_backend_entry(
+        args, backends, user_config, resume_record
+    )
+    if selected and remote_task.is_remote(selected):
+        return remote_task.cmd_task(
+            store, args, selected, user_config, services_disabled
+        )
+    return _cmd_local_task(
+        store, args, backends, user_config, services_disabled, resume_record
+    )
+
+
+def _cmd_local_task(
+    store, args, backends, user_config, services_disabled, resume_record
+):
+    """Prepare the local worker's model, resume, and sandbox contracts."""
     resume_record, second_opinion, entry, error = _resolve_task_records(
         store, args, backends, user_config, resume_record
     )

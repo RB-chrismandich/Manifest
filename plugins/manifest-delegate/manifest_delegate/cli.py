@@ -24,6 +24,8 @@ _SUBCOMMAND_HELP = {
     "status": "Show a job's current state.",
     "result": "Print a job's normalized result envelope.",
     "cancel": "Cancel a queued/running job.",
+    "pull": "Fetch a completed remote job's patch for review.",
+    "apply": "Apply a previously fetched remote patch to a clean repository.",
     "setup": "Check backend readiness and write user config.",
     "transfer": "Transfer a session to another surface (backend-declared).",
     "gate": "Internal: invoked by the Stop hook for the review gate.",
@@ -35,6 +37,8 @@ _IMPLEMENTED_SUBCOMMANDS = {
     "status",
     "result",
     "cancel",
+    "pull",
+    "apply",
     "transfer",
     "resume-candidate",
     "setup",
@@ -69,6 +73,17 @@ def _add_task_args(p):
         "--wait", action="store_true", help="run in foreground (default)"
     )
     p.add_argument("--write", action="store_true", help="allow sandboxed writes")
+    p.add_argument(
+        "--remote-write",
+        action="store_true",
+        help="authorize cloud execution and remote repository changes",
+    )
+    p.add_argument("--repo", help="explicit GitHub OWNER/REPO for remote execution")
+    p.add_argument(
+        "--remote-base",
+        choices=["provider-selected"],
+        help="acknowledge that the remote CLI cannot pin a branch or use local changes",
+    )
     _add_task_model_args(p)
     _add_task_resume_args(p)
 
@@ -196,7 +211,7 @@ def _add_subcommand_args(name, p):
         p.add_argument(
             "--timeout", type=int, default=None, help="max seconds to --wait"
         )
-    elif name in ("result", "cancel"):
+    elif name in ("result", "cancel", "pull", "apply"):
         p.add_argument(
             "job_id", nargs="?", default=None, help="job id or unique prefix"
         )
@@ -240,7 +255,7 @@ def build_parser():
     """Build the top-level argparse parser and all delegate.py subcommands."""
     parser = transfer.ShortHelpParser(
         prog="delegate.py",
-        description="Delegate tasks/reviews to a backend registry (codex, claude, antigravity, cursor, devin).",
+        description="Delegate tasks/reviews to local backends or Jules remote sessions.",
         add_help=True,
     )
     parser.add_argument(
@@ -346,12 +361,16 @@ def _dispatch_configured(args):
 
 
 def _dispatch_command(args):
+    from . import remote_jobs
+
     if args.command in ("task", "review", "setup", "gate"):
         return _dispatch_configured(args)
     direct = {
         "status": jobs_cli.cmd_status,
         "result": jobs_cli.cmd_result,
         "cancel": jobs_cli.cmd_cancel,
+        "pull": remote_jobs.cmd_pull,
+        "apply": remote_jobs.cmd_apply,
     }
     if args.command in direct:
         return direct[args.command](args)

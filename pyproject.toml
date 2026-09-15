@@ -36,6 +36,8 @@ include = [
   "configs/claude/scripts/manifest_model_policy/controller.py",
   "configs/claude/scripts/manifest_model_policy/failures.py",
   "configs/claude/scripts/manifest_model_policy/frontmatter.py",
+  "configs/claude/scripts/manifest_model_policy/headless.py",
+  "configs/claude/scripts/manifest_model_policy/policy_config.py",
   "configs/claude/scripts/manifest_model_policy/resolver.py",
   "configs/claude/scripts/manifest_model_policy/skill_command.py",
   "configs/claude/scripts/manifest_model_policy/skill_execution.py",
@@ -57,6 +59,8 @@ packages = ["src/manifest_agent"]
 "configs/claude/scripts/manifest_model_policy/controller.py" = "manifest_agent/_model_policy/controller.py"
 "configs/claude/scripts/manifest_model_policy/failures.py" = "manifest_agent/_model_policy/failures.py"
 "configs/claude/scripts/manifest_model_policy/frontmatter.py" = "manifest_agent/_model_policy/frontmatter.py"
+"configs/claude/scripts/manifest_model_policy/headless.py" = "manifest_agent/_model_policy/headless.py"
+"configs/claude/scripts/manifest_model_policy/policy_config.py" = "manifest_agent/_model_policy/policy_config.py"
 "configs/claude/scripts/manifest_model_policy/resolver.py" = "manifest_agent/_model_policy/resolver.py"
 "configs/claude/scripts/manifest_model_policy/skill_command.py" = "manifest_agent/_model_policy/skill_command.py"
 "configs/claude/scripts/manifest_model_policy/skill_execution.py" = "manifest_agent/_model_policy/skill_execution.py"

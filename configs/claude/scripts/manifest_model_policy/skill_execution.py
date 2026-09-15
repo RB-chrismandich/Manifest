@@ -116,7 +116,7 @@ def _write_prompt_file(path: Path, prompt: str) -> None:
         os.fsync(stream.fileno())
 
 
-def _invocation(
+def build_provider_invocation(
     agent: dict[str, Any],
     model: str | None,
     prompt: str,
@@ -143,7 +143,7 @@ def _invocation(
     if transport == "file" and not prompt_file.exists():
         _write_prompt_file(prompt_file, prompt)
     argv.extend(
-        str(item).replace("{prompt}", prompt).replace("{prompt_file}", str(prompt_file))
+        str(item).replace("{prompt_file}", str(prompt_file)).replace("{prompt}", prompt)
         for item in prompt_args
     )
     return tuple(argv), prompt.encode("utf-8") if transport == "stdin" else None
@@ -252,7 +252,7 @@ class _SkillRunSession:
         return self._failure_report(index, resolved, decision)
 
     def _launch(self, resolved, output_file, prompt_file):
-        argv, stdin_bytes = _invocation(
+        argv, stdin_bytes = build_provider_invocation(
             self.agent, resolved.model_id, self.prompt, output_file, prompt_file
         )
         kwargs = {"stdin_bytes": stdin_bytes} if stdin_bytes is not None else {}

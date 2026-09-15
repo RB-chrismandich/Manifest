@@ -8,8 +8,11 @@ from manifest_model_policy import (
     ModelFallbackMode,
     ModelPolicyError,
     classify_failure,
+    load_agent_roster,
+    load_default_policy,
     parse_skill_model_policy,
     resolve_chain,
+    resolve_policy_path,
     sdk_failure_evidence,
 )
 
@@ -126,3 +129,34 @@ def test_sdk_exception_shapes_use_only_structured_status_fields(
     assert secret_message not in str(dict(evidence.structured_fields))
     assert secret_message not in str(evidence.persisted_summary())
     assert "stderr" not in evidence.persisted_summary()
+
+
+def test_policy_path_precedence_prefers_explicit_then_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    explicit = tmp_path / "explicit.yml"
+    environment = tmp_path / "environment.yml"
+    configured = tmp_path / "config" / "model_policy.yml"
+    for path in (explicit, environment, configured):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setenv("MANIFEST_MODEL_POLICY", str(environment))
+    monkeypatch.setenv("MANIFEST_CONFIG_DIR", str(configured.parent))
+
+    assert resolve_policy_path(explicit) == explicit
+    assert resolve_policy_path() == environment
+    monkeypatch.delenv("MANIFEST_MODEL_POLICY")
+    assert resolve_policy_path() == configured
+
+
+def test_default_policy_rejects_non_mapping_and_roster_is_optional(
+    tmp_path: Path,
+) -> None:
+    malformed = tmp_path / "malformed.yml"
+    malformed.write_text("- not-a-mapping\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="mapping"):
+        load_default_policy(malformed)
+    assert load_agent_roster(tmp_path / "missing.yml") == {}
+    malformed.write_text("agents: []\n", encoding="utf-8")
+    assert load_agent_roster(malformed) == {}

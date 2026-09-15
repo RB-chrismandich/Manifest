@@ -6,7 +6,8 @@ import signal
 import sys
 import time
 
-from . import backend, constants, containment, jobstore, process, task
+from . import backend, constants, containment, jobstore, process, remote_jobs, task
+from .task_resolution import _resolve_job_id_anywhere
 
 
 def cmd_status(args):
@@ -32,7 +33,7 @@ def cmd_status(args):
                 )
         return 0
 
-    resolved, error = task._resolve_job_id(store, args.job_id)
+    store, resolved, error = _resolve_job_id_anywhere(store, args.job_id)
     if error:
         print(f"delegate: {error}", file=sys.stderr)
         return 2
@@ -43,6 +44,8 @@ def cmd_status(args):
         else None
     )
     record = store.reap_if_dead(resolved)
+    if record.get("execution_kind") == "remote_session":
+        return remote_jobs.status(store, args, record)
     while args.wait and record.get("state") not in jobstore.SETTLED_STATES:
         if deadline and time.time() >= deadline:
             break
@@ -68,12 +71,16 @@ def cmd_result(args):
     if not args.job_id:
         print("delegate: job id or prefix required", file=sys.stderr)
         return 2
-    resolved, error = task._resolve_job_id(store, args.job_id)
+    store, resolved, error = _resolve_job_id_anywhere(store, args.job_id)
     if error:
         print(f"delegate: {error}", file=sys.stderr)
         return 2
 
     record = store.reap_if_dead(resolved)
+    if record.get("execution_kind") == "remote_session":
+        record = remote_jobs.refresh(store, record)
+        remote_jobs.render(record, args.json)
+        return 0 if record["state"] == "completed" else 1
     if record.get("state") not in jobstore.SETTLED_STATES:
         print(
             f"delegate: still running; delegate.py status {resolved} --wait",
@@ -344,6 +351,12 @@ def cmd_cancel(args):
         return failure
 
     record = store.read(resolved)
+    if record.get("execution_kind") == "remote_session":
+        print(
+            "delegate: remote cancellation is unsupported; stop the task in Jules using its session URL",
+            file=sys.stderr,
+        )
+        return 2
     expected = getattr(args, "expected_version", None)
     version_failure = _validate_cancel_version(record, expected)
     if version_failure is not None:
