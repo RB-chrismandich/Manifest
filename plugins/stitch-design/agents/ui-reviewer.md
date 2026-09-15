@@ -22,7 +22,11 @@ output:
         verdict: {type: string, const: accepted}
         findings: {type: array, maxItems: 0}
     - properties:
-        verdict: {type: string, enum: [repair_required, blocked, failed]}
+        verdict: {type: string, const: repair_required}
+        repair_cycles: {type: integer, enum: [0, 1]}
+        findings: {type: array, minItems: 1}
+    - properties:
+        verdict: {type: string, enum: [blocked, failed]}
         findings: {type: array, minItems: 1}
 ---
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, realpath, symlink, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -59,4 +59,35 @@ test('treats a root forbidden policy path as covering every repository path', as
   const { repo, task } = await fixture();
   task.forbidden_policy_paths = ['.'];
   await assert.rejects(() => authorizePath({ repo, task, path: 'src/Card.tsx' }), /protected path/i);
+});
+
+async function isCaseInsensitiveFs(dir) {
+  try {
+    await access(join(dir, '.OMP'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test('rejects a differently-cased path that resolves to a protected directory via a filesystem alias', async () => {
+  const { repo } = await fixture();
+  await symlink(join(repo, '.omp'), join(repo, 'ALIAS-OMP'));
+  const task = { allowed_paths: ['ALIAS-OMP'], forbidden_policy_paths: [] };
+  await assert.rejects(
+    () => authorizePath({ repo, task, path: 'ALIAS-OMP/ui-delivery/tasks/task.json' }),
+    /protected path/i,
+  );
+});
+
+test('rejects an uppercase alias of a protected directory on a case-insensitive filesystem', async (t) => {
+  const { repo, task } = await fixture();
+  if (!(await isCaseInsensitiveFs(repo))) {
+    t.skip('filesystem is case-sensitive; uppercase alias cannot collide');
+    return;
+  }
+  await assert.rejects(
+    () => authorizePath({ repo, task: { ...task, allowed_paths: ['.OMP'] }, path: '.OMP/ui-delivery/tasks/task.json' }),
+    /protected path/i,
+  );
 });

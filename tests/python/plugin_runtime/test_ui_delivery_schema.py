@@ -99,6 +99,22 @@ def test_task_schema_accepts_authorized_lifecycle_states(repo_root: Path) -> Non
         assert_valid(validator, lifecycle_task)
 
 
+def test_task_schema_forbids_repair_authorization_outside_repairing_state(
+    repo_root: Path,
+) -> None:
+    validator = _validator(repo_root)
+    task = _accepted_task()
+
+    assert_invalid(
+        validator,
+        {**task, "state": "accepted", "repair_authorization": {"cycle": 2, "nonce": "stale-repair"}},
+    )
+    assert_invalid(
+        validator,
+        {**task, "state": "building", "outcome": "unverified", "repair_authorization": {"cycle": 1, "nonce": "premature"}},
+    )
+
+
 def test_task_schema_requires_candidate_identity_and_allows_review_route(
     repo_root: Path,
 ) -> None:
@@ -162,6 +178,17 @@ def test_task_schema_rejects_unsafe_ids_and_whitespace_paths(repo_root: Path) ->
     assert_invalid(
         validator,
         _with_check_recipe(task, write_paths=["artifacts/check result.json"]),
+    )
+    assert_invalid(
+        validator,
+        _with_check_recipe(task, result_path=".", write_paths=["."]),
+    )
+    assert_invalid(
+        validator,
+        _with_check_recipe(
+            task,
+            write_paths=[task["approved_check_recipes"][0]["result_path"], "."],
+        ),
     )
     assert_invalid(
         validator,
@@ -358,13 +385,18 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
 
     assert_valid(validator, review)
     assert_invalid(validator, {**review, "findings": ["Incorrect spacing."]})
+    review_at_cycle_1 = {**review, "repair_cycles": 1}
     assert_valid(
         validator,
-        {**review, "verdict": "repair_required", "findings": ["Incorrect spacing."]},
+        {**review_at_cycle_1, "verdict": "repair_required", "findings": ["Incorrect spacing."]},
     )
     assert_invalid(
         validator,
-        {**review, "verdict": "repair_required", "findings": []},
+        {**review_at_cycle_1, "verdict": "repair_required", "findings": []},
+    )
+    assert_invalid(
+        validator,
+        {**review, "verdict": "repair_required", "findings": ["Incorrect spacing."]},
     )
     assert_invalid(
         validator,
@@ -373,6 +405,10 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
     assert_invalid(
         validator,
         {**review, "verdict": "failed", "findings": []},
+    )
+    assert_valid(
+        validator,
+        {**review, "verdict": "blocked", "findings": ["Incorrect spacing."]},
     )
     assert_invalid(
         validator,
