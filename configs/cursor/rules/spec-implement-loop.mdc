@@ -1,12 +1,12 @@
 ---
-description: "Use once spec/plan are approved and ready to implement — critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Never commits or pushes."
+description: "Use once spec/plan are approved and ready to implement — critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Supports --assurance standard|high-assurance. Never commits or pushes."
 globs: ".claude/skills/spec-implement-loop/**"
 alwaysApply: false
 ---
 
 # spec-implement-loop
 
-Use once spec/plan are approved and ready to implement — critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Never commits or pushes.
+Use once spec/plan are approved and ready to implement — critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Supports --assurance standard|high-assurance. Never commits or pushes.
 
 <!-- Auto-generated from .claude/skills/spec-implement-loop/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

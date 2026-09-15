@@ -356,3 +356,54 @@ def test_ci_audit_dispatch_uses_the_omp_task_contract(
         assert "--security-analysis" not in text
     assert "security-reviewer" in reference
     assert "task" in reference
+
+
+def test_security_refute_findings_forwards_to_canonical_alias(
+    security_bundle: Path, tmp_path: Path
+) -> None:
+    installed = tmp_path / "installed/manifest-security"
+    shutil.copytree(security_bundle, installed)
+    alias = installed / "skills/security-refute-findings/SKILL.md"
+    source = alias.read_text(encoding="utf-8")
+
+    assert "deprecated" in source.lower()
+    assert "manifest-security:security-triage-findings" in source
+    link = re.search(r"\[[^\]]*security-triage-findings[^\]]*\]\(([^)]+)\)", source)
+    assert link is not None, "alias does not link the canonical skill"
+    target = (alias.parent / link.group(1)).resolve()
+    assert target == (installed / "skills/security-triage-findings/SKILL.md").resolve()
+    assert target.is_file()
+
+    assert "candidate findings" in source
+    assert "`scope`" in source and "in_diff" in source and "off_diff" in source
+    assert "`survived`" in source
+    assert "`refuted`" in source
+    assert "{idx, reason}" in source
+
+
+def test_security_refute_findings_does_not_duplicate_canonical_gate_catalog(
+    security_bundle: Path,
+) -> None:
+    alias = (security_bundle / "skills/security-refute-findings/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "PRE-EXISTING" not in alias
+    assert "no-privilege-boundary" not in alias
+    assert "control-moved-to-library" not in alias
+
+
+def test_security_triage_findings_verifies_delegated_control_by_call_path(
+    security_bundle: Path,
+) -> None:
+    canonical = (
+        security_bundle / "skills/security-triage-findings/SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    assert "traced call path" in canonical or "trace the actual call path" in canonical
+    assert "is not evidence" in canonical
+    assert "delegated validation" in canonical
+    assert "control-moved-to-library" in canonical
+    assert "SSRF" in canonical  # trust-boundary exceptions preserved
+    assert "LLM-agent capability gates" in canonical
+    assert "file:line" in canonical

@@ -27,5 +27,7 @@ material defect exists; approve only when you found none. A finding must name
 the file and the failing scenario. Do not restyle code or litigate taste —
 that is the architecture critic's lane.
 
-End with your judgment in the exact output format given at the end of this
-prompt.
+End with one `cddl-verdict` JSON block (`"role": "qa-critic"`): `approve`
+only with empty `findings` — a single low-severity finding still blocks. Use
+`advisories` for nonblocking notes (optional; a missing key means `[]`). See
+the dispatch template's verdict-format reference for the exact schema.
