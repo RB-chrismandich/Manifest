@@ -4,6 +4,13 @@ import { lstat, open, readdir, readFile, realpath, rename, unlink, type FileHand
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { canonicalJsonHash } from './evidence.ts';
 import { STITCH_MUTATION_TOOL_NAMES, STITCH_READBACK_TOOL_NAMES } from './stitch-policy.ts';
+// Each resource_identity kind may only pair with readback tools whose response shape can actually
+// carry that identity kind, so a screen identity can never be paired with the project-only get_project tool.
+const READBACK_IDENTITY_TOOLS = {
+  project: ['mcp__stitch_get_project'],
+  screen: ['mcp__stitch_get_screen', 'mcp__stitch_list_screens'],
+  design_system: ['mcp__stitch_list_design_systems'],
+} as const;
 export type DeliveryTask = Record<string, any>;
 
 function within(root: string, candidate: string): boolean {
@@ -52,6 +59,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
   if (['candidate_ready', 'reviewing', 'repairing', 'accepted'].includes(value.state) && (typeof value.candidate_revision !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(value.candidate_hash))) invalid('candidate binding required');
   if (['accepted', 'blocked', 'failed'].includes(value.state) && !nonEmptyStrings(value.evidence_refs)) invalid('terminal evidence required');
   if (value.state === 'repairing' && (!value.repair_authorization || typeof value.repair_authorization !== 'object' || !Number.isInteger(value.repair_authorization.cycle) || value.repair_authorization.cycle !== value.repair_cycles || value.repair_authorization.cycle < 1 || typeof value.repair_authorization.nonce !== 'string' || !value.repair_authorization.nonce)) invalid('repairing requires renewed cycle-bound authorization');
+  if (value.state !== 'repairing' && Object.hasOwn(value, 'repair_authorization')) invalid('repair authorization is only permitted while repairing');
   const ids = new Set<string>();
   for (const recipe of value.approved_check_recipes) {
     if (!recipe || typeof recipe !== 'object' || typeof recipe.id !== 'string' || !recipe.id || ids.has(recipe.id) || !nonEmptyStrings(recipe.argv) || !relativePath(recipe.cwd) || !relativePath(recipe.result_path) || !nonEmptyStrings(recipe.write_paths) || !recipe.write_paths.every(relativePath) || !recipe.write_paths.includes(recipe.result_path) || !Number.isInteger(recipe.timeout_ms) || recipe.timeout_ms < 1 || recipe.timeout_ms > 120000 || recipe.backend !== 'docker') invalid('invalid check recipe');
@@ -84,7 +92,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
       const creating = mutation?.tool_name === 'mcp__stitch_create_project';
       const predictableFields = expectedRecord?.predictable_fields;
       const exactReadback = /^sha256:[a-f0-9]{64}$/.test(expectedRecord?.response_hash) && !Object.hasOwn(expectedRecord ?? {}, 'predictable_fields') && !Object.hasOwn(expectedRecord ?? {}, 'resource_identity');
-      const predictableReadback = predictableFields && typeof predictableFields === 'object' && !Array.isArray(predictableFields) && Object.keys(predictableFields).length > 0 && Object.keys(predictableFields).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field)) && !Object.hasOwn(expectedRecord ?? {}, 'response_hash') && ['project', 'screen', 'design_system'].includes(expectedRecord?.resource_identity);
+      const predictableReadback = predictableFields && typeof predictableFields === 'object' && !Array.isArray(predictableFields) && Object.keys(predictableFields).length > 0 && Object.keys(predictableFields).every((field) => /^(?!project_id$)[a-z][a-z0-9_]*$/.test(field)) && !Object.hasOwn(expectedRecord ?? {}, 'response_hash') && ['project', 'screen', 'design_system'].includes(expectedRecord?.resource_identity) && READBACK_IDENTITY_TOOLS[expectedRecord?.resource_identity as keyof typeof READBACK_IDENTITY_TOOLS]?.includes(expectedRecord?.tool_name);
       if (!STITCH_MUTATION_TOOL_NAMES.includes(mutation?.tool_name) || !/^sha256:[a-f0-9]{64}$/.test(mutation?.input_hash) || mutation?.max_uses !== 1 || !expectedRecord || !STITCH_READBACK_TOOL_NAMES.includes(expectedRecord.tool_name) || !grant.readback_tools.includes(expectedRecord.tool_name)) invalid('invalid Stitch grant tool');
       if (!exactReadback && !predictableReadback || creating && (!predictableReadback || expectedRecord.resource_identity !== 'project')) invalid('invalid Stitch grant readback');
       const mutationKey = `${mutation.tool_name}\0${mutation.input_hash}`;
@@ -95,7 +103,7 @@ function validate(task: unknown): asserts task is DeliveryTask {
 }
 
 function excludedCandidatePath(path: string, task: DeliveryTask): boolean {
-  if (path === '.git' || path.startsWith('.git/') || path === '.omp' || path.startsWith('.omp/')) return true;
+  if (path === '.git' || path.startsWith('.git/') || path === '.omp/ui-delivery' || path.startsWith('.omp/ui-delivery/')) return true;
   const outputs = task.approved_check_recipes.flatMap((recipe: { write_paths?: unknown }) => Array.isArray(recipe.write_paths) ? recipe.write_paths : []);
   return outputs.some((output: string) => path === output || path.startsWith(`${output}/`));
 }
@@ -190,10 +198,10 @@ export async function candidateHash({ repo, task }: { repo: string; task: Delive
     const candidatePath = relative(root, path);
     const stat = await lstat(path);
     if (directory) {
-      hash.update(Buffer.from(`directory\0${candidatePath}\0${stat.mode & 0o777}\0`));
+      hash.update(Buffer.from(`directory\0${candidatePath}\0${stat.mode & 0o7777}\0`));
       continue;
     }
-    hash.update(Buffer.from(`file\0${candidatePath}\0${stat.size}\0${stat.mode & 0o777}\0`));
+    hash.update(Buffer.from(`file\0${candidatePath}\0${stat.size}\0${stat.mode & 0o7777}\0`));
     for await (const chunk of createReadStream(path)) hash.update(chunk);
   }
   return `sha256:${hash.digest('hex')}`;

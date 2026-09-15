@@ -82,3 +82,25 @@ test('hashes large candidate files deterministically with permission framing', a
   await chmod(file, 0o600);
   assert.notEqual(await candidateHash({ repo, task: definition }), expected);
 });
+
+test('binds special permission bits such as setgid to the framed candidate identity', async () => {
+  const definition = approvedTask();
+  const repo = await candidateWorkspace();
+  await chmod(join(repo, 'src'), 0o750);
+  const before = await candidateHash({ repo, task: definition });
+  await chmod(join(repo, 'src'), 0o2750);
+  assert.notEqual(await candidateHash({ repo, task: definition }), before);
+});
+
+test('binds non-delivery .omp content to candidate identity while excluding protected ui-delivery state', async () => {
+  const definition = approvedTask();
+  const repo = await candidateWorkspace();
+  await mkdir(join(repo, '.omp/ui-delivery/tasks'), { recursive: true });
+  await writeFile(join(repo, '.omp/ui-delivery/tasks/task-17.json'), JSON.stringify(definition));
+  const before = await candidateHash({ repo, task: definition });
+  await writeFile(join(repo, '.omp/ui-delivery/tasks/task-17.json'), JSON.stringify({ ...definition, state: 'accepted' }));
+  assert.equal(await candidateHash({ repo, task: definition }), before, 'protected ui-delivery state must stay excluded');
+  await mkdir(join(repo, '.omp/agent'), { recursive: true });
+  await writeFile(join(repo, '.omp/agent/config.json'), '{"changed":true}\n');
+  assert.notEqual(await candidateHash({ repo, task: definition }), before, 'non-delivery .omp content must bind to candidate identity');
+});

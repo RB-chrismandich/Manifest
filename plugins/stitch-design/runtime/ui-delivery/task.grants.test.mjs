@@ -178,3 +178,23 @@ test('rejects project-bound create grants', async () => {
     readback_tools: ['mcp__stitch_get_project'],
   }), /project-bound create/i);
 });
+
+test('rejects predictable readbacks pairing an incompatible resource identity with a readback tool', async () => {
+  await expectRejectedGrant(standardGrant({
+    mutations: [{
+      tool_name: 'mcp__stitch_edit_screens', input_hash: SHA256('c'), max_uses: 1,
+      expected_readback: {
+        tool_name: 'mcp__stitch_get_project', predictable_fields: { title: 'Checkout' }, resource_identity: 'screen',
+      },
+    }],
+    readback_tools: ['mcp__stitch_get_project'],
+  }), /Stitch.*grant|readback/i);
+  await expectRejectedGrant(standardGrant({
+    mutations: [{
+      tool_name: 'mcp__stitch_edit_screens', input_hash: SHA256('c'), max_uses: 1,
+      expected_readback: {
+        tool_name: 'mcp__stitch_get_screen', predictable_fields: { name: 'Tokens' }, resource_identity: 'design_system',
+      },
+    }],
+  }), /Stitch.*grant|readback/i);
+});
