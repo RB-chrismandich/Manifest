@@ -374,14 +374,15 @@ def test_agent_output_schemas_are_strict_and_match_the_review_contract(
         assert output["properties"]["evidence_refs"]["minItems"] == 1
 
 
-def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
-    repo_root: Path,
-) -> None:
-    validator = schema(
+def _review_validator(repo_root: Path) -> Draft202012Validator:
+    return schema(
         repo_root
         / "plugins/stitch-design/skills/ui-verification/references/review.schema.json"
     )
-    review = {
+
+
+def _review() -> dict[str, Any]:
+    return {
         "task_id": "ui-delivery-17",
         "candidate_revision": "git:4d2ce0b",
         "candidate_hash": "sha256:8d5f2e",
@@ -392,49 +393,45 @@ def test_review_schema_binds_read_only_verdict_to_exact_candidate_evidence(
         "evidence_refs": ["artifact://ui-delivery-17/capture.png"],
     }
 
+
+def test_review_schema_binds_each_verdict_to_findings_and_the_repair_limit(
+    repo_root: Path,
+) -> None:
+    validator = _review_validator(repo_root)
+    review = _review()
+    at_cycle_1 = {**review, "repair_cycles": 1}
+    finding = ["Incorrect spacing."]
+
     assert_valid(validator, review)
-    assert_invalid(validator, {**review, "findings": ["Incorrect spacing."]})
-    review_at_cycle_1 = {**review, "repair_cycles": 1}
+    assert_invalid(validator, {**review, "findings": finding})
     assert_valid(
         validator,
-        {
-            **review_at_cycle_1,
-            "verdict": "repair_required",
-            "findings": ["Incorrect spacing."],
-        },
+        {**at_cycle_1, "verdict": "repair_required", "findings": finding},
     )
     assert_invalid(
         validator,
-        {**review_at_cycle_1, "verdict": "repair_required", "findings": []},
+        {**at_cycle_1, "verdict": "repair_required", "findings": []},
     )
     assert_invalid(
         validator,
-        {**review, "verdict": "repair_required", "findings": ["Incorrect spacing."]},
+        {**review, "verdict": "repair_required", "findings": finding},
     )
-    assert_invalid(
-        validator,
-        {**review, "verdict": "blocked", "findings": []},
-    )
-    assert_invalid(
-        validator,
-        {**review, "verdict": "failed", "findings": []},
-    )
-    assert_valid(
-        validator,
-        {**review, "verdict": "blocked", "findings": ["Incorrect spacing."]},
-    )
-    assert_invalid(
-        validator,
-        {key: value for key, value in review.items() if key != "candidate_revision"},
-    )
-    assert_invalid(
-        validator,
-        {key: value for key, value in review.items() if key != "candidate_hash"},
-    )
-    assert_invalid(
-        validator,
-        {key: value for key, value in review.items() if key != "evidence_refs"},
-    )
+    assert_invalid(validator, {**review, "verdict": "blocked", "findings": []})
+    assert_invalid(validator, {**review, "verdict": "failed", "findings": []})
+    assert_valid(validator, {**review, "verdict": "blocked", "findings": finding})
+
+
+def test_review_schema_requires_exact_candidate_evidence_and_rejects_extras(
+    repo_root: Path,
+) -> None:
+    validator = _review_validator(repo_root)
+    review = _review()
+
+    for omitted in ("candidate_revision", "candidate_hash", "evidence_refs"):
+        assert_invalid(
+            validator,
+            {key: value for key, value in review.items() if key != omitted},
+        )
     assert_invalid(validator, {**review, "repair_cycles": 3})
     assert_invalid(validator, {**review, "outcome": "verified"})
     assert_invalid(
