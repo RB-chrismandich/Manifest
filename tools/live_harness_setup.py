@@ -222,6 +222,30 @@ def _which(binary: str, env: Mapping[str, str]) -> str | None:
     return shutil.which(binary, path=env.get("PATH"))
 
 
+def _fail(message: str) -> None:
+    print(f"live_harness_setup.py: {message}", file=sys.stderr)
+
+
+def _selected(argv: Sequence[str] | None) -> Harness | None:
+    parser = argparse.ArgumentParser(
+        prog="live_harness_setup.py",
+        description="Install and authenticate one native harness CLI for live parity.",
+    )
+    parser.add_argument(
+        "--harness",
+        required=True,
+        help=f"harness to provision ({', '.join(sorted(HARNESSES))})",
+    )
+    requested = parser.parse_args(argv).harness
+    harness = HARNESSES.get(requested)
+    if harness is None:
+        _fail(
+            f"unknown harness {requested!r};"
+            f" known harnesses: {', '.join(sorted(HARNESSES))}"
+        )
+    return harness
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -233,64 +257,41 @@ def main(
 
     2 = unknown harness; 1 = missing secret, absent CLI, or a failing probe.
     """
-    parser = argparse.ArgumentParser(
-        prog="live_harness_setup.py",
-        description="Install and authenticate one native harness CLI for live parity.",
-    )
-    parser.add_argument(
-        "--harness",
-        required=True,
-        help=f"harness to provision ({', '.join(sorted(HARNESSES))})",
-    )
-    arguments = parser.parse_args(argv)
+    harness = _selected(argv)
+    if harness is None:
+        return 2
 
     environ = os.environ if environ is None else environ
     runner = _subprocess_runner if runner is None else runner
     locator = _which if locator is None else locator
 
-    harness = HARNESSES.get(arguments.harness)
-    if harness is None:
-        print(
-            f"live_harness_setup.py: unknown harness {arguments.harness!r};"
-            f" known harnesses: {', '.join(sorted(HARNESSES))}",
-            file=sys.stderr,
-        )
-        return 2
-
     credential = (environ.get(CREDENTIAL_VARIABLE) or "").strip()
     if not credential:
-        print(
-            f"live_harness_setup.py: BLOCKED: protected secret {harness.secret_name}"
-            f" is required to authenticate {harness.name}",
-            file=sys.stderr,
+        _fail(
+            f"BLOCKED: protected secret {harness.secret_name}"
+            f" is required to authenticate {harness.name}"
         )
         return 1
 
-    home = Path(environ["HOME"])
-    github_env = Path(environ["GITHUB_ENV"])
     base = _sanitized(environ, credential)
-
     # Installer exit codes are advisory: some official installers end with an
     # interactive setup step that cannot complete on a runner. The binary
     # landing on PATH is the fact that matters, and the probe below is what
     # proves the CLI is genuinely usable.
     runner(harness.install_argv, base)
-
     if locator(harness.binary, base) is None:
-        print(
-            f"live_harness_setup.py: BLOCKED: {harness.binary} is absent after"
-            f" installing {harness.name}",
-            file=sys.stderr,
-        )
+        _fail(f"BLOCKED: {harness.binary} is absent after installing {harness.name}")
         return 1
 
-    exported = provision(harness, credential, home=home, github_env=github_env)
-
+    exported = provision(
+        harness,
+        credential,
+        home=Path(environ["HOME"]),
+        github_env=Path(environ["GITHUB_ENV"]),
+    )
     if runner(harness.verify_argv, {**base, **exported}) != 0:
-        print(
-            f"live_harness_setup.py: BLOCKED: {harness.name} is installed but its"
-            " authentication probe failed",
-            file=sys.stderr,
+        _fail(
+            f"BLOCKED: {harness.name} is installed but its authentication probe failed"
         )
         return 1
 

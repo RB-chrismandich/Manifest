@@ -7,7 +7,7 @@ import os
 import re
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from shlex import quote
 from typing import Any
@@ -822,11 +822,13 @@ def _reconcile_desired(service, receipt, desired, *, apply):
         service,
         receipt,
         desired,
-        results,
-        detections,
-        release_errors,
-        owned_harnesses,
-        mutated_owned,
+        _ReconcileOutcome(
+            results,
+            detections,
+            release_errors,
+            owned_harnesses,
+            mutated_owned,
+        ),
     )
     if persist_error is not None:
         return report("reconcile", results, notes, (persist_error,))
@@ -842,16 +844,22 @@ def _identity_scope_error(apply, release_errors, scoped_owned, owned_harnesses):
     return None
 
 
-def _persist_reconcile(
-    service,
-    receipt,
-    desired,
-    results,
-    detections,
-    release_errors,
-    owned_harnesses,
-    mutated_owned,
-):
+@dataclass(frozen=True)
+class _ReconcileOutcome:
+    """What one reconcile pass observed, as the receipt writer needs it."""
+
+    results: dict[str, HarnessResult]
+    detections: Mapping[str, Detection]
+    release_errors: tuple[str, ...]
+    owned_harnesses: set[str]
+    mutated_owned: set[str]
+
+
+def _persist_reconcile(service, receipt, desired, outcome):
+    results = outcome.results
+    release_errors = outcome.release_errors
+    owned_harnesses = outcome.owned_harnesses
+    mutated_owned = outcome.mutated_owned
     if not mutated_owned:
         return None
     if release_errors and not all(
@@ -866,7 +874,7 @@ def _persist_reconcile(
     updated = build_receipt(
         desired,
         owned_results,
-        detections,
+        outcome.detections,
         service.adapters,
         HARNESS_ORDER,
         previous=receipt,
