@@ -181,6 +181,55 @@ def test_antigravity_projection_states_antigravity_reasons(
     assert not any("Gemini" in reason for reason in reasons.values())
 
 
+def test_workspace_token_economy_guidance_reaches_every_harness_or_records_blocker(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """Plugin-only install parity for the token-conserve replacement guidance.
+
+    Claude/Codex get it through the workspace-token-economy-context
+    SessionStart hook (same registered surface ADHD's always_on.py uses).
+    Gemini/Antigravity already get it through the guidance component's
+    contextFileName. Devin has no reachable delivery path without touching
+    the adapter's Devin owned-file model (out of this change's scope), so it
+    must be recorded as not_applicable rather than silently claimed.
+    """
+    render_views(repo_root, output_root=tmp_path, check=False)
+    bundle = tmp_path / "manifest-workspace"
+
+    claude_plugin = json.loads(
+        (bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+    assert "./hooks/token-economy-context.json" in claude_plugin["hooks"]
+
+    codex_view = json.loads((bundle / "plugin.json").read_text(encoding="utf-8"))[
+        "harnesses"
+    ]["codex"]
+    codex_hook_ids = {
+        component["id"] for component in codex_view["components"]["hooks"]
+    }
+    assert "workspace-token-economy-context" in codex_hook_ids
+
+    for harness_file in ("gemini-extension.json", "antigravity-extension.json"):
+        view = json.loads((bundle / harness_file).read_text(encoding="utf-8"))
+        assert "guidance/token-economy.md" in view["contextFileName"]
+
+    devin_view = json.loads((bundle / "plugin.json").read_text(encoding="utf-8"))[
+        "harnesses"
+    ]["devin"]
+    devin_guidance_ids = {
+        component["id"]
+        for component in devin_view.get("components", {}).get("guidance", [])
+    }
+    assert "workspace-token-economy" not in devin_guidance_ids
+    devin_degraded = {
+        record["component_id"]: record["reason"]
+        for record in devin_view["compatibility"]["degraded"]
+        if "reason" in record
+    }
+    assert "MIGRATION BLOCKER" in devin_degraded["workspace-token-economy"]
+    assert not (bundle / "devin/global-rule.md").exists()
+
+
 def test_codex_lifecycle_events_are_independent_native_components(
     repo_root: Path, tmp_path: Path
 ) -> None:

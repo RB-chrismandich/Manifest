@@ -514,7 +514,7 @@
     {
       "bundle": "manifest-workspace",
       "category": "productivity",
-      "description": "Compress or summarize memory/log entries \u2014 distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, developer-shorthand rewrite, one-sentence log line) with zero information loss.",
+      "description": "Compress or summarize memory/log entries \u2014 distill a session/transcript into a dated one-line entry, or selectively compress/rotate existing memory entries (daily summary, developer-shorthand rewrite, one-sentence log line) while preserving durable source provenance.",
       "name": "memory-compress",
       "qualified_name": "manifest-workspace:memory-compress"
     },

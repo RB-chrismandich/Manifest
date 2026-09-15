@@ -21,7 +21,8 @@
   },
   "description": "Workspace configuration, environment, session, and learning workflows.",
   "hooks": [
-    "./hooks/session-continuity.json"
+    "./hooks/session-continuity.json",
+    "./hooks/token-economy-context.json"
   ],
   "metadata": {
     "compatibility": {
@@ -36,9 +37,9 @@
         {
           "component_id": "workspace-token-economy",
           "component_type": "guidance",
-          "mode": "degraded",
+          "mode": "not_applicable",
           "path": "guidance/token-economy.md",
-          "reason": "claude native manifest cannot encode guidance component 'workspace-token-economy' at 'guidance/token-economy.md'"
+          "reason": "Claude Code's plugin.json has no context-injection field; delivered instead via the workspace-token-economy-context SessionStart hook."
         },
         {
           "component_id": "codex-permission-request",
@@ -228,6 +229,12 @@
           "component_type": "hooks",
           "mode": "native",
           "path": "hooks/session-continuity.json"
+        },
+        {
+          "component_id": "workspace-token-economy-context",
+          "component_type": "hooks",
+          "mode": "native",
+          "path": "hooks/token-economy-context.json"
         }
       ]
     }

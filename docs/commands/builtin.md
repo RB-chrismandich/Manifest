@@ -67,6 +67,22 @@ security-boundary behavior changes. File size, function/class counts,
 complexity metrics, and keyword matches alone are advisory review signals, not
 activation triggers.
 
+### `/token-conserve` migration status
+
+Its behavior is now always-on baseline guidance rather than an opt-in command,
+delivered per harness: Claude and Codex load
+`plugins/manifest-workspace/guidance/token-economy.md` through the
+`workspace-token-economy-context` SessionStart hook (same registered surface
+`manifest-i-have-adhd` uses); Gemini and Antigravity load it through the
+guidance component's generated `contextFileName`; Cursor loads it from the
+bootstrap-deployed `configs/cursor/rules/orchestration.mdc` (Cursor's plugin
+adapter never activates plugin-bundled content on its own). Devin has no
+delivery path today — its single `global_rules.md` file is already owned by
+the `manifest-i-have-adhd` bundle, and sharing it needs an extension to the
+Devin adapter's owned-file ownership model. `/token-conserve` therefore
+remains available specifically to cover that Devin gap; retire it once the
+Devin adapter work ships.
+
 ---
 
 ## Label Management

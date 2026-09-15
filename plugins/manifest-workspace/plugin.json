@@ -32,6 +32,13 @@
             "mode": "not_applicable",
             "path": "hooks/codex-lifecycle-events.json",
             "reason": "This component records the Codex Stop surface only."
+          },
+          {
+            "component_id": "workspace-token-economy-context",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/token-economy-context.json",
+            "reason": "Antigravity already receives this guidance through the guidance component's imported contextFileName; a duplicate SessionStart hook is not a verified Antigravity surface."
           }
         ],
         "imported": [
@@ -339,6 +346,13 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "not_applicable",
+            "path": "guidance/token-economy.md",
+            "reason": "Codex has no plugin guidance-file surface; delivered instead via the workspace-token-economy-context SessionStart hook."
+          },
+          {
             "component_id": "claude-compaction-continuity",
             "component_type": "hooks",
             "mode": "not_applicable",
@@ -444,12 +458,6 @@
             "path": "guidance/orchestration.md"
           },
           {
-            "component_id": "workspace-token-economy",
-            "component_type": "guidance",
-            "mode": "native",
-            "path": "guidance/token-economy.md"
-          },
-          {
             "component_id": "codex-permission-request",
             "component_type": "hooks",
             "mode": "native",
@@ -466,6 +474,12 @@
             "component_type": "hooks",
             "mode": "native",
             "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "component_id": "workspace-token-economy-context",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/token-economy-context.json"
           },
           {
             "component_id": "command-catalog",
@@ -596,10 +610,6 @@
           {
             "id": "workspace-orchestration",
             "path": "guidance/orchestration.md"
-          },
-          {
-            "id": "workspace-token-economy",
-            "path": "guidance/token-economy.md"
           }
         ],
         "hooks": [
@@ -614,6 +624,10 @@
           {
             "id": "codex-stop",
             "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "id": "workspace-token-economy-context",
+            "path": "hooks/token-economy-context.json"
           }
         ],
         "runtime": [
@@ -683,6 +697,13 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "not_applicable",
+            "path": "guidance/token-economy.md",
+            "reason": "Cursor's plugin adapter indexes bundles without inventing an activation mechanism (see CursorAdapter); Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."
+          },
+          {
             "component_id": "claude-compaction-continuity",
             "component_type": "hooks",
             "mode": "not_applicable",
@@ -709,6 +730,13 @@
             "mode": "not_applicable",
             "path": "hooks/codex-lifecycle-events.json",
             "reason": "This component records the Codex Stop surface only."
+          },
+          {
+            "component_id": "workspace-token-economy-context",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/token-economy-context.json",
+            "reason": "Cursor's hook events (beforeShellExecution etc.) have no SessionStart/always-on-context equivalent and CursorAdapter deliberately indexes bundles without inventing an activation mechanism; Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."
           }
         ],
         "generated": [
@@ -809,12 +837,6 @@
             "path": "guidance/orchestration.md"
           },
           {
-            "component_id": "workspace-token-economy",
-            "component_type": "guidance",
-            "mode": "generated",
-            "path": "guidance/token-economy.md"
-          },
-          {
             "component_id": "command-catalog",
             "component_type": "runtime",
             "mode": "generated",
@@ -943,10 +965,6 @@
           {
             "id": "workspace-orchestration",
             "path": "guidance/orchestration.md"
-          },
-          {
-            "id": "workspace-token-economy",
-            "path": "guidance/token-economy.md"
           }
         ],
         "runtime": [
@@ -1016,6 +1034,13 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "workspace-token-economy",
+            "component_type": "guidance",
+            "mode": "not_applicable",
+            "path": "guidance/token-economy.md",
+            "reason": "MIGRATION BLOCKER \u2014 Devin single-owns ~/.codeium/windsurf/memories/global_rules.md exclusively for the manifest-i-have-adhd bundle (the Devin adapter guards that file for the ADHD rule and only the ADHD deploy step writes it). Sharing that file across bundles requires extending the Devin adapter's owned-file ownership model, which is out of scope here; /token-conserve remains available for Devin users until that adapter work ships."
+          },
+          {
             "component_id": "claude-compaction-continuity",
             "component_type": "hooks",
             "mode": "not_applicable",
@@ -1042,6 +1067,13 @@
             "mode": "not_applicable",
             "path": "hooks/codex-lifecycle-events.json",
             "reason": "This component records the Codex Stop surface only."
+          },
+          {
+            "component_id": "workspace-token-economy-context",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/token-economy-context.json",
+            "reason": "Devin has no SessionStart-equivalent hook execution surface."
           }
         ],
         "native": [
@@ -1142,12 +1174,6 @@
             "path": "guidance/orchestration.md"
           },
           {
-            "component_id": "workspace-token-economy",
-            "component_type": "guidance",
-            "mode": "native",
-            "path": "guidance/token-economy.md"
-          },
-          {
             "component_id": "command-catalog",
             "component_type": "runtime",
             "mode": "native",
@@ -1276,10 +1302,6 @@
           {
             "id": "workspace-orchestration",
             "path": "guidance/orchestration.md"
-          },
-          {
-            "id": "workspace-token-economy",
-            "path": "guidance/token-economy.md"
           }
         ],
         "runtime": [

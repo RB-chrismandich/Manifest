@@ -61,6 +61,15 @@ components:
         cursor: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
+    - id: workspace-token-economy-context
+      path: hooks/token-economy-context.json
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: not_applicable, reason: "Gemini already receives this guidance through the guidance component's generated contextFileName; a duplicate SessionStart hook is not a verified Gemini extension surface."}
+        cursor: {mode: not_applicable, reason: "Cursor's hook events (beforeShellExecution etc.) have no SessionStart/always-on-context equivalent and CursorAdapter deliberately indexes bundles without inventing an activation mechanism; Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."}
+        antigravity: {mode: not_applicable, reason: Antigravity already receives this guidance through the guidance component's imported contextFileName; a duplicate SessionStart hook is not a verified Antigravity surface.}
+        devin: {mode: not_applicable, reason: Devin has no SessionStart-equivalent hook execution surface.}
   runtime:
     - {id: session-continuity-scripts, path: skills/session-checkpoint/scripts}
     - {id: session-checkpoint-references, path: skills/session-checkpoint/references}
@@ -74,7 +83,15 @@ components:
     - {id: pr-smoke-scripts, path: skills/pr-smoke/scripts}
   guidance:
     - {id: workspace-orchestration, path: guidance/orchestration.md}
-    - {id: workspace-token-economy, path: guidance/token-economy.md}
+    - id: workspace-token-economy
+      path: guidance/token-economy.md
+      compatibility:
+        claude: {mode: not_applicable, reason: Claude Code's plugin.json has no context-injection field; delivered instead via the workspace-token-economy-context SessionStart hook.}
+        codex: {mode: not_applicable, reason: Codex has no plugin guidance-file surface; delivered instead via the workspace-token-economy-context SessionStart hook.}
+        gemini: {mode: generated}
+        cursor: {mode: not_applicable, reason: "Cursor's plugin adapter indexes bundles without inventing an activation mechanism (see CursorAdapter); Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."}
+        antigravity: {mode: imported}
+        devin: {mode: not_applicable, reason: 'MIGRATION BLOCKER — Devin single-owns ~/.codeium/windsurf/memories/global_rules.md exclusively for the manifest-i-have-adhd bundle (the Devin adapter guards that file for the ADHD rule and only the ADHD deploy step writes it). Sharing that file across bundles requires extending the Devin adapter''s owned-file ownership model, which is out of scope here; /token-conserve remains available for Devin users until that adapter work ships.'}
 capabilities:
   mcp:
     required: []

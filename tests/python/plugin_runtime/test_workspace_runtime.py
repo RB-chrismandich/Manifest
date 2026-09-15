@@ -205,3 +205,82 @@ def test_hook_targets_are_harness_native(
             os.environ["HOME"] = old_home
     assert degraded["status"] == "degraded"
     assert degraded["supported"] is False
+
+
+def test_token_economy_hook_declares_the_documented_session_start_command(
+    workspace_bundle: Path,
+) -> None:
+    hooks = json.loads(
+        (workspace_bundle / "hooks/token-economy-context.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    command = hooks["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+
+    assert command == "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/token_economy_context.py"
+
+
+def test_token_economy_hook_renders_guidance_on_session_start(
+    workspace_bundle: Path, tmp_path: Path
+) -> None:
+    """Direct proof the SessionStart hook actually emits the guidance content.
+
+    This is the isolated-install probe bullet 2 requires: run the exact
+    generated launcher command with a real SessionStart payload and confirm
+    the token-economy.md body — not just a manifest declaration — reaches
+    stdout, matching Claude/Codex's real hook-invocation contract.
+    """
+    hook = workspace_bundle / "hooks/token_economy_context.py"
+    guidance = (workspace_bundle / "guidance/token-economy.md").read_text(
+        encoding="utf-8"
+    )
+    body = guidance.split("\n---\n", 1)[1].strip()
+
+    result = subprocess.run(
+        [sys.executable, str(hook)],
+        input=b'{"hook_event_name":"SessionStart","session_id":"s",'
+        b'"cwd":"/tmp","source":"startup"}',
+        capture_output=True,
+        timeout=30,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "HOME": str(tmp_path),
+            "MANIFEST_STATE_ROOT": str(tmp_path / "state"),
+        },
+    )
+
+    assert result.returncode == 0
+    assert b"Manifest token-economy guidance" in result.stdout
+    assert body.encode("utf-8") in result.stdout
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"",
+        b"not json at all",
+        b"[1, 2, 3]",
+        b'{"hook_event_name":"Other"}',
+        b'{"hook_event_name":"SessionStart","cwd":42}',
+        b"\xff\xfe\x00binary",
+    ],
+)
+def test_token_economy_hook_fails_open_on_malformed_payloads(
+    workspace_bundle: Path, tmp_path: Path, payload: bytes
+) -> None:
+    hook = workspace_bundle / "hooks/token_economy_context.py"
+
+    result = subprocess.run(
+        [sys.executable, str(hook)],
+        input=payload,
+        capture_output=True,
+        timeout=30,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "HOME": str(tmp_path),
+            "MANIFEST_STATE_ROOT": str(tmp_path / "state"),
+        },
+    )
+
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    assert b"Traceback" not in result.stderr
