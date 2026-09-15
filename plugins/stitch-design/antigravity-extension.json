@@ -6,66 +6,66 @@
         "component_type": "runtime",
         "mode": "degraded",
         "path": "skills/react-native/scripts",
-        "reason": "gemini native manifest cannot encode runtime component 'react-native-validator' at 'skills/react-native/scripts'"
+        "reason": "antigravity native manifest cannot encode runtime component 'react-native-validator' at 'skills/react-native/scripts'"
       },
       {
         "component_id": "react-validator",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "skills/react-components/scripts",
-        "reason": "gemini native manifest cannot encode runtime component 'react-validator' at 'skills/react-components/scripts'"
+        "reason": "antigravity native manifest cannot encode runtime component 'react-validator' at 'skills/react-components/scripts'"
       },
       {
         "component_id": "static-html-sources",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "skills/extract-static-html/scripts",
-        "reason": "gemini native manifest cannot encode runtime component 'static-html-sources' at 'skills/extract-static-html/scripts'"
+        "reason": "antigravity native manifest cannot encode runtime component 'static-html-sources' at 'skills/extract-static-html/scripts'"
       },
       {
         "component_id": "stitch-build",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/node/build.mjs",
-        "reason": "gemini native manifest cannot encode runtime component 'stitch-build' at 'runtime/node/build.mjs'"
+        "reason": "antigravity native manifest cannot encode runtime component 'stitch-build' at 'runtime/node/build.mjs'"
       },
       {
         "component_id": "stitch-build-lock",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/node/package-lock.json",
-        "reason": "gemini native manifest cannot encode runtime component 'stitch-build-lock' at 'runtime/node/package-lock.json'"
+        "reason": "antigravity native manifest cannot encode runtime component 'stitch-build-lock' at 'runtime/node/package-lock.json'"
       },
       {
         "component_id": "stitch-build-package",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/node/package.json",
-        "reason": "gemini native manifest cannot encode runtime component 'stitch-build-package' at 'runtime/node/package.json'"
+        "reason": "antigravity native manifest cannot encode runtime component 'stitch-build-package' at 'runtime/node/package.json'"
       },
       {
         "component_id": "stitch-dist",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/dist",
-        "reason": "gemini native manifest cannot encode runtime component 'stitch-dist' at 'runtime/dist'"
+        "reason": "antigravity native manifest cannot encode runtime component 'stitch-dist' at 'runtime/dist'"
       }
     ],
-    "generated": [
+    "imported": [
       {
         "component_id": "design-lens-reviewer",
         "component_type": "agents",
-        "mode": "generated",
+        "mode": "imported",
         "path": "agents/design-lens-reviewer.md"
       },
       {
         "component_id": "skeptic-verifier",
         "component_type": "agents",
-        "mode": "generated",
+        "mode": "imported",
         "path": "agents/skeptic-verifier.md"
       }
     ]
   },
   "name": "stitch-design",
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

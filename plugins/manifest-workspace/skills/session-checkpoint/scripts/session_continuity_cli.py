@@ -15,6 +15,7 @@ from session_continuity import (
     SessionContinuityError,
     SessionContinuityStore,
     SessionStatus,
+    reminder_threshold,
     revalidate_continuation,
     write_checkpoint,
 )
@@ -57,13 +58,50 @@ def _report_hook_failure(error: BaseException) -> int:
     return 0
 
 
+def _advisory_context(session_id: str, status: SessionStatus) -> str:
+    return (
+        f"session-continuity: this session ({session_id}) has completed "
+        f"{status.compaction_count} confirmed compactions, at or above the "
+        f"reminder threshold of {reminder_threshold()}. Invoke the "
+        "session-checkpoint skill at the next safe boundary: finish the current "
+        "atomic action, write the checkpoint, then run `session_continuity.py "
+        f"recommend --session-id {session_id} --boundary safe --checkpoint "
+        "<path>`. Never restart, end, or abandon monitoring automatically."
+    )
+
+
 def _hook_event(harness: str) -> int:
+    """Record the lifecycle event and, at threshold, hand the session its id.
+
+    The count has no consumer unless the hook says so: the model cannot read
+    the hashed state filename, and every advisory verb requires `--session-id`.
+    """
+
     try:
         event = json.load(sys.stdin)
         if not isinstance(event, dict):
             raise ValueError("hook input must be a JSON object")
-        if harness == "claude":
-            SessionContinuityStore().record_claude_event(event)
+        if harness != "claude":
+            return 0
+        status = SessionContinuityStore().record_claude_event(event)
+        session_id = event.get("session_id")
+        if (
+            event.get("hook_event_name") == "SessionStart"
+            and not status.excluded
+            and isinstance(status.compaction_count, int)
+            and status.compaction_count >= reminder_threshold()
+            and isinstance(session_id, str)
+        ):
+            print(
+                json.dumps(
+                    {
+                        "hookSpecificOutput": {
+                            "hookEventName": "SessionStart",
+                            "additionalContext": _advisory_context(session_id, status),
+                        }
+                    }
+                )
+            )
     except (OSError, ValueError, SessionContinuityError) as error:
         return _report_hook_failure(error)
     return 0

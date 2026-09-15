@@ -214,8 +214,19 @@ def _subprocess_runner(argv: Sequence[str], env: Mapping[str, str]) -> int:
 
 
 def _sanitized(environ: Mapping[str, str], credential: str) -> dict[str, str]:
-    """The job environment with every copy of the credential removed."""
-    return {key: value for key, value in environ.items() if value != credential}
+    """The job environment with every copy of the credential removed.
+
+    The runner still holds the raw secret bytes, so whitespace-padded and
+    wrapped copies (`"Bearer <secret>"`, a value set from a file with a
+    trailing newline) must drop too: exact comparison against the stripped
+    credential would leave them readable by the third-party installer.
+    """
+    secret = credential.strip()
+    return {
+        key: value
+        for key, value in environ.items()
+        if value.strip() != secret and secret not in value
+    }
 
 
 def _which(binary: str, env: Mapping[str, str]) -> str | None:

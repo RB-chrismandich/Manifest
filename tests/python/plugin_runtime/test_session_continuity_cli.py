@@ -244,3 +244,36 @@ def test_cli_revalidation_reports_authority_changes(
     assert report["git_changes"] == ["branch"]
     assert report["ownership_changes"] == ["job-17"]
     assert report["continuation_goal"].startswith("Continue implementing")
+
+
+def test_reaching_the_threshold_hands_the_session_its_own_id(
+    repo_root: Path, state_home: Path
+) -> None:
+    """Every advisory verb needs `--session-id`, which only the hook knows."""
+    script = (
+        repo_root
+        / "plugins/manifest-workspace/skills/session-checkpoint/scripts/session_continuity.py"
+    )
+    env = {
+        **os.environ,
+        "XDG_STATE_HOME": str(state_home),
+        "MANIFEST_COMPACTION_REMINDER_THRESHOLD": "2",
+    }
+    outputs = []
+    for event in (_precompact(), _completed(), _precompact(), _completed()):
+        result = subprocess.run(
+            [sys.executable, str(script), "hook-event", "--harness", "claude"],
+            input=json.dumps(event),
+            text=True,
+            capture_output=True,
+            env=env,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        outputs.append(result.stdout)
+
+    assert outputs[1] == ""
+    context = json.loads(outputs[3])["hookSpecificOutput"]
+    assert context["hookEventName"] == "SessionStart"
+    assert "primary" in context["additionalContext"]
+    assert "--session-id primary" in context["additionalContext"]

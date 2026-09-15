@@ -6,17 +6,17 @@
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/bin",
-        "reason": "gemini native manifest cannot encode runtime component 'security-bin' at 'runtime/bin'"
+        "reason": "antigravity native manifest cannot encode runtime component 'security-bin' at 'runtime/bin'"
       },
       {
         "component_id": "security-references",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/references",
-        "reason": "gemini native manifest cannot encode runtime component 'security-references' at 'runtime/references'"
+        "reason": "antigravity native manifest cannot encode runtime component 'security-references' at 'runtime/references'"
       }
     ]
   },
   "name": "manifest-security",
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

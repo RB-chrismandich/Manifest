@@ -40,7 +40,9 @@ The reminder threshold comes from
 defaults to `2`. Two is an experimental policy value, not a model-quality
 limit. See `references/telemetry.md` for each harness's evidence boundary.
 
-At or above the threshold:
+At or above the threshold the `SessionStart` hook injects the current session id
+and these steps as context; that injection is the only place the id is
+observable, because the state file is keyed by a hash of it. Then:
 
 1. Finish the current atomic action. Do not terminate work or stop monitoring.
 2. Classify the boundary as `safe` only when no action is in flight and every

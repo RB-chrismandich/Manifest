@@ -306,6 +306,59 @@ class SessionContinuityStore:
             )
 
 
+def _nonempty_str(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _repository_errors(repository: Mapping[str, object]) -> list[str]:
+    errors: list[str] = []
+    for field in ("path", "branch", "head"):
+        if not _nonempty_str(repository.get(field)):
+            errors.append(f"repository.{field} must be a non-empty string")
+    dirty_tree = repository.get("dirty_tree")
+    if not isinstance(dirty_tree, list):
+        errors.append("repository.dirty_tree is required")
+    elif any(not _nonempty_str(entry) for entry in dirty_tree):
+        # A non-string entry compares unequal to every `git status --short`
+        # line, so it would report as continuation drift forever.
+        errors.append("repository.dirty_tree entries must be non-empty strings")
+    return errors
+
+
+def _record_errors(records: object, label: str, fields: tuple[str, ...]) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    required = (
+        ", ".join(fields[:-1]) + f", and {fields[-1]}"
+        if len(fields) > 2
+        else " and ".join(fields)
+    )
+    return [
+        f"{label}[{index}] requires {required}"
+        for index, item in enumerate(records)
+        if not isinstance(item, dict)
+        or any(not _nonempty_str(item.get(field)) for field in fields)
+    ]
+
+
+def operation_owners(
+    operations: Sequence[Mapping[str, object]], label: str
+) -> dict[str, str]:
+    """Map handle to owner, refusing any record whose ownership is unverifiable.
+
+    Dropping malformed records here would let `verify` report `trusted` for a
+    live operation nobody can be shown to own.
+    """
+
+    errors = _record_errors(list(operations), label, ("owner", "handle"))
+    if errors:
+        raise CheckpointValidationError("; ".join(errors))
+    return {
+        str(operation["handle"]).strip(): str(operation["owner"]).strip()
+        for operation in operations
+    }
+
+
 def _validate_checkpoint(checkpoint: Mapping[str, object]) -> None:
     errors: list[str] = []
     for field, expected_type in _CHECKPOINT_FIELDS.items():
@@ -317,32 +370,22 @@ def _validate_checkpoint(checkpoint: Mapping[str, object]) -> None:
 
     repository = checkpoint.get("repository")
     if isinstance(repository, dict):
-        for field in ("path", "branch", "head", "dirty_tree"):
-            expected = list if field == "dirty_tree" else str
-            if not isinstance(repository.get(field), expected):
-                errors.append(f"repository.{field} is required")
+        errors.extend(_repository_errors(repository))
 
-    evidence = checkpoint.get("verification_evidence")
-    if isinstance(evidence, list):
-        for index, item in enumerate(evidence):
-            if not isinstance(item, dict) or any(
-                not isinstance(item.get(field), str) or not item[field]
-                for field in ("command", "outcome", "evidence")
-            ):
-                errors.append(
-                    f"verification_evidence[{index}] requires command, outcome, and evidence"
-                )
-
-    operations = checkpoint.get("live_operations")
-    if isinstance(operations, list):
-        for index, item in enumerate(operations):
-            if not isinstance(item, dict) or any(
-                not isinstance(item.get(field), str) or not item[field]
-                for field in ("owner", "handle", "status", "obligation")
-            ):
-                errors.append(
-                    f"live_operations[{index}] requires owner, handle, status, and obligation"
-                )
+    errors.extend(
+        _record_errors(
+            checkpoint.get("verification_evidence"),
+            "verification_evidence",
+            ("command", "outcome", "evidence"),
+        )
+    )
+    errors.extend(
+        _record_errors(
+            checkpoint.get("live_operations"),
+            "live_operations",
+            ("owner", "handle", "status", "obligation"),
+        )
+    )
     if errors:
         raise CheckpointValidationError("; ".join(errors))
 
@@ -379,6 +422,15 @@ def read_checkpoint(path: Path) -> dict[str, Any]:
     integrity = envelope.get("integrity")
     if not isinstance(checkpoint, dict) or not isinstance(integrity, dict):
         raise IntegrityError("checkpoint integrity metadata is missing")
+    # The digest covers the checkpoint body only, so the envelope version is
+    # unauthenticated: an absent or future version must never be read with
+    # version-1 semantics.
+    version = envelope.get("schema_version")
+    if type(version) is not int or version != CHECKPOINT_SCHEMA_VERSION:
+        raise IntegrityError(
+            f"checkpoint schema version {version!r} is unsupported; "
+            f"expected {CHECKPOINT_SCHEMA_VERSION}"
+        )
     expected = integrity.get("digest")
     actual = hashlib.sha256(_canonical_json(checkpoint)).hexdigest()
     if integrity.get("algorithm") != "sha256" or expected != actual:
@@ -401,15 +453,10 @@ def revalidate_continuation(
         for key in ("path", "branch", "head", "dirty_tree")
         if recorded_repository.get(key) != current_repository.get(key)
     )
-    recorded_owners = {
-        str(operation["handle"]): str(operation["owner"])
-        for operation in checkpoint["live_operations"]
-    }
-    current_owners = {
-        str(operation["handle"]): str(operation["owner"])
-        for operation in current_live_operations
-        if "handle" in operation and "owner" in operation
-    }
+    recorded_owners = operation_owners(
+        checkpoint["live_operations"], "checkpoint live_operations"
+    )
+    current_owners = operation_owners(current_live_operations, "live_operations")
     ownership_changes = tuple(
         sorted(
             handle

@@ -91,6 +91,17 @@ def test_installer_never_receives_the_credential(harness: str, tmp_path: Path) -
     )
 
 
+@pytest.mark.parametrize("stored", (f"{_SECRET}\n", f"  {_SECRET}  "))
+def test_installer_never_receives_a_whitespace_padded_credential(
+    stored: str, tmp_path: Path
+) -> None:
+    """GitHub keeps the raw bytes; a secret set from a file carries a newline."""
+    _, runner, _, _ = _run("claude", tmp_path, secret=stored)
+
+    install_env = runner.calls[0][1]
+    assert not any(_SECRET in value for value in install_env.values())
+
+
 @pytest.mark.parametrize("harness", sorted(HARNESSES))
 def test_missing_secret_is_an_explicit_blocked_error(
     harness: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]

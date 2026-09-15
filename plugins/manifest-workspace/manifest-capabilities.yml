@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-workspace
-  version: 0.3.0
+  version: 0.4.0
   description: Workspace configuration, environment, session, and learning workflows.
   category: productivity
 components:

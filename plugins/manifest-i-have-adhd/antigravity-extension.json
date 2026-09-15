@@ -6,20 +6,20 @@
         "component_type": "runtime",
         "mode": "degraded",
         "path": "hooks/always_on.py",
-        "reason": "gemini native manifest cannot encode runtime component 'adhd-hook-runtime' at 'hooks/always_on.py'"
+        "reason": "antigravity native manifest cannot encode runtime component 'adhd-hook-runtime' at 'hooks/always_on.py'"
       }
     ],
-    "generated": [
+    "imported": [
       {
         "component_id": "adhd-always-on-guidance",
         "component_type": "guidance",
-        "mode": "generated",
+        "mode": "imported",
         "path": "guidance/always-on.md"
       },
       {
         "component_id": "adhd-session-start",
         "component_type": "hooks",
-        "mode": "generated",
+        "mode": "imported",
         "path": "hooks/hooks.json"
       }
     ]

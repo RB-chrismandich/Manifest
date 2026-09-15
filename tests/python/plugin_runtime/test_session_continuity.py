@@ -294,3 +294,63 @@ def test_continuation_revalidates_git_and_live_operation_ownership(
     assert set(report.git_changes) == {"branch", "head", "dirty_tree"}
     assert report.ownership_changes == ("job-17",)
     assert report.continuation_goal.startswith("Continue implementing")
+
+
+@pytest.mark.parametrize(
+    ("repository", "expected"),
+    (
+        ({"head": "   "}, "repository.head must be a non-empty string"),
+        ({"path": ""}, "repository.path must be a non-empty string"),
+        (
+            {"dirty_tree": [3]},
+            "repository.dirty_tree entries must be non-empty strings",
+        ),
+    ),
+)
+def test_checkpoint_rejects_unusable_repository_identity(
+    runtime, state_home: Path, repository: dict, expected: str
+) -> None:
+    """An empty or non-string identity can never match a real Git snapshot."""
+    checkpoint = _checkpoint()
+    checkpoint["repository"] = {**checkpoint["repository"], **repository}
+
+    with pytest.raises(runtime.CheckpointValidationError) as error:
+        runtime.write_checkpoint(checkpoint, state_home)
+
+    assert expected in str(error.value)
+
+
+@pytest.mark.parametrize("operation", (1, {"handle": "job-17"}, {"owner": "  "}))
+def test_revalidation_refuses_unverifiable_live_operations(
+    runtime, state_home: Path, operation: object
+) -> None:
+    """Silently dropping these would report `trusted` for an unowned job."""
+    path = runtime.write_checkpoint(_checkpoint(), state_home)
+
+    with pytest.raises(runtime.CheckpointValidationError) as error:
+        runtime.revalidate_continuation(
+            path,
+            current_repository=_checkpoint()["repository"],
+            current_live_operations=[operation],
+        )
+
+    assert "live_operations[0] requires owner and handle" in str(error.value)
+
+
+@pytest.mark.parametrize("version", (None, "1", 2, True))
+def test_checkpoint_envelope_version_is_verified_before_the_body(
+    runtime, state_home: Path, version: object
+) -> None:
+    """The digest covers the body only, so the version is attacker-writable."""
+    path = runtime.write_checkpoint(_checkpoint(), state_home)
+    envelope = json.loads(path.read_text(encoding="utf-8"))
+    if version is None:
+        envelope.pop("schema_version")
+    else:
+        envelope["schema_version"] = version
+    path.write_text(json.dumps(envelope), encoding="utf-8")
+
+    with pytest.raises(runtime.IntegrityError) as error:
+        runtime.read_checkpoint(path)
+
+    assert "schema version" in str(error.value)

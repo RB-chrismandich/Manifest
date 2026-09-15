@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: stitch-design
-  version: 0.3.0
+  version: 0.4.0
   description: Design generation, review, extraction, and implementation workflows.
   category: design
 components:
