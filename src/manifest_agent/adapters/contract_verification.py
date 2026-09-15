@@ -87,7 +87,7 @@ def verify_declared_components(
 
 
 def combine_results(*results: HarnessResult) -> HarnessResult:
-    """Combine adapter steps while preserving diagnostics and their provenance."""
+    """Combine adapter steps, deduplicating diagnostics repeated across passes."""
     if not results:
         raise ValueError("at least one harness result is required")
     harness = results[0].harness
@@ -108,15 +108,21 @@ def combine_results(*results: HarnessResult) -> HarnessResult:
             for result in results
             for identity, status in result.capabilities.items()
         },
-        errors=tuple(error for result in results for error in result.errors),
-        warnings=tuple(warning for result in results for warning in result.warnings),
+        errors=tuple(
+            dict.fromkeys(error for result in results for error in result.errors)
+        ),
+        warnings=tuple(
+            dict.fromkeys(warning for result in results for warning in result.warnings)
+        ),
         owned_entries=tuple(
             dict.fromkeys(entry for result in results for entry in result.owned_entries)
         ),
         declared_degradations=tuple(
-            diagnostic
-            for result in results
-            for diagnostic in result.declared_degradations
+            dict.fromkeys(
+                diagnostic
+                for result in results
+                for diagnostic in result.declared_degradations
+            )
         ),
     )
 

@@ -128,7 +128,6 @@ def installed_json(
             "scope": "user",
             "enabled": True,
             "installPath": str(desired.bundle_path(name)),
-            "mcpServers": {"context7": {}} if name == "manifest-workspace" else {},
         }
         for name in DOMAIN_BUNDLES
     ]
@@ -166,6 +165,7 @@ def test_claude_installs_marketplace_and_canonical_user_plugins(
     adapter = ClaudeAdapter(
         runner=runner,
         which=lambda name: name,
+        env={"HOME": str(desired.release_root)},
         native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
     )
 
@@ -216,6 +216,7 @@ def test_claude_published_release_uses_verified_extracted_marketplace(
     result = ClaudeAdapter(
         runner=runner,
         which=lambda name: name,
+        env={"HOME": str(published.release_root)},
         native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
     ).install(published)
 
@@ -244,6 +245,7 @@ def test_already_present_is_idempotent_only_after_selected_version_inspection(
     result = ClaudeAdapter(
         runner=runner,
         which=lambda name: name,
+        env={"HOME": str(desired.release_root)},
         native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
     ).install(desired)
 
@@ -277,7 +279,9 @@ def test_inspect_reports_selected_version_drift(desired: DesiredState) -> None:
         ]
     )
 
-    result = ClaudeAdapter(runner=runner, which=lambda name: name).inspect(desired)
+    result = ClaudeAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(desired.release_root)}
+    ).inspect(desired)
 
     assert result.state is ResultState.DRIFTED
     assert "expected 0.2.0, found 0.1.0" in result.errors[0]
@@ -296,7 +300,9 @@ def test_install_failure_is_redacted_when_inspection_cannot_confirm_state(
         + [marketplace, command(stdout=json.dumps(rows))]
     )
 
-    result = ClaudeAdapter(runner=runner, which=lambda name: name).install(desired)
+    result = ClaudeAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(desired.release_root)}
+    ).install(desired)
 
     assert result.state is ResultState.BLOCKED
     assert "native-secret" not in " ".join(result.errors)
@@ -328,10 +334,51 @@ def test_inspect_blocks_when_required_component_evidence_is_missing(
         ]
     )
 
-    result = ClaudeAdapter(runner=runner, which=lambda _name: None).inspect(desired)
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda _name: None,
+        env={"HOME": str(desired.release_root)},
+    ).inspect(desired)
 
     assert result.state is ResultState.BLOCKED
     assert "manifest-workspace:executable:git" in " ".join(result.errors)
+
+
+def test_inspect_reports_native_user_scope_mcp_registration_as_bundle_evidence(
+    tmp_path: Path, desired: DesiredState
+) -> None:
+    """``claude mcp add --scope user`` registers a server in the user's
+    top-level ``.claude.json``, never inside a plugin's own manifest row.
+    That native registration must satisfy the bundle-scoped capability
+    (``manifest-workspace:mcp:context7``) the contract declares -- not just
+    the unscoped ``mcp:context7`` identity a separate apply step records."""
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".claude.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "context7": {
+                        "type": "http",
+                        "url": "https://mcp.context7.com/mcp",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    runner = QueueRunner(
+        [
+            command(stdout=marketplace_json(desired.marketplace_source.source)),
+            command(stdout=installed_json(desired)),
+        ]
+    )
+
+    result = ClaudeAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(home)}
+    ).inspect(desired)
+
+    assert result.capabilities["manifest-workspace:mcp:context7"] == "verified"
 
 
 def test_uninstall_removes_only_receipt_plugins_and_retains_shared_marketplace() -> (

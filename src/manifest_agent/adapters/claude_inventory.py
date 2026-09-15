@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from manifest_agent.capabilities import McpDefinition
 from manifest_agent.codex_plugin_backup import (
     capture_plugin_backup,
     plugin_tree_sha256,
@@ -12,6 +13,45 @@ from manifest_agent.codex_plugin_backup import (
 from manifest_agent.models import AdapterPluginState
 
 _MARKETPLACE = "manifest"
+
+
+def claude_native_config_path(env: Mapping[str, str] | None) -> Path:
+    """Resolve Claude's native user-config file against an injected or process home."""
+    values = env or {}
+    if "CLAUDE_CONFIG_DIR" in values:
+        return Path(values["CLAUDE_CONFIG_DIR"]) / ".claude.json"
+    home = Path(values["HOME"]) if "HOME" in values else Path.home()
+    return home / ".claude.json"
+
+
+def read_claude_native_mcp_servers(
+    env: Mapping[str, str] | None,
+) -> dict[str, McpDefinition]:
+    """Return Claude's live user-scope MCP registrations, tolerating absence.
+
+    ``claude mcp add --scope user`` writes directly into this top-level
+    ``mcpServers`` object; it is never reflected in a plugin's
+    ``claude plugin list --json`` row, so this is the only authoritative
+    source for natively-registered MCP servers.
+    """
+    path = claude_native_config_path(env)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(document, Mapping):
+        return {}
+    servers = document.get("mcpServers")
+    if not isinstance(servers, Mapping):
+        return {}
+    definitions: dict[str, McpDefinition] = {}
+    for name, raw in servers.items():
+        if not isinstance(name, str) or not isinstance(raw, Mapping):
+            continue
+        url = raw.get("url")
+        if raw.get("type") == "http" and isinstance(url, str):
+            definitions[name] = McpDefinition(name=name, transport="http", url=url)
+    return definitions
 
 
 def _marketplace_row(stdout: str) -> tuple[Mapping[str, Any], str | None]:

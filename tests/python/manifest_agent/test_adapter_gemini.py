@@ -155,8 +155,9 @@ def test_gemini_installs_each_bundle_from_verified_release(
     assert [row[3] for row in runner.log[: len(DOMAIN_BUNDLES)]] == [
         str(desired.bundle_path(name)) for name in DOMAIN_BUNDLES
     ]
+    assert all("--consent" in row for row in runner.log[: len(DOMAIN_BUNDLES)])
     assert all(
-        "--consent" in row and "--skip-settings" in row
+        "--skip-settings" not in row and "--skipSettings" not in row
         for row in runner.log[: len(DOMAIN_BUNDLES)]
     )
     assert all("--auto-update" not in row for row in runner.log)

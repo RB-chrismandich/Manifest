@@ -154,6 +154,7 @@ class HarnessResult:
     warnings: tuple[str, ...] = ()
     owned_entries: tuple[OwnedEntry, ...] = ()
     declared_degradations: tuple[str, ...] = ()
+    native_version: str | None = None
 
 
 @dataclass(frozen=True)

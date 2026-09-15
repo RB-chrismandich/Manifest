@@ -71,6 +71,9 @@ class ServiceReport:
                 "state": result.state.value,
                 "installed_plugin_ids": list(result.installed_plugin_ids),
                 "capabilities": dict(sorted(result.capabilities.items())),
+                "components": _grouped_components(result.capabilities),
+                "verified": result.state in {ResultState.READY, ResultState.DEGRADED},
+                "version": result.native_version,
                 "errors": list(result.errors),
                 "warnings": list(result.warnings),
             }
@@ -81,6 +84,36 @@ class ServiceReport:
             "notes": list(self.notes),
             "errors": list(self.errors),
         }
+
+
+_COMPONENT_KINDS = frozenset({"skill", "agent", "hook", "runtime", "guidance"})
+
+
+def _grouped_components(capabilities: dict[str, str]) -> dict[str, list[str]]:
+    """Group truthfully verified `bundle:kind:id` evidence by bundle.
+
+    This is the same identity shape `normalize_component_identity` writes into
+    `HarnessResult.capabilities` (`adapters/contract_verification.py`), scoped
+    to the contract/skill/agent/hook/runtime/guidance kinds
+    `render_plugin_capability_matrix.py::_inspection_records` treats as
+    "components" rather than "capabilities". Only entries genuinely marked
+    `verified` are admitted -- a `missing`/`blocked`/`unsupported` identity
+    must never masquerade as installed component evidence.
+    """
+    grouped: dict[str, list[str]] = {}
+    for identity, status in capabilities.items():
+        if status != "verified":
+            continue
+        parts = identity.split(":", 2)
+        if len(parts) != 3:
+            continue
+        bundle, kind, stable_id = parts
+        if kind not in _COMPONENT_KINDS:
+            continue
+        grouped.setdefault(bundle, []).append(f"{kind}:{stable_id}")
+    for entries in grouped.values():
+        entries.sort()
+    return grouped
 
 
 def report(operation, harnesses, notes=(), errors=()) -> ServiceReport:

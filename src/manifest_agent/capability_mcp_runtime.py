@@ -21,7 +21,7 @@ from manifest_agent.models import (
     ResultState,
 )
 from manifest_agent.ownership import OwnershipError, owned_capability_entry
-from manifest_agent.process import CommandRunner
+from manifest_agent.process import CommandRunner, CommandTimeoutError
 
 if TYPE_CHECKING:
     from manifest_agent.capabilities import CapabilityPlan, McpDefinition
@@ -63,6 +63,19 @@ _NATIVE_HTTP_COMMANDS = {
         url,
     ),
 }
+
+# codex-cli 0.153.4's `codex mcp add` unconditionally attempts an immediate
+# OAuth login the instant a server declares OAuth support -- there is no
+# `codex mcp add`/`codex mcp login` flag to skip it (only
+# `--oauth-client-registration`, which only selects a *strategy* for that same
+# immediate login). Under `--non-interactive` the printed authorize URL can
+# never be opened, so the process just blocks forever on the local OAuth
+# callback listener. Bounding the call lets `_install_http_mcp` distinguish
+# that hang from a genuine failure and report it as an accurate degradation
+# instead of wedging the whole install. Scoped to codex alone: other native
+# harnesses in `_NATIVE_HTTP_COMMANDS` have not been observed to block this
+# way and are left with their previous unbounded behavior.
+_INTERACTIVE_LOGIN_TIMEOUT_SECONDS = {"codex": 8.0}
 
 
 @dataclass(frozen=True)
@@ -217,6 +230,11 @@ def _install_http_mcp(
         owned_entry = owned_capability_entry("mcp", definition.name, env=context.env)
     except OwnershipError as error:
         return context.failure(context.harness, tier, str(error), identity)
+    timeout = _INTERACTIVE_LOGIN_TIMEOUT_SECONDS.get(context.harness)
+    if timeout is not None:
+        return _install_http_mcp_bounded(
+            context, definition, tier, identity, command_builder, owned_entry, timeout
+        )
     result, command = context.run(
         context.harness,
         context.runner,
@@ -231,6 +249,73 @@ def _install_http_mcp(
             return context.success(context.harness, identity, "verified")
         return result
     return replace(result, owned_entries=(owned_entry,))
+
+
+def _install_http_mcp_bounded(
+    context: McpApplyContext,
+    definition: McpDefinition,
+    tier: CapabilityTier,
+    identity: str,
+    command_builder,
+    owned_entry,
+    timeout: float,
+) -> HarnessResult:
+    """Run a native MCP add bounded by `timeout`, converting a hang into an
+    accurate DEGRADED/BLOCKED result instead of blocking the whole install."""
+    try:
+        command = context.runner.run(
+            command_builder(definition.name, definition.url),
+            env=context.env,
+            timeout=timeout,
+        )
+    except CommandTimeoutError as error:
+        return context.failure(
+            context.harness,
+            tier,
+            _interactive_login_diagnostic(definition.name, error),
+            identity,
+            status="requires-interactive-login",
+        )
+    except Exception as error:
+        return context.failure(
+            context.harness, tier, f"native command failed: {error}", identity
+        )
+    if command.returncode != 0:
+        if _already_registered(command):
+            return context.success(context.harness, identity, "verified")
+        return context.failure(
+            context.harness, tier, _command_diagnostic(command), identity
+        )
+    result = context.success(context.harness, identity, "installed-by-manifest")
+    return replace(result, owned_entries=(owned_entry,))
+
+
+def _interactive_login_diagnostic(name: str, error: CommandTimeoutError) -> str:
+    """Report a stuck native MCP add accurately: an interactive OAuth flow
+    this codex-cli version cannot skip under --non-interactive, or -- if no
+    OAuth marker was ever printed -- an honestly unexplained hang."""
+    transcript = f"{error.stdout}\n{error.stderr}".lower()
+    if "oauth" in transcript or "authorize" in transcript:
+        return (
+            f"codex mcp add started an interactive OAuth login for '{name}' and "
+            f"did not return within {error.timeout:g}s; codex-cli has no "
+            "non-interactive flag to skip the immediate login `codex mcp add` "
+            "starts on its own, so this MCP server cannot be registered "
+            "under --non-interactive"
+        )
+    return (
+        f"codex mcp add for '{name}' did not return within {error.timeout:g}s "
+        "and was killed; native command appears stuck"
+    )
+
+
+def _command_diagnostic(command: CommandResult) -> str:
+    parts = [f"native command exited {command.returncode}"]
+    if command.stdout.strip():
+        parts.append(f"stdout: {command.stdout.strip()}")
+    if command.stderr.strip():
+        parts.append(f"stderr: {command.stderr.strip()}")
+    return "; ".join(parts)
 
 
 def _already_registered(command: CommandResult) -> bool:
