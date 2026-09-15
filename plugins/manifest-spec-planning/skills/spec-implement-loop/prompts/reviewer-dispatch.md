@@ -19,7 +19,11 @@ Read first:
 ## Report
 
 Write raw analysis to `<RUN_DIR>/iterations/<N>/{{OUTPUT_FILE}}.md` and end with
-one `cddl-verdict` JSON block per verdict-format.md.
+one `cddl-verdict` JSON block per verdict-format.md, with `"role": "{{PERSONA}}"`
+exactly — a mismatched role invalidates the verdict even when `decision` is
+`approve`. Nonempty `findings` always blocks `approve` regardless of
+severity; put optional nonblocking notes in `advisories` (omit or use `[]`
+when none).
 
 Return to the orchestrator:
 

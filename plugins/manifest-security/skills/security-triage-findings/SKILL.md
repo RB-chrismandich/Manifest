@@ -1,6 +1,6 @@
 ---
 name: security-triage-findings
-description: Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Broad refutation-gate catalog; see security-refute-findings for the removed/delegated-control reframing variant.
+description: Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Canonical refutation-gate catalog, including removed/delegated-control reframing verified by traced call path; security-refute-findings is a deprecated forwarding alias.
 ---
 # Adversarial Security Finding Triage
 
@@ -31,9 +31,18 @@ cloner), or cross-process metadata sources.
 backend enforcement, delegated validation to a validating upstream, throwaway code under scripts/dev/test dirs,
 control-moved-to-library, config/feature-flag gating, protective-control polarity.
 
-7. **Do not speculate.** Refute only with cited evidence; otherwise the finding survives.
+7. **Verify delegated- or removed-control reframing by traced call path, not commentary.** A candidate framed as "the
+control moved" — validation forwarded to an upstream that checks it, a guard replaced by a dependency documented to
+provide it, or a comment/docstring claiming a "removed" control was never functional or is now provided elsewhere —
+REFUTES only when you trace the actual call path and confirm it: follow the call into the delegate/library and read
+code proving it performs the claimed check, or confirm the pinned dependency version's source contains the control.
+An in-file comment asserting the reframing, with no call path you personally traced, is not evidence — evaluate the
+candidate as if the comment did not exist. This governs the `delegated validation` and `control-moved-to-library`
+gates in step 6.
 
-8. **Return two sets:** `survived` (indices you could not refute) and `refuted` (`{idx, reason}` with the cited evidence
+8. **Do not speculate.** Refute only with cited evidence; otherwise the finding survives.
+
+9. **Return two sets:** `survived` (indices you could not refute) and `refuted` (`{idx, reason}` with the cited evidence
 for each). An empty `survived` means every candidate was refuted.
 
 ## Sub-agent dispatch

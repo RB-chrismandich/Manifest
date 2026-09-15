@@ -25,5 +25,7 @@ Write `<RUN_DIR>/iterations/<N>/developer-report.md` with:
 
 Return to the orchestrator: **DONE** or **BLOCKED** + one-line reason.
 
-Append the verdict-format block only if you cannot proceed (`decision: reject` with
-findings describing blockers). On success, omit a verdict — you are not a critic.
+Append the verdict-format block only if you cannot proceed
+(`"role": "developer"`, `"decision": "reject"` with findings describing
+blockers, per `<SKILL_DIR>/prompts/verdict-format.md`). On success, omit a
+verdict — you are not a critic and never emit `approve`.
