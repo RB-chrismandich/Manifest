@@ -6,7 +6,7 @@
 
 Devin defaults to `model_tier: auto` (`config/backends.json`) — the account's
 own default model. `auto` is also the only tier that resolves: tier names are
-looked up in `configs/claude/config/parallel_agent.yml`, which carries no
+looked up in `configs/claude/config/model_policy.yml`, which carries no
 `model_tiers.devin` block (its catalog is login-gated), so any other `--model`
 value is rejected before dispatch. Invocation is `devin -p <prompt>` with the
 prompt passed as the `-p` value.

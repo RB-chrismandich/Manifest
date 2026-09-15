@@ -96,7 +96,7 @@ Single project. Engine package: `configs/claude/scripts/smoke_orchestrator/`. CL
 - [X] T035 [P] Register `smoke-orchestrator` in `configs/claude/config/command_config.yml` `tool_policies`, then regenerate cursor rules (`generate_cursor_rules.sh`)
 - [X] T036 [P] Regenerate `docs/COMMANDS.md` + GEMINI.md/AGENTS.md index via `configs/claude/scripts/generate_commands_doc.py --inject-guides`
 - [X] T037 Run the full repo gate (`/pr-regression-smoke`) — shellcheck/yamllint/markdownlint/drift/bats/pytest + smoke — and make it green
-- [X] T038 Run `parallel_agent.py` Tier-1 cross-verification (focus: shell-injection in CLI steps, secret leakage, error handling) per Constitution II/III before merge
+- [X] T038 Run `the retired cross-harness coordinator` Tier-1 cross-verification (focus: shell-injection in CLI steps, secret leakage, error handling) per Constitution II/III before merge
 - [X] T039 [P] Verify SC-003 performance budget: a representative `Lite` run over the fixture catalog completes in < 2 minutes; assert wall-clock in `tests/python/smoke_orchestrator/test_executor_tiers.py` (or a dedicated perf marker)
 
 ---

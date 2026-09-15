@@ -2,7 +2,38 @@
 
 > Why sub-agents are pinned, how it is enforced, and the measured compliance.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-08
+
+## Current implementation
+
+Preserve Sonnet-first defaults for eligible workers, explicit call-site choices,
+frontmatter pins and premium exceptions. The session model stays unchanged.
+
+Bootstrap now uses Claude's **non-forcing native default** on versions at least
+2.1.251. It covers omitted-model Workflow dispatches as well as eligible Agent
+dispatches. Explicit settings/process overrides are preserved. Older or unknown
+hosts receive no new default; an owned seed is removed when such a downgrade is
+detected during a subsequent merge. Runtime downgrades without redeployment remain
+outside this protection.
+
+The deployed Agent hook uses `--native-default-only`, reports missing defaults
+and force overrides, and never rewrites input. The legacy direct-script injection
+mode remains callable for compatibility, but is not installed by the new runtime
+registration. This avoids overriding managed/CLI definitions invisible to its
+filesystem scan. No permission controls are removed.
+
+`subagent_breakdown.py --audit` now reports separate channels, unknown resolution,
+and bounded redacted records. Exit 0 means sufficient observed evidence **in the
+selected channel only**; exit 2 means incomplete evidence or invalid input.
+Current frontmatter is no longer treated as proof of historical intent. Forks,
+teams and external sessions are not certified. A requested model never proves
+what served or establishes authorization.
+
+See [migration, verification and rollback](dispatch-reliability.md). The record
+below preserves historical rationale and experiments; its old enforcement and
+exit-code descriptions are superseded by this section.
+
+## Historical record through 2026-08-20
 
 ## 1. Sub-agents default to Sonnet
 

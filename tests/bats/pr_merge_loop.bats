@@ -95,7 +95,7 @@ EOF
     # verification gate review seam (tunable via SEAM_GATE).
     cat > "$TMP/gateseam.sh" <<'EOF'
 #!/usr/bin/env bash
-_d='{"tier1":{"passed":true},"consensus_score":0.9}'; echo "${SEAM_GATE:-$_d}"
+_d='{"tier1":{"passed":true},"tier2":{"concerns":[]},"consensus_score":0.9,"verdict":"APPROVED"}'; echo "${SEAM_GATE:-$_d}"
 EOF
     chmod +x "$TMP/gateseam.sh"; export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
 }
@@ -231,7 +231,7 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     [ "$status" -eq 0 ] && [[ "$output" == *"merge"* ]] && [[ "$output" == *"dry-run"* ]]
 }
 @test "tick: gate Tier-1 fail -> hand-human (never merge)" {
-    SEAM_GATE='{"tier1":{"passed":false},"consensus_score":0.9}' run "$SCRIPT" tick 5
+    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"consensus_score":0.9,"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"hand-human"* ]] && [[ "$output" != *"merged"* ]]
 }
 @test "tick: failing checks -> revise (no gate, no merge)" {

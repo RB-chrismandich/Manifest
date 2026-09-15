@@ -84,8 +84,8 @@ def main() -> int:
         "A pull/merge request was just created. Run the "
         "`pr-monitor` skill on this new PR: monitor CI to green "
         "(diagnosing and fixing failures), address GitHub Copilot findings if "
-        "Copilot reviewed, and tag @google-labs-jules (if not already tagged) "
-        "then watch for and address its feedback. Auto-detect the PR for the "
+        "Copilot reviewed, and address Jules feedback when present. Do not post "
+        "Jules trigger mentions or label linked issues. Auto-detect the PR for the "
         "current branch."
     )
     out = {

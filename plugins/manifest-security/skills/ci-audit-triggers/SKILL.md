@@ -84,13 +84,18 @@ either platform — only the vocabulary changes:
 
 ## Sub-agent dispatch
 
-Follow the [CI audit dispatch rules](references/ci-audit-triggers-dispatch.md). Use the
-pinned `sonnet` model. For three or more workflow files, audit one workflow per
-review unit and merge the findings. Below that threshold, audit inline. If
-structured output is unavailable, perform the same review inline and report
+Follow the [CI audit dispatch rules](references/ci-audit-triggers-dispatch.md)
+and the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
 `DEGRADED`.
 
-When dispatching three or more workflows, invoke
-`manifest-workspace:parallel-agent --analyze <workflow> --validate --json` once
-per workflow and merge its structured findings. Dispatched reviewers do not
-re-dispatch.
+When ≥3 workflow files need auditing, dispatch one security-review unit per
+workflow in a single OMP `task` call (in waves of at most 32). Use
+`security-reviewer` for each unit; each child reviews only its assigned workflow
+and never re-dispatches. The parent directly merges cited attacker-path evidence
+and retains this skill's severity rules. Use `hub` only to coordinate or wait.
+If `task` is unavailable, audit the workflows inline and report `DEGRADED`.
+Below the threshold, audit inline.

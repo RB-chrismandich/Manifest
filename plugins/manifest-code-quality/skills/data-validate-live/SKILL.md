@@ -10,7 +10,8 @@ afterthought. This recurs on every data-feed feature and catches a predictable b
 
 ## Shared core
 
-1. **Treat it as a distinct, mandatory task.** Add an explicit validation task (e.g. "T032: live-API validation") so it
+1. **Treat it as a distinct, mandatory task.** Add an explicit validation work item
+   (e.g. "T032: live-API validation") so it
    isn't skipped when unit tests go green.
 2. **Find real input without burning API budget or new credentials.** Prefer a warm cache (`data/cache/...`), a
    populated dev DB, `.env` keys, or a committed sample of real payloads before reaching for live keys. If an API-key

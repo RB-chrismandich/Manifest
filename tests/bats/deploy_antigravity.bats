@@ -1,10 +1,9 @@
 #!/usr/bin/env bats
 # Tests for Antigravity config wiring.
 #
-# Antigravity (agy) consumes the shared config but is NOT a parallel_agent.py
-# orchestrator: it must not carry the scripts/ (parallel_agent.py) or prompts/
-# (orchestration guide) links. It links only config, skills, and .plans — agy
-# participates as a provider inside parallel_agent, driven purely by config.
+# Antigravity (agy) consumes shared configuration but does not carry the
+# shared scripts/ or prompts/ links. It links only config, skills, and .plans,
+# leaving interactive sub-agent work to the OMP harness contract.
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'

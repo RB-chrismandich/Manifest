@@ -257,7 +257,7 @@ Complete 5-phase deployment with:
 - Sequential phases
 - Retry logic
 - Automatic rollback
-- Parallel agent validation
+- OMP task-batch review only for independent validation units
 - Summary table
 
 ---

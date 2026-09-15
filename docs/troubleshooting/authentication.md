@@ -39,54 +39,24 @@ claude auth status
 
 ---
 
-### Synthesis fails with no synthesizer available
+### Retained single-provider route unavailable
 
-**Symptom:**
-
-```text
-Synthesis unavailable: no CLI on PATH for configured providers ...
-```
-
-(or the same message in JSON `error` when consensus is low)
-
-**Cause:** Low-consensus synthesis merges agent disagreements via a single
-headless CLI. With `synthesis.provider: auto` (default), the first provider in
-`synthesis.provider_order` that is on PATH wins (`antigravity` → `cursor` →
-`gemini` → `codex` → `claude`). Override with `SYNTH_PROVIDER` or `SYNTH_CLI`.
+**Cause:** The configured provider CLI is not authenticated or the selected route in
+`model_policy.yml` is unavailable.
 
 **Solution:**
 
 ```bash
-# Antigravity (default first in provider_order)
-agy --version
+# Inspect configured runtime status
+manifest check-status
 
-# Cursor
-cursor-agent --version
-
-# Claude OAuth path
+# Authenticate the relevant retained provider CLI
 claude auth login
-
-# Force a provider in ~/.claude/config/parallel_agent.yml
-#   synthesis:
-#     provider: cursor   # or antigravity, gemini, codex, claude
-# Or env for one run:
-SYNTH_PROVIDER=cursor manifest parallel-agent --json ...
-
-# Headless/CI: Anthropic SDK only when explicitly configured
-#   synthesis:
-#     provider: sdk
-# and export ANTHROPIC_API_KEY
+gemini auth status
 ```
 
-**Related seams** (same `cli_agents` registry, different env prefixes):
-
-| Seam | Script / skill | Env overrides |
-|------|----------------|---------------|
-| CDDL critics | `cddl_invoke.py`, `/spec-implement-loop` | `CDDL_INVOKE_PROVIDER`, `CDDL_INVOKE_CLI` |
-| SkillClaw evolve | `skillclaw_evolve.py`, `/skill-evolve` | `EVOLVE_PROVIDER`, `EVOLVE_CLI` |
-
-On Gemini/Codex/Antigravity without native Task, CDDL critics use
-`cddl_invoke.py` (see `.apm/skills/spec-implement-loop/prompts/cli-dispatch.md`).
+CDDL and SkillClaw retain their documented, stdin-driven provider seams. Configure
+their routes through `model_policy.yml` or their existing environment overrides.
 
 ---
 
@@ -133,11 +103,8 @@ to be installed but doesn't directly invoke it via command line in the current i
 **Workaround:**
 
 ```bash
-# Disable Cursor in configuration
+# Disable Cursor in configuration when it is not available
 ./bootstrap.sh --reconfigure --disable-cursor
-
-# Or use --no-cursor flag
-~/.claude/scripts/parallel_agent.py --no-claude "Task"
 ```
 
 **Note:** Cursor integration may be implemented differently in your environment.

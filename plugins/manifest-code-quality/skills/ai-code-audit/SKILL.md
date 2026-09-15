@@ -64,18 +64,18 @@ vocabulary. Analysis-only: never modify the target.
 ## Cross-verification (critical/high only)
 
 Before reporting, every candidate `critical` or `high` finding gets an
-independent adversarial re-check: dispatch one native Task sub-agent or invoke
-`manifest-workspace:parallel-agent` with ONLY the cited evidence and
-the instruction to **refute** the finding. Refuted — or the evidence cannot be
-re-confirmed — → downgrade to **Unverified observations** (a status change —
-never re-label the severity) or drop. Mark surviving findings "verified
-(cross-checked)". `medium` and below rely on the evidence rule alone. This
-mirrors `security-refute-findings`; judge on completed re-checks only — a
-failed/absent sub-agent is not a refutation and not a confirmation: retry it
-once, and if it fails again keep the evidenced finding with status "verified
-(evidence rule; cross-check unavailable)" — never drop an evidenced
-critical/high because verification infrastructure failed. A valid refutation must
-contradict the evidence trace or show it does not support the classification;
+independent adversarial re-check: dispatch one OMP `task` sub-agent with ONLY
+the cited evidence and the instruction to **refute** the finding. Use the
+`reviewer` agent type. Refuted — or the evidence cannot be re-confirmed — →
+downgrade to **Unverified observations** (a status change — never re-label the
+severity) or drop. Mark surviving findings "verified (cross-checked)". `medium`
+and below rely on the evidence rule alone. This mirrors
+`security-refute-findings`; judge on completed re-checks only — a failed/absent
+sub-agent is not a refutation and not a confirmation: retry it once, and if it
+fails again keep the evidenced finding with status "verified (evidence rule;
+cross-check unavailable)" — never drop an evidenced critical/high because
+verification infrastructure failed. A valid refutation must contradict the
+evidence trace or show it does not support the classification;
 impact-minimization that concedes the cited facts (e.g., "the committed secret
 is probably unused") does NOT refute — adjudicate it unsound, keep the finding,
 and record the dissent under Unverified observations for transparency.
@@ -118,19 +118,20 @@ and record the dissent under Unverified observations for transparency.
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `opus` model.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
 Dispatch sub-agents ONLY for the cross-verification step: one adversarial
-refuter per candidate `critical`/`high` finding. The passes themselves run
-inline — they share the P0 orientation context and must not be split. Use
-native Task sub-agents on Claude, or `manifest-workspace:parallel-agent` / inline adversarial
-re-reads on other assistants. Dispatched refuters judge only the evidence they
-are given and do not re-dispatch.
-
-Dispatch on **Opus** (`subagent_model: opus`) — adversarial
-verification is the documented escalation case. Pass the model explicitly; do not inherit
-the session's.
+`reviewer` per candidate `critical`/`high` finding. The passes themselves run
+inline — they share the P0 orientation context and must not be split. Put all
+independent refuters in one OMP `task` call (waves of at most 32). Each child
+judges only its assigned evidence and never re-dispatches. The parent
+adjudicates and aggregates the returned evidence directly. If OMP `task` is
+unavailable, perform the adversarial re-reads inline and report `DEGRADED`.
 
 ## Acceptance harness
 

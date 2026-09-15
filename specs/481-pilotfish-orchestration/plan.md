@@ -26,8 +26,8 @@ disabled or foreign home is never clobbered. Built-in aliases float to Manifest'
 **no** `settings.json` change (product spec-review correction — Claude Code does not resolve
 custom frontmatter model names). The integration does **not** change the deployed main-session
 model (FR-016), does **not** inline the policy into the budget-capped guide (FR-014), and ships
-as a **distinct, complementary layer** beside subagent-driven-development and `parallel_agent.py`
-(FR-015) — no refactor of either.
+as a **distinct, complementary layer** beside subagent-driven-development and the
+retired cross-harness coordinator (FR-015) — no refactor of either.
 
 ## Technical Context
 
@@ -99,11 +99,11 @@ record per FR-011). Claude-only; no other assistant homes.
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | PASS | All artifacts land in `configs/claude/{agents,references}/`, `configs/claude/CLAUDE.md`, `bootstrap/lib/`, and `services.yml` generation; deployed reproducibly by `bootstrap.sh`. No manual home-dir edits. |
-| II. Parallel Agent Orchestration | PASS | The PR touches security-sensitive routing (FR-004) and will exceed 200 lines → parallel-agent cross-verification required before merge (planned in tasks). |
-| III. Consensus-Driven Decisions | PASS | No new consensus scheme; the feature is orthogonal to `parallel_agent.py` scoring (FR-015 keeps them distinct). |
-| IV. Skill-First Extensibility | PASS (with rationale) | Role-agents are Claude Code **agent-definition config data**, not a behavior absorbed into `parallel_agent.py` or other core scripts (which are untouched). No new capability skill is added in this feature (Option 1, not the Option-3 management skill). |
+| II. Parallel Agent Orchestration | PASS | The PR touches security-sensitive routing (FR-004) and will exceed 200 lines → OMP reviewer-wave cross-verification required before merge (planned in tasks). |
+| III. Consensus-Driven Decisions | PASS | No new consensus scheme; the feature is orthogonal to the retired coordinator's historical scoring (FR-015 keeps them distinct). |
+| IV. Skill-First Extensibility | PASS (with rationale) | Role-agents are Claude Code **agent-definition config data**, not a behavior absorbed into the retired cross-harness coordinator or other core scripts (which are untouched). No new capability skill is added in this feature (Option 1, not the Option-3 management skill). |
 | V. Bootstrap Reproducibility | PASS | New deploy step is idempotent and existence-guarded; toggle default disabled; disable fully reverses (SC-003). Non-idempotent risk (collision) is a guarded hard-abort, not a degraded continue (FR-008, Principle V exit-non-zero posture). |
-| VI. State-Gated Lifecycle | PASS (remediated 2026-07-09) | Phase 3 Spec-Review (product) initially skipped; **now run** — the parallel-agent panel returned 1 CONFIRMED finding (custom tier-aliases had no runtime resolution path), fixed across all artifacts (roles bind to built-in `haiku`/`sonnet`/`opus` aliases; no settings change), and re-review returned "✓ No inconsistencies found" (APPROVED). Verify gate: enable/deploy/disable is a shipped user-facing workflow → critical-path smoke coverage planned (see Testing). |
+| VI. State-Gated Lifecycle | PASS (remediated 2026-07-09) | Phase 3 Spec-Review (product) initially skipped; **now run** — the retired cross-harness review panel returned 1 CONFIRMED finding (custom tier-aliases had no runtime resolution path), fixed across all artifacts (roles bind to built-in `haiku`/`sonnet`/`opus` aliases; no settings change), and re-review returned "✓ No inconsistencies found" (APPROVED). Verify gate: enable/deploy/disable is a shipped user-facing workflow → critical-path smoke coverage planned (see Testing). |
 
 **Post-design re-check (after Phase 1)**: PASS — design artifacts add no new project, no
 core-script expansion, no non-additive schema change, and no main-session settings mutation.

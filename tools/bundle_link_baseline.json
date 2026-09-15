@@ -3,11 +3,6 @@
   "_comment": "Recorded bundle-local-reference violations as of Phase 0 (docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md). The gate blocks on any violation NOT in this list -- fixing one lowers the ceiling automatically; it is never edited to hide a fix. Regenerate with: uv run python tools/check_bundle_link_references.py --update-baseline. An entry may be added by hand only with the reason in the commit message.",
   "violations": [
     {
-      "path": "plugins/manifest-code-quality/skills/ai-code-audit/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
       "path": "plugins/manifest-code-quality/skills/antipattern-detect/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/KNOWLEDGE_BASE.md"
@@ -21,11 +16,6 @@
       "path": "plugins/manifest-code-quality/skills/antipattern-detect/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/KNOWLEDGE_BASE.md"
-    },
-    {
-      "path": "plugins/manifest-code-quality/skills/code-audit-constitution/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
     },
     {
       "path": "plugins/manifest-code-quality/skills/code-audit-constitution/references/code-constitution.md",
@@ -90,17 +80,12 @@
     {
       "path": "plugins/manifest-delegate/skills/delegate/references/prompting-devin.md",
       "kind": "cross-bundle-path",
-      "value": "configs/claude/config/parallel_agent.yml"
+      "value": "configs/claude/config/model_policy.yml"
     },
     {
       "path": "plugins/manifest-docs/skills/docs-all/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/COMMANDS.md"
-    },
-    {
-      "path": "plugins/manifest-docs/skills/docs-all/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
     },
     {
       "path": "plugins/manifest-docs/skills/docs-generate-diagrams/SKILL.md",
@@ -143,11 +128,6 @@
       "value": "docs/README.md"
     },
     {
-      "path": "plugins/manifest-docs/skills/docs-improve/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
       "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/GETTING_STARTED.md"
@@ -168,16 +148,6 @@
       "value": "docs/MODEL-POLICY.md"
     },
     {
-      "path": "plugins/manifest-forge/skills/issue-prioritize/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/issue-prioritize/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
       "path": "plugins/manifest-forge/skills/issue-sync-commit/SKILL.md",
       "kind": "missing-bundled-reference",
       "value": "command_config.yml"
@@ -193,49 +163,9 @@
       "value": "command_config.yml"
     },
     {
-      "path": "plugins/manifest-forge/skills/issue-triage/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/issue-triage/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
       "path": "plugins/manifest-forge/skills/lifecycle-run/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/MODEL-POLICY.md"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/pr-review/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/pr-review/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/pr-triage-bots/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/pr-triage-bots/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/repo-clean/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/repo-clean/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
     },
     {
       "path": "plugins/manifest-workspace/skills/learning-capture/SKILL.md",
@@ -306,36 +236,6 @@
       "path": "plugins/manifest-workspace/skills/token-benchmark/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "tests/token_benchmark/harness.py"
-    },
-    {
-      "path": "plugins/stitch-design/skills/a11y-audit/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/stitch-design/skills/a11y-audit/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
-      "path": "plugins/stitch-design/skills/review-round/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/stitch-design/skills/review-round/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
-    },
-    {
-      "path": "plugins/stitch-design/skills/ux-review/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "command_config.yml"
-    },
-    {
-      "path": "plugins/stitch-design/skills/ux-review/SKILL.md",
-      "kind": "missing-bundled-reference",
-      "value": "sub-agent-dispatch.md"
     }
   ]
 }

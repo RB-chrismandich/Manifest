@@ -15,7 +15,7 @@ testing conventions).
   third-party dependencies.
 - **Rationale**: A two-phase state machine with JSON persistence, subprocess
   orchestration, and strict parsing is the exact shape of existing Python precedents
-  (`parallel_agent.py` → `agents/` package; `smoke_test.py` → `smoke_orchestrator/`).
+  (the retired cross-harness coordinator → its former package; `smoke_test.py` → `smoke_orchestrator/`).
   The design draft was Python. Ruff targets py311; CI runs pytest on 3.14.
 - **Alternatives considered**: Bash (rejected: state persistence + strict JSON verdict
   parsing + path-containment logic is error-prone in shell); extending the `agents/`
@@ -210,9 +210,8 @@ testing conventions).
 
 - **Decision**: Skill `spec-implement-loop` in `.retired skill supply/skills/spec-implement-loop/SKILL.md`
   (domain `spec`, verb `implement`, qualifier `loop` — taxonomy-compliant; dual-workflow
-  `spec-` prefix per the c343a34 rename precedent). `command_config.yml` `tool_policies`
-  entry: allowed `[Bash, Read]`, `parallel_agents: never`, `validation_tier: 1`,
-  `subagents: never` with rationale (the loop is its own sequential role machine).
+  entry: allowed `[Bash, Read]`, no OMP task dispatch, `validation_tier: 1`,
+  with rationale (the loop is its own sequential role machine).
   Regeneration chain on skill add: cursor `.mdc` via `generate_cursor_rules.sh`,
   `docs/COMMANDS.md` + GEMINI/AGENTS guide injections via
   `generate_commands_doc.py --inject-guides`, skill-count strings. Frontmatter must fit

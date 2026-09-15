@@ -31,6 +31,20 @@ OPUS_ATTR = SCRIPTS / "opus_attribution_report.py"
 ALL_SCRIPTS = [TOKEN_COST, SKILL_USAGE, OPUS_ATTR]
 
 
+@pytest.mark.parametrize("script", [TOKEN_COST, OPUS_ATTR])
+def test_estimates_are_not_actual_billing(tmp_path, script):
+    root = tmp_path / "projects"
+    write_jsonl(
+        root / "session.jsonl", [usage_record("estimate", "2026-09-01T00:00:00Z")]
+    )
+    output = tmp_path / "report.json"
+    result = run(script, "--root", str(root), "--json", str(output))
+    assert result.returncode == 0, result.stderr
+    report = json.loads(output.read_text())
+    assert report["cost_basis"] == "estimated_api_equivalent"
+    assert report["actual_billing_usd"] is None
+
+
 def run(script: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(script), *args],

@@ -171,7 +171,7 @@ block — which this feature's own Phase 1 already repoints to the 003 plan.
 ## R12. Misplaced test files (FR-012)
 
 **Decision**: `git mv configs/claude/scripts/test_oauth.py tests/python/` and
-`test_parallel_agent.py` likewise. Verify imports: both import the module
+`the retired coordinator integration test` likewise. Verify imports: both import the module
 under test via path manipulation; update `sys.path` inserts to the new
 relative location; confirm CI's pytest glob (`tests/python/`) picks them up
 (it does — it runs the whole directory). Check nothing references their old

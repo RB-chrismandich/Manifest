@@ -185,7 +185,7 @@ def load_user_config(explicit_dir=None, reporter=None):
     Within a directory: delegation.json always wins if present; otherwise
     delegation.yml is honored only when PyYAML is importable. Any parse
     failure is reported (never raised) and factory defaults are returned —
-    this is a deliberate divergence from agents-config's ConfigError (D3).
+    this deliberate nonfatal behavior also applies to model policy loading.
     """
     report = reporter or (lambda msg: constants.err(msg))
     result = json.loads(json.dumps(FACTORY_DEFAULTS))  # deep copy
@@ -340,45 +340,33 @@ def load_services_disabled(config_dir=None):
 
 
 def load_model_tiers(config_dir=None):
-    """Read parallel_agent.yml's model_tiers, only when PyYAML is importable.
-
-    Returns {} (tier passthrough) when PyYAML is absent or the file/key is
-    missing — never raises.
-    """
-    yaml_mod = _yaml_module()
-    if yaml_mod is None:
-        return {}
-    for candidate_dir in _config_search_dirs(config_dir):
-        path = os.path.join(candidate_dir, "parallel_agent.yml")
-        if not os.path.isfile(path):
-            continue
-        try:
-            with open(path, encoding="utf-8") as fh:
-                data = yaml_mod.safe_load(fh) or {}
-        except Exception:
-            return {}
-        tiers = data.get("model_tiers")
-        if isinstance(tiers, dict):
-            return tiers
-        return {}
-    return {}
+    """Read model_policy.yml's tiers, degrading to passthrough on any failure."""
+    policy = (
+        load_model_policy() if config_dir is None else load_model_policy(config_dir)
+    )
+    tiers = policy.get("model_tiers")
+    return tiers if isinstance(tiers, dict) else {}
 
 
 def load_model_policy(config_dir=None):
-    """Read the shared tier registry and fallback defaults as one mapping."""
-    yaml_mod = _yaml_module()
-    if yaml_mod is None:
+    """Load the shared policy through its public API without raising.
+
+    Delegation may run from a partially deployed home; absent or malformed
+    policy therefore means no tier mapping and no policy fallback, not a failed
+    delegation command.
+    """
+    try:
+        from manifest_model_policy import load_default_policy
+    except ImportError:
         return {}
     for candidate_dir in _config_search_dirs(config_dir):
-        path = os.path.join(candidate_dir, "parallel_agent.yml")
+        path = os.path.join(candidate_dir, "model_policy.yml")
         if not os.path.isfile(path):
             continue
         try:
-            with open(path, encoding="utf-8") as fh:
-                data = yaml_mod.safe_load(fh) or {}
-        except Exception:
+            return load_default_policy(path)
+        except (OSError, ValueError):
             return {}
-        return data if isinstance(data, dict) else {}
     return {}
 
 

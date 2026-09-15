@@ -395,14 +395,12 @@ Output the API catalog and topology in the requested format:
 
 ---
 
-## Integration with Parallel Agents
+## Independent Analysis
 
-For complex or ambiguous API patterns, use parallel agents:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --timeout 300 \
-  "Is this code calling an API? [CODE_SNIPPET]. What API and what service?"
-```
+For complex or ambiguous API patterns, dispatch independent read-only OMP `scout`
+units in one `task` batch. Ask each to identify the API and service from the supplied
+snippet; the parent compares evidence and flags ambiguity for human review. If OMP
+`task` is unavailable, analyze inline and report `DEGRADED`.
 
 ---
 

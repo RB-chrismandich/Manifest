@@ -82,7 +82,28 @@ unrelated edits remain quiet.
 - **Idempotent**: a second run on an already-pinned file reports no changes.
 - **No silent failures**: unresolvable/unsupported/malformed cases are reported,
   never swallowed, and never leave a partially-rewritten file.
-- **Security-sensitive**: this is a supply-chain control (Tier 1); changes to the
-  script itself warrant `manifest-workspace:parallel-agent --json --validate --review`
-  before merge when that interface is available, or an equivalent inline review
-  reported as degraded.
+- **Security-sensitive**: this is a supply-chain control (Tier 1). For changes
+  to the script itself, use the conditional OMP review policy below before
+  applying edits or merging.
+
+## Sub-agent dispatch
+
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
+
+**Policy: conditional.** When reviewing changes to the version-pinning script
+itself, dispatch the independent security and quality assessments together in
+one OMP `task` call (waves of at most 32): use `security-reviewer` for the
+supply-chain review and `reviewer` for implementation quality. Each child
+reviews only its assigned unit and never redispatches. The parent uses `hub`
+only to coordinate or wait, validates and aggregates evidence directly, and
+does not use text-consensus or synthesis. If `task` is unavailable, perform the
+reviews inline and report `DEGRADED`; never fall back to a provider CLI.
+
+Before a run that rewrites dependency files, obtain a read-only `reviewer`
+assessment of the proposed replacements, then apply approved replacements
+sequentially.

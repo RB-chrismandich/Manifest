@@ -90,10 +90,8 @@ link_shared_assets() {
     local destination_dir="$1"
     local shared_name="${2:-Config}"
     local include_skills="${3:-false}"
-    # Space-separated asset names to skip for this tool (default: none). Lets a
-    # tool opt out of assets it must not carry — e.g. Antigravity excludes
-    # "scripts prompts" because agy is a parallel_agent provider, not an
-    # orchestrator that runs parallel_agent.py.
+    # Space-separated asset names to skip for a tool (default: none).
+    # Antigravity links only the assets its native configuration consumes.
     local exclude="${4:-}"
 
     local symlinks=(

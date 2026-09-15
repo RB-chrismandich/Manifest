@@ -8,8 +8,9 @@
 #                 identity exists for this entry — see identified_by instead.
 #   role          reviewer (submits PR reviews) | author (opens PRs / pushes commits)
 #   invoke        automatic (acts without being summoned) | mention (needs a
-#                 trigger comment) | n/a (not directly invoked; see notes)
+#                 trigger comment) | label (GitHub issue) | n/a (not directly invoked; see notes)
 #   mention       the exact mention string that triggers it (invoke: mention only)
+#   label         issue label for invoke: label; invoke_scope restricts its target
 #   identified_by author_login (match the GitHub account) | title_prefix (match
 #                 the PR title / branch-name convention instead — used when the
 #                 entry has no distinct account)
@@ -35,20 +36,19 @@ bots:
 
   jules:
     author_login: "google-labs-jules[bot]"
-    role: reviewer
-    invoke: mention            # summoned via mention on a trusted commenter's comment
-    mention: "@google-labs-jules"
+    role: author
+    invoke: label
+    label: "jules"
+    invoke_scope: github_issue
     identified_by: author_login
     notes: >
-      Verified 2026-07-17 via `gh api repos/RB-chrismandich/Manifest/issues/<N>/comments`
-      on PRs #580 and #581 — the bot's own "👋 Jules, reporting for duty!" greeting
-      comment carries login google-labs-jules[bot]. Not a GitHub-native reviewer:
-      requesting it as reviewer/assignee is silently ignored; the only working
-      trigger is a comment mention acted on by .github/workflows/jules-trigger.yml,
-      gated to author_association OWNER/MEMBER/COLLABORATOR. Jules does not leave
-      inline GitHub review comments the way Copilot does — its feedback surfaces as
-      PR comments, commits pushed to the PR branch, or a separate linked PR (see the
-      palette/bolt entries below, which are Jules acting under its personas).
+      Apply the jules label (case insensitive) to a GitHub issue to start work,
+      after authorizing the Jules GitHub App for that repository. Jules comments
+      on the issue and links its PR when finished. Verified against
+      https://jules.google/docs/running-tasks/ on 2026-09-07. PR monitoring handles
+      existing Jules feedback; it never labels linked issues or posts trigger
+      mentions. CLI submission is a separate alternative, not an additional
+      trigger for the same issue. Account login does not prove App authorization.
 
   palette:
     author_login: null         # UNCONFIRMED as a distinct GitHub identity — see notes

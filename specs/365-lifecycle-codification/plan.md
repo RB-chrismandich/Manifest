@@ -12,7 +12,7 @@ Codify the repo's nine-phase development lifecycle (Specify→Clarify→Spec-Rev
 
 **Language/Version**: Bash (macOS bash 3.2+ / Linux) with embedded `python3 -c` heredocs for JSON/decision logic (the repo's decide-core idiom). Python 3.11 only inside the consumed smoke runtime — not re-implemented here.
 
-**Primary Dependencies**: smoke orchestrator (`smoke_test.py`) · `git_ops.sh`/`git_platform.sh`/`linear_ops.sh` · `parallel_agent.py` · `spec_review.sh` (extended with `--mode`) · Atlassian MCP (Jira) · `labels.yml`/`label_sync.sh` · the `/speckit-*` and `/spec-review` skills (phase executors).
+**Primary Dependencies**: smoke orchestrator (`smoke_test.py`) · `git_ops.sh`/`git_platform.sh`/`linear_ops.sh` · `the retired cross-harness coordinator` · `spec_review.sh` (extended with `--mode`) · Atlassian MCP (Jira) · `labels.yml`/`label_sync.sh` · the `/speckit-*` and `/spec-review` skills (phase executors).
 
 **Storage**: per-track JSON under `${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state/<provider>__<entity-id>.json` (`0700`/`0600`, atomic, secret-redacted — smoke `StateManager` pattern); coarse status mirrored to tracker labels (GH/GL/Linear) or Jira transitions.
 
@@ -35,9 +35,9 @@ Codify the repo's nine-phase development lifecycle (Specify→Clarify→Spec-Rev
 | Principle | Status | Notes |
 |---|---|---|
 | I. Configuration-as-Code | ✅ PASS | All artifacts in `configs/` + `.retired skill supply/skills/`; deployed via `bootstrap.sh`. Requires redeploy (noted as a task). No manual edits to `~/.claude/`. |
-| II. Parallel Agent Orchestration | ✅ PASS | `lifecycle.sh` is safety-gate logic (>200 lines, security-adjacent) → cross-verified via the spec-review panel + `parallel_agent.py` before merge (already exercised in this feature's own lifecycle). |
+| II. Parallel Agent Orchestration | ✅ PASS | `lifecycle.sh` is safety-gate logic (>200 lines, security-adjacent) → cross-verified via the spec-review panel + `the retired cross-harness coordinator` before merge (already exercised in this feature's own lifecycle). |
 | III. Consensus-Driven Decisions | ✅ PASS | Review/analyze gates reuse the APPROVED/NEEDS_REVIEW/BLOCKED + ≥80% consensus model (FR-027); no new thresholds invented. |
-| IV. Skill-First Extensibility | ✅ PASS | User-facing capability is the `/lifecycle` skill delegating to a discrete testable helper — not an expansion of `parallel_agent.py` (the 361 precedent). |
+| IV. Skill-First Extensibility | ✅ PASS | User-facing capability is the `/lifecycle` skill delegating to a discrete testable helper — not an expansion of `the retired cross-harness coordinator` (the 361 precedent). |
 | V. Bootstrap Reproducibility | ✅ PASS | `init` guarded (idempotent per track); all provider writes idempotent (FR-022); fail-closed on error. |
 
 **Governance action**: this feature also **amends** the constitution (adds Principle VI + "Development Lifecycle" section, MINOR → v1.1.0) via `/speckit-constitution`. That is an in-scope, policy-compliant amendment (additions only, no removals/redefinitions) — not a violation.
@@ -72,7 +72,7 @@ configs/claude/
 │   ├── git_ops.sh / git_platform.sh # REUSED — GitHub/GitLab + entry-point detection (extended for jira/linear)
 │   ├── linear_ops.sh                # REUSED — Linear hierarchy (parentId/sub-issues)
 │   ├── smoke_test.py                # REUSED AS-IS — Verify gate runtime
-│   └── parallel_agent.py            # REUSED — consensus dimension for review gates
+│   └── the retired cross-harness coordinator            # REUSED — consensus dimension for review gates
 ├── config/
 │   ├── lifecycle_providers.yml      # NEW — tier→construct map, canonical-status map, missing-tier behavior, access
 │   ├── labels.yml                   # REUSED — canonical status labels

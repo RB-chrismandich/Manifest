@@ -97,19 +97,6 @@ def test_core_import_failure(tmp_path, monkeypatch):
     assert doctor_mod.run_doctor(services) == 1
 
 
-def test_claude_enabled_requires_anthropic(tmp_path, monkeypatch):
-    services = _write_services(
-        tmp_path,
-        """
-        services:
-          claude:
-            enabled: true
-        """,
-    )
-    _patch_imports(monkeypatch, failures={"anthropic"})
-    assert doctor_mod.run_doctor(services) == 1
-
-
 def test_every_core_module_is_checked(tmp_path, monkeypatch):
     """The yaml-only check was vacuous: doctor imported yaml at module scope, so a
     missing yaml crashed before the check ran. Each core module must be probed."""

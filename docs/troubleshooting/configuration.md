@@ -56,7 +56,7 @@ cp configs/claude/config/services.yml ~/.claude/config/services.yml
 
 **Symptom:** Changes to `services.yml` don't take effect
 
-**Cause:** Configuration is cached or CLI flags override
+**Cause:** Configuration is cached or an environment override is active.
 
 **Solution:**
 
@@ -65,11 +65,9 @@ cp configs/claude/config/services.yml ~/.claude/config/services.yml
 exit
 # (Open new terminal)
 
-# Verify configuration is correct
+# Verify configuration is correct and inspect runtime status
 cat ~/.claude/config/services.yml
-
-# Run without CLI flag overrides
-~/.claude/scripts/parallel_agent.py "Task"
+manifest check-status
 ```
 
 ---
@@ -84,7 +82,7 @@ cat ~/.claude/config/services.yml
 
 **Cause:** On OAuth-only machines (no `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`)
 there is no API to list models with, so `check_status.sh` reports the
-claude/gemini pins in `parallel_agent.yml` (`model_tiers`) as unverified rather
+Claude/Gemini pins in `model_policy.yml` (`model_tiers`) as unverified rather
 than falsely green.
 
 **Solution:**
@@ -95,7 +93,7 @@ MODEL_CHECK_PROBE=1 ~/.claude/scripts/model_check.sh
 ```
 
 If a pin reports `STALE`, update the corresponding `model_tiers` entry in
-`~/.claude/config/parallel_agent.yml` (current Gemini pins:
+`~/.claude/config/model_policy.yml` (current Gemini pins:
 `gemini-3-flash-preview` / `gemini-3-pro-preview`).
 
 **If the `gemini` probe fails with `IneligibleTierError`**, the pin is not the

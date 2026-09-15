@@ -1,6 +1,6 @@
 # Contract: CLI Interface
 
-**Module**: `agents/cli.py` via `parallel_agent.py` entry point
+**Module**: `agents/cli.py` via `the retired cross-harness coordinator` entry point
 **Type**: Command-line interface contract
 **Status**: Preserved unchanged — this contract is the regression gate for SC-003.
 
@@ -9,10 +9,10 @@
 ## Invocation
 
 ```
-python parallel_agent.py [OPTIONS] [PROMPT]
+python the retired cross-harness coordinator [OPTIONS] [PROMPT]
 ```
 
-The `parallel_agent.py` entry point MUST remain the canonical invocation path. All
+The `the retired cross-harness coordinator` entry point MUST remain the canonical invocation path. All
 flags, positional arguments, output formats, and exit codes defined below MUST be
 identical before and after modularization.
 
@@ -62,7 +62,7 @@ Before starting modularization, capture a baseline:
 
 ```bash
 # Capture current output structure (mocked; no live agents needed)
-python parallel_agent.py --json --claude-only "smoke test" 2>/dev/null \
+python the retired cross-harness coordinator --json --claude-only "smoke test" 2>/dev/null \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print(sorted(d.keys()))"
 ```
 
@@ -70,7 +70,7 @@ After modularization, run the same command and assert the top-level JSON keys ar
 identical. Additionally run:
 
 ```bash
-pytest tests/python/test_parallel_agent.py -v
+pytest the retired coordinator integration test -v
 ```
 
 All tests must pass with exit code 0.

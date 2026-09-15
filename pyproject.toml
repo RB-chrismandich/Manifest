@@ -27,7 +27,7 @@ build-backend = "hatchling.build"
 # policy force-includes were added. Keep this list in step with
 # [tool.hatch.build.targets.wheel.force-include] below.
 [tool.hatch.build.targets.sdist.force-include]
-"configs/claude/config/parallel_agent.yml" = "configs/claude/config/parallel_agent.yml"
+"configs/claude/config/model_policy.yml" = "configs/claude/config/model_policy.yml"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -54,7 +54,7 @@ packages = ["src/manifest_agent"]
 [tool.hatch.build.targets.wheel.force-include]
 "schemas/manifest-capabilities.schema.json" = "manifest_agent/data/manifest-capabilities.schema.json"
 "schemas/project-checks.schema.json" = "manifest_agent/data/project-checks.schema.json"
-"configs/claude/config/parallel_agent.yml" = "manifest_agent/data/parallel_agent.yml"
+"configs/claude/config/model_policy.yml" = "manifest_agent/data/model_policy.yml"
 "configs/claude/scripts/manifest_model_policy/__init__.py" = "manifest_agent/_model_policy/__init__.py"
 "configs/claude/scripts/manifest_model_policy/controller.py" = "manifest_agent/_model_policy/controller.py"
 "configs/claude/scripts/manifest_model_policy/failures.py" = "manifest_agent/_model_policy/failures.py"

@@ -18,9 +18,9 @@ what `transfer._captured_sessions_for_cwd` reads. Patch the owning module:
 
 from . import (  # noqa: F401  (submodules are the patch targets)
     backend,
-    cli,
     config,
     constants,
+    containment,
     envelope,
     gate,
     jobs_cli,

@@ -53,9 +53,9 @@ concrete changes deliver the spec:
 | Principle | Verdict | Notes / Gate |
 |---|---|---|
 | I. Configuration-as-Code | **PASS** | New hook lives in `configs/claude/scripts/lint_on_edit_hook.sh`; wired via `configs/claude/settings.local.json`; deployed by `bootstrap.sh`. `.pre-commit-config.yaml`, `ci.yml`, `pyproject.toml`, `.editorconfig`, `docs/` are repo-root infra (not deployed to `~/`). No manual `~/.claude/` edits. |
-| II. Parallel Agent Orchestration | **APPLIES** | Change parses an external JSON payload + invokes subprocesses (security-adjacent) and aggregate diff > 200 lines → PR MUST be cross-verified by ≥2 agents (`parallel_agent.py`) before merge. Satisfied at the `/speckit-implement-review` + PR stage. |
+| II. Parallel Agent Orchestration | **APPLIES** | Change parses an external JSON payload + invokes subprocesses (security-adjacent) and aggregate diff > 200 lines → PR MUST be cross-verified by ≥2 agents (`the retired cross-harness coordinator`) before merge. Satisfied at the `/speckit-implement-review` + PR stage. |
 | III. Consensus-Driven Decisions | **PASS (deferred to review)** | Cross-verification at PR time must meet the ≥80/50–79/<50 thresholds. |
-| IV. Skill-First Extensibility | **PASS** | The edit-time hook is infrastructure (a PostToolUse adapter, like `version_pin_hook.sh`/`spec_review.sh`), not a new user-invocable capability; no new behavior is bolted onto `parallel_agent.py`. |
+| IV. Skill-First Extensibility | **PASS** | The edit-time hook is infrastructure (a PostToolUse adapter, like `version_pin_hook.sh`/`spec_review.sh`), not a new user-invocable capability; no new behavior is bolted onto `the retired cross-harness coordinator`. |
 | V. Bootstrap Reproducibility | **PASS** | Deployment is an idempotent file copy; plan includes a `chmod +x` guarantee for the new script. No non-idempotent operations introduced. |
 | Quality Gates / Dev Workflow | **PASS w/ obligations** | New shell script REQUIRES bats coverage (`tests/bats/lint_on_edit_hook.bats`); YAML configs validated; CI must stay green and keep ≥100 tests. |
 

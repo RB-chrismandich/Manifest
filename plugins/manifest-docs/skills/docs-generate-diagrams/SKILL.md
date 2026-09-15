@@ -10,10 +10,21 @@ lines and 4 diagrams; past that it becomes a hub plus one page per subject.
 Rules: `../../runtime/references/doc-concision.md`. Mermaid syntax traps and
 the palette: [references/mermaid.md](references/mermaid.md).
 
-## Parallel Agent Integration
+## Sub-agent dispatch
 
-Uses parallel agents CONDITIONALLY when analyzing 5+ unique imports/modules:
-`manifest-workspace:parallel-agent --json --validate`
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
+
+Use native OMP sub-agents **conditionally** when analyzing 5+ unique
+imports/modules. Dispatch one read-only `scout` per independent module group in
+one OMP `task` call (waves of at most 32); children report their assigned
+structure and never re-dispatch. The parent reconciles that evidence directly
+with the code before publishing diagrams. If OMP `task` is unavailable, inspect
+the module groups inline and report `DEGRADED`.
 
 ## Steps
 
@@ -77,5 +88,5 @@ Rendering: 12/12 verified in GitHub preview
 
 - Ensure diagrams match actual code structure — verify node names against real
   module and class names.
-- Where a cross-provider review produced an architecture analysis, reconcile the
-  diagram against it before publishing.
+- The parent reconciles each returned module analysis directly against the code;
+  agreement is based on that evidence, not prose similarity.

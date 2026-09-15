@@ -34,7 +34,7 @@
 - ✅ 2026-06-07: Updated ARCHITECTURE_DIAGRAMS.md with SkillClaw pipeline diagram
 - ✅ 2026-05-31: Added CONTRIBUTING.md and CHANGELOG.md
 - ✅ 2026-05-31: Added `sync-skills` CLI to COMMANDS.md
-- ✅ 2026-05-01: Modularized `parallel_agent.py` into `agents/` package (#260)
+- ✅ 2026-09-12: Replaced retired custom coordinator documentation with OMP-native dispatch guidance.
 - ✅ 2026-01-27: Added README.md, GETTING_STARTED.md, CONFIGURATION.md, TROUBLESHOOTING.md
 
 ---

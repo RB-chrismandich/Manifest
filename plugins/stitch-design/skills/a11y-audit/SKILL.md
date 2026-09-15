@@ -132,16 +132,19 @@ Beyond WCAG, check for common ARIA misuse:
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
+This skill uses the shared OMP dispatch contract in
+`references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When ≥3 target files or pages need auditing, dispatch one sub-agent per file/page to audit it, then merge
-findings; below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-use native sub-agents when available, or `manifest-workspace:parallel-agent` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
-
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+When ≥3 target files or pages need auditing, dispatch one accessibility review
+unit per file or page in a single OMP `task` call (in waves of at most 32),
+using `reviewer`. Each child audits only its assigned unit and never
+re-dispatches. The parent directly merges the cited findings into this skill's
+report. Use `hub` only to coordinate or wait. If `task` is unavailable, audit
+inline and report `DEGRADED`. Below the threshold, audit inline.
 
 ## Outcome discipline
 

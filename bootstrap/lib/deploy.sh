@@ -1278,9 +1278,7 @@ deploy_codex_configs() {
 # Cursor/Gemini; Codex may be plugin-native). Antigravity shares the source in
 # ~/.claude via symlinks for config, skills, and .plans.
 #
-# It deliberately does NOT link scripts/ (parallel_agent.py) or prompts/ (the
-# orchestration guide): agy participates as a provider inside parallel_agent,
-# driven purely by config — it is not an orchestrator that runs the script.
+# Antigravity intentionally links only the shared config, skills, and plans.
 #
 # Unlike deploy_gemini_configs/deploy_codex_configs, this function also does
 # NOT copy a standalone home guide (no GEMINI.md/AGENTS.md analog deployed
@@ -1694,7 +1692,6 @@ verify_installation() {
     print_step "Checking deployed files..."
 
     local required_files=(
-        "$TARGET_DIR/scripts/parallel_agent.py"
         "$TARGET_DIR/scripts/git_platform.sh"
         "$TARGET_DIR/scripts/git_ops.sh"
         "$TARGET_DIR/config/command_config.yml"
@@ -2076,7 +2073,7 @@ print_summary() {
         if command -v agy > /dev/null 2>&1; then
             echo -e "  ${GREEN}✓${NC} antigravity CLI (agy) installed"
         else
-            echo -e "  ${YELLOW}○${NC} antigravity CLI (agy) not found — parallel-agent participation needs it"
+            echo -e "  ${YELLOW}○${NC} antigravity CLI (agy) not found"
             echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE, then run: agy install"
         fi
     else
@@ -2087,7 +2084,7 @@ print_summary() {
         if command -v devin > /dev/null 2>&1; then
             echo -e "  ${GREEN}✓${NC} devin CLI installed"
         else
-            echo -e "  ${YELLOW}○${NC} devin CLI not found — parallel-agent participation needs it"
+            echo -e "  ${YELLOW}○${NC} devin CLI not found"
             echo -e "    ${BLUE}→${NC} Install: brew install --cask devin-cli"
         fi
     else
@@ -2149,33 +2146,13 @@ print_summary() {
     echo "  Shell profile now includes:"
     echo "    export MANIFEST_STATE_ROOT=\"\${MANIFEST_STATE_ROOT:-\$HOME/.manifest}\""
     echo ""
-    echo "  Add an alias to run 'manifest' from anywhere (optional):"
+    echo "  The manifest wrapper is installed at ~/.local/bin/manifest."
     echo ""
-    if [[ "$SHELL" == *"zsh"* ]]; then
-        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.py\"' >> ~/.zshrc && source ~/.zshrc${NC}"
-    elif [[ "$SHELL" == *"bash"* ]]; then
-        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.py\"' >> ~/.bashrc && source ~/.bashrc${NC}"
-    else
-        echo -e "  ${CYAN}alias manifest=\"~/.claude/scripts/parallel_agent.py\"${NC}"
-        echo "  (Add to your shell profile)"
-    fi
-    if [[ -n "${SHELL_PROFILE_FILE:-}" ]]; then
-        echo ""
-        echo "  Reload your shell profile:"
-        echo -e "  ${CYAN}source $SHELL_PROFILE_FILE${NC}"
-    fi
-    echo ""
-
     echo -e "${BOLD}Quick Start:${NC}"
     echo ""
-    echo "  # Test parallel agents (uses enabled services only)"
-    echo "  ~/.claude/scripts/parallel_agent.py --json 'Hello from all agents'"
+    echo "  # Start Claude Code"
+    echo "  claude"
     echo ""
-    echo "  # Code review with enabled agents"
-    echo "  ~/.claude/scripts/parallel_agent.py --json --review /path/to/file.py"
-    echo ""
-    echo "  # Use Claude Code commands"
-    echo "  claude  # Start Claude Code CLI"
     echo "  # Then use: /python-refactor, /docs-improve-readme, /docs-improve, etc."
     echo ""
 

@@ -259,16 +259,16 @@ Never claim a command passed that you did not run, and quote real output.
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When ≥3 independent files or articles exist, dispatch one sub-agent per file to analyze it,
-then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
-`manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
-do not re-dispatch.
-
-Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
-
-Sub-agents may *analyze* in parallel; the edits from Step 3 and Step 4 are applied in the main
-session so two agents never rewrite the same file.
+When ≥3 independent files or articles exist, dispatch one `reviewer` per file
+to analyze it, then merge the returned evidence directly; below that, analyze
+inline. Put all independent analyses in one OMP `task` call (waves of at most
+32). Children execute their assigned analysis directly and never re-dispatch.
+The parent applies the Step 3 and Step 4 edits, so two agents never rewrite the
+same file. If OMP `task` is unavailable, analyze inline and report `DEGRADED`.

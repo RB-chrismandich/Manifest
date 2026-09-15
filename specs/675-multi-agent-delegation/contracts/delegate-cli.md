@@ -41,6 +41,50 @@ Global rules:
 
 ## Subcommands
 
+### Remote-session exception (Jules, 2026-09-07)
+
+Registry `execution.kind: remote_session` selects a cloud lifecycle. It does not
+use the local worker, assistant result envelope, process cancellation or model
+fallback contracts. Supported driver: `jules_cli`, using vendor-managed OAuth.
+
+```bash
+delegate.py task --backend jules --remote-write --repo OWNER/REPO \
+  --remote-base provider-selected --task-file TASK.md
+delegate.py status JOB_ID --wait --timeout 600
+delegate.py result JOB_ID
+delegate.py pull JOB_ID
+delegate.py apply JOB_ID
+```
+
+`--remote-write` authorizes remote repository work, independently of local
+`--write`. The CLI cannot select a branch or upload local workspace changes;
+`provider-selected` explicitly acknowledges that limitation. Tasks requiring
+another base must use the provider UI. Only `auto` model selection is supported.
+
+| State | Meaning | Recovery |
+|-------|---------|----------|
+| `remote_submission_unknown` | Intent persisted; acceptance/reference unverified | Inspect Jules manually; never retry automatically |
+| `remote_pending` | Unique session URL accepted | Poll status or use session URL |
+| `completed` | Exact ID row reports Completed | Fetch patch; inspect before explicit apply |
+| `failed` | Exact ID row reports Failed | Inspect provider session |
+
+Unknown and pending remote jobs survive local process exit, restart and retention
+pruning. Observation errors preserve state and set `status_error`. An absent row
+does not mean task failure/completion. `status --all` reads cached records;
+`status JOB_ID` refreshes. JSON output is the remote job record, not a fabricated
+assistant envelope. A submission timeout stops waiting locally, not cloud work.
+Both foreground/background flags wait only for submission, capped at 120 seconds.
+`status --wait` observes separately and returns promptly on unavailable status.
+
+Remote resume, cancel, model chains/fallback, review, second opinion, transfer,
+and review gates are unsupported and rejected before dispatch. CLI session IDs
+and statuses are parsed conservatively; output changes require adapter updates.
+`pull` stores only recognizable patch output in private job storage. `apply`
+uses the saved patch and requires a clean matching GitHub repository; it never
+pushes or merges. OAuth tokens remain under vendor management; no API-key fallback.
+
+The local-backend contracts below remain unchanged.
+
 ### `task` — delegate (US1), second opinion (US3), follow-up (FR-015)
 
 ```

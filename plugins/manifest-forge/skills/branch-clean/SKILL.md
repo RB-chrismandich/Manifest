@@ -58,3 +58,24 @@ the staleness threshold can be overridden with
   currently checked-out branch (FR-017).
 - **Never force-deletes** unmerged branches via the default path (FR-020); such
   attempts fail safely and are reported, not swallowed (FR-019).
+
+## Sub-agent dispatch
+
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
+
+**Policy: conditional.** When the preview identifies multiple independent
+candidate groups, dispatch their read-only assessments together in one OMP
+`task` call (waves of at most 32), using `reviewer`. Children execute only
+their assigned candidate group and never redispatch. The parent uses `hub` only
+to coordinate or wait, validates and aggregates the evidence directly, and
+does not use text-consensus or synthesis. If `task` is unavailable, assess
+inline and report `DEGRADED`; never fall back to a provider CLI.
+
+Before `--apply` removes any branch, obtain a read-only `reviewer` assessment
+of the exact previewed candidates and safety guards. Delete only approved
+candidates sequentially.

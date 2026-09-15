@@ -321,7 +321,7 @@ See: `templates/commands/full-deployment-pipeline.md`
 - Retry logic (2x per phase)
 - Rollback on failure
 - Summary table output
-- Parallel agent validation
+- Risk-gated independent review evidence
 
 ---
 
@@ -512,7 +512,7 @@ Some commands can partially succeed:
 
 ---
 
-## Integration with Parallel Agents
+## OMP Sub-Agent Integration
 
 State machine commands may decompose genuinely independent workload units during
 validation. Independent review is separate:
@@ -520,7 +520,7 @@ validation. Independent review is separate:
 ```markdown
 ### Phase 3: Cross-Verify Changes
 
-**Parallel Agent Integration**: CONDITIONAL only for a trust-boundary change,
+**OMP Integration**: CONDITIONAL only for a trust-boundary change,
 destructive behavior, broad compatibility or deployment change, conflicting
 evidence or unresolved uncertainty, or a codebase-wide investigation with
 genuinely independent tracks.

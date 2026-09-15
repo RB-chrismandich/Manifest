@@ -38,7 +38,7 @@ Everything that talks to a code forge: commits, branches, PR/MR state and review
 
 **MCP servers**: `linear`, `atlassian`
 
-**Shared scripts**: `git_ops.sh`, `git_platform.sh`, `tracker_ops.sh`, `tracker_registry.py`, `linear_ops.sh`, `issue_support.sh`, `label_sync.sh`, `branch_clean.sh`, `pr_review.sh`, `audit_log.sh`, `auto_issue_dev.sh`, `loop_lock.sh`, `merge_decision.sh`, `pr_merge_loop.sh`, `lifecycle.sh`, `install_issue_hooks.sh`, `learning_capture.sh (git-commit only — 1 of 3 copies)`, `manifest parallel-agent (external CLI)`
+**Shared scripts**: `git_ops.sh`, `git_platform.sh`, `tracker_ops.sh`, `tracker_registry.py`, `linear_ops.sh`, `issue_support.sh`, `label_sync.sh`, `branch_clean.sh`, `pr_review.sh`, `audit_log.sh`, `auto_issue_dev.sh`, `loop_lock.sh`, `merge_decision.sh`, `pr_merge_loop.sh`, `lifecycle.sh`, `install_issue_hooks.sh`, `learning_capture.sh (git-commit only — 1 of 3 copies)`, retired cross-harness coordinator (external CLI)
 
 **User-invoked entry points** (13): `/git-commit`, `/pr-review`, `/pr-monitor`, `/pr-address-comments`, `/pr-merge-stacked`, `/pr-triage-bots`, `/repo-clean`, `/branch-clean`, `/issue-triage`, `/issue-prioritize`, `/issue-prep-auto`, `/issue-dev-auto`, `/lifecycle-run`
 
@@ -48,23 +48,23 @@ Everything that talks to a code forge: commits, branches, PR/MR state and review
 | Skill | Self-contained | Deps |
 |---|:--:|---|
 | `branch-clean` | ✅ | — |
-| `git-commit` | — | `git_ops.sh`, `manifest parallel-agent` |
+| `git-commit` | — | `git_ops.sh`, retired cross-harness coordinator |
 | `git-find-artifact` | ✅ | — |
 | `issue-dev-auto` | — | `git_ops.sh` |
 | `issue-prep-auto` | — | `git_ops.sh`, `tracker_ops.sh` |
-| `issue-prioritize` | — | `linear_ops.sh`, `manifest parallel-agent`, `tracker_ops.sh` |
+| `issue-prioritize` | — | `linear_ops.sh`, retired cross-harness coordinator, `tracker_ops.sh` |
 | `issue-sync-commit` | — | `issue_support.sh` |
 | `issue-sync-pr` | — | `issue_support.sh` |
-| `issue-triage` | — | `manifest parallel-agent`, `tracker_ops.sh` |
+| `issue-triage` | — | retired cross-harness coordinator, `tracker_ops.sh` |
 | `lifecycle-run` | — | `git_ops.sh`, `label_sync.sh`, `linear_ops.sh` |
 | `pr-address-comments` | — | `git_ops.sh` |
 | `pr-clean-base` | — | `git_ops.sh` |
 | `pr-merge-stacked` | — | `git_ops.sh` |
 | `pr-monitor` | — | `git_platform.sh` |
 | `pr-reset-reapply` | — | `git_ops.sh` |
-| `pr-review` | — | `git_ops.sh`, `git_platform.sh`, `manifest parallel-agent` |
-| `pr-triage-bots` | — | `manifest parallel-agent` |
-| `repo-clean` | — | `git_ops.sh`, `git_platform.sh`, `manifest parallel-agent` |
+| `pr-review` | — | `git_ops.sh`, `git_platform.sh`, retired cross-harness coordinator |
+| `pr-triage-bots` | — | retired cross-harness coordinator |
+| `repo-clean` | — | `git_ops.sh`, `git_platform.sh`, retired cross-harness coordinator |
 
 ## `manifest-spec-planning` — 7 skills
 
@@ -76,7 +76,7 @@ Planning artifacts: spec.md / plan.md / tasks.md (speckit or superpowers layout)
 
 **Hooks**: spec_review.sh --silent (PostToolUse|Write|Edit)
 
-**Shared scripts**: `spec_review.sh`, `cddl_invoke.py`, `prompts/cddl/`, `git_ops.sh (plan-manage — 2nd of 3 copies)`, `manifest parallel-agent (external CLI)`
+**Shared scripts**: `spec_review.sh`, `cddl_invoke.py`, `prompts/cddl/`, `git_ops.sh (plan-manage — 2nd of 3 copies)`, retired cross-harness coordinator (external CLI)
 
 **User-invoked entry points** (4): `/plan-manage`, `/spec-review`, `/spec-audit-tasks`, `/spec-implement-loop`
 
@@ -85,13 +85,13 @@ Planning artifacts: spec.md / plan.md / tasks.md (speckit or superpowers layout)
 
 | Skill | Self-contained | Deps |
 |---|:--:|---|
-| `design-validate` | — | `manifest parallel-agent` |
-| `plan-manage` | — | `git_ops.sh`, `manifest parallel-agent` |
+| `design-validate` | — | retired cross-harness coordinator |
+| `plan-manage` | — | `git_ops.sh`, retired cross-harness coordinator |
 | `premise-verify` | ✅ | — |
-| `spec-audit-tasks` | — | `manifest parallel-agent` |
+| `spec-audit-tasks` | — | retired cross-harness coordinator |
 | `spec-decide-tradeoffs` | ✅ | — |
-| `spec-implement-loop` | — | `parallel_agent.py` |
-| `spec-review` | — | `manifest parallel-agent` |
+| `spec-implement-loop` | — | retired cross-harness coordinator |
+| `spec-review` | — | retired cross-harness coordinator |
 
 ## `manifest-code-quality` — 19 skills
 
@@ -105,7 +105,7 @@ Source code that already exists: per-language refactor roadmaps, constitution au
 
 **MCP servers**: `context7`, `deepwiki`, `opentofu`
 
-**Shared scripts**: `constitution_check.py + constitution/ package`, `code_constitution.yml`, `constitution_baseline.json`, `learning_capture.sh (10 consumers here — 2nd of 3 copies)`, `smoke_test.py`, `git_ops.sh (shell-refactor stray — 3rd of 3 copies)`, `manifest parallel-agent (external CLI)`, `semgrep (external CLI)`
+**Shared scripts**: `constitution_check.py + constitution/ package`, `code_constitution.yml`, `constitution_baseline.json`, `learning_capture.sh (10 consumers here — 2nd of 3 copies)`, `smoke_test.py`, `git_ops.sh (shell-refactor stray — 3rd of 3 copies)`, retired cross-harness coordinator (external CLI), `semgrep (external CLI)`
 
 **User-invoked entry points** (11): `/python-refactor`, `/node-refactor`, `/go-refactor`, `/shell-refactor`, `/terraform-refactor`, `/code-audit-constitution`, `/ai-code-audit`, `/project-verify`, `/project-scaffold`, `/graphify`, `/smoke-manage`
 
@@ -114,23 +114,23 @@ Source code that already exists: per-language refactor roadmaps, constitution au
 
 | Skill | Self-contained | Deps |
 |---|:--:|---|
-| `ai-code-audit` | — | `manifest parallel-agent` |
+| `ai-code-audit` | — | retired cross-harness coordinator |
 | `antipattern-detect` | ✅ | — |
 | `cli-audit-help` | ✅ | — |
-| `code-audit-constitution` | — | `constitution_check.py`, `manifest parallel-agent` |
+| `code-audit-constitution` | — | `constitution_check.py`, retired cross-harness coordinator |
 | `false-green-check-audit` | ✅ | — |
-| `go-refactor` | — | `manifest parallel-agent` |
+| `go-refactor` | — | retired cross-harness coordinator |
 | `graphify` | ✅ | — |
 | `llm-invoke-stdin` | ✅ | — |
-| `node-refactor` | — | `manifest parallel-agent` |
+| `node-refactor` | — | retired cross-harness coordinator |
 | `project-scaffold` | ✅ | — |
 | `project-verify` | ✅ | — |
-| `python-refactor` | — | `manifest parallel-agent` |
+| `python-refactor` | — | retired cross-harness coordinator |
 | `shell-audit-errexit` | ✅ | — |
 | `shell-audit-pipefail` | ✅ | — |
-| `shell-refactor` | — | `git_ops.sh`, `manifest parallel-agent` |
+| `shell-refactor` | — | `git_ops.sh`, retired cross-harness coordinator |
 | `smoke-manage` | ✅ | — |
-| `terraform-refactor` | — | `manifest parallel-agent` |
+| `terraform-refactor` | — | retired cross-harness coordinator |
 | `test-pin-bug` | ✅ | — |
 | `test-vary-fixtures` | ✅ | — |
 
@@ -154,7 +154,7 @@ CI pipelines as an artifact: scaffolding workflows, auditing attacker-influencea
 
 | Skill | Self-contained | Deps |
 |---|:--:|---|
-| `ci-audit-triggers` | — | `manifest parallel-agent` |
+| `ci-audit-triggers` | — | retired cross-harness coordinator |
 | `ci-diagnose-drift` | ✅ | — |
 | `ci-harden-workflow` | ✅ | — |
 | `ci-reproduce-failure` | ✅ | — |
@@ -168,7 +168,7 @@ Security findings and threat surfaces: source-to-sink diff review, adversarial r
 
 **Agents**: `security-executor`
 
-**Shared scripts**: `manifest parallel-agent (external CLI)`, `semgrep (external CLI)`
+**Shared scripts**: retired cross-harness coordinator (external CLI), `semgrep (external CLI)`
 
 **User-invoked entry points** (2): `/security-review-diff`, `/mcp-audit`
 
@@ -177,14 +177,14 @@ Security findings and threat surfaces: source-to-sink diff review, adversarial r
 
 | Skill | Self-contained | Deps |
 |---|:--:|---|
-| `code-audit` | — | `manifest parallel-agent` |
+| `code-audit` | — | retired cross-harness coordinator |
 | `docker-audit-firewall` | ✅ | — |
 | `llm-audit-traversal` | ✅ | — |
 | `mcp-audit` | ✅ | — |
 | `security-harden-proxy` | ✅ | — |
-| `security-refute-findings` | — | `manifest parallel-agent` |
+| `security-refute-findings` | — | retired cross-harness coordinator |
 | `security-review-diff` | ✅ | — |
-| `security-triage-findings` | — | `manifest parallel-agent` |
+| `security-triage-findings` | — | retired cross-harness coordinator |
 
 ## `manifest-docs` — 4 skills
 
@@ -192,7 +192,7 @@ Read code, write the documentation tree: README, Diataxis-shaped docs/ pages, Me
 
 **Cross-lens support**: Unanimous, 4/4 — the only plugin with zero disputed members. docs-all is literally an umbrella over the other three, and docs_lint.py (447L) is consumed by nothing outside it.
 
-**Shared scripts**: `docs_lint.py`, `manifest parallel-agent (external CLI)`
+**Shared scripts**: `docs_lint.py`, retired cross-harness coordinator (external CLI)
 
 **User-invoked entry points** (4): `/docs-all`, `/docs-improve`, `/docs-improve-readme`, `/docs-generate-diagrams`
 
@@ -201,9 +201,9 @@ Read code, write the documentation tree: README, Diataxis-shaped docs/ pages, Me
 
 | Skill | Self-contained | Deps |
 |---|:--:|---|
-| `docs-all` | — | `manifest parallel-agent` |
-| `docs-generate-diagrams` | — | `manifest parallel-agent` |
-| `docs-improve` | — | `manifest parallel-agent` |
+| `docs-all` | — | retired cross-harness coordinator |
+| `docs-generate-diagrams` | — | retired cross-harness coordinator |
+| `docs-improve` | — | retired cross-harness coordinator |
 | `docs-improve-readme` | ✅ | — |
 
 ## `stitch-design` — 18 skills
@@ -221,7 +221,7 @@ The Stitch design pipeline and the frontend surface on either side of it: prompt
 
 | Skill | Self-contained | Deps |
 |---|:--:|---|
-| `a11y-audit` | — | `manifest parallel-agent` |
+| `a11y-audit` | — | retired cross-harness coordinator |
 | `code-to-design` | ✅ | — |
 | `design-md` | ✅ | — |
 | `enhance-prompt` | ✅ | — |
@@ -238,7 +238,7 @@ The Stitch design pipeline and the frontend surface on either side of it: prompt
 | `stitch-loop` | ✅ | — |
 | `taste-design` | ✅ | — |
 | `upload-to-stitch` | ✅ | — |
-| `ux-review` | — | `manifest parallel-agent` |
+| `ux-review` | — | retired cross-harness coordinator |
 
 ## `manifest-workspace` — 17 skills
 
@@ -252,7 +252,7 @@ Manifest's own environment and the agent itself: deployed-home auditing and reco
 
 **MCP servers**: `glean`
 
-**Shared scripts**: `apm_domains_lib.sh + apm_dev_sync.sh + apm_ownership_report.sh + apm_ungate_domain.sh + apm_drift_report.sh + apm_install_verify.sh + apm_publish_gate.sh + apm_hash_lib.sh`, `deploy_reconcile.sh + reconcile_core.py`, `check_status.sh`, `command_catalog.py`, `generate_commands_doc.py + generate_cursor_rules.sh + generate_cursor_agents.py`, `skillclaw_{ingest,evolve,audit,promote,scrub}`, `deploy_stamp_check.sh`, `emdash_inherit_check.sh`, `run_pr_regression.sh (CI mirror)`, `learning_capture.sh (learning-capture — 3rd of 3 copies)`, `manifest parallel-agent (external CLI)`
+**Shared scripts**: `apm_domains_lib.sh + apm_dev_sync.sh + apm_ownership_report.sh + apm_ungate_domain.sh + apm_drift_report.sh + apm_install_verify.sh + apm_publish_gate.sh + apm_hash_lib.sh`, `deploy_reconcile.sh + reconcile_core.py`, `check_status.sh`, `command_catalog.py`, `generate_commands_doc.py + generate_cursor_rules.sh + generate_cursor_agents.py`, `skillclaw_{ingest,evolve,audit,promote,scrub}`, `deploy_stamp_check.sh`, `emdash_inherit_check.sh`, `run_pr_regression.sh (CI mirror)`, `learning_capture.sh (learning-capture — 3rd of 3 copies)`, retired cross-harness coordinator (external CLI)
 
 **User-invoked entry points** (12): `/env-check`, `/config-audit`, `/deploy-reconcile`, `/help`, `/metrics-report`, `/token-benchmark`, `/session-checkpoint`, `/token-conserve`, `/memory-compress`, `/pr-smoke`, `/skill-evolve`, `/prompt-optimize`
 
@@ -263,19 +263,19 @@ Manifest's own environment and the agent itself: deployed-home auditing and reco
 |---|:--:|---|
 | `ai-hooks-integration` | ✅ | — |
 | `automation-rework-breakeven` | ✅ | — |
-| `config-audit` | — | `parallel_agent.py` |
+| `config-audit` | — | retired cross-harness coordinator |
 | `deploy-reconcile` | ✅ | — |
-| `env-check` | — | `manifest parallel-agent`, `parallel_agent.py` |
+| `env-check` | — | retired cross-harness coordinator |
 | `help` | ✅ | — |
 | `learning-capture` | ✅ | — |
 | `memory-compress` | ✅ | — |
-| `metrics-report` | — | `manifest parallel-agent` |
+| `metrics-report` | — | retired cross-harness coordinator |
 | `pass-cli` | ✅ | — |
-| `pr-smoke` | — | `manifest parallel-agent` |
+| `pr-smoke` | — | retired cross-harness coordinator |
 | `prompt-optimize` | ✅ | — |
 | `session-checkpoint` | ✅ | — |
 | `skill-evolve` | ✅ | — |
-| `test-isolate-ambient` | — | `parallel_agent.py` |
+| `test-isolate-ambient` | — | retired cross-harness coordinator |
 | `token-benchmark` | ✅ | — |
 | `token-conserve` | ✅ | — |
 
@@ -383,7 +383,7 @@ Building and operating an ingestion or API-integration job: table design for cac
 
 These are the reason this map is not a shipping plan.
 
-1. plugin.json has NO dependency field (measured 2026-07-27, specs/522). `manifest parallel-agent` is invoked by 29 of 108 skills spanning 8 of these 10 plugins. There is no way to declare it. The options are: vendor the orchestrator into 8 plugins (8 copies, guaranteed drift), or declare it an external CLI prerequisite already installed at ~/.local/bin (honest, and the only workable one — treat it like gh or docker). Neither is expressible IN the manifest, so it degrades to a README instruction that silently installs broken plugins when ignored.
+1. plugin.json has NO dependency field (measured 2026-07-27, specs/522). The retired cross-harness coordinator was invoked by 29 of 108 skills spanning 8 of these 10 plugins. There is no way to declare it. The options are: vendor the coordinator into 8 plugins (8 copies, guaranteed drift), or declare it an external CLI prerequisite already installed at ~/.local/bin (honest, and the only workable one — treat it like gh or docker). Neither is expressible IN the manifest, so it degrades to a README instruction that silently installs broken plugins when ignored.
 
 2. The forge boundary is unresolvable, not merged by agreement. Subject wants to cut git|issue; journey wants to cut plan|ship. Both cuts are defensible and mutually incompatible, so the merge wins by default. It is only tolerable because coupling forbids the cut: tracker_ops.sh and issue_support.sh both shell git_ops.sh via SCRIPT_DIR, so any split duplicates ~2,400 lines and reintroduces exactly the drift feature 522 exists to remove. Result: a 19-skill plugin that a Linear-only user installs to get GitHub PR machinery they will never run.
 

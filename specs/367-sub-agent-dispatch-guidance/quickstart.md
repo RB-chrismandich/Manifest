@@ -43,7 +43,7 @@ Sub-agents execute directly and do not re-dispatch.
 
 ## 4. Do NOT restate the selection rules
 
-Native Task sub-agents vs. `parallel_agent.py`, and the cross-platform fallback, live ONCE in
+Native Task sub-agents vs. `the retired cross-harness coordinator`, and the cross-platform fallback, live ONCE in
 `configs/claude/references/sub-agent-dispatch.md` → "Sub-Agent Selection Rules". Link to it; never copy it.
 
 ## 5. Verify
@@ -59,7 +59,7 @@ intended forcing function.
 ## Mechanism cheat-sheet (summary of the shared rules)
 
 - **Parallel reads / research / fan-out audit** → native **Task sub-agents** (Claude). On non-Claude
-  assistants, run inline or use `parallel_agent.py`.
+  assistants, run inline or use `the retired cross-harness coordinator`.
 - **Independent cross-model verification** of a security-sensitive / architectural / >200-line change
-  → **`parallel_agent.py`** (cross-platform; satisfies the constitution's Tier-1 gate).
+  → **`the retired cross-harness coordinator`** (cross-platform; satisfies the constitution's Tier-1 gate).
 - **Trivial / single-unit / <3 independent items** → **inline**, no dispatch.

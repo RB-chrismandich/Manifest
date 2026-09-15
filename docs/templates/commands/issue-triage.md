@@ -328,20 +328,13 @@ Present a comprehensive report:
 
 ---
 
-## Integration with Parallel Agents
+## Independent Duplicate Review
 
-For complex decision-making (e.g., determining if two issues truly duplicate), use parallel agents:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --timeout 300 \
-  "Are issues #A and #B duplicates? Issue A: [summary]. Issue B: [summary]."
-```
-
-Use parallel agent consensus to increase confidence in closure decisions:
-
-- >= 80% consensus: HIGH confidence
-- 50-79% consensus: MEDIUM confidence
-- < 50% consensus: LOW confidence (recommend only, don't act)
+For difficult duplicate decisions, dispatch independent read-only OMP `reviewer` units
+in one `task` batch. Require each reviewer to state whether the pair is a duplicate,
+its confidence, and reasoning. The parent compares the evidence; unresolved or
+insufficient evidence remains a recommendation only and is escalated for human review.
+If OMP `task` is unavailable, review inline and report `DEGRADED`.
 
 ---
 

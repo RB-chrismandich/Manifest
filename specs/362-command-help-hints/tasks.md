@@ -123,7 +123,7 @@ Single project on the existing repo layout: scripts in `configs/claude/scripts/`
 - [X] T029 [P] Add a `context_budget` assertion (extend `tests/bats/context_budget.bats`) proving the injected guide index stays under threshold as the catalog grows (FR-009/SC-006)
 - [X] T030 Run `quickstart.md` end-to-end to validate the SC-005 guidance chain (verify → commit → open PR)
 - [X] T031 Full gate pass: `pytest tests/python/`, `npx bats tests/bats/`, `shellcheck configs/claude/scripts/*.sh`, `yamllint configs/claude/config/*.yml`
-- [X] T032 Parallel-agent cross-verification before merge (Constitution II — change >200 lines): `parallel_agent.py --json --validate` over the new scripts/skill
+- [X] T032 Parallel-agent cross-verification before merge (Constitution II — change >200 lines): `the retired cross-harness coordinator --json --validate` over the new scripts/skill
 - [X] T033 [P] SC-003 measurement harness in `tests/python/command_help/test_guidance_hint.py` — over the registered Workflow Moments + a fixed unrelated-action sample, assert relevant command surfaced for ≥90% of moments and ≤5% false-positive on unrelated actions (the SC-003 population metric, beyond the per-moment mechanism tests T016/T017)
 
 ---

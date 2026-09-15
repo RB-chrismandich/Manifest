@@ -72,34 +72,6 @@
         "reason": "antigravity native manifest cannot encode runtime component 'learning-capture-scripts' at 'skills/learning-capture/scripts'"
       },
       {
-        "component_id": "parallel-agent-config",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/config",
-        "reason": "antigravity native manifest cannot encode runtime component 'parallel-agent-config' at 'skills/parallel-agent/config'"
-      },
-      {
-        "component_id": "parallel-agent-prompts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/prompts",
-        "reason": "antigravity native manifest cannot encode runtime component 'parallel-agent-prompts' at 'skills/parallel-agent/prompts'"
-      },
-      {
-        "component_id": "parallel-agent-references",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/references",
-        "reason": "antigravity native manifest cannot encode runtime component 'parallel-agent-references' at 'skills/parallel-agent/references'"
-      },
-      {
-        "component_id": "parallel-agent-scripts",
-        "component_type": "runtime",
-        "mode": "degraded",
-        "path": "skills/parallel-agent/scripts",
-        "reason": "antigravity native manifest cannot encode runtime component 'parallel-agent-scripts' at 'skills/parallel-agent/scripts'"
-      },
-      {
         "component_id": "pr-smoke-scripts",
         "component_type": "runtime",
         "mode": "degraded",

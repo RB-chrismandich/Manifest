@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Retire the `parallel-agent` and `metrics-report` commands, their `configs/claude/scripts/agents/`
+  coordinator package, the emdash inheritance probe, and the `spec_review_merge` prompt.
+  Interactive sub-agent work is now OMP `task`/`hub` only: skills link a bundle-local
+  `sub-agent-dispatch.md` contract, and `tool_policies` records one `subagents` disposition per
+  skill (`subagent_trigger` when conditional, `subagent_rationale` when never) in place of the
+  retired `parallel_agents`, `subagent_model`, `consensus`, and `harness_routing` settings.
+  Independent review stays risk-based: the five-condition gate is unchanged and counts still
+  never escalate review.
 - Make refactor and security review fan-out risk-based: one reviewer is now the
   default, with independent review reserved for consequential or uncertain changes.
 - Make Context7 authentication persistent across harnesses: device OAuth now

@@ -2,10 +2,10 @@
 # Thresholds and policies for Claude Code native commands
 # Referenced by commands in ~/.claude/commands/
 
-# Parallel agent trigger thresholds (configurable)
+# Native sub-agent trigger thresholds
 thresholds:
   # Documentation commands
-  docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
+  docs_improve_lines: 500         # Trigger native dispatch when total doc lines > 500
   docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique imports/modules
 
   # Advisory complexity signals; never independently activate code-audit or review fan-out.
@@ -78,6 +78,11 @@ review_escalation:
       - changed_home
       - temporary_directory
       - read_only_checkout
+    isolation_requirements:
+      - protect_original_checkout_and_host_files
+      - expose_no_credentials_or_host_control_sockets
+      - deny_unauthorized_network_access
+      - confine_writes_to_disposable_storage
     unavailable_isolation_result: skip_and_report_unavailable
     forbidden_operations:
       - automatic_fixes
@@ -85,76 +90,31 @@ review_escalation:
       - installations
       - deployments
       - remediation
+    instructions: >-
+      Treat the reviewed checkout as untrusted. Outside verified isolation, run only
+      trusted preinstalled static tools that treat checkout files as data, with
+      checkout-controlled executable configuration, plugins, hooks, imports, and
+      executable discovery disabled. Project-controlled tests, scripts, build steps,
+      and checks that load project code require enforced isolation satisfying every
+      isolation requirement above. Source inspection, check-only flags, a changed HOME,
+      a temporary directory, or a read-only checkout do not establish isolation. If
+      isolation is unavailable or uncertain, skip execution and report unavailable
+      with the reason. Never apply fixes, write formatting changes, install, deploy,
+      or remediate. Record each command and result.
   report_fields:
     - review_mode
     - escalation_reason
     - checks
 
-# Consensus thresholds for parallel agent decisions (float 0.0-1.0)
-consensus:
-  high: 0.80    # >=80%: Auto-proceed with unified recommendation
-  medium: 0.50  # 50-79%: Highlight disagreements to user
-  low: 0.0      # <50%: Block and escalate for human review
-
-# Prioritization hierarchy for synthesis (in order)
-synthesis_priority:
-  - security        # Security issues always first
-  - correctness     # Functional bugs
-  - performance     # Performance issues
-  - maintainability  # Code quality
-  - style           # Formatting and style
-
-# Harness routing (2026-08-02) — the four supported execution harnesses and how
-# skills/agents resolve models and execution semantics under each. Model IDs are
-# deliberately NOT duplicated here: parallel_agent.yml `model_tiers` is the
-# single verified-pin source (doc-sourced ID copies are how the gemini tiers
-# ended up 404-ing). `tier_source` names that file's model_tiers key;
-# `default_model_tier` mirrors _MODEL_TIER_DEFAULTS in scripts/agents/cli.py
-# ("auto" = no --model flag; the account default stands). Per-skill Claude
-# sub-agent/session models remain in tool_policies below.
-harness_routing:
-  claude:
-    guide: configs/claude/CLAUDE.md          # deployed to ~/.claude/CLAUDE.md
-    tier_source: claude
-    default_model_tier: sonnet               # sub-agent pin; session model via tool_policies session_model
-    execution: native-tools                  # Read/Edit/Grep/Bash signatures + Task/Agent sub-agents
-  codex:
-    guide: AGENTS.md                         # AGENTS.md standard; symlinked at configs/codex/AGENTS.md
-    tier_source: codex
-    default_model_tier: auto                 # no --model sent; account default follows OpenAI rollout
-    execution: direct-shell                  # direct shell execution; output as unified diffs
-  cursor:
-    guide: configs/cursor/rules/orchestration.mdc
-    tier_source: cursor
-    default_model_tier: flash
-    execution: workspace-edits               # workspace context constraints; edits applied to files
-  agy:
-    guide: AGENTS.md                         # antigravity ships no guide of its own (provider, not orchestrator)
-    tier_source: antigravity
-    default_model_tier: flash
-    execution: agent-context                 # standard agent context wrapper
 
 # Tool policies per command
 #
-# Sub-agent fields (feature 367 — see configs/claude/references/sub-agent-dispatch.md):
-#   parallel_agents: always|conditional|never|gate-only  # external parallel_agent.py cross-verification
-#   trigger_condition: "<expr>"                           # scale gate for parallel_agents: conditional
-#   subagents:         always|conditional|never           # native Task/Agent sub-agents (Claude)
-#   subagent_trigger:  "<expr>"                            # REQUIRED when subagents: conditional; convention: independent_units >= 3
-#   subagent_rationale: "<one line>"                       # for subagents: never (or a `> Sub-agents: not used — <reason>.` note in SKILL.md)
-#   subagent_model:    haiku|sonnet|opus|charter           # REQUIRED when subagents: always|conditional. Default `sonnet`;
-#                                                          # `charter` = per-role tiers in the CDDL charters. Escalate to `opus`
-#                                                          # only for genuinely hard reasoning (measured: 2026-07-25 baseline).
-# Every skill directory with a SKILL.md MUST carry a `subagents` value (enforced by tests/bats/subagent_policy.bats).
-# command_config.yml is the canonical store; SKILL.md prose must agree and is verified by that test.
-#
-# Session-model fields (2026-07-25 credit baseline — see docs/MODEL-POLICY.md):
-#   session_model:           opus                          # omit = Opus, the default start model
-#   session_model_rationale: "<one line>"                  # REQUIRED whenever session_model is set
-# 2026-08-17: the `fable` session tier was retired. Opus (1M context) is now both the top tier and
-# the default start model, so there is no costlier tier left to ask the user to switch to — the
-# ask-before-premium gate that `fable` carried has no referent and was removed with it.
-# Enforced by tests/bats/subagent_policy.bats.
+# Sub-agent fields (see configs/claude/references/sub-agent-dispatch.md):
+#   subagents: always|conditional|never
+#   subagent_trigger: "<expr>"       # REQUIRED when conditional
+#   subagent_rationale: "<one line>" # REQUIRED when never
+# Every skill directory with a SKILL.md carries a `subagents` value. Skill prose
+# links the shared OMP dispatch rules; this file is the canonical policy store.
 tool_policies:
   issue-dev-auto:
     allowed:
@@ -164,11 +124,6 @@ tool_policies:
       - Write
       - Skill      # test-driven-development, project-verify, pr-address-comments, pr-review
     forbidden: []
-    # Scope note: the DEVELOP loop never auto-wraps its own output in cross-verification
-    # (parallel_agents: never). The MERGE gate, however, is a deliberate, bounded parallel-agent
-    # review run via verification_gate.sh (#360) — that is gate-only and intentional, not a
-    # contradiction of the develop-loop policy.
-    parallel_agents: gate-only
     validation_tier: 1
 
     subagents: never
@@ -180,20 +135,18 @@ tool_policies:
       - Edit
       - Write
     forbidden: []
-    parallel_agents: never        # orchestrates other skills; no cross-verification fan-out
     validation_tier: 1            # pushes commits + posts PR comments
 
     subagents: never
     subagent_rationale: Self-paced interactive loop babysitting a single PR sequentially.
   pr-smoke:
     allowed:
-      - Bash       # run_pr_regression.sh: lint/bats/pytest, bootstrap, check_status, parallel_agent
+      - Bash       # run_pr_regression.sh: lint/bats/pytest, bootstrap, check_status
       - Read
       - Skill      # may hand a failing gate to systematic-debugging
     forbidden:
       - Write      # read-only on repo source; only validates, never edits
       - Edit
-    parallel_agents: never        # a CI-mirror gate runner, not a cross-verification fan-out
     validation_tier: 2            # verification skill; no source mutation
 
     subagents: never
@@ -206,7 +159,6 @@ tool_policies:
       - Edit
       - Skill      # may hand a failing gate to systematic-debugging
     forbidden: []
-    parallel_agents: never        # an authoring/gate tool, not a cross-verification fan-out
     validation_tier: 1            # executes CLI/shell steps + handles env-injected secrets
     subagents: never
     subagent_rationale: Single config-driven engine runs the tiered catalog sequentially via one smoke_test.py run; no independent fan-out units.
@@ -219,7 +171,6 @@ tool_policies:
       - Edit
       - Skill      # drives the per-phase /speckit-* and /spec-review commands
     forbidden: []
-    parallel_agents: never        # a state-gated driver, not a cross-verification fan-out
     validation_tier: 1            # safety-gate logic + handles env-injected provider secrets
     subagents: never
     subagent_rationale: Single config-driven engine runs the catalog sequentially via one script.
@@ -230,7 +181,6 @@ tool_policies:
     forbidden:
       - Write
       - Edit
-    parallel_agents: never
     validation_tier: 1
     enabled: true              # opt-in runtime gate (install_issue_hooks.sh --enable)
     hook_timeout_seconds: 5     # fail-open soft timeout bound
@@ -244,7 +194,6 @@ tool_policies:
     forbidden:
       - Write
       - Edit
-    parallel_agents: never
     validation_tier: 1
     enabled: true              # opt-in runtime gate
     hook_timeout_seconds: 5     # fail-open soft timeout bound
@@ -258,7 +207,6 @@ tool_policies:
       - Glob
       - Grep
       - Bash   # docs_lint.py only — the line cap must be measured, not judged
-    parallel_agents: never
     validation_tier: 2
 
     subagents: never
@@ -273,8 +221,7 @@ tool_policies:
       - Write
       - Edit  # Read-only analysis
     bash_mode: check-only
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
+
     validation_tier: 1
     mcp_servers:
       - context7   # Python library/API documentation
@@ -282,7 +229,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
+    subagent_rationale: Read-only refactor assessment; dispatch independent review only for defined high-risk or multi-track findings.
   code-audit-constitution:
     allowed:
       - Read
@@ -291,34 +238,28 @@ tool_policies:
       - Bash    # constitution_check.py, the language toolchain, the test suite
       - Write   # extracted payload/template files and their tests
       - Edit    # remediation: this skill changes source, unlike <lang>-refactor
-    parallel_agents: conditional
     validation_tier: 2
     mcp_servers:
       - context7   # library/API docs when a loader or dependency is evaluated
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
-    subagent_model: sonnet
   docs-generate-diagrams:
     allowed:
       - Read
       - Glob
       - Grep
       - Bash   # docs_lint.py only — the page/diagram caps must be measured
-    parallel_agents: conditional
-    trigger_condition: unique_imports >= 5
     validation_tier: 2
 
-    subagents: never
-    subagent_rationale: One diagram doc for a single codebase; uses parallel_agent.py, not native fan-out.
+    subagents: conditional
+    subagent_trigger: unique_imports >= 5
   docs-improve:
     allowed:
       - Read
       - Glob
       - Grep
       - Bash   # docs_lint.py only — before/after caps are a measured delta
-    parallel_agents: conditional
-    trigger_condition: total_doc_lines >= 500
     validation_tier: 2
     mcp_servers:
       - deepwiki   # Cross-reference dependency docs for accuracy
@@ -326,7 +267,6 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: doc_topics >= 10
-    subagent_model: sonnet
     subagent_rationale: >-
       Was `never` when the output was one holistic health score. The unit of
       work is now a topic directory held to its own line cap, and those are
@@ -341,15 +281,14 @@ tool_policies:
       - Write
       - Edit  # Read-only analysis
     bash_mode: check-only
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
+
     validation_tier: 1
     security_cli:
       - semgrep    # Local SAST scanning via CLI (requires Bash)
 
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
+    subagent_rationale: Read-only refactor assessment; dispatch independent review only for defined high-risk or multi-track findings.
   node-refactor:
     allowed:
       - Read
@@ -360,8 +299,7 @@ tool_policies:
       - Write
       - Edit  # Read-only analysis
     bash_mode: check-only
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
+
     validation_tier: 1
     mcp_servers:
       - context7   # Node/TS library documentation
@@ -369,7 +307,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
+    subagent_rationale: Read-only refactor assessment; dispatch independent review only for defined high-risk or multi-track findings.
   go-refactor:
     allowed:
       - Read
@@ -380,8 +318,7 @@ tool_policies:
       - Write
       - Edit  # Read-only analysis
     bash_mode: check-only
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
+
     validation_tier: 1
     mcp_servers:
       - context7   # Go library documentation
@@ -389,7 +326,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
+    subagent_rationale: Read-only refactor assessment; dispatch independent review only for defined high-risk or multi-track findings.
   terraform-refactor:
     allowed:
       - Read
@@ -400,8 +337,7 @@ tool_policies:
       - Write
       - Edit  # Read-only analysis
     bash_mode: check-only
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
+
     validation_tier: 1
     mcp_servers:
       - opentofu   # OpenTofu registry, provider/module docs, resource reference
@@ -410,35 +346,28 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
+    subagent_rationale: Read-only refactor assessment; dispatch independent review only for defined high-risk or multi-track findings.
   plan-manage:
     allowed:
       - Read
       - Glob
       - Grep
-      - Bash   # parallel_agent.py, git_ops.sh, mv, date
+      - Bash   # git_ops.sh, mv, date
       - Write  # Creating new plans from template
       - Edit   # Checking off deliverables during execute
-      - Task   # Synthesis agent on disagreement
+      - Task   # Native review of incompatible load-bearing proposals
     forbidden: []
-    parallel_agents: conditional
-    trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic OR issue_execute_review
     validation_tier: 2
     mcp_servers:
       - deepwiki   # Research external deps and upstream APIs during planning
       - linear     # Issue context and acceptance criteria
       - atlassian  # Jira/Confluence context when project uses Atlassian
       - glean      # Internal team knowledge, runbooks, ADRs
-      - opentofu   # OpenTofu registry docs when planning IaC changes
-
-    # Was `never` while SKILL.md step 4 dispatched a general-purpose synthesis
-    # agent with no model — `never` exempts a skill from the T7/T8 model-pin
-    # gate, so the one dispatch it made inherited the session's premium model
-    # unchecked. Reclassified to match what the skill actually does.
+    # Compatible structured proposals can be merged by the parent. Escalate
+    # incompatible, load-bearing recommendations to one reviewer, then user.
     subagents: conditional
-    subagent_trigger: consensus 50-79% on `create` — one synthesis agent merges the panel's proposals
-    subagent_rationale: Interactive plan-lifecycle management acting on one plan per action; the sole dispatch is the consensus-synthesis agent.
-    subagent_model: sonnet
+    subagent_trigger: create with multiple independent structured proposals
+    subagent_rationale: Interactive plan-lifecycle management acting on one plan per action.
   code-audit:  # skill
     allowed:
       - Read
@@ -449,8 +378,7 @@ tool_policies:
       - Write
       - Edit  # Read-only for auto-trigger
     bash_mode: check-only
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
+
     validation_tier: 1
     mcp_servers:
       - context7   # Library docs for security best practices
@@ -459,21 +387,19 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
+
     subagent_rationale: Inline review by default; independent review on consequence or uncertainty.
   issue-triage:
     allowed:
       - Read
       - Glob
       - Grep
-      - Bash      # linear_ops.sh, parallel_agent.py, jq
+      - Bash      # linear_ops.sh, jq
       - Task      # Parallel verification for duplicates/staleness
       - AskUserQuestion  # User confirmation for actions
     forbidden:
       - Write
       - Edit      # Read-only analysis; mutations via linear_ops.sh only
-    parallel_agents: conditional
-    trigger_condition: scenario_based
     validation_tier: 2
     mcp_servers:
       - linear      # Primary: Linear MCP for issue operations
@@ -481,20 +407,17 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
-    subagent_model: sonnet
   issue-prioritize:
     allowed:
       - Read
       - Glob
       - Grep
-      - Bash      # gh, glab, linear_ops.sh, parallel_agent.py, jq, python3
+      - Bash      # gh, glab, linear_ops.sh, jq, python3
       - Task      # Parallel agent scoring for top candidates
       - AskUserQuestion  # Clarify platform or project context
     forbidden:
       - Write
       - Edit      # Strictly read-only — no file or issue mutations
-    parallel_agents: conditional
-    trigger_condition: top_candidates_scoring
     validation_tier: 2
     mcp_servers:
       - linear      # Primary: Linear issue data
@@ -502,7 +425,6 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: open_issues >= 10
-    subagent_model: sonnet
   issue-prep-auto:
     allowed:
       - Read
@@ -514,8 +436,6 @@ tool_policies:
     forbidden:
       - Write
       - Edit      # No filesystem mutations; issue mutations go through git_ops.sh
-    parallel_agents: conditional
-    trigger_condition: scenario_based
     validation_tier: 2
 
     subagents: never
@@ -530,13 +450,10 @@ tool_policies:
     forbidden:
       - Write
       - Edit      # Analysis-only — reports gaps, never edits code or the task list
-    parallel_agents: conditional
-    trigger_condition: post_implement
     validation_tier: 2
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
-    subagent_model: sonnet
   spec-implement-loop:
     allowed:
       - Read
@@ -547,12 +464,10 @@ tool_policies:
     forbidden:
       - Write
       - Edit      # Only the developer sub-agent writes code
-    parallel_agents: never
     validation_tier: 1
 
     subagents: always
     subagent_rationale: Four-persona CDDL loop; developer sub-agent is the sole code author; three read-only reviewer sub-agents gate each iteration.
-    subagent_model: charter
   env-check:
     allowed:
       - Read
@@ -563,7 +478,6 @@ tool_policies:
       - Write
       - Edit      # Read-only diagnostic
       - Task
-    parallel_agents: never
     validation_tier: 2
 
     subagents: never
@@ -578,7 +492,6 @@ tool_policies:
       - Write
       - Edit      # Read-only diagnostic
       - Task
-    parallel_agents: never
     validation_tier: 2
 
     subagents: never
@@ -591,7 +504,6 @@ tool_policies:
     forbidden:
       - Bash
       - Write
-    parallel_agents: never
     validation_tier: 2
 
     subagents: never
@@ -604,11 +516,9 @@ tool_policies:
       - Bash   # Invokes native package managers (pip, docker, npm) to resolve versions/hashes
       - Edit
       - Write  # Rewrites loose pins in place on explicit (on-demand) invocation
-    parallel_agents: always   # Security-sensitive supply-chain change (Constitution II)
     validation_tier: 1
 
-    subagents: never
-    subagent_rationale: Thin wrapper running one tree-walking script that mutates files in place.
+    subagents: always
   docker-compose-commandments:
     allowed:
       - Read
@@ -616,10 +526,9 @@ tool_policies:
       - Grep
       - Bash   # compose_check.py; may also invoke version_pin.sh for DC-001
       - Edit   # Applies the remedy to the compose file under audit
-    parallel_agents: conditional   # Escalate when the fix touches secrets or network topology
     validation_tier: 1             # DC-002/DC-005 are security-sensitive (Constitution II)
-    subagents: never
-    subagent_rationale: One checker over one file; the fix is a targeted edit, not a fan-out.
+    subagents: conditional
+    subagent_trigger: secrets_or_network_topology_change
   docs-all:
     allowed:
       - Read
@@ -627,11 +536,9 @@ tool_policies:
       - Grep
       - Task   # Dispatches docs-improve-readme / docs-generate-diagrams / docs-improve as sub-agents
       - Bash   # docs_lint.py only — brackets the run to report a real delta
-    parallel_agents: conditional
     validation_tier: 2
 
     subagents: always
-    subagent_model: sonnet
   pr-review:
     allowed:
       - Read
@@ -641,34 +548,30 @@ tool_policies:
     forbidden:
       - Write
       - Edit   # Analysis-only by default (FR-014)
-    parallel_agents: never
     validation_tier: 2
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
-    subagent_model: sonnet
   branch-clean:
     allowed:
       - Read
       - Glob
       - Grep
       - Bash   # git plumbing; branch deletion only on --apply
-    parallel_agents: conditional   # Tier 1 on the destructive --apply path
     validation_tier: 1
 
-    subagents: never
-    subagent_rationale: Single script run mutating the shared local branch set; parallelism unsafe.
+    subagents: conditional
+    subagent_trigger: apply
   deploy-reconcile:
     allowed:
       - Read
       - Glob
       - Grep
       - Bash   # reconcile_core.py preview; file moves only on the destructive --remove path
-    parallel_agents: conditional   # Tier 1 on the destructive --remove path
     validation_tier: 1
 
-    subagents: never
-    subagent_rationale: Single script run mutating the user's deployed home; parallelism unsafe.
+    subagents: conditional
+    subagent_trigger: remove
   repo-clean:
     allowed:
       - Read
@@ -678,12 +581,10 @@ tool_policies:
     forbidden:
       - Write
       - Edit   # report-first; never edits repo files
-    parallel_agents: conditional   # Tier 1 on the destructive close/prune path
     validation_tier: 1
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
-    subagent_model: sonnet
   token-benchmark:
     allowed:
       - Read
@@ -695,10 +596,6 @@ tool_policies:
   a11y-audit:
     subagents: conditional
     subagent_trigger: target_files >= 3
-    subagent_model: sonnet
-  parallel-agent:
-    subagents: never
-    subagent_rationale: The skill is the cross-harness invocation mechanism itself; nested fan-out would duplicate its bounded worker set.
   pr-address-comments:
     subagents: never
     subagent_rationale: Single PR; fixes mutate one working tree and must be re-tested/pushed sequentially.
@@ -765,11 +662,9 @@ tool_policies:
     forbidden:
       - Write
       - Edit   # Analysis-only: the audit never modifies the audited codebase
-    parallel_agents: conditional  # only for critical/high finding cross-verification (spec 457 FR-012)
     validation_tier: 1
     subagents: conditional
     subagent_trigger: critical_or_high_findings >= 1  # one adversarial refuter per critical/high finding
-    subagent_model: opus
   antipattern-detect:
     subagents: never
     subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.
@@ -794,7 +689,6 @@ tool_policies:
   ci-audit-triggers:
     subagents: conditional
     subagent_trigger: workflow_files >= 3
-    subagent_model: sonnet
   pr-clean-base:
     subagents: never
     subagent_rationale: Single-branch git surgery mutating shared git state; sequential.
@@ -804,9 +698,6 @@ tool_policies:
   docker-probe-internal:
     subagents: never
     subagent_rationale: Spawns a throwaway container to probe one internal service; sequential debugging.
-  metrics-report:
-    subagents: never
-    subagent_rationale: Aggregates logs into one dashboard report; single sequential aggregation.
   config-debug-substitution:
     subagents: never
     subagent_rationale: Single sequential debugging investigation of one app's config layer.
@@ -835,7 +726,6 @@ tool_policies:
       - Bash
       - Write
       - Edit
-    parallel_agents: never
     subagents: never
     subagent_rationale: Output-shaping session mode; no work to fan out and it mutates nothing.
   data-design-ingestion:
@@ -881,7 +771,6 @@ tool_policies:
       - Write
       - Edit
     forbidden: []
-    parallel_agents: never   # a fixture-construction recipe, not a cross-verification fan-out
     validation_tier: 2
     subagents: never
     subagent_rationale: Building one isolated fixture is a single sequential unit.
@@ -897,7 +786,6 @@ tool_policies:
   design-validate:
     subagents: conditional
     subagent_trigger: assumptions >= 3
-    subagent_model: sonnet
   pr-reset-reapply:
     subagents: never
     subagent_rationale: Single-branch sequential git history surgery mutating shared state.
@@ -916,11 +804,9 @@ tool_policies:
   security-refute-findings:
     subagents: conditional
     subagent_trigger: candidate_findings >= 3
-    subagent_model: opus
   security-triage-findings:
     subagents: conditional
     subagent_trigger: candidate_findings >= 3
-    subagent_model: opus
   shell-audit-pipefail:
     subagents: never
     subagent_rationale: Single-script audit; substitutions tightly coupled within one file.
@@ -933,9 +819,6 @@ tool_policies:
   refactor:
     subagents: conditional
     subagent_trigger: *review_risk_trigger
-    subagent_model: sonnet
-    parallel_agents: conditional
-    trigger_condition: *review_risk_trigger
   pr-manage:
     subagents: never
     subagent_rationale: Router; resolves intent then hands off to exactly one PR skill, which owns its own dispatch.
@@ -947,18 +830,16 @@ tool_policies:
     subagent_rationale: Thin wrapper invoking one promote script (handles its own batching) and opens a PR.
   spec-review:
     subagents: never
-    subagent_rationale: Analysis-only; delegates to external parallel_agent.py for one combined review.
+    subagent_rationale: Runs one combined review; no independent interactive units.
   test-vary-fixtures:
     subagents: never
     subagent_rationale: Single-target guidance checklist; no items to fan out.
   pr-triage-bots:
     subagents: conditional
     subagent_trigger: bot_prs >= 3
-    subagent_model: sonnet
   ux-review:
     subagents: conditional
     subagent_trigger: independent_units >= 3
-    subagent_model: sonnet
   project-verify:
     subagents: never
     subagent_rationale: Single target project; runs its own lint/test/scan chain internally.
@@ -990,7 +871,6 @@ tool_policies:
     subagent_rationale: Runs one pinned render/scan script over one artifact directory.
   review-round:
     subagents: always
-    subagent_model: sonnet
     subagent_rationale: One design-lens-reviewer per lens plus one skeptic-verifier per blocker, all in parallel.
   screen-prompts:
     subagents: never
@@ -1008,12 +888,10 @@ tool_policies:
       - Write
       - Edit    # delegation only; the delegate backend edits, not this skill
       - Task
-    parallel_agents: never
     validation_tier: 2
 
     subagents: never
     subagent_rationale: Dispatches to one external CLI backend per invocation; no independent verification units to fan out.
-    subagent_model: sonnet
   delegate-setup:
     allowed:
       - Read
@@ -1024,12 +902,10 @@ tool_policies:
       - Write
       - Edit
       - Task
-    parallel_agents: never
     validation_tier: 2
 
     subagents: never
     subagent_rationale: One-time readiness check across backends; sequential probes, no fan-out.
-    subagent_model: sonnet
 
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
 # Maps file globs to an ecosystem and hash form. Notes on the fields:
@@ -1081,97 +957,3 @@ branch_clean:
     - master
     - "release/*"
     - "hotfix/*"
-
-# Error recovery strategies
-error_recovery:
-  timeout_seconds: 120
-  max_retries: 1
-  fallback_strategy: single_agent  # Options: single_agent, warn_user, abort
-
-  on_timeout:
-    action: retry_once_then_fallback
-    message: "Parallel agents timed out, falling back to single-agent analysis"
-
-  on_one_agent_fails:
-    action: continue_with_available
-    message: "One agent failed, continuing with available agent output"
-
-  on_both_agents_fail:
-    action: warn_and_proceed
-    message: "Both agents failed, proceeding without parallel validation"
-
-  on_synthesis_fails:
-    action: show_raw_outputs
-    message: "Synthesis failed, presenting raw agent outputs"
-
-# Parallel agent script configuration
-parallel_agent:
-  script_path: ~/.claude/scripts/parallel_agent.py
-  output_dir: ~/.claude/.agent_outputs
-  default_options:
-    - --json
-    - --validate
-  modes:
-    review: --review
-    analyze: --analyze
-    prompt: ""  # Generic prompt mode
-
-# Model selection
-# Canonical model tier definitions (IDs and fallback chains) are in parallel_agent.yml.
-# This section only contains task-based routing logic (which tier to use per task type).
-
-# Task-based model defaults (used by orchestrator)
-# The orchestrating agent (Claude) selects models based on task type
-task_model_defaults:
-  security:
-    cursor: advanced
-    claude: opus
-    gemini: pro
-    antigravity: advanced
-    reason: "Security-critical code requires maximum model capability"
-
-  review:
-    cursor: flash
-    claude: sonnet
-    gemini: flash
-    antigravity: flash
-    reason: "Code review benefits from balanced capability/speed"
-
-  analyze:
-    cursor: flash
-    claude: sonnet
-    gemini: flash
-    antigravity: flash
-    reason: "Analysis tasks need good reasoning without opus cost"
-
-  improve:
-    cursor: mini
-    claude: haiku
-    gemini: flash
-    antigravity: mini
-    reason: "Improvement suggestions can use lighter models"
-
-  quick:
-    cursor: mini
-    claude: haiku
-    gemini: flash
-    antigravity: mini
-    reason: "Quick queries use lightest models for speed"
-
-  issue_triage:
-    cursor: flash
-    claude: sonnet
-    gemini: flash
-    antigravity: flash
-    reason: "Balanced capability for semantic analysis"
-
-  issue_prioritize:
-    cursor: flash
-    claude: sonnet
-    gemini: flash
-    antigravity: flash
-    reason: "Balanced capability for scoring refinement"
-
-# Credit exhaustion fallback chains
-# Canonical fallback definitions are in parallel_agent.yml (credit_fallback section).
-# The parallel_agent.py script reads those values at runtime.

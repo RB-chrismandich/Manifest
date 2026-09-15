@@ -56,14 +56,17 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review
-inline. Pick the mechanism from the current harness's native sub-agent dispatch
-contract: native Task sub-agents where available, or `manifest-workspace:parallel-agent`
-/ inline on other assistants. Dispatched sub-agents execute their task directly
-and do not re-dispatch.
-
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+When ≥3 open PRs exist, dispatch one independent read-only `reviewer` unit per
+PR in one OMP `task` call (waves of at most 32); below that, review inline.
+Each child assesses only its assigned PR and never redispatches. The parent
+uses `hub` only to coordinate or wait, validates the returned evidence, and
+assigns the final disposition directly—there is no text-consensus or synthesis
+step. If `task` is unavailable, review inline and report `DEGRADED`; never fall
+back to a provider CLI.

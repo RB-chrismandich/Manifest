@@ -11,7 +11,7 @@ refactoring is the package layout and the public interface each module exposes.
 
 ```text
 configs/claude/scripts/
-├── parallel_agent.py          # Thin entry-point shim (replaces monolith)
+├── the retired cross-harness coordinator          # Thin entry-point shim (replaces monolith)
 └── agents/                    # New Python package
     ├── __init__.py            # Re-exports key public symbols
     ├── config.py              # Configuration and logging infrastructure
@@ -123,7 +123,7 @@ from agents.cli import main
 
 ---
 
-### `parallel_agent.py` (entry-point shim)
+### `the retired cross-harness coordinator` (entry-point shim)
 
 ```python
 #!/usr/bin/env python3
@@ -177,4 +177,4 @@ original monolith.
 | `agents/runners.py` | `tests/python/agents/test_runners.py` |
 | `agents/orchestrator.py` | `tests/python/agents/test_orchestrator.py` |
 | `agents/cli.py` | `tests/python/agents/test_cli.py` |
-| Integration (all modules) | `tests/python/test_parallel_agent.py` (imports updated) |
+| Integration (all modules) | `the retired coordinator integration test` (imports updated) |

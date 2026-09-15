@@ -11,12 +11,12 @@ load '../test_helper/bats-assert/load'
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
 
-@test "orchestration.mdc contains the Reference Index section with all 8 references" {
+@test "orchestration.mdc contains the Reference Index section with all 9 references" {
     run grep -c '^## Reference Index$' "$RULE_FILE"
     assert_output "1"
-    for ref in parallel-agent.md orchestration.md git-platform.md layout.md \
-               sub-agent-dispatch.md spec-artifact-discovery.md antipatterns.md \
-               doc-concision.md; do
+    for ref in orchestration.md git-platform.md layout.md \
+               sub-agent-dispatch.md spec-artifact-discovery.md code-constitution.md \
+               antipatterns.md doc-concision.md harness-routing.md; do
         grep -qF "~/.claude/references/$ref" "$RULE_FILE" || {
             echo "orchestration.mdc: missing reference $ref" >&2
             return 1
@@ -35,6 +35,15 @@ RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
     ! grep -qE '^\*\*CLI tool\*\*.*apm-dev-sync' "$RULE_FILE"
 }
 
+@test "orchestration.mdc uses one capable agent by default" {
+    grep -qF 'Use one capable agent by default.' "$RULE_FILE"
+    grep -qF 'independent-unit counts are advisory context' "$RULE_FILE"
+}
+
+@test "orchestration.mdc contains semantic code-audit activation guidance" {
+    grep -qF '### Security Review Rule' "$RULE_FILE"
+    grep -qF 'Keywords and complexity metrics alone' "$RULE_FILE"
+}
 
 @test "orchestration.mdc contains the token-conserve re-assert note" {
     grep -qF 're-asserts this mode if drift is noticed mid-session' "$RULE_FILE"

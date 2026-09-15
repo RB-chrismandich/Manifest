@@ -54,50 +54,6 @@ def _run(
     )
 
 
-def test_parallel_agent_uses_only_files_below_its_skill_root(
-    workspace_bundle: Path, tmp_path: Path
-) -> None:
-    script = workspace_bundle / "skills/parallel-agent/scripts/parallel_agent.py"
-
-    result = _run(script, "--help", env=_isolated_env(tmp_path), cwd=tmp_path)
-
-    assert result.returncode == 0, result.stderr
-    assert ".claude" not in result.stderr
-    assert "configs/claude" not in result.stderr
-
-
-def test_parallel_agent_preserves_structured_result_schema(
-    workspace_bundle: Path, tmp_path: Path
-) -> None:
-    env = _isolated_env(tmp_path)
-    binary_dir = tmp_path / "bin"
-    binary_dir.mkdir()
-    claude = binary_dir / "claude"
-    claude.write_text("#!/bin/sh\necho fixture-review\n", encoding="utf-8")
-    claude.chmod(0o755)
-    env["PATH"] = f"{binary_dir}:{env['PATH']}"
-    script = workspace_bundle / "skills/parallel-agent/scripts/parallel_agent.py"
-
-    result = _run(
-        script,
-        "--json",
-        "--claude-only",
-        "--no-stream",
-        "--no-synthesize",
-        "review fixture",
-        env=env,
-        cwd=tmp_path,
-    )
-
-    assert result.returncode == 0, result.stderr
-    document = json.loads(result.stdout)
-    assert document["mode"] == "prompt"
-    assert document["agents"]["claude"]["status"] == "complete"
-    assert document["agents"]["claude"]["output"] == "fixture-review"
-    assert "cross_verification" in document
-    assert "output_files" in document
-
-
 def test_learning_capture_defaults_to_xdg_data(
     workspace_bundle: Path, tmp_path: Path
 ) -> None:
@@ -131,7 +87,6 @@ def test_workspace_contract_lists_every_runtime_asset(
     contract = load_contract(workspace_bundle / "manifest-capabilities.yml")
     runtime_paths = {component.path for component in contract.components.runtime}
 
-    assert "skills/parallel-agent/scripts" in runtime_paths
     assert "skills/env-check/scripts" in runtime_paths
     assert "skills/help/catalog/commands.json" in runtime_paths
     assert contract.components.agents
@@ -149,9 +104,10 @@ def test_generated_catalog_covers_all_domain_skills(
 
     assert result.returncode == 0, result.stderr
     catalog = json.loads(result.stdout)
-    assert len(catalog["commands"]) == 121
-    assert any(
-        item["qualified_name"] == "manifest-workspace:parallel-agent"
+    assert len(catalog["commands"]) == 119
+    assert not any(
+        item["qualified_name"]
+        in ("manifest-workspace:parallel-agent", "manifest-workspace:metrics-report")
         for item in catalog["commands"]
     )
 
@@ -207,7 +163,6 @@ def test_workspace_runtime_sources_have_no_legacy_runtime_dependencies(
         "from yaml",
     )
     runtime_files = [
-        *workspace_bundle.glob("skills/parallel-agent/scripts/**/*.py"),
         *workspace_bundle.glob("skills/learning-capture/scripts/*.py"),
         *workspace_bundle.glob("skills/help/scripts/*.py"),
         *workspace_bundle.glob("skills/env-check/scripts/*.py"),

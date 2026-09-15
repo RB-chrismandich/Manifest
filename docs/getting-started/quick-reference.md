@@ -1,41 +1,23 @@
 # Quick Reference
 
-> The commands from this tutorial, in one table.
+> Essential Manifest commands and workflow rules.
 
-**Last Updated**: 2026-08-20
-
-## Quick Reference
+**Last Updated**: 2026-09-12
 
 ```bash
-# Test all agents
-~/.claude/scripts/parallel_agent.py --json "Test"
+# Inspect the installed Manifest CLI
+~/.local/bin/manifest --help
 
-# Use specific models
-~/.claude/scripts/parallel_agent.py --cursor-model advanced --claude-model opus "Task"
-
-# Run single agent
-~/.claude/scripts/parallel_agent.py --claude-only "Question"
-
-# Analyze a file
-~/.claude/scripts/parallel_agent.py --review file.py
-
-# Reconfigure services
-./bootstrap.sh --reconfigure --disable-cursor
-
-# View configuration
-cat ~/.claude/config/services.yml
-cat ~/.claude/config/command_config.yml
+# Reconfigure enabled harnesses
+./bootstrap.sh --reconfigure
 ```
 
----
+For skills, use `/help <query>` in the coding harness. Independent interactive
+work uses OMP `task` batches and `hub` coordination; the parent validates and
+aggregates evidence. If `task` is unavailable, execute inline and report
+`DEGRADED`.
 
-## Related Documents
-
-- [README.md](../README.md) - Project overview
-- [Configuration Guide](../configuration/README.md) - All configuration options
-- [Architecture Diagrams](../diagrams/README.md) - Visual system documentation
-- [Troubleshooting](../troubleshooting/README.md) - Common problems and solutions
-- [CLAUDE.md](../../CLAUDE.md) - Repository context for AI assistants
+`model_policy.yml` supports retained noninteractive tools only.
 
 ---
 

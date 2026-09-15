@@ -131,7 +131,7 @@ shell-refactor:
     - Glob
     - Grep
     - Bash
-  parallel_agents: always  ✅ String parsed correctly
+  subagents: always  ✅ OMP-native dispatch policy parsed correctly
 ```
 
 #### validation_criteria.yml
@@ -230,7 +230,7 @@ shell-refactor:
   forbidden:
     - Write     ✅ Registered
     - Edit      ✅ Registered (read-only analysis)
-  parallel_agents: always  ✅ Security-critical
+  subagents: always  ✅ OMP-native independent review
   validation_tier: 1       ✅ Tier 1 validation
 ```
 

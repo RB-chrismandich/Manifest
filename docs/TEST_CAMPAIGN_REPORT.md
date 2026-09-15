@@ -44,7 +44,7 @@ not a Manifest deploy defect.
 | # | Feature area | Verdict | Evidence |
 |---|--------------|---------|----------|
 | FA-1 | Bootstrap & deploy | ✅ PASS | 14 bats suites green; `bash -n` 38 files; smoke deploy scenarios (antigravity reduced-set, shared-asset full-set, mcp-preserve, settings-defaults) all PASS |
-| FA-2 | Parallel-agent orchestration | ✅ PASS | `test_parallel_agent.py` + `agents/` pytest green; `model_check.bats`; `--help` contract |
+| FA-2 | OMP dispatch and model policy | ✅ PASS | Targeted runtime and policy coverage green at the time of this historical report. |
 | FA-3 | Git/platform ops | ✅ PASS | 9 bats suites (git_ops, git_platform, label_sync, linear_ops, branch_clean, pr_review, pr_merge_loop, merge_decision, merge_gate_config) green |
 | FA-4 | Skills system & doc generation | ✅ PASS | skill_naming, commands_doc_drift, context_budget, help_coverage green; cursor-rules regen drift-free; 91 skills; markdownlint 0 findings |
 | FA-5 | SkillClaw | ✅ PASS | 5 pytest modules + 3 bats suites green |

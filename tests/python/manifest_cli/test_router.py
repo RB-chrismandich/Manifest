@@ -11,12 +11,6 @@ from click.testing import CliRunner
 from manifest_cli import cli, guarded_imports
 
 
-def test_help_lists_parallel_agent():
-    result = CliRunner().invoke(cli, ["--help"])
-    assert result.exit_code == 0
-    assert "parallel-agent" in result.output
-
-
 def test_help_does_not_list_retired_cddl():
     result = CliRunner().invoke(cli, ["--help"])
     assert result.exit_code == 0
@@ -54,7 +48,6 @@ def test_version_lookup_is_lazy(monkeypatch):
         ("playwright", "--enable-smoke"),
         ("playwright._impl", "--enable-smoke"),
         ("browser_use", "--enable-browser-use"),
-        ("anthropic", "--enable-claude"),
     ],
 )
 def test_missing_optional_group_names_its_toggle(module, expected, capsys):

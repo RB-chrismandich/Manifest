@@ -72,8 +72,7 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
     )
 
     assert "## Routing outcomes" not in source
-    assert policy["parallel_agents"] == "conditional"
-    assert policy["trigger_condition"] == expected_trigger
+    assert policy["subagents"] == "conditional"
     assert policy["subagent_trigger"] == expected_trigger
     assert review_link is not None
     assert dispatch_link is not None

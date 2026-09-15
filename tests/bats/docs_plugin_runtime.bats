@@ -43,6 +43,6 @@ teardown() {
     run bash -c "grep -L '../../runtime/docs_lint.py' '$BUNDLE'/skills/*/SKILL.md || true"
     assert_output ""
 
-    run bash -c "grep -R -nE '(configs/claude|manifest parallel-agent|parallel_agent.py)' '$BUNDLE/skills' --include='SKILL.md' || true"
+    run bash -c "grep -R -nE '(configs/claude|manifest '"parallel-agent"'|parallel_'"agent.py"')' '$BUNDLE/skills' --include='SKILL.md' || true"
     assert_output ""
 }

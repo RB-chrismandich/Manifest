@@ -40,17 +40,17 @@ target; see Complexity Tracking in plan.md for justification.
 
 ## Entry Point Strategy
 
-**Decision**: `parallel_agent.py` becomes a thin shim (~10 lines) that imports
+**Decision**: `the retired cross-harness coordinator` becomes a thin shim (~10 lines) that imports
 `agents.cli.main` and calls it.
 
 **Rationale**: Every existing caller (CI workflows, user shell scripts, deployment docs)
-references `parallel_agent.py` by path. Keeping the file as the entry point requires
+references `the retired cross-harness coordinator` by path. Keeping the file as the entry point requires
 zero changes to any external caller while all business logic migrates into the package.
 
 **Alternatives considered**:
-- Delete `parallel_agent.py` and rely on `python -m agents.cli`: rejected — breaks all
+- Delete `the retired cross-harness coordinator` and rely on `python -m agents.cli`: rejected — breaks all
   existing callers without any benefit; requires documenting a new invocation path.
-- Create a separate thin wrapper script: rejected — redundant with keeping parallel_agent.py.
+- Create a separate thin wrapper script: rejected — redundant with keeping the retired cross-harness coordinator.
 
 ---
 
@@ -74,14 +74,14 @@ subpackage without any path changes in tests or CI.
 
 **Decision**: Two-layer verification.
 
-Layer 1 — existing test suite: Run `pytest tests/python/test_parallel_agent.py` before
+Layer 1 — existing test suite: Run `pytest the retired coordinator integration test` before
 (with original file) and after (with updated imports). All tests must pass both times.
 The test covers: Config, ServiceConfig, Logger, RateLimiter, ValidationEngine,
 SynthesisEngine, BaseAgent, CodexAgent, Orchestrator, and CLI argument parsing —
 sufficient class-level coverage for structural equivalence.
 
 Layer 2 — CLI smoke test: Capture JSON output of a dry-run invocation before
-modularization (`python parallel_agent.py --json --claude-only "smoke test"`), then
+modularization (`python the retired cross-harness coordinator --json --claude-only "smoke test"`), then
 replay the same invocation after and diff the output structure (not content, since LLM
 responses vary). Exit code and JSON schema shape must be identical.
 
@@ -98,7 +98,7 @@ imports).
 
 ## Import Compatibility for Test File
 
-**Decision**: Update `tests/python/test_parallel_agent.py` to import from the package:
+**Decision**: Update `the retired coordinator integration test` to import from the package:
 ```
 from agents.config import Config, ServiceConfig, Logger, RateLimiter
 from agents.validation import ValidationEngine
@@ -131,7 +131,7 @@ rather than a re-export facade.
 - `test_orchestrator.py`: tests moved/adapted from existing TestOrchestrator
 - `test_cli.py`: tests moved/adapted from existing CLI argument parsing tests
 
-The existing `tests/python/test_parallel_agent.py` is updated (imports only) and kept
+The existing `the retired coordinator integration test` is updated (imports only) and kept
 as the integration-level regression file.
 
 **Rationale**: Moving tests to per-module files satisfies FR-008 and SC-005. Adapting

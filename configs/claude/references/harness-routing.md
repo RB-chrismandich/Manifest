@@ -1,36 +1,30 @@
 # Runtime Harness Handling
 
-Read before writing or modifying skills/agents that run under more than one
-harness. Routing is centralized — never hardcode model IDs or per-harness
-config in SKILL.md/agent frontmatter.
+Read before writing or modifying skills or agents that run under more than one
+harness. Interactive sub-agent dispatch is centralized on OMP; do not hardcode
+provider commands or model identifiers in skill guidance.
 
-## Authoritative config
+## Interactive dispatch contract
 
-| Concern | Source of truth |
-|---------|-----------------|
-| Per-harness execution semantics + default tier | `~/.claude/config/command_config.yml` → `harness_routing` |
-| Verified model ID pins per harness | `~/.claude/config/parallel_agent.yml` → `model_tiers` |
-| Per-skill Claude sub-agent/session models | `~/.claude/config/command_config.yml` → `tool_policies` |
+Every supported interactive harness uses the same OMP contract:
 
-## Per-harness execution semantics
-
-- **Claude Code (`claude`)**: native tool signatures (`Read`, `Edit`, `Grep`,
-  `Bash`) and sub-agent dispatch per `tool_policies` (sub-agents pinned Sonnet
-  by default; never inherit the session's model).
-- **Codex (`codex`)**: direct shell execution; format output as standard
-  unified diffs. Model default is `auto` (account default) — pins are
-  login-gated and unverified.
-- **Cursor (`cursor`)**: follow workspace context constraints; apply edits
-  directly to files.
-- **Antigravity (`agy`)**: execute via the standard agent context wrapper.
-  Ships no guide of its own (provider, not orchestrator); reads `AGENTS.md`.
+- The parent dispatches independent ready units in one `task` call, in waves of
+  at most 32.
+- Use `scout` for read-only exploration, `reviewer` for quality review,
+  `security-reviewer` for security review, `sonic` only for mechanical work,
+  and omit `agent` for default implementation work.
+- Children execute directly and never redispatch. `hub` is only for
+  coordination and waiting.
+- The parent validates and aggregates results.
+- If `task` is unavailable, work inline and report `DEGRADED`; never use a
+  provider CLI fallback.
 
 ## Rules
 
-1. Model IDs live only in `parallel_agent.yml` `model_tiers` (verified pins,
-   dated probes). Reference tiers by name (`sonnet`, `flash`, `advanced`).
-2. Skill frontmatter stays `name` + `description` — always-loaded context is
-   budget-gated (`tests/bats/context_budget.bats`); per-file harness metadata
-   is drift, not configuration.
-3. Cross-harness behavior differences belong in the harness's own guide
-   (`CLAUDE.md`, `AGENTS.md`, `orchestration.mdc`), not duplicated per skill.
+1. Keep skill frontmatter to `name` and `description`; harness-specific metadata
+   in frontmatter is configuration drift.
+2. Record a skill's `subagents`, optional `subagent_trigger`, and
+   `subagent_rationale` in `config/command_config.yml`.
+3. Put harness differences in the live harness guides, not in each skill.
+4. Noninteractive single-provider routing is governed separately by
+   `model_policy.yml`; it is not an interactive orchestration mechanism.

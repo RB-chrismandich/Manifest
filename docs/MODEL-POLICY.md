@@ -1,11 +1,16 @@
 # Model Selection Policy
 
-> Which model runs a session, a sub-agent, and a turn — and why. Every number
-> here is measured, not estimated; the derivation and the reproduce commands are
+> Which model runs a session, a sub-agent, and a turn — and why. Request/token
+> counts are historical observations; dollar equivalents and savings are estimates.
+> The derivation and the reproduce commands are
 > in [docs/baselines/2026-07-25-credit-baseline.md](baselines/2026-07-25-credit-baseline.md).
 
-**Last updated**: 2026-07-25
-**Measured over**: 47,185 request-deduped API calls, $6,141.64 total spend
+**Last updated**: 2026-09-08
+**Historical baseline**: 47,185 request-deduped API calls, $6,141.64 estimated API-equivalent cost
+
+Current dispatch coverage, migration and rollback:
+[September dispatch increment](model-policy/dispatch-reliability.md).
+Deterministic tests establish implementation behavior, not post-deployment savings.
 
 ---
 
@@ -13,8 +18,8 @@
 
 | Lever | Scope | Status | Value |
 |---|---|---|---|
-| Sub-agent model | per dispatch | **Adopted** — enforced | $845 |
-| Session start model | per session | **Adopted** — ask-gated | ~$766 |
+| Sub-agent model | per dispatch | **Adopted** — version-gated native default; serving verification pending | $845 counterfactual |
+| Session start model | per session | **Historical ask-gate retired**; current default unchanged | ~$766 historical counterfactual |
 | Per-turn model routing | per turn | **Rejected on evidence** | **−$1,499** |
 
 ---

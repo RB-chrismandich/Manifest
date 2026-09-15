@@ -1,4 +1,3 @@
-import asyncio
 import json
 import sys
 from contextlib import contextmanager
@@ -16,10 +15,6 @@ OPTIONAL_DEP_HINTS = {
     "playwright": "smoke deps not installed — re-run ./bootstrap.sh --enable-smoke",
     "browser_use": (
         "browser-use deps not installed — re-run ./bootstrap.sh --enable-browser-use"
-    ),
-    "anthropic": (
-        "Claude SDK not installed — re-run ./bootstrap.sh --enable-claude "
-        "(services.claude.enabled)"
     ),
 }
 
@@ -62,27 +57,12 @@ def _print_version(ctx: click.Context, _param: click.Parameter, value: bool) -> 
     is_eager=True,
     callback=_print_version,
     # A callback rather than click.version_option: that decorator evaluates its
-    # version argument at import time, so every `manifest …` call — including the
-    # parallel-agent hot path — paid ~13ms of importlib.metadata lookup for a
-    # string it never printed.
+    # version argument at import time, so every `manifest …` call avoids an
+    # importlib.metadata lookup for a string it never prints.
     help="Show the runtime version, interpreter, root and deploy provenance.",
 )
 def cli() -> None:
     """Manifest home-runtime CLI."""
-
-
-@cli.command(
-    "parallel-agent",
-    context_settings={"ignore_unknown_options": True},
-    add_help_option=False,
-)
-@click.argument("args", nargs=-1, type=click.UNPROCESSED)
-def parallel_agent(args: tuple[str, ...]) -> None:
-    with guarded_imports():
-        from agents.cli import main as agents_main
-
-        sys.argv = ["manifest parallel-agent", *args]
-        raise SystemExit(asyncio.run(agents_main()))
 
 
 @cli.command(
@@ -150,7 +130,7 @@ def skill_run_cmd(
                 skill=skill_path,
                 harness=harness,
                 task_stream=sys.stdin.buffer,
-                config_path=runtime_root() / "config/parallel_agent.yml",
+                config_path=runtime_root() / "config/model_policy.yml",
                 task_file=task_file,
                 model=model,
                 model_chain=model_chain,

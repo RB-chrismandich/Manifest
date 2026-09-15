@@ -198,21 +198,13 @@ Report the prioritized list to the user. Do not begin implementing any issues.
 
 ---
 
-## Integration with Parallel Agents
+## Independent Scoring Review
 
-For complex scoring decisions, use parallel agents:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --timeout 300 \
-  "Score this issue for a [project phase] project: [issue summary].
-   Rate Impact (1-5), Urgency (1-5), Readiness (1-5), Risk (1-5)."
-```
-
-Use consensus across agents to validate your scoring:
-
-- >= 80% agreement: Confident in score
-- 50-79% agreement: Note scoring variance in report
-- < 50% agreement: Escalate issue for human review
+For complex scoring decisions, dispatch independent read-only OMP `reviewer` units in
+one `task` batch. Each returns Impact, Urgency, Readiness, and Risk on the documented
+1–5 scale. The parent compares the evidence, notes material scoring variance, and
+escalates unresolved cases for human review. If OMP `task` is unavailable, score inline
+and report `DEGRADED`.
 
 ---
 

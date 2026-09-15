@@ -150,78 +150,16 @@ fi
 
 ## Phase 3: Validate Deployment Plan
 
-Use parallel agents to validate the deployment plan and detect potential issues.
+Deployment is destructive behavior, so it satisfies the independent-review
+risk gate. Split bounded review concerns into one OMP `task` batch (at most 32
+units per wave), using read-only `reviewer` or `security-reviewer` children as
+appropriate. The parent aggregates the evidence and blocks deployment for
+unresolved breaking changes, incompatible migrations, incomplete environment
+configuration, or security concerns. File, package, module, language, keyword,
+and independent-unit counts never trigger independent review.
 
-### Parallel Agent Integration
-
-**Always uses parallel agents** (deployments are critical).
-
-Execute:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 \
-  --cursor-model flash --claude-model sonnet \
-  "Validate deployment plan for $ENVIRONMENT:
-   - Version: $VERSION
-   - Environment: $ENVIRONMENT
-   - Changes: $(git log --oneline HEAD~5..HEAD)
-   - Check for: breaking changes, migration requirements, config updates"
-```
-
-### Success Criteria
-
-- [ ] Parallel agent consensus >= 80%
-- [ ] No breaking changes detected
-- [ ] Database migrations (if any) are backwards-compatible
-- [ ] Environment config is complete
-
-### On Failure
-
-- If consensus 50-79%: Show disagreements to user, ask whether to proceed
-- If consensus <50%: **BLOCK** - Do not deploy
-
-### Implementation
-
-```bash
-echo "Validating deployment plan with parallel agents..."
-
-# Get recent changes
-CHANGES=$(git log --oneline HEAD~5..HEAD | head -5)
-
-# Run parallel agent validation
-VALIDATION_RESULT=$(~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
-  --cursor-model flash --claude-model sonnet \
-  "Validate deployment plan for $ENVIRONMENT:
-   Version: $VERSION
-   Changes: $CHANGES
-
-   Check for:
-   - Breaking API changes
-   - Database migration requirements
-   - Configuration updates needed
-   - Security concerns")
-
-# Parse consensus score
-CONSENSUS=$(echo "$VALIDATION_RESULT" | jq -r '.cross_verification.consensus_score')
-
-if [[ $CONSENSUS -ge 80 ]]; then
-  echo "✅ Deployment validated (consensus: ${CONSENSUS}%)"
-elif [[ $CONSENSUS -ge 50 ]]; then
-  echo "⚠️ Medium confidence (consensus: ${CONSENSUS}%)"
-
-  # Show disagreements
-  echo "$VALIDATION_RESULT" | jq -r '.agents | to_entries[] | "\(.key): \(.value.output)"'
-
-  # Ask user
-  # Use AskUserQuestion tool here with options:
-  # - "Proceed with deployment"
-  # - "Abort deployment"
-else
-  echo "❌ Low confidence (consensus: ${CONSENSUS}%)"
-  echo "Deployment blocked - review findings and try again"
-  exit 1
-fi
-```
+If OMP `task` is unavailable, perform the review inline and report `DEGRADED`; do not
+fall back to a provider CLI. Use `hub` only for coordination or waiting.
 
 ### Expected Duration
 

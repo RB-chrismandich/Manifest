@@ -39,7 +39,7 @@ def is_quota_error(output: str) -> bool:
     return any(ind in output.lower() for ind in indicators)
 
 
-# The wrapper is invoked as the CLI binary; parallel_agent.yml is keyed by
+# The wrapper is invoked as the CLI binary; model_policy.yml is keyed by
 # provider. This is the only mapping that has to live here, and it mirrors
 # `cli_agents.<provider>.binary`.
 BINARY_TO_PROVIDER = {
@@ -54,20 +54,34 @@ BINARY_TO_PROVIDER = {
 def fallback_chain(binary: str) -> list[str]:
     """Concrete models a provider falls through, cheapest last.
 
-    Resolved from parallel_agent.yml rather than restated here. This module
-    used to carry its own copy and it had already drifted: it still named
-    claude-opus-4-8 and an entire pre-grok cursor ladder while every other
-    consumer had moved on (CON-003).
+    Policy loading is advisory for this interceptor: a missing or malformed
+    policy disables fallbacks instead of preventing the wrapped command from
+    running.
     """
     provider = BINARY_TO_PROVIDER.get(binary)
     if provider is None:
         return []
-    from agents.config import Config
+    try:
+        from manifest_model_policy import load_default_policy
 
-    config = Config()
-    tier_map = config.get(f"model_tiers.{provider}", {}) or {}
-    tiers = config.get(f"credit_fallback.{provider}", []) or []
-    return [tier_map[tier] for tier in tiers if tier in tier_map]
+        config = load_default_policy()
+    except (ImportError, OSError, ValueError):
+        return []
+    tiers_by_provider = config.get("model_tiers")
+    fallback_by_provider = config.get("credit_fallback")
+    if not isinstance(tiers_by_provider, dict) or not isinstance(
+        fallback_by_provider, dict
+    ):
+        return []
+    tier_map = tiers_by_provider.get(provider)
+    tiers = fallback_by_provider.get(provider)
+    if not isinstance(tier_map, dict) or not isinstance(tiers, list):
+        return []
+    return [
+        tier_map[tier]
+        for tier in tiers
+        if isinstance(tier, str) and isinstance(tier_map.get(tier), str)
+    ]
 
 
 def get_fallback_model(binary: str, current_model: str) -> str | None:

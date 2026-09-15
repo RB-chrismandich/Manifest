@@ -207,14 +207,21 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then
-consolidate; below that, sweep inline. Pick the mechanism from the current
-harness's native sub-agent dispatch contract: native Task sub-agents where
-available, or `manifest-workspace:parallel-agent` / inline on other assistants. Dispatched
-sub-agents execute their task directly and do not re-dispatch.
+When ≥3 open PRs or stale branches exist, dispatch independent read-only
+`reviewer` units per PR or non-overlapping branch batch in one OMP `task` call
+(waves of at most 32); below that, sweep inline. Children execute only their
+assigned review and never redispatch. The parent uses `hub` only to coordinate
+or wait, validates and aggregates the evidence directly, and produces the
+report—there is no text-consensus or synthesis step. If `task` is unavailable,
+sweep inline and report `DEGRADED`; never fall back to a provider CLI.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+Before closing a PR or deleting a branch, dispatch a read-only `reviewer` to
+check the exact confirmed mutation set against the report and safety guarantees.
+Perform the approved closes and deletions sequentially, reporting each outcome.

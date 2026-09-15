@@ -1,21 +1,18 @@
 #!/usr/bin/env bash
 # verification_gate.sh — post-implementation verification gate for /issue-dev-auto (#360).
 #
-# Reuses the existing parallel_agent.py consensus engine as a CONSUMER (it does not modify
-# it). Tier-1 findings block a real PR (→ draft + needs-human); Tier-2 and the consensus
-# score are advisory for PR-open. Split into a non-deterministic `review` and a pure,
-# offline-testable `decide` so the safety logic is unit-tested (tests/bats/verification_gate.bats).
-# Design: docs/superpowers/specs/2026-06-18-auto-issue-dev-verification-gate-design.md
+# Runs one injected reviewer behind a fail-closed schema boundary. Tier-1
+# findings block a real PR (→ draft + needs-human); Tier-2 and the consensus
+# score are advisory for PR-open. Split into a non-deterministic `review` and a
+# pure, offline-testable `decide` so the safety logic is unit-tested
+# (tests/bats/verification_gate.bats).
 #
 # Subcommands:
 #   review <issue>     Build+redact a review packet, run the reviewer behind an injectable
 #                      seam, emit gate JSON {tier1,tier2,consensus_score,verdict,reviewer_error}.
 #   decide [<gate>]    Pure core: map gate JSON (arg/stdin) to {action,label,annotation,reason}.
 #
-# Env: VERIFICATION_GATE_REVIEW_CMD  reviewer seam (required — this portable bundle ships no
-#      default reviewer command, since the coordinator's multi-agent consensus CLI is a
-#      bootstrap-only install, not part of this bundle; unset behaves like an unresolvable
-#      seam and fails closed via reviewer_error below).
+# Env: VERIFICATION_GATE_REVIEW_CMD  required reviewer seam.
 #      VERIFICATION_GATE_HIGH/LOW    consensus thresholds (default 0.80 / 0.50)
 
 set -euo pipefail
@@ -116,16 +113,12 @@ cmd_review() {
         else
             rm -f "${packet}.r"
             err "redaction failed — refusing to send an unredacted review packet"
-            printf '%s\n' '{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0,"verdict":"BLOCKED"}'
+            printf '%s\n' '{"tier1":{"passed":false},"tier2":{"concerns":[]},"consensus_score":0,"verdict":"BLOCKED","reviewer_error":true}'
             return 0
         fi
     fi
 
-    local raw="" rc=0
-    # No bundled default: the coordinator's cross-agent consensus CLI (see the Env
-    # comment above) is a bootstrap-only install and is not shipped inside this portable
-    # bundle. An unset seam is treated exactly like an unresolvable command —
-    # rc=127, falls through to the reviewer_error/BLOCKED branch below.
+    local raw="" rc=0 shaped=""
     local cmd_str="${VERIFICATION_GATE_REVIEW_CMD:-}"
     if [[ -n "$cmd_str" ]]; then
         local -a cmd_arr
@@ -135,32 +128,39 @@ cmd_review() {
         rc=127
     fi
 
-    # Adapt to gate JSON. parallel_agent emits {validation:{tier1,tier2,verdict},
-    # cross_verification:{consensus_score}}; a seam may already emit gate-shaped JSON
-    # (top-level tier1) — pass that through. Anything else fails closed.
-    local shaped=""
+    # Only the injected gate schema crosses this boundary. Legacy coordinator
+    # payloads, incomplete results, failed Tier-1 checks, and invalid consensus
+    # values are indistinguishable from a reviewer failure and fail closed.
     if [[ $rc -eq 0 ]]; then
         shaped="$(printf '%s' "$raw" | python3 -c '
-import json, sys
-try: d = json.load(sys.stdin)
-except Exception: sys.exit(1)
-if isinstance(d.get("tier1"), dict):
-    print(json.dumps(d)); sys.exit(0)
-v = d.get("validation")
-if isinstance(v, dict) and isinstance(v.get("tier1"), dict):
-    # Consensus for merge_decision must be a FRACTION (banded at 0.80). The tier1
-    # cross_verification check carries it as one; cross_verification.consensus_score is
-    # PERCENT-scale (log prints "Consensus score: N%") — normalize, never pass raw.
-    cons = ((v["tier1"].get("checks") or {}).get("cross_verification") or {}).get("score")
-    if cons is None:
-        cons = (d.get("cross_verification") or {}).get("consensus_score", 0) / 100.0
-    print(json.dumps({"tier1": v["tier1"], "tier2": v.get("tier2") or {},
-        "consensus_score": cons,
-        "verdict": v.get("verdict", "UNKNOWN")})); sys.exit(0)
-sys.exit(1)' 2> /dev/null)" || shaped=""
+import json, math, sys
+try:
+    d = json.load(sys.stdin)
+    required = {"tier1", "tier2", "consensus_score", "verdict"}
+    allowed = required | {"reviewer_error"}
+    valid = (
+        isinstance(d, dict)
+        and required <= set(d)
+        and set(d) <= allowed
+        and isinstance(d["tier1"], dict) and set(d["tier1"]) == {"passed"}
+        and d["tier1"]["passed"] is True
+        and isinstance(d["tier2"], dict) and set(d["tier2"]) == {"concerns"}
+        and isinstance(d["tier2"]["concerns"], list)
+        and isinstance(d["consensus_score"], (int, float))
+        and not isinstance(d["consensus_score"], bool)
+        and math.isfinite(d["consensus_score"])
+        and 0 <= d["consensus_score"] <= 1
+        and isinstance(d["verdict"], str)
+        and ("reviewer_error" not in d or isinstance(d["reviewer_error"], bool))
+    )
+    if not valid:
+        raise ValueError("invalid gate schema")
+    print(json.dumps(d))
+except Exception:
+    sys.exit(1)' 2> /dev/null)" || shaped=""
     fi
     if [[ -z "$shaped" ]]; then
-        printf '%s\n' '{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0,"verdict":"BLOCKED"}'
+        printf '%s\n' '{"tier1":{"passed":false},"tier2":{"concerns":[]},"consensus_score":0,"verdict":"BLOCKED","reviewer_error":true}'
         return 0
     fi
     printf '%s\n' "$shaped"

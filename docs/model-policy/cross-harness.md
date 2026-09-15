@@ -4,6 +4,13 @@
 
 **Last Updated**: 2026-08-20
 
+The [September dispatch increment](dispatch-reliability.md) changes only Claude
+runtime deployment and local reporting. Native Codex/Gemini/Cursor/Antigravity
+settings, model tiers, permission modes and external CLI recovery remain unchanged.
+Claude's version gate and environment variable are not portable host contracts.
+Native teams, resumes and external sessions are not covered by a global Manifest
+budget or by the Claude transcript audit.
+
 ## Cross-Harness Skill Model Policy
 
 Skills may declare portable, ordered tiers without embedding provider model IDs:
@@ -20,7 +27,7 @@ model_fallback:
 
 `agy` is accepted on input and normalized to `antigravity`. Chains contain one
 to four unique tiers; `auto`, when supported, is final. Concrete IDs remain in
-`configs/claude/config/parallel_agent.yml`.
+`configs/claude/config/model_policy.yml`.
 
 Precedence is explicit CLI/session choice, skill frontmatter, then the global
 `confirm` default. `--model` replaces the chain unless `--model-chain` supplies

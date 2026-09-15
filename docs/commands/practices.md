@@ -45,7 +45,7 @@
 - [Command State Machine Pattern](../templates/patterns/command-state-machine.md) - Detailed pattern guide
 - [Full Deployment Pipeline](../templates/commands/full-deployment-pipeline.md) - Complete example
 - [GitHub Workflow Commands](../templates/commands/github-workflow/) - Issue management commands
-- [Configuration Guide](../configuration/README.md) - Parallel agent settings
+- [Configuration Guide](../configuration/README.md) - OMP dispatch and retained model-policy settings
 - [Troubleshooting](../troubleshooting/README.md) - Common command issues
 - [SkillClaw](.././SKILLCLAW.md) - Session capture, skill evolution, and `/skill-evolve` usage
 
@@ -110,11 +110,13 @@ argument-hint: [argument-name (optional)]
 
 [Detailed description of what the command does and when to use it]
 
-## Parallel Agent Integration (if applicable)
+## OMP Task-Batch Integration (if applicable)
 
-This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
-
-[Integration details if applicable]
+This command [ALWAYS|CONDITIONALLY|NEVER] uses OMP task batches. Define
+independent units and the evidence each must return; submit all ready units in
+one `task` call (at most 32 per wave). Children never redispatch; the parent
+uses `hub` only for coordination or waiting, validates results, and aggregates
+evidence. If `task` is unavailable, execute inline and report `DEGRADED`.
 
 ## Arguments
 

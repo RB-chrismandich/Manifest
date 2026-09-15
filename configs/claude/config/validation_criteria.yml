@@ -211,23 +211,16 @@ command_overrides:
     tier2_required: true
     tier2_checks:
       - maintainability
-    parallel_agents: false
 
   docs-improve:
     tier1_required: false
     tier2_required: true
     tier2_checks:
       - maintainability
-    parallel_agents_condition:
-      type: total_lines_changed
-      threshold: 500
 
   docs-generate-diagrams:
     tier1_required: false
     tier2_required: false
-    parallel_agents_condition:
-      type: unique_imports
-      threshold: 5
 
   shell-refactor:
     tier1_required: true
@@ -256,8 +249,8 @@ command_overrides:
     tier2_required: true
     tier2_threshold: 0.60
 
-  # PR-OPEN gate (#360): consensus is ADVISORY — cross_verification is deliberately OMITTED so
-  # a <80%-consensus change still surfaces (real-vs-draft PR); the gate annotates, never blocks.
+  # PR-open gate: cross_verification is deliberately omitted so the gate
+  # annotates rather than blocks real-versus-draft pull requests.
   issue-dev-auto:
     tier1_required: true
     tier1_checks:
@@ -266,13 +259,9 @@ command_overrides:
       - breaking_changes
     tier2_required: true
     tier2_threshold: 0.60
-    consensus_threshold: 0.80
-    parallel_agents: true
 
-  # MERGE gate (#361): STRICTER than PR-open. cross_verification is Tier-1 BLOCKING, so a PR
-  # cannot be auto-merged below 80% consensus (Constitution Principle II — the irreversible
-  # step carries the higher bar). Do NOT remove cross_verification here without a constitution
-  # review; tests/bats assert the auto-dev merge gate keeps it.
+  # Merge gate: cross_verification is Tier-1 blocking for this irreversible
+  # action. Do not remove it without a constitution review.
   auto-issue-dev-merge:
     tier1_required: true
     tier1_checks:
@@ -282,12 +271,6 @@ command_overrides:
       - cross_verification
     tier2_required: true
     tier2_threshold: 0.60
-    consensus_threshold: 0.80
-    consensus_action:
-      high: auto_proceed          # >=80%: eligible to auto-merge
-      medium: show_disagreements  # 50-79%: hand to human (ready-to-merge)
-      low: block_and_escalate     # <50%: needs-human
-    parallel_agents: true
 
   issue-triage:
     tier1_required: false
@@ -297,21 +280,6 @@ command_overrides:
       - false_positive_avoidance
       - label_accuracy
     tier2_threshold: 0.70
-    consensus_threshold: 0.75
-    parallel_agents_condition:
-      type: scenario_based
-      scenarios:
-        duplicate_detection:
-          title_similarity_range: [0.70, 0.85]
-          model_tier: mini
-        staleness_with_context:
-          has_planned_label: true
-          file_missing_ratio: ">0.5"
-          model_tier: flash
-        priority_scoring:
-          impact_variance: ">2"
-          multi_component: true
-          model_tier: flash
 
   version-pin:
     # Security-sensitive supply-chain change → full Tier 1 gate (Constitution II)
@@ -323,22 +291,18 @@ command_overrides:
       - cross_verification
     tier2_required: true
     tier2_threshold: 0.70
-    consensus_threshold: 0.80
-    parallel_agents: true
 
   docs-all:
     tier1_required: false
     tier2_required: true
     tier2_checks:
       - maintainability
-    parallel_agents: false
 
   pr-review:
     tier1_required: false
     tier2_required: true
     tier2_checks:
       - maintainability
-    parallel_agents: false
 
   branch-clean:
     # Dry-run is advisory; the destructive --apply path requires the Tier 1 gate
@@ -350,9 +314,6 @@ command_overrides:
     tier2_checks:
       - maintainability
     tier2_threshold: 0.60
-    parallel_agents_condition:
-      type: destructive_flag
-      flag: "--apply"
 
 # Extended tier2 checks for specialized commands
 tier2_extended:
@@ -375,7 +336,7 @@ tier2_extended:
         description: "Never auto-close issues with 'planned' label"
         severity: critical
       - id: high_confidence_threshold
-        description: "Only auto-close duplicates with ≥85% consensus"
+        description: "Only auto-close duplicates when confidence is ≥85%"
         severity: high
       - id: verify_file_deletion
         description: "Verify files are truly deleted before marking stale"

@@ -9,9 +9,11 @@ adds an independent review lens. Keep one writer per file set, give every agent
 explicit inputs and acceptance criteria, and integrate results against the same
 tree revision.
 
-For cross-provider review, invoke `manifest-workspace:parallel-agent` with target files,
-mode, validation flag, and timeout. Consume structured JSON when supported;
-otherwise perform the review inline and report `DEGRADED`.
+For independent interactive review, define bounded units and dispatch all ready
+units in one OMP `task` call (at most 32 per wave). Children execute one unit
+without redispatching; the parent validates returned evidence and uses `hub`
+only to coordinate or wait. If task dispatch is unavailable, perform the review
+inline and report `DEGRADED`; never fall back to a provider CLI.
 
 Capture reusable findings through `manifest-workspace:learning-capture`. Capture failure
 is advisory and never changes the primary task verdict.

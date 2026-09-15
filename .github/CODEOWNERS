@@ -2,9 +2,8 @@
 # Pairs with branch protection on `main` ("Require review from Code Owners"):
 # changes to these paths cannot be merged without @RB-chrismandich's approval.
 
-# All CI/CD and trigger workflows — includes the Jules trigger gate
-# (.github/workflows/jules-trigger.yml). The gate's author_association check is
-# the security boundary; it must not be weakened without owner review.
+# All CI/CD workflows require owner review. Jules issue tasks are started by
+# the authorized GitHub App through the jules label, not a custom CI trigger.
 /.github/workflows/   @RB-chrismandich
 
 # Runner-manager policy controls admission and execution configuration for GRF.

@@ -42,50 +42,41 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
 }
 
 # --- review (seam) ---
-@test "review: seam returns gate JSON -> emitted with tier1+consensus_score" {
+@test "review: valid top-level 0.90 result supports the high band" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
-echo '{"tier1":{"passed":true,"issues":[]},"tier2":{"score":0.8,"concerns":[]},"consensus_score":0.9,"verdict":"APPROVED"}'
+echo '{"tier1":{"passed":true},"tier2":{"concerns":[]},"consensus_score":0.90,"verdict":"APPROVED"}'
 EOF
     chmod +x "$TMP/seam.sh"
     VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
     [ "$status" -eq 0 ]
-    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.9'
-}
-@test "review: parallel_agent-shaped output is adapted to gate JSON" {
-    cat > "$TMP/seam.sh" <<'EOF'
-#!/usr/bin/env bash
-echo '{"mode":"review","agents":{},"cross_verification":{"consensus_score":86,"confidence":"high","agent_count":4},"validation":{"tier1":{"passed":true,"failures":[],"checks":{"cross_verification":{"passed":true,"score":0.86,"threshold":0.8,"weight":0.3}}},"tier2":{"score":0.9,"concerns":[]},"verdict":"APPROVED"}}'
-EOF
-    chmod +x "$TMP/seam.sh"
-    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
-    [ "$status" -eq 0 ]
-    # consensus_score must be the FRACTION (tier1 cross_verification check score), never the
-    # percent-scale cross_verification.consensus_score (86) — merge_decision bands at 0.80.
-    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.86;assert d["verdict"]=="APPROVED";assert not d.get("reviewer_error")'
+    gate="$output"
+    echo "$gate" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.9;assert not d.get("reviewer_error")'
+    run "$SCRIPT" decide "$gate"
+    [ "$(echo "$output" | action)" = "pr-open" ]
+    [[ "$output" == *"consensus high"* ]]
 }
 
-@test "review: percent-scale consensus without the checks fraction is normalized, never passed raw" {
+@test "review: incomplete top-level result returns reviewer_error" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
-echo '{"mode":"review","agents":{},"cross_verification":{"consensus_score":1,"confidence":"low","agent_count":2},"validation":{"tier1":{"passed":true,"failures":[]},"tier2":{},"verdict":"APPROVED"}}'
+echo '{"tier1":{"passed":true},"consensus_score":0.9,"verdict":"APPROVED"}'
 EOF
     chmod +x "$TMP/seam.sh"
     VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
     [ "$status" -eq 0 ]
-    # 1 here means 1% — reading it as fraction 1.0 would sail past the 0.80 merge band.
-    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["consensus_score"]==0.01, d'
+    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["reviewer_error"] is True;assert d["verdict"]=="BLOCKED"'
 }
 
-@test "review: parallel_agent output without validation -> reviewer_error (fail closed)" {
+@test "review: Tier-1 failure returns reviewer_error" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
-echo '{"mode":"review","agents":{},"cross_verification":{"consensus_score":1},"validation":null}'
+echo '{"tier1":{"passed":false},"tier2":{"concerns":[]},"consensus_score":0.9,"verdict":"BLOCKED"}'
 EOF
     chmod +x "$TMP/seam.sh"
     VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
     [ "$status" -eq 0 ]
-    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["reviewer_error"] is True'
+    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["reviewer_error"] is True;assert d["tier1"]["passed"] is False'
 }
 
 @test "review: seam non-zero -> reviewer_error sentinel (fail closed)" {

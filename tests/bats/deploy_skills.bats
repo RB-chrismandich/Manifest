@@ -267,7 +267,7 @@ teardown() {
     run deploy_antigravity_configs
     assert_success
 
-    # agy is a parallel_agent provider, not an orchestrator: no scripts/prompts.
+    # agy is a retained single-provider CLI integration, not an orchestrator: no scripts/prompts.
     for link in skills config .plans; do
         [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ] || { echo "missing link: $link"; false; }
     done

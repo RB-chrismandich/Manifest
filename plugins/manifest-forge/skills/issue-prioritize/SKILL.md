@@ -77,23 +77,19 @@ session** (later steps consume env vars and intermediate files set by earlier on
 7. Step 7: Generate Report
 8. Step 8: STOP
 
-## Parallel Agent Usage
+## OMP reviewer refinement
 
-Parallel agents are used sparingly — only for the top candidates:
+For Step 5, the parent dispatches three independent, read-only OMP `reviewer`
+tasks per top candidate in one task call, in waves of at most 32 items. Each
+child evaluates only its assigned candidate and never redispatches. The parent
+validates the required dimension scores, excludes invalid results, preserves
+stable submission order for first-result metadata, and recomputes the weighted
+score from averaged dimensions.
 
-| Step | Agents | Purpose |
-|------|--------|---------|
-| Step 5 | flash/sonnet | Refine scoring for top 5-7 candidates |
-
-**Model selection** (balanced — not security-critical):
-
-| Agent | Model | Reason |
-|-------|-------|--------|
-| Cursor | flash | Good reasoning for scoring |
-| Claude | sonnet | Balanced analysis |
-| Gemini | flash | Diverse perspective |
-
-If agents fail or time out, the heuristic scores from Step 4 are used as-is.
+If no valid reviewer result exists, retain the Step 4 heuristic score and mark
+the candidate `agent_refined: false`. If OMP `task` is unavailable, score
+inline and report `DEGRADED`; never use a provider CLI or model-specific
+fallback.
 
 ## Scoring Formula
 
@@ -196,14 +192,18 @@ in the repository. The report includes:
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
-below that, score inline. Pick the mechanism from the current harness's native
-sub-agent dispatch contract: native Task sub-agents where available, or
-`manifest-workspace:parallel-agent` / inline on other assistants. Dispatched sub-agents
-execute their task directly and do not re-dispatch.
+Use OMP-native `task` only. For top-candidate refinement, submit three
+independent read-only `reviewer` tasks per candidate in one task call, in waves
+of at most 32 items. Each child scores only its assigned candidate and never
+redispatches; the parent validates results, preserves stable submission order,
+and merges the ranking.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+If OMP `task` is unavailable, score inline and report `DEGRADED`. Never fall
+back to a provider CLI or model-specific dispatch.

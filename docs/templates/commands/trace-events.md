@@ -322,20 +322,13 @@ Output the event catalog and topology in the requested format:
 
 ---
 
-## Integration with Parallel Agents
+## Independent Analysis
 
-For complex event chains or ambiguous code patterns, use parallel agents:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --timeout 300 \
-  "Is this code publishing an event? [CODE_SNIPPET]. Event infrastructure: [YOUR_INFRA]."
-```
-
-Use consensus to validate:
-
-- >= 80%: Confident this is a publisher/consumer
-- 50-79%: Likely but needs verification
-- < 50%: Ambiguous, flag for human review
+For complex event chains or ambiguous code patterns, dispatch independent read-only OMP
+`scout` units in one `task` batch. Ask each to identify publishers, consumers, and the
+event infrastructure from the supplied snippet; the parent compares evidence and flags
+ambiguity for human review. If OMP `task` is unavailable, analyze inline and report
+`DEGRADED`.
 
 ---
 

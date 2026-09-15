@@ -63,7 +63,7 @@ Measured by grepping `.apm/skills/*/SKILL.md` for each script name.
 | Script | Skills depending on it | Domains spanned |
 |---|---:|---|
 | `git_ops.sh` | **12** | Git/review, issues, spec/planning, code quality |
-| `parallel_agent.py` | 6 | quality, security, spec |
+| retired cross-harness coordinator | 6 | quality, security, spec |
 | `git_platform.sh` | **4** | Git/review, infra |
 | `tracker_ops.sh` | 3 | issues |
 | `issue_support.sh` | 2 | issues |
@@ -89,7 +89,7 @@ Measured by grepping `.apm/skills/*/SKILL.md` for each script name.
 > **The exact figure is method-sensitive, so take the range, not a point.**
 > `specs/674-plugin-architecture/spec.md`'s audit reports **43/108 dependent
 > and 44/108 (41%) self-contained**. An independent recount for this correction,
-> counting any mention of a shipped script filename or `manifest parallel-agent`,
+> counting any mention of a shipped script filename or the retired cross-harness coordinator,
 > gives **56 dependent and 50 self-contained** — it cannot tell a prose mention
 > from an invocation. Both refute 22/80%; neither should be quoted as exact
 > without stating which rule it used.

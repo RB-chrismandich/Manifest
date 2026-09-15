@@ -20,23 +20,23 @@ available. The full catalog is `configs/claude/config/mcp_servers.yml`.
 
 ## Repository Purpose
 
-This repository manages Claude Code agent configurations for deployment to `~/.claude/`
-on target machines. It contains orchestration guides, commands, skills, prompts, and scripts
-that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex, Antigravity, Devin).
+This repository manages AI coding workflow configuration for deployment to
+`~/.claude/` on target machines. It contains OMP-native orchestration guides,
+skills, prompts, and retained single-provider scripts shared by supported
+harnesses.
 
 ## Repository Structure
 
 ```text
 configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
 ├── claude/                          # → ~/.claude/ (primary configuration)
-│   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # → ../../.apm/skills (symlink; source of truth)
-│   ├── prompts/                     # Agent orchestration prompt templates
+│   ├── prompts/                     # Skill and single-provider prompt templates
 │   ├── config/                      # YAML configuration files
-│   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
+│   │   ├── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
+│   │   └── model_policy.yml         # Single-provider CLI model tiers and fallback
 │   ├── .plans/                      # Plan management (template, archive, abandoned)
 │   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/parallel_agent.py    # Main parallel agent orchestration script
+│   └── scripts/manifest_cli/        # Manifest CLI router (smoke, skill-run, ...)
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands/skills
 │   ├── mcp.json                     # Cursor MCP server defaults
@@ -48,8 +48,7 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── codex/                           # → ~/.codex/ (Codex CLI configuration)
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide
 │   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
-└── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
-    └── (symlinks to ../claude/)     # config, skills, .plans (no scripts/prompts: agy is a parallel_agent provider, not an orchestrator)
+    └── (symlinks to ../claude/)     # config, skills, .plans (no provider orchestration)
 
 .claude/                             # Repo-specific config only (does NOT override active sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
@@ -118,11 +117,11 @@ Antigravity) and required CLI installs are in
 
 | File | Purpose |
 |------|---------|
-| `configs/claude/CLAUDE.md` | Main orchestration guide - defines how Claude leverages parallel agents |
-| `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
-| `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.py` | Python script that runs agents in parallel with consensus scoring |
+| `configs/claude/CLAUDE.md` | Main OMP-native orchestration guide |
+| `configs/cursor/rules/orchestration.mdc` | Main OMP-native guide for Cursor (always-on rule) |
+| `configs/gemini/GEMINI.md` | OMP-native guide for Gemini CLI |
+| `configs/codex/AGENTS.md` | OMP-native guide for Codex CLI |
+| `configs/claude/config/model_policy.yml` | Model tiers and CLI fallback for retained single-provider tools |
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
 | `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
 | `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
@@ -143,7 +142,7 @@ Antigravity) and required CLI installs are in
 Skills (70+, invoked as `/skill-name`) live in `.apm/skills/` — each
 directory's `SKILL.md` frontmatter is the authoritative name and description,
 and Claude Code auto-loads every description at session start, so no table is
-duplicated here. Per-skill parallel-agent policy lives in
+duplicated here. Per-skill OMP dispatch policy lives in
 `configs/claude/config/command_config.yml` under `tool_policies`. See
 [docs/COMMANDS.md](docs/COMMANDS.md) for the human-readable command reference.
 
@@ -153,18 +152,17 @@ with `claude plugin update <bundle>@manifest`.
 
 ## Testing Changes
 
-Test the parallel agent locally:
+Confirm the Manifest CLI surface:
 
 ```bash
-manifest parallel-agent --json "Test prompt"          # all agents
-manifest parallel-agent --json --review /abs/path     # review mode
-manifest parallel-agent --cursor-only "Test prompt"   # single agent
+PYTHONPATH=configs/claude/scripts python3 -m manifest_cli --help
 ```
 
 Validate YAML syntax:
 
 ```bash
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/model_policy.yml'))"
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_criteria.yml'))"
 ```
 
@@ -198,27 +196,24 @@ Implementation plans are tracked in `configs/claude/.plans/` as date-prefixed ma
 (`YYYYMMDD-description.md`). Plans follow a lifecycle:
 CREATE -> ACTIVE -> COMPLETED (`.archive/`) or ABANDONED (`.abandoned/`).
 See `configs/claude/.plans/README.md` for naming conventions and rules.
-Use `/plan-manage` to create plans (with parallel agent orchestration for cross-verified
-approaches), review stale plans, or archive/abandon completed work.
+Use `/plan-manage` to create plans, review stale plans, or archive/abandon
+completed work. Independent plan-review units use OMP task batches; the parent
+compares their evidence directly.
 
 ## Configuration Reference
 
-**Consensus thresholds** (in `command_config.yml`):
-
-- `>=80%`: High confidence - auto-proceed
-- `50-79%`: Medium confidence - highlight disagreements
-- `<50%`: Low confidence - escalate for human review
+**OMP dispatch**: `task` batches contain ready independent units (at most 32);
+`hub` coordinates children and waits. The parent validates and aggregates
+evidence. If `task` is unavailable, execute inline and report `DEGRADED`.
 
 **Validation tiers** (in `validation_criteria.yml`):
 
-- Tier 1 (blocking): Security, error handling, breaking changes, cross-verification
+- Tier 1 (blocking): Security, error handling, breaking changes
 - Tier 2 (advisory): Bug detection, performance, maintainability, test coverage
 
-**Verdicts**:
-
-- `APPROVED`: Tier 1 passes, Tier 2 score >= 0.60
-- `NEEDS_REVIEW`: Tier 1 passes, Tier 2 score < 0.60
-- `BLOCKED`: Any Tier 1 check fails
+**Single-provider model policy** (in `model_policy.yml`): model tiers, provider
+order, CLI-agent invocation shapes, and bounded fallback for noninteractive
+tools. It is not an interactive sub-agent dispatcher.
 
 ---
 

@@ -97,7 +97,7 @@ Single project (config-management repo): runtime artifacts under `configs/` and
 - [x] T026 [P] (Conditional) If classification is factored into a `python3` helper, add `tests/python/test_reconcile_policy.py` (pattern-match, realpath-dedup, active-dependent as pure functions). Skip with a rationale if logic stays in Bash.
 - [x] T027 Lint/format gate: `shellcheck configs/claude/scripts/deploy_reconcile.sh bootstrap/lib/deploy.sh bootstrap.sh`; `yamllint configs/claude/config/reconcile.yml smoke-catalog/manifest.yaml`; run full `bats tests/bats/` + `pytest tests/python/`; confirm `docs/COMMANDS.md` regen is drift-clean. Run the REAL pre-commit (`--from-ref origin/main`) before opening the PR (no-bypass-gate blast-radius lesson).
 - [x] T028 Execute `quickstart.md` end-to-end (all 7 steps) and confirm the per-step FR/SC coverage map passes (FR-001–FR-018, SC-001–SC-008).
-- [x] T029 Constitution gate (P-II/P-III): cross-verify the implementation diff with `parallel_agent.py` (Tier 1 — destructive removal + security) before opening the PR; record the consensus verdict.
+- [x] T029 Constitution gate (P-II/P-III): cross-verify the implementation diff with an OMP reviewer wave (Tier 1 — destructive removal + security) before opening the PR; record the review verdict.
 
 ---
 

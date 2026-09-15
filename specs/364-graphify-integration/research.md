@@ -46,9 +46,9 @@ Consolidated findings from parallel research (graphify externals + Manifest inte
 
 ## D4 — Graphify is a managed tool, NOT a consensus agent
 
-**Decision**: Do **not** wire graphify into the parallel-agent execution path (`configs/claude/scripts/agents/cli.py` agent gating, `parallel_agent.py`, or `minimum_agents`). The services.yml entry gates **install + skill deployment + health-check reporting only**.
+**Decision**: Do **not** wire graphify into the parallel-agent execution path (`configs/claude/scripts/agents/cli.py` agent gating, `the retired cross-harness coordinator`, or `minimum_agents`). The services.yml entry gates **install + skill deployment + health-check reporting only**.
 
-**Rationale**: Graphify is a code-indexing/knowledge-graph tool, not a reasoning LLM agent. Adding it to `cli.py`'s `is_enabled()` agent dict would make `parallel_agent.py` attempt to run it as a review agent and could distort consensus scoring (Constitution Principles II/III). Keeping it out preserves the agent-orchestration contract. `ServiceConfig` already defaults unknown services to enabled, so no runtime gating change is required for graphify; the toggle is consumed by bootstrap (install) and `check_status.sh` (health).
+**Rationale**: Graphify is a code-indexing/knowledge-graph tool, not a reasoning LLM agent. Adding it to `cli.py`'s `is_enabled()` agent dict would make `the retired cross-harness coordinator` attempt to run it as a review agent and could distort consensus scoring (Constitution Principles II/III). Keeping it out preserves the agent-orchestration contract. `ServiceConfig` already defaults unknown services to enabled, so no runtime gating change is required for graphify; the toggle is consumed by bootstrap (install) and `check_status.sh` (health).
 
 **Alternatives considered**: Full ServiceConfig/cli.py registration (rejected — conflates a tool with an agent).
 

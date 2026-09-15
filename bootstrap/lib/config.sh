@@ -27,10 +27,8 @@ set_bootstrap_defaults() {
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
     ENABLE_ANTIGRAVITY=true
-    # devin (Cognition's Devin CLI) — opt-in. It is login-gated behind a paid
-    # account, and an unauthenticated agent does not abstain from the
-    # parallel-agent panel, it errors, which drags the consensus metric down.
-    # Mirrors agent_roster.yml's `devin.enabled_default: false`.
+    # Devin (Cognition's CLI) is opt-in because its login-gated account is
+    # unavailable in a default bootstrap.
     ENABLE_DEVIN=false
     ENABLE_JULES=false
     ENABLE_SKILLCLAW=false
@@ -550,7 +548,7 @@ services:
 
   # Jules is a remote task backend, not a local harness/deploy target.
   jules:
-    enabled: $ENABLE_JULES
+    enabled: ${ENABLE_JULES:-false}
     command: jules
     description: "Remote GitHub tasks via Jules CLI; authenticate with jules login"
 

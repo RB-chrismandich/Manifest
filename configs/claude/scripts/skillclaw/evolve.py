@@ -3,7 +3,7 @@
 
 Replaces the retired `skillclaw evolve` binary. Map-reduces sessions through a
 provider-agnostic CLI seam (``EVOLVE_CLI`` / ``EVOLVE_PROVIDER``; default order
-matches ``parallel_agent.yml``). No proxy, no API key required when OAuth CLIs
+matches ``model_policy.yml``). No proxy, no API key required when OAuth CLIs
 are logged in.
 
 Usage:
@@ -17,10 +17,15 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from pathlib import Path
+
+from manifest_model_policy import (
+    load_default_policy,
+    resolve_cli_route,
+    run_headless_prompt,
+)
 
 DEFAULT_TOKEN_BUDGET = 100_000
 DEFAULT_CHUNK_TIMEOUT = 600  # seconds per `claude -p` chunk (FR-010)
@@ -121,44 +126,41 @@ def _chunk_timeout() -> int:
 
 
 def subprocess_runner(prompt: str) -> str:
-    """Default runner: headless CLI via ``cli_agents`` (env: EVOLVE_CLI / EVOLVE_PROVIDER).
+    """Default runner: headless CLI via policy (EVOLVE_CLI / EVOLVE_PROVIDER).
 
-    Claude and Gemini read the prompt from stdin (``-p`` with no argv value) so
-    large transcript chunks never hit ARG_MAX.
+    Provider invocation remains stdin-driven where its configured command shape
+    supports it, so large transcript chunks never hit ARG_MAX.
     """
-    from agents.cli_invoke import build_subprocess_argv, resolve_cli_route
-    from agents.config import Config
+    try:
+        config = load_default_policy()
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"evolve: cannot load model policy: {exc}") from exc
 
-    config = Config()
     route = resolve_cli_route(
         config,
         section="skillclaw_evolve",
         env_prefix="EVOLVE",
-        allow_sdk=False,
     )
-    if route is None or route.mode != "cli":
+    if route is None:
         raise RuntimeError(
             "evolve: no headless CLI on PATH — install claude/gemini/agy/cursor-agent "
             "or set EVOLVE_CLI / EVOLVE_PROVIDER"
         )
 
     timeout = _chunk_timeout()
-    argv, stdin_body = build_subprocess_argv(config, route, prompt, model_tier="sonnet")
     try:
-        proc = subprocess.run(
-            argv,
-            input=stdin_body,
-            capture_output=True,
-            text=True,
+        return run_headless_prompt(
+            route,
+            prompt,
+            config,
+            model_tier="sonnet",
             timeout=timeout,
         )
-    except subprocess.TimeoutExpired as e:
+    except TimeoutError as exc:
         raise RuntimeError(
-            f"{argv[0]} timed out after {timeout}s (chunk abandoned)"
-        ) from e
-    if proc.returncode != 0:
-        raise RuntimeError(f"{argv[0]} failed: {proc.stderr.strip()}")
-    return proc.stdout
+            f"{route.binary_override or route.provider} timed out after {timeout}s "
+            "(chunk abandoned)"
+        ) from exc
 
 
 def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
