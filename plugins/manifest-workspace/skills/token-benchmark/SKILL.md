@@ -1,6 +1,6 @@
 ---
 name: token-benchmark
-description: "Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI, from a Manifest checkout only (MONOREPO-ONLY: the installed bundle does not ship the runtime). Uses MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md."
+description: "Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI, from a Manifest checkout only (MONOREPO-ONLY: the installed bundle does not ship the runtime). Default --suite workflow scores code-review/security-triage/implementation/documentation fixtures across none/slim/full context with bounded repair; --suite academic keeps the legacy MMLU/HumanEval/HellaSwag/TruthfulQA regression prompts. Regenerates docs/TOKEN_BENCHMARK.md."
 ---
 
 # Token Benchmark Skill
@@ -66,6 +66,22 @@ actually in play.
 > `unsupported`) CLI rows, rendered as such in `docs/TOKEN_BENCHMARK.md` rather than silently
 > dropped. Do not build a tokenizer or a PRICING entry for it; that is out of scope by design.
 
+## Suites
+
+`--suite workflow` (the default) runs the controlled, four-fixture workflow
+suite (code review, security triage, implementation, documentation) across
+`none`/`slim`/`full` context conditions, with bounded per-trial repair on a
+deterministic miss. `--suite academic` runs the legacy MMLU/HumanEval/
+HellaSwag/TruthfulQA regression suite (the "Arguments"/"Execution" flags
+below predate the workflow suite and remain academic-suite-only). `--suite
+all` runs both, using each suite's own default conditions — pass
+`--conditions` only with a single explicit `--suite`; it is rejected as
+ambiguous with `--suite all`. The workflow suite only ever calls the
+isolated, no-tool Claude/Gemini API adapters (`tests/token_benchmark/
+workflows/transport.py`); a requested provider/model tier the shared
+`configs/claude/config/model_policy.yml` does not resolve is recorded
+`unsupported`, never called.
+
 ## Arguments
 
 Parse `$ARGUMENTS` for flags. The table mirrors the harness argparse
@@ -73,27 +89,36 @@ Parse `$ARGUMENTS` for flags. The table mirrors the harness argparse
 
 | Flag | Effect | Default |
 |------|--------|---------|
-| (none) | Full run: all providers, API + CLI paths | — |
+| (none) | Workflow suite: all four fixtures, `none/slim/full`, 3 trials | — |
+| `--suite <academic\|workflow\|all>` | Which suite(s) to run | `workflow` |
 | `--providers <list>` | Comma-separated providers to run (e.g. `claude` alone is ~3 min) | `claude,gemini,antigravity` |
-| `--api-only` | Skip the CLI path; API token/cost counts only (claude, gemini) | off |
-| `--cli-only` | Skip the API path; run only the CLI behavioral/quality path — the only viable path for CLI-only providers with no SDK (e.g. `antigravity`) | off |
+| `--api-only` | Academic suite only: skip the CLI path; API token/cost counts only (claude, gemini) | off |
+| `--cli-only` | Academic suite only: skip the API path; run only the CLI behavioral/quality path — the only viable path for CLI-only providers with no SDK (e.g. `antigravity`) | off |
 | `--sync-fixtures` | Sync `fixtures/manifest/` (and `fixtures-compressed/` if `--compression` given) from the live home before running | off |
 | `--compression <N>` | With `--sync-fixtures`: also write `fixtures-compressed/` keeping the first N% of `CLAUDE.md` lines | unset |
-| `--report-only` | Regenerate `docs/TOKEN_BENCHMARK.md` from existing `results/*.jsonl`; no new API/CLI calls | off |
-| `--claude-model <id>` | Claude model id used for the API path | `claude-sonnet-5` |
-| `--gemini-model <id>` | Gemini model id used for the API path | `gemini-3-flash-preview` |
-| `--conditions <list>` | Comma-separated conditions: `before,after,cached,tiered,compressed` | `before,after` |
+| `--report-only` | Regenerate `docs/TOKEN_BENCHMARK.md` from existing `results/*.jsonl`; no new model calls at all | off |
+| `--claude-model <id>` | Academic suite only: Claude model id used for the API path | `claude-sonnet-5` |
+| `--gemini-model <id>` | Academic suite only: Gemini model id used for the API path | `gemini-3-flash-preview` |
+| `--conditions <list>` | Comma-separated conditions for the single selected `--suite`: `before,after,cached,tiered,compressed` (academic) or `none,slim,full` (workflow). Rejected with `--suite all`. | suite's own default |
+| `--trials <N>` | Workflow suite: repeated trials per fixture/condition, balanced rotation across reps (must be positive) | `3` |
+| `--timeout-seconds <N>` | Workflow suite: per-call timeout, including each repair attempt (must be positive) | `120` |
+| `--fixture-image <ref>` | Workflow suite: locally available, immutable container image for grading `implementation` fixture responses. Omitted → implementation fixtures grade `unavailable`, never `passed`/`failed`. | unset |
 
 ## Execution
 
 Run the harness from the repo root:
 
 ```bash
-# Parse flags from $ARGUMENTS; default to all providers + both paths
+# Parse flags from $ARGUMENTS; default to the workflow suite, all providers
 PROVIDERS="${PROVIDERS:-claude,gemini,antigravity}"
 API_ONLY_FLAG="${API_ONLY_FLAG:-}"
 CLI_ONLY_FLAG="${CLI_ONLY_FLAG:-}"
 SYNC_FLAG="${SYNC_FLAG:-}"
+SUITE_FLAG="${SUITE_FLAG:-}"
+CONDITIONS_FLAG="${CONDITIONS_FLAG:-}"
+TRIALS_FLAG="${TRIALS_FLAG:-}"
+TIMEOUT_FLAG="${TIMEOUT_FLAG:-}"
+FIXTURE_IMAGE_FLAG="${FIXTURE_IMAGE_FLAG:-}"
 
 # Set vars from $ARGUMENTS
 echo "$ARGUMENTS" | grep -q -- "--sync-fixtures" && SYNC_FLAG="--sync-fixtures"
@@ -101,11 +126,22 @@ echo "$ARGUMENTS" | grep -q -- "--api-only"       && API_ONLY_FLAG="--api-only"
 echo "$ARGUMENTS" | grep -q -- "--cli-only"       && CLI_ONLY_FLAG="--cli-only"
 echo "$ARGUMENTS" | grep -qP -- "--providers\s+(\S+)" && \
   PROVIDERS=$(echo "$ARGUMENTS" | grep -oP '(?<=--providers\s)\S+')
+echo "$ARGUMENTS" | grep -qP -- "--suite\s+(\S+)" && \
+  SUITE_FLAG="--suite $(echo "$ARGUMENTS" | grep -oP '(?<=--suite\s)\S+')"
+echo "$ARGUMENTS" | grep -qP -- "--conditions\s+(\S+)" && \
+  CONDITIONS_FLAG="--conditions $(echo "$ARGUMENTS" | grep -oP '(?<=--conditions\s)\S+')"
+echo "$ARGUMENTS" | grep -qP -- "--trials\s+(\S+)" && \
+  TRIALS_FLAG="--trials $(echo "$ARGUMENTS" | grep -oP '(?<=--trials\s)\S+')"
+echo "$ARGUMENTS" | grep -qP -- "--timeout-seconds\s+(\S+)" && \
+  TIMEOUT_FLAG="--timeout-seconds $(echo "$ARGUMENTS" | grep -oP '(?<=--timeout-seconds\s)\S+')"
+echo "$ARGUMENTS" | grep -qP -- "--fixture-image\s+(\S+)" && \
+  FIXTURE_IMAGE_FLAG="--fixture-image $(echo "$ARGUMENTS" | grep -oP '(?<=--fixture-image\s)\S+')"
 echo "$ARGUMENTS" | grep -q -- "--report-only" && exec python3 tests/token_benchmark/harness.py --report-only
 
-# Only invoke `uv run --group benchmark` for runs that actually touch the API path.
-# --cli-only and --report-only are SDK-free by design (#547) and must stay runnable
-# with a plain `python3` — no uv resolution/installation, no uv dependency at all.
+# Only invoke `uv run --group benchmark` for runs that actually touch a
+# model call. --cli-only is academic-suite-only and SDK-free by design
+# (#547); --report-only never reaches this far (handled above). Both must
+# stay runnable with a plain `python3` — no uv resolution/installation.
 if [ -n "$CLI_ONLY_FLAG" ]; then
   PYRUN="python3"
 else
@@ -116,12 +152,18 @@ $PYRUN tests/token_benchmark/harness.py \
   --providers "$PROVIDERS" \
   $SYNC_FLAG \
   $API_ONLY_FLAG \
-  $CLI_ONLY_FLAG
+  $CLI_ONLY_FLAG \
+  $SUITE_FLAG \
+  $CONDITIONS_FLAG \
+  $TRIALS_FLAG \
+  $TIMEOUT_FLAG \
+  $FIXTURE_IMAGE_FLAG
 ```
 
-`--cli-only` is the only viable path for a CLI-only provider with no API SDK: pass
-`--providers antigravity --cli-only` to run just its (currently `unsupported`) quality path
-without touching claude/gemini's API path — and without requiring `uv` to be installed.
+`--cli-only` (academic suite only) is the only viable path for a CLI-only provider with no API
+SDK: pass `--suite academic --providers antigravity --cli-only` to run just its (currently
+`unsupported`) quality path without touching claude/gemini's API path — and without requiring
+`uv` to be installed.
 
 ## After the run
 
@@ -144,6 +186,9 @@ its own deliberate change, separately from routine result updates.
 
 ## Expected runtime
 
-- Full run (all providers, API + CLI): ~8–15 minutes (20 prompts × 2 conditions × 3 providers)
-- API-only (2 providers): ~4–6 minutes
-- Single provider: ~2–3 minutes
+- Workflow suite (default, 4 fixtures × 3 conditions × 3 trials, 1–2 providers): ~2–6 minutes,
+  plus up to 2 bounded repair calls per deterministic miss.
+- Academic suite, full run (all providers, API + CLI): ~8–15 minutes (20 prompts × 2 conditions
+  × 3 providers)
+- Academic suite, API-only (2 providers): ~4–6 minutes
+- Academic suite, single provider: ~2–3 minutes
