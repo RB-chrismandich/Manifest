@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Close the delegate cancel-vs-spawn race: a background worker now takes a
+  `dispatch.backend_launched` authorization under the job lock immediately
+  before `Popen`, so a cancel that landed first denies the fork outright, and a
+  cancel that lost the race reports `was_alive` truthfully instead of claiming
+  it won the claim. The G1 regression test runs again rather than being
+  skipped.
 - Retire the `parallel-agent` and `metrics-report` commands, their `configs/claude/scripts/agents/`
   coordinator package, the emdash inheritance probe, and the `spec_review_merge` prompt.
   Interactive sub-agent work is now OMP `task`/`hub` only: skills link a bundle-local

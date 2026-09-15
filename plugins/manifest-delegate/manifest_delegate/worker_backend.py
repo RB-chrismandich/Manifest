@@ -140,6 +140,48 @@ def _mark_backend_started(store, job_id, index, selected):
     )
 
 
+def _make_spawn_authorizer(store, job_id):
+    """Return the last-moment authorization `_launch_backend` evaluates while
+    it already holds backend.lock, immediately before Popen.
+
+    This is the cancel-race barrier (#846). A recorded authorization proves to
+    cancel that a backend was committed behind a held lock, so cancel can no
+    longer report `was_alive` False ("I won the claim, nothing spawned") for a
+    job whose backend did run -- and possibly already exited -- before it
+    probed.
+
+    `dispatch["phase"]` deliberately stays "backend_started": three sites
+    enumerate phases (jobstore_reaper._DISPATCH_OWNERSHIP_PHASES,
+    worker._restore_fallback_pending, _return_dispatch_to_worker below), and
+    "backend_started" is already the correct "a backend may have run"
+    classification for this window. A new phase would drop out of all three --
+    reaping a crashed launch as `failed` instead of `dispatch_unknown`,
+    re-offering it as `fallback_pending`, and breaking every retry.
+
+    `backend_launched` is monotone: it records that a backend was launched for
+    this job, not that one is live now, so it is never cleared. Authorization
+    is therefore decided by the state `mutate` read under the lock, never by
+    the flag, which an earlier attempt may already have set."""
+
+    def _reserve(record):
+        dispatch = dict(record.get("dispatch") or {})
+        if dispatch.get("phase") != "backend_started":
+            return None
+        dispatch["backend_launched"] = True
+        record["dispatch"] = dispatch
+        return record
+
+    def _authorize():
+        # mutate refuses a terminal record and returns it unchanged, so a
+        # cancel that landed first denies the spawn here.
+        reserved = store.mutate(job_id, _reserve)
+        if reserved.get("state") in jobstore.TERMINAL_STATES:
+            return False
+        return bool((reserved.get("dispatch") or {}).get("backend_launched"))
+
+    return _authorize
+
+
 def _capture_attempt(entry, argv, prompt_bytes, job_dir, budget, store, job_id):
     captured = process._spawn_backend(
         entry,
@@ -148,7 +190,12 @@ def _capture_attempt(entry, argv, prompt_bytes, job_dir, budget, store, job_id):
         job_dir,
         budget,
         on_pgid=process._make_pgid_persister(store, job_id),
+        before_popen=_make_spawn_authorizer(store, job_id),
     )
+    if captured is None:
+        # The spawn was denied under the job lock (cancel won the race). No
+        # process exists, so there is nothing to reap and nothing to classify.
+        return None
     reaped = containment.reap(
         job_dir, required=containment.is_contained(store.read(job_id))
     )
@@ -250,6 +297,9 @@ def _run_attempts(store, job_id, entry, record, prompt_bytes, chain, controller)
     attempts = list(record.get("model_attempts") or [])
     result = _AttemptResult()
     for index, selected in enumerate(chain):
+        record = store.read(job_id)
+        if record.get("state") in jobstore.TERMINAL_STATES:
+            return record, attempts, result, None
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             result = _AttemptResult(timed_out=True)
@@ -258,9 +308,18 @@ def _run_attempts(store, job_id, entry, record, prompt_bytes, chain, controller)
             entry, record, selected, mapping, prompt_bytes
         )
         record = _mark_backend_started(store, job_id, index, selected)
+        if (record.get("dispatch") or {}).get("phase") != "backend_started":
+            return record, attempts, result, None
+        # No terminal re-check here: _capture_attempt's pre-Popen
+        # authorization is the barrier, and it runs under the job lock. A read
+        # at this point could only go stale again before the fork.
         result = _capture_attempt(
             entry, argv, process_prompt, job_dir, remaining, store, job_id
         )
+        if result is None:
+            # Spawn denied: the job went terminal (cancelled) under us. Record
+            # no attempt -- none was made.
+            return store.read(job_id), attempts, _AttemptResult(), None
         attempts.append(
             {
                 "attempt_id": record.get("attempt_id"),
@@ -357,7 +416,13 @@ def _finish_job(store, job_id, attempts, result, response, succeeded):
 
 
 def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
-    """Run the bounded model chain and publish only durable safe output."""
+    """Run the bounded model chain and publish only durable safe output.
+
+    `record` is the caller's freshly claimed record: a cancel that landed
+    before the claim leaves it terminal, and containment must not be created
+    for a job that will never spawn."""
+    if record.get("state") in jobstore.TERMINAL_STATES:
+        return record
     job_dir = store.job_dir(job_id)
     _path, state, reason = containment.create(job_dir)
 
@@ -375,6 +440,8 @@ def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
         )
         if pending is not None:
             return pending
+        if record.get("state") in jobstore.TERMINAL_STATES:
+            return record
         succeeded, response = _result_envelope(store, job_id, entry, record, result)
         _warn_missing_session(entry, result)
         return _finish_job(store, job_id, attempts, result, response, succeeded)

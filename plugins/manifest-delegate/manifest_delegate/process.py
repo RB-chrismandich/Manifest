@@ -121,27 +121,32 @@ def _wait_for_worker_exit(proc):
     return proc.poll() is not None
 
 
-def _worker_alive(store, job_id, record):
-    """True iff THIS job's worker process is still running, proven by the
-    worker.lock flock rather than os.kill(worker_pid, 0) — so a recycled pid can
-    never be mistaken for a live worker. A missing lock file means the worker was
-    recorded but has not yet acquired its lock (a sub-millisecond startup window);
-    treated as not-confirmably-alive, which is safe because the atomic
-    queued->running claim independently stops a cancelled job's backend."""
-    if not record.get("worker_pid"):
-        return False
-    lock_path = os.path.join(store.job_dir(job_id), WORKER_LOCK_FILENAME)
+def _lock_is_held(lock_path):
+    """True iff some process still holds `lock_path`'s flock. Both lifetime
+    locks prove liveness this way instead of signalling a pid, which may have
+    been recycled. A missing file means nobody holds it: not confirmably alive."""
     if not os.path.exists(lock_path):
         return False
     fd = os.open(lock_path, os.O_RDWR)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fcntl.flock(fd, fcntl.LOCK_UN)  # acquired ⇒ no live worker holds it ⇒ dead
+        fcntl.flock(fd, fcntl.LOCK_UN)  # acquired ⇒ nobody holds it ⇒ dead
         return False
     except OSError:
-        return True  # EWOULDBLOCK/EAGAIN ⇒ our worker still holds it
+        return True  # EWOULDBLOCK/EAGAIN ⇒ still held
     finally:
         os.close(fd)
+
+
+def _worker_alive(store, job_id, record):
+    """True iff THIS job's worker process is still running. A missing lock file
+    means the worker was recorded but has not yet acquired its lock (a
+    sub-millisecond startup window); treated as not-confirmably-alive, which is
+    safe because the atomic queued->running claim independently stops a
+    cancelled job's backend."""
+    if not record.get("worker_pid"):
+        return False
+    return _lock_is_held(os.path.join(store.job_dir(job_id), WORKER_LOCK_FILENAME))
 
 
 def _backend_preexec(job_dir):
@@ -171,22 +176,8 @@ def _backend_preexec(job_dir):
 
 def _backend_alive(store, job_id):
     """True iff this job's backend process group is still running, proven by the
-    backend.lock flock (held for the backend's lifetime) rather than
-    os.killpg(pgid, 0) — so a recycled pgid is never mistaken for a live backend.
-    A missing lock file means no backend is currently holding it (never started,
-    or already exited): not confirmably alive."""
-    lock_path = os.path.join(store.job_dir(job_id), BACKEND_LOCK_FILENAME)
-    if not os.path.exists(lock_path):
-        return False
-    fd = os.open(lock_path, os.O_RDWR)
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fcntl.flock(fd, fcntl.LOCK_UN)  # acquired ⇒ no live backend holds it ⇒ dead
-        return False
-    except OSError:
-        return True  # EWOULDBLOCK/EAGAIN ⇒ the backend still holds it
-    finally:
-        os.close(fd)
+    backend.lock flock held for the backend's lifetime."""
+    return _lock_is_held(os.path.join(store.job_dir(job_id), BACKEND_LOCK_FILENAME))
 
 
 def _read_pgid_file(job_dir):
@@ -254,10 +245,12 @@ def _read_bounded_file(path, cap, job_dir):
         return "", True
 
 
-def _launch_backend(argv, transport, job_dir):
+def _launch_backend(argv, transport, job_dir, before_popen=None):
     """Popen the backend with its own session (setsid) holding a lifetime flock.
     The lock fd is opened in the parent and passed via pass_fds (so close_fds
-    does not close it); preexec flocks it in the child. Returns (proc, pgid)."""
+    does not close it); preexec flocks it in the child. Returns (proc, pgid), or
+    (None, None) when `before_popen()` — the caller's last-moment authorization,
+    evaluated with backend.lock already held — denies the spawn (#846)."""
     stdin_arg = subprocess.PIPE if transport == "stdin" else subprocess.DEVNULL
     # Flock in the PARENT before Popen so there is NO fork->flock window: the
     # child inherits the already-locked open-file description via pass_fds (an
@@ -268,6 +261,9 @@ def _launch_backend(argv, transport, job_dir):
         os.path.join(job_dir, BACKEND_LOCK_FILENAME), os.O_CREAT | os.O_RDWR, 0o600
     )
     fcntl.flock(lock_fd, fcntl.LOCK_EX)
+    if before_popen is not None and not before_popen():
+        os.close(lock_fd)
+        return None, None
     try:
         proc = subprocess.Popen(
             argv,
@@ -387,12 +383,18 @@ def _collect_capture(entry, capture, proc, pgid, job_dir, stdout_path, timed_out
     return proc.returncode, combined, stderr, pgid, timed_out, session_ref, truncated
 
 
-def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
+def _spawn_backend(
+    entry, argv, prompt_bytes, job_dir, budget, on_pgid=None, before_popen=None
+):
     stdout_path = os.path.join(job_dir, "output.txt")
     _replace_owned_output(stdout_path, job_dir)
     _log_backend_invocation(entry, argv, prompt_bytes, job_dir)
     transport = (entry.get("input") or {}).get("transport", "stdin")
-    proc, pgid = _launch_backend(argv, transport, job_dir)
+    proc, pgid = _launch_backend(argv, transport, job_dir, before_popen=before_popen)
+    if proc is None:
+        # Denied: nothing ran, so there is no exit status. A fabricated failure
+        # tuple would read as a provider failure and could trigger a fallback.
+        return None
     if on_pgid:
         on_pgid(pgid)
     capture = _start_capture(proc, transport, prompt_bytes)

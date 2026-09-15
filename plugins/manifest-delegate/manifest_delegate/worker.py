@@ -315,8 +315,11 @@ def _claim_running(store, job_id):
 def _run_claimed_worker(store, job_id, entry, prompt_bytes):
     claimed = _claim_running(store, job_id)
     if claimed.get("state") != "running":
-        return 1
+        # A cancel that won the queued->running claim is not a worker failure.
+        return 0 if claimed.get("state") in jobstore.TERMINAL_STATES else 1
     claimed, recovery, failure_summary = _commit_continuation_claim(store, job_id)
+    if claimed.get("state") in jobstore.TERMINAL_STATES:
+        return 0
     try:
         _run_backend_and_finish(store, job_id, entry, claimed, prompt_bytes)
     except Exception:

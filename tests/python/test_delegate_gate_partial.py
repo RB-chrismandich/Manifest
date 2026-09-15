@@ -60,7 +60,7 @@ def test_gate_partial_outcome_empty_findings_is_not_a_clean_pass(
     monkeypatch.setattr(
         delegate.process,
         "_spawn_backend",
-        lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (
+        lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None, before_popen=None: (
             0,
             raw_output,
             None,
