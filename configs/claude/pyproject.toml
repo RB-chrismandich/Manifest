@@ -5,7 +5,7 @@ description = "Manifest home-deployed Python runtime"
 requires-python = ">=3.11"
 dependencies = [
   "pyyaml>=6.0.1",
-  "click==8.3.1",
+  "click==8.5.0",
   "manifest-model-policy==0.1.0",
 ]
 
