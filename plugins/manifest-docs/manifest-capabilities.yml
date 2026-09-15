@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-docs
-  version: 0.3.0
+  version: 0.4.0
   description: Documentation improvement, diagram generation, and doc-set orchestration.
   category: documentation
 components:

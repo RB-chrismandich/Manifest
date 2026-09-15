@@ -1,0 +1,16 @@
+{
+  "modelRoles": {
+    "designer": "openai-codex/gpt-6-astra:high",
+    "ui_code": "openai-codex/gpt-6-astra:high",
+    "ui_review": "openai-codex/gpt-6-astra:high"
+  },
+  "retry": {
+    "modelFallback": false
+  },
+  "enabledProviders": [
+    "openai-codex"
+  ],
+  "mcp": {
+    "enableProjectConfig": true
+  }
+}

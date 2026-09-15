@@ -1,0 +1,15 @@
+{
+  "fixture_metadata": {
+    "design_source": "hand-authored approved contract",
+    "stitch_credentials": "unavailable",
+    "external_design_reference": "consumer-pilot-new-v1"
+  },
+  "target": "site/welcome.html",
+  "requirements": {
+    "title": "Welcome to Northstar",
+    "heading": "Plan your next clear step",
+    "summary": "A focused workspace for the work that matters today.",
+    "layout_class": "welcome-shell",
+    "layout_css": "min-height: 100vh"
+  }
+}
