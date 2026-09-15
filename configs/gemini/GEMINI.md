@@ -28,6 +28,7 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
+- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
 
 `/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
