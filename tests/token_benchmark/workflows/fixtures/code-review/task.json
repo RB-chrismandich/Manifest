@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "code-review",
+  "kind": "code_review",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Review the supplied Python change. The public contract requires prefix to return at most limit elements when limit is non-negative. Return JSON with findings and candidate_dispositions.",
+  "artifacts": {
+    "counter.py": "def prefix(values: list[int], limit: int) -> list[int]:\n    return values[: limit + 1]\n",
+    "candidates.json": "[{\"id\": \"C1\", \"claim\": \"SQL injection in counter.py line 2\"}]"
+  },
+  "output_contract": {
+    "findings": [{"id": "string", "file": "string", "line": "integer", "category": "off_by_one|out_of_bounds|sql_injection|missing_validation|other"}],
+    "candidate_dispositions": [{"id": "string", "decision": "keep|refute", "reason": "string"}]
+  }
+}

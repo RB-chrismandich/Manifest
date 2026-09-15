@@ -134,7 +134,7 @@ class JobArtifactsMixin:
 
     def replace_owned_file(self, job_id, name, content=""):
         """Atomically replace one regular file confined to its private job dir."""
-        if name not in {"output.txt", "job.log"}:
+        if name not in {"output.txt", "job.log", "changes.patch"}:
             raise ValueError("job file is not coordinator-owned")
         job_dir = os.path.realpath(self.job_dir(job_id))
         path = os.path.join(job_dir, name)

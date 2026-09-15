@@ -39,6 +39,8 @@ def _gate_resolve_backend(gate_cfg, backends, user_config, services_disabled):
     entry = registry.resolve_backend(backends, backend_id)
     if entry is None:
         return None, f"unknown gate backend {backend_id!r}"
+    if (entry.get("execution") or {}).get("read_only") is False:
+        return None, "remote backend does not support a read-only review gate"
     enabled, layer = config.effective_backend_enabled(
         entry["id"], user_config, services_disabled
     )

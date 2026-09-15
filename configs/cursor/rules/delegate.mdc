@@ -1,12 +1,12 @@
 ---
-description: "Delegate a task to another agent CLI (Codex, Claude, Antigravity, Cursor, Devin) for a second opinion or follow-up; background, status, cancel, resume."
+description: "Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up."
 globs: ".claude/skills/delegate/**"
 alwaysApply: false
 ---
 
 # delegate
 
-Delegate a task to another agent CLI (Codex, Claude, Antigravity, Cursor, Devin) for a second opinion or follow-up; background, status, cancel, resume.
+Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up.
 
 <!-- Auto-generated from .claude/skills/delegate/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

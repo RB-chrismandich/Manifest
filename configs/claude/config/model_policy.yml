@@ -1,0 +1,102 @@
+# Single-provider CLI routing policy. Interactive subagents use OMP task/hub.
+provider_order:
+  - antigravity
+  - cursor
+  - gemini
+  - codex
+  - claude
+  - devin
+
+model_tiers:
+  claude:
+    haiku: "claude-haiku-4-5"
+    sonnet: "claude-sonnet-5[1m]"
+    opus: "claude-opus-5[1m]"
+  gemini:
+    flash: "gemini-3-flash-preview"
+    pro: "gemini-3-pro-preview"
+  cursor:
+    mini: "cursor-grok-4.5-low"
+    flash: "cursor-grok-4.5-medium"
+    advanced: "cursor-grok-4.5-high"
+  codex:
+    mini: "gpt-5.6-luna"
+    flash: "gpt-5.6-terra"
+    advanced: "gpt-5.6-sol"
+  antigravity:
+    mini: "gemini-3.6-flash-low"
+    flash: "gemini-3.6-flash-high"
+    advanced: "claude-opus-4-6-thinking"
+
+model_fallback:
+  mode: confirm
+  chains:
+    codex: [advanced, flash, mini, auto]
+    gemini: [pro, flash, auto]
+    antigravity: [advanced, flash, mini, auto]
+    cursor: [advanced, flash, mini, auto]
+
+credit_fallback:
+  claude: [opus, sonnet, haiku]
+  cursor: [advanced, flash, mini]
+  gemini: [pro, flash]
+  codex: [advanced, flash, mini]
+  antigravity: [advanced, flash, mini]
+  devin: []
+
+timeouts:
+  default: 120
+
+cli_agents:
+  claude:
+    binary: claude
+    base_args: []
+    model_args: ["--model", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: ["-p"]
+    output: stdout
+  gemini:
+    binary: gemini
+    base_args: []
+    model_args: ["-m", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: ["-p", ""]
+    output: stdout
+  cursor:
+    binary: cursor-agent
+    base_args: ["--print", "--trust", "--output-format", "text", "--mode", "ask"]
+    model_args: ["--model", "{model}"]
+    prompt_args: ["{prompt}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: []
+    output: stdout
+  codex:
+    binary: codex
+    base_args: ["exec", "--sandbox", "workspace-write", "--color", "never", "--output-last-message", "{output_file}"]
+    model_args: ["--model", "{model}"]
+    skill_prompt_transport: stdin
+    skill_prompt_args: ["-"]
+    output: file_then_stdout
+  antigravity:
+    binary: agy
+    base_args: []
+    model_args: ["--model", "{model}"]
+    prompt_args: ["--print", "{prompt}"]
+    skill_prompt_transport: argv
+    skill_prompt_args: ["--print", "{prompt}"]
+    output: stdout
+  devin:
+    binary: devin
+    base_args: ["--permission-mode", "auto"]
+    model_args: ["--model", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    skill_prompt_transport: file
+    skill_prompt_args: ["--prompt-file", "{prompt_file}", "--print"]
+    output: stdout
+
+cddl_invoke:
+  provider: auto
+skillclaw_evolve:
+  provider: auto

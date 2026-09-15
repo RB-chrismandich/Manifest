@@ -1,13 +1,13 @@
 ---
 name: delegate
-description: Delegate a task to another agent CLI (Codex, Claude, Antigravity, Cursor, Devin) for a second opinion or follow-up; background, status, cancel, resume.
+description: Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up.
 ---
 
 # Delegate
 
 Dispatches work to a backend registered in
 `plugins/manifest-delegate/config/backends.json` (currently `codex`,
-`claude`, `antigravity`/`agy`, `cursor`, `devin`) through
+`claude`, `antigravity`/`agy`, `cursor`, `devin`, `jules`) through
 `scripts/delegate.py`. This skill is
 the human-facing entry point; it never talks to a backend CLI directly.
 
@@ -39,16 +39,27 @@ the human-facing entry point; it never talks to a backend CLI directly.
 ## Backend selection and scope
 
 Pass `--backend NAME` (id or alias, e.g. `agy`); omitting it uses the
-registry's configured default. Every backend defaults to **read-only**
+registry's configured default. Local backends default to **read-only**
 (its `sandbox.read_only_args`); pass `--write` to opt into
 `sandbox.write_args` for that one call. Never assume write scope — it is
 per-invocation, not sticky across resumes.
+
+Jules uses a separate remote contract. Read `references/prompting-jules.md` first.
+Submit with `--backend jules --remote-write --repo OWNER/REPO --remote-base
+provider-selected`. This authorizes cloud work; it cannot pin a branch or upload
+local edits. Submission returns pending state and a session URL, not task success.
+Use `status JOB_ID --wait --timeout 600` to observe cloud progress, `pull JOB_ID`
+to fetch a completed patch, then `apply JOB_ID` after inspecting the artifact.
+Remote resume, cancellation, model chains, reviews, second opinions, and review
+gates are rejected. An unknown submission is never automatically retried. The
+local cancellation/timeout and result-envelope rules below apply to local backends.
+`status --all` is a cached overview; query a remote job ID to refresh its status.
 
 ## Before composing a delegation prompt
 
 Load the matching `references/prompting-<backend>.md` for the resolved
 backend (`prompting-codex.md`, `prompting-claude.md`,
-`prompting-agy.md`, `prompting-cursor.md`, `prompting-devin.md`) — each
+`prompting-agy.md`, `prompting-cursor.md`, `prompting-devin.md`, `prompting-jules.md`) — each
 covers that backend's cold-start assumptions,
 sandbox framing, and tier conventions. Do this before writing the prompt
 text; `delegate.py` itself only injects the envelope contract (FR-007,

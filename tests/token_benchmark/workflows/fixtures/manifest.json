@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "source_revision": "78f7f4ab431d35f5c355fee1ce45e78b854e1007",
+  "captured_at": "2026-09-07",
+  "provenance": "Tracked public repository sources captured byte-for-byte before simplification; per-file hashes describe dirty-state bytes.",
+  "sources": {
+    "plugins/manifest-code-quality/skills/python-refactor/SKILL.md": {
+      "sha256": "be0a4180ea03d7d630b6e9212adb523aef4bd829584eec562dc0b73039802c3d",
+      "captured_path": "code-review/full/SKILL.md"
+    },
+    "plugins/manifest-security/skills/security-triage-findings/SKILL.md": {
+      "sha256": "4af585b5597b9c035680f3b22ec92aab008a234f40f220a112ae9ed96b8652fa",
+      "captured_path": "security-triage/full/SKILL.md"
+    },
+    "plugins/manifest-docs/skills/docs-improve-readme/SKILL.md": {
+      "sha256": "a288f9412a83d5864bd7480de40ad8b5fcbb719bcb64cb548b4e4b5156a8a11d",
+      "captured_path": "documentation/full/skills/docs-improve-readme/SKILL.md"
+    },
+    "plugins/manifest-docs/runtime/references/doc-concision.md": {
+      "sha256": "0e24d49bf8bdb17235fecf467ad841a93928503d2f650ce1582922e673de133d",
+      "captured_path": "documentation/full/runtime/references/doc-concision.md"
+    },
+    "plugins/manifest-spec-planning/skills/spec-implement-loop/SKILL.md": {
+      "sha256": "543069ad9b8594b42dbac551a19eb4353e1b3c5b90e8c04370b2a33d1f438cce",
+      "captured_path": "implementation/full/skills/spec-implement-loop/SKILL.md"
+    },
+    "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/cli-dispatch.md": {
+      "sha256": "07237d4d2feb3d87924abc8704127ded95e96b7c3f9da3b4bf998e1dae92083a",
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/cli-dispatch.md"
+    },
+    "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/developer-dispatch.md": {
+      "sha256": "ea1fe3c41b063366c5513ff5b4cba1f25e2ed596189957f3a01a5985abd2702d",
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/developer-dispatch.md"
+    },
+    "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/reviewer-dispatch.md": {
+      "sha256": "b281c3488a24f08cc804da7d96c28dcc8661c03c7545b6aa567d400924d9e9bd",
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/reviewer-dispatch.md"
+    },
+    "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/verdict-format.md": {
+      "sha256": "d8dbfda428231d43d75a8c13520f03e5ae121f725a11832c6ed499d34662db64",
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/verdict-format.md"
+    },
+    "plugins/manifest-spec-planning/runtime/prompts/cddl/arch-critic.md": {
+      "sha256": "4f67d5598c98712fad95133e982f9631ed96ebfed780aa2022a87baed9480d28",
+      "captured_path": "implementation/full/runtime/prompts/cddl/arch-critic.md"
+    },
+    "plugins/manifest-spec-planning/runtime/prompts/cddl/developer-reviewer.md": {
+      "sha256": "017915e711e2218ef63e27dfa83a6c924d37b96e6248c7fa9e5b133c65ff15c8",
+      "captured_path": "implementation/full/runtime/prompts/cddl/developer-reviewer.md"
+    },
+    "plugins/manifest-spec-planning/runtime/prompts/cddl/developer.md": {
+      "sha256": "bca5e8636a074b3c6079f70091c29595006f1c27c5ad78603a07cc4a0e0f8ae4",
+      "captured_path": "implementation/full/runtime/prompts/cddl/developer.md"
+    },
+    "plugins/manifest-spec-planning/runtime/prompts/cddl/implementer.md": {
+      "sha256": "718612a7a3d53e9821f1e6621e28eae4d9576f313927d771f9a26e560feb28bf",
+      "captured_path": "implementation/full/runtime/prompts/cddl/implementer.md"
+    },
+    "plugins/manifest-spec-planning/runtime/prompts/cddl/qa-critic.md": {
+      "sha256": "a7989d801b929b6973739efa4fe3d802ecfd5b45a41eeaeba5ebc6c57318b259",
+      "captured_path": "implementation/full/runtime/prompts/cddl/qa-critic.md"
+    },
+    "plugins/manifest-spec-planning/runtime/references/sub-agent-dispatch.md": {
+      "sha256": "318f8a265dc46b7e83ddb13e2900999fdf8e72562e0becfd366993b0aa401a2d",
+      "captured_path": "implementation/full/runtime/references/sub-agent-dispatch.md"
+    },
+    "plugins/manifest-spec-planning/runtime/references/cddl-role-models.md": {
+      "sha256": "1e9d4b52b95e3a5cf901607abd07dbc1e76e0979534bd361295229281fc3928f",
+      "captured_path": "implementation/full/runtime/references/cddl-role-models.md"
+    },
+    "plugins/manifest-spec-planning/runtime/references/spec-artifact-discovery.md": {
+      "sha256": "53f55f498fb2556e1eb0f82cac2a9c6b320532d3cb5d018acce295613756c3d7",
+      "captured_path": "implementation/full/runtime/references/spec-artifact-discovery.md"
+    },
+    "plugins/manifest-spec-planning/runtime/config/review_models.json": {
+      "sha256": "551bbb9971df82728fa139f2ffd30101093a9333a663c129f0ad208f3577b165",
+      "captured_path": "implementation/full/runtime/config/review_models.json"
+    }
+  },
+  "files": {
+    "code-review/expected.json": "784b6d178c1538c4077035ca403fbbe9098e983f8dc4dffb5626f6300d66af4f",
+    "code-review/full/SKILL.md": "be0a4180ea03d7d630b6e9212adb523aef4bd829584eec562dc0b73039802c3d",
+    "code-review/slim.md": "b2f9274733a432f541cc1c11ce0521804cd878c0a1122c75cf4b1d52e6a8ba72",
+    "code-review/task.json": "dd2889bdbfbca1f799744ab41ab95111d9229ba755e5d460fa70ae55252e5243",
+    "documentation/expected.json": "f7c9b6161a8c58a5a7a712d568e6ea819dcb2be132ba5a68b9618e1cbb834e85",
+    "documentation/full/skills/docs-improve-readme/SKILL.md": "a288f9412a83d5864bd7480de40ad8b5fcbb719bcb64cb548b4e4b5156a8a11d",
+    "documentation/full/runtime/references/doc-concision.md": "0e24d49bf8bdb17235fecf467ad841a93928503d2f650ce1582922e673de133d",
+    "documentation/slim.md": "c8318010ca201a8ed22798e51ce61406c75ed231aa3feabdcd1bfc1d9bda3f64",
+    "documentation/task.json": "c02cd291b1e8c7eb367f7044add290d420bc9b185df8ab79c1a571b9995bf9c4",
+    "implementation/expected.json": "e824ac4d99b35dee61932b9a2b9b66a584b7196174240cee46deedf4f5ca3de8",
+    "implementation/full/skills/spec-implement-loop/SKILL.md": "543069ad9b8594b42dbac551a19eb4353e1b3c5b90e8c04370b2a33d1f438cce",
+    "implementation/full/skills/spec-implement-loop/prompts/cli-dispatch.md": "07237d4d2feb3d87924abc8704127ded95e96b7c3f9da3b4bf998e1dae92083a",
+    "implementation/full/skills/spec-implement-loop/prompts/developer-dispatch.md": "ea1fe3c41b063366c5513ff5b4cba1f25e2ed596189957f3a01a5985abd2702d",
+    "implementation/full/skills/spec-implement-loop/prompts/reviewer-dispatch.md": "b281c3488a24f08cc804da7d96c28dcc8661c03c7545b6aa567d400924d9e9bd",
+    "implementation/full/skills/spec-implement-loop/prompts/verdict-format.md": "d8dbfda428231d43d75a8c13520f03e5ae121f725a11832c6ed499d34662db64",
+    "implementation/full/runtime/config/review_models.json": "551bbb9971df82728fa139f2ffd30101093a9333a663c129f0ad208f3577b165",
+    "implementation/full/runtime/prompts/cddl/arch-critic.md": "4f67d5598c98712fad95133e982f9631ed96ebfed780aa2022a87baed9480d28",
+    "implementation/full/runtime/prompts/cddl/developer-reviewer.md": "017915e711e2218ef63e27dfa83a6c924d37b96e6248c7fa9e5b133c65ff15c8",
+    "implementation/full/runtime/prompts/cddl/developer.md": "bca5e8636a074b3c6079f70091c29595006f1c27c5ad78603a07cc4a0e0f8ae4",
+    "implementation/full/runtime/prompts/cddl/implementer.md": "718612a7a3d53e9821f1e6621e28eae4d9576f313927d771f9a26e560feb28bf",
+    "implementation/full/runtime/prompts/cddl/qa-critic.md": "a7989d801b929b6973739efa4fe3d802ecfd5b45a41eeaeba5ebc6c57318b259",
+    "implementation/full/runtime/references/cddl-role-models.md": "1e9d4b52b95e3a5cf901607abd07dbc1e76e0979534bd361295229281fc3928f",
+    "implementation/full/runtime/references/spec-artifact-discovery.md": "53f55f498fb2556e1eb0f82cac2a9c6b320532d3cb5d018acce295613756c3d7",
+    "implementation/full/runtime/references/sub-agent-dispatch.md": "318f8a265dc46b7e83ddb13e2900999fdf8e72562e0becfd366993b0aa401a2d",
+    "implementation/slim.md": "276dbe0179d08b90dfba535fd0078e1947e74a0a1c5eb2bb972e2d05eed78254",
+    "implementation/task.json": "2fa8be0fe7cae01319960b62335fe9ccb9f78590682cb93815d5af8ddda92087",
+    "security-triage/expected.json": "fbbf9999c6f6e6dff17cbc7a53239e1e1693d65170605c882a16737c9542aa73",
+    "security-triage/full/SKILL.md": "4af585b5597b9c035680f3b22ec92aab008a234f40f220a112ae9ed96b8652fa",
+    "security-triage/slim.md": "6df635e94c02f42c973d6299bfe7706172be8aaf945a499a7d3f2c68366a5c13",
+    "security-triage/task.json": "70960f0d6414f52035d8e50169a8d3b32d3900d4770eeb7eabd4314291355022"
+  },
+  "workflows": {
+    "code-review": {
+      "kind": "code_review",
+      "task": "code-review/task.json",
+      "expected": "code-review/expected.json",
+      "slim_context": "code-review/slim.md",
+      "full_context": "code-review/full/SKILL.md"
+    },
+    "security-triage": {
+      "kind": "security_triage",
+      "task": "security-triage/task.json",
+      "expected": "security-triage/expected.json",
+      "slim_context": "security-triage/slim.md",
+      "full_context": "security-triage/full/SKILL.md"
+    },
+    "implementation": {
+      "kind": "artifact_implementation",
+      "task": "implementation/task.json",
+      "expected": "implementation/expected.json",
+      "slim_context": "implementation/slim.md",
+      "full_context": "implementation/full/skills/spec-implement-loop/SKILL.md"
+    },
+    "documentation": {
+      "kind": "documentation",
+      "task": "documentation/task.json",
+      "expected": "documentation/expected.json",
+      "slim_context": "documentation/slim.md",
+      "full_context": "documentation/full/skills/docs-improve-readme/SKILL.md"
+    }
+  }
+}

@@ -1,46 +1,16 @@
 #!/usr/bin/env python3
-"""subagent_model_default.py — PreToolUse hook: fill in an omitted sub-agent model.
+"""Best-effort Agent model-default hook, never an authorization boundary.
 
-A dispatch that names no model inherits the parent session's model, billing the
-premium main-loop tier for fan-out work. Measured 2026-07-25 over the full
-transcript corpus: pin compliance was 7.3% (168/2,307 dispatches), and $951.70
-(56.3%) of all-time sub-agent spend was recoverable — essentially all of it from
-*omitted* models, never from an explicit pin being overridden.
+Shipped --native-default-only mode emits diagnostics but never rewrites input.
+The version-gated native environment default also covers Workflow and preserves
+invocation/frontmatter precedence. Managed and CLI definitions cannot reliably
+be discovered by this hook, so filesystem-based injection is not shipped.
 
-A natural-language rule ("pin Sonnet by default") was already loaded in every
-session, including the ones that inherited. This hook is the mechanism that
-prose could not be: it rewrites the tool arguments before the call runs.
+Legacy direct invocation still fills omitted models after checking visible pins,
+explicit environment choices and forks. It cannot guarantee hidden-pin coverage.
+Errors fail open with redacted stderr diagnostics; requested is not served.
 
-WHAT IT DOES NOT TOUCH (each of these is a deliberate model choice, and
-clobbering one would be a worse bug than the one being fixed):
-
-  * an explicit ``model`` on the call — precedence layer 1, the caller decided;
-  * an agent definition whose frontmatter sets ``model:`` — precedence layer 2.
-    A call-site model OUTRANKS frontmatter, so injecting here would silently
-    downgrade e.g. ``pr-review-toolkit:code-reviewer`` (``model: opus``) to
-    Sonnet. MODEL-POLICY.md permits Opus for adversarial verification; this hook
-    must not quietly revoke that permission.
-  * ``fork``, which inherits the parent model by design and ignores ``model``
-    entirely. Injecting there changes nothing real but records a *requested*
-    model in the agent-<id>.meta.json sidecar that never served — poisoning the
-    very audit (subagent_breakdown.py --audit) that verifies this hook works.
-
-SCOPE. PreToolUse fires on the ``Agent`` tool, so this reaches Agent-tool
-dispatches only. Workflow-tool agents (``agent()`` inside a Workflow script) do
-not pass through it and remain governed by the script's own ``model`` option or
-CLAUDE_CODE_SUBAGENT_MODEL. That is the largest single premium block measured
-($919.32, workflow-subagent x Fable 5); the audit reports it separately rather
-than letting this hook imply coverage it does not have.
-
-Fail-open by construction: any error, any unparseable payload, any unexpected
-shape prints nothing and exits 0, so a broken hook can never block a dispatch.
-
-CLI:
-    subagent_model_default.py            read hook payload on stdin
-    subagent_model_default.py --help
-
-Env overrides (tests): SUBAGENT_DEFAULT_MODEL (default "sonnet"),
-CLAUDE_PROJECT_DIR / HOME for agent-definition discovery.
+See docs/model-policy/dispatch-reliability.md for host gates and limitations.
 """
 
 from __future__ import annotations
@@ -68,7 +38,7 @@ def err(*args: object) -> None:
 
 def usage() -> None:
     print(
-        "Usage: subagent_model_default.py [--help]\n"
+        "Usage: subagent_model_default.py [--native-default-only] [--help]\n"
         "\n"
         "PreToolUse hook for the Agent tool. Reads a hook payload on stdin and,\n"
         "when the dispatch names no model, emits hookSpecificOutput.updatedInput\n"
@@ -78,7 +48,9 @@ def usage() -> None:
         "Left alone: an explicit `model` on the call, an agent whose frontmatter\n"
         "sets `model:`, and `fork` (which ignores model by design).\n"
         "\n"
-        "Prints nothing and exits 0 on any error or when no change is needed."
+        "Shipped --native-default-only mode never injects; native host precedence\n"
+        "preserves pins invisible to filesystem discovery. Errors exit 0 with\n"
+        "redacted diagnostics on stderr. No change means no stdout."
     )
 
 
@@ -96,7 +68,8 @@ def installed_plugin_state(home: str) -> tuple[set[str], set[str]] | None:
     fall back to scanning everything. A hook that honoured no pins at all
     because one JSON file went missing would be worse than the bug it fixes.
     """
-    path = os.path.join(home, ".claude", "plugins", "installed_plugins.json")
+    config = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(home, ".claude")
+    path = os.path.join(config, "plugins", "installed_plugins.json")
     try:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
@@ -132,13 +105,14 @@ def agent_definition_roots() -> list[tuple[str, str]]:
     resolution order is reproducible rather than whatever the OS listed first.
     """
     home = os.path.expanduser("~")
+    config = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(home, ".claude")
     roots: list[tuple[str, str]] = []
     project = os.environ.get("CLAUDE_PROJECT_DIR")
     if project:
         roots.append((os.path.join(project, ".claude", "agents"), ""))
-    roots.append((os.path.join(home, ".claude", "agents"), ""))
+    roots.append((os.path.join(config, "agents"), ""))
 
-    base = os.path.join(home, ".claude", "plugins")
+    base = os.path.join(config, "plugins")
     state = installed_plugin_state(home)
     # marketplaces/<market>/plugins/<plugin>/agents
     for root in sorted(
@@ -223,9 +197,21 @@ def decide(payload: dict) -> dict | None:
         return None
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
+        err("fail-open: missing or malformed tool_input")
+        return None
+
+    # Native defaults resolve all host scopes, including managed/CLI definitions.
+    # An injected per-call model would override a deliberate process default.
+    if any(
+        key in os.environ
+        for key in ("CLAUDE_CODE_SUBAGENT_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL_FORCE")
+    ):
         return None
 
     model = tool_input.get("model")
+    if model is not None and not isinstance(model, str):
+        err("fail-open: malformed model")
+        return None
     if isinstance(model, str) and model.strip():
         return None  # explicit pin — precedence layer 1, leave it
 
@@ -260,24 +246,36 @@ def decide(payload: dict) -> dict | None:
 
 
 def main(argv: list[str]) -> int:
-    if argv and argv[0] in ("--help", "-h"):
+    if any(arg in ("--help", "-h") for arg in argv):
         usage()
+        return 0
+    if "--native-default-only" in argv:
+        # Filesystem scans cannot see managed or --agents definitions. The
+        # shipped hook observes the native default without overriding any pin.
+        if not os.environ.get("CLAUDE_CODE_SUBAGENT_MODEL", "").strip():
+            err("native default unobserved; worker model coverage is incomplete")
+        if os.environ.get("CLAUDE_CODE_SUBAGENT_MODEL_FORCE"):
+            err("native force override present; explicit worker pins may be overridden")
         return 0
     try:
         raw = sys.stdin.read()
     except (OSError, ValueError):
+        err("fail-open: unreadable input")
         return 0
     try:
         payload = json.loads(raw)
     except (ValueError, TypeError):
+        err("fail-open: malformed JSON")
         return 0
     if not isinstance(payload, dict):
+        err("fail-open: expected object")
         return 0
     try:
         out = decide(payload)
-    except Exception as exc:
-        if os.environ.get("SUBAGENT_MODEL_DEBUG") == "1":
-            err(f"fail-open: {exc!r}")
+    except Exception:
+        # This cost optimization is not an authorization boundary. Fail open,
+        # but never include exception text that could contain a private payload.
+        err("fail-open: model default could not be resolved")
         return 0
     if out is not None:
         print(json.dumps(out))
