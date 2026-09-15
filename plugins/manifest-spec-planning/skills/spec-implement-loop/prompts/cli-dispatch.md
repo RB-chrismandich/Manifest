@@ -20,3 +20,12 @@ printf '%s' "$prompt" | python3 <BUNDLE_ROOT>/runtime/cddl/cddl_invoke.py \
 provider ordering and role-model resolution are owned by the retained
 noninteractive model policy. Callers must handle its output and errors as an
 API result; this document does not define an interactive fallback.
+
+## Verdict contract
+
+`cddl_invoke.py` charters emit the same `cddl-verdict` JSON contract used by
+the interactive loop (`role`, `decision`, `findings`, optional `advisories`
+— see `verdict-format.md`). Its noninteractive callers apply identical
+rules: nonempty `findings` blocks `approve` regardless of severity, and
+`role` must match the invoked charter. It has no `--assurance` flag; mode
+selection is this skill's interactive orchestration, not the headless API's.

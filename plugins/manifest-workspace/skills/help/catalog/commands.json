@@ -612,7 +612,7 @@
     {
       "bundle": "manifest-spec-planning",
       "category": "project-management",
-      "description": "Use once spec/plan are approved and ready to implement \u2014 critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Never commits or pushes.",
+      "description": "Use once spec/plan are approved and ready to implement \u2014 critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Supports --assurance standard|high-assurance. Never commits or pushes.",
       "name": "spec-implement-loop",
       "qualified_name": "manifest-spec-planning:spec-implement-loop"
     },
@@ -675,7 +675,7 @@
     {
       "bundle": "manifest-security",
       "category": "security",
-      "description": "Adversarially verify candidate security findings to cut false positives before reporting, via attacker/victim privilege-boundary analysis and diff-anchoring; emphasizes reframing removed/delegated controls. See security-triage-findings for the broad refutation-gate catalog.",
+      "description": "Deprecated alias for security-triage-findings \u2014 adversarially verify candidate security findings via attacker/victim analysis and diff-anchoring. Invoke security-triage-findings directly; this name forwards to it and will be removed.",
       "name": "security-refute-findings",
       "qualified_name": "manifest-security:security-refute-findings"
     },
@@ -689,7 +689,7 @@
     {
       "bundle": "manifest-security",
       "category": "security",
-      "description": "Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Broad refutation-gate catalog; see security-refute-findings for the removed/delegated-control reframing variant.",
+      "description": "Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Canonical refutation-gate catalog, including removed/delegated-control reframing verified by traced call path; security-refute-findings is a deprecated forwarding alias.",
       "name": "security-triage-findings",
       "qualified_name": "manifest-security:security-triage-findings"
     },

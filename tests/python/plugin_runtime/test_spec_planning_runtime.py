@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -268,3 +269,117 @@ def test_spec_contract_declares_all_runtime_assets(spec_bundle: Path) -> None:
     config = json.loads((spec_bundle / "runtime/config/review_models.json").read_text())
     assert config["providers"]["devin"] == {"binary": "devin", "models": {}}
     assert "devin" in contract.capabilities.executables[CapabilityTier.OPTIONAL]
+
+
+def test_spec_implement_loop_defines_assurance_modes(spec_bundle: Path) -> None:
+    skill = (spec_bundle / "skills/spec-implement-loop/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "--assurance standard|high-assurance" in skill
+    assert "default `standard`" in skill
+    assert "state.json" in skill and "`assurance`" in skill
+    assert "pre-flight failure" in skill
+    assert "fail before dispatching\n   anything on conflict" in skill
+    assert "never reinterpret a run" in skill
+
+
+def test_spec_implement_loop_phase_counts_differ_by_mode(spec_bundle: Path) -> None:
+    skill = (spec_bundle / "skills/spec-implement-loop/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "**one** independent developer reviewer" in skill
+    assert "dispatches all three critics (developer" in skill
+    assert "reviewer, QA critic, architecture critic)." in skill
+
+
+def test_spec_implement_loop_defines_same_iteration_identity(
+    spec_bundle: Path,
+) -> None:
+    skill = (spec_bundle / "skills/spec-implement-loop/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Same-iteration identity" in skill
+    assert "stale" in skill.lower()
+
+
+def test_cddl_verdict_contract_uses_plan_json_example(spec_bundle: Path) -> None:
+    verdict_format = (
+        spec_bundle / "skills/spec-implement-loop/prompts/verdict-format.md"
+    ).read_text(encoding="utf-8")
+
+    assert '"role": "developer-reviewer"' in verdict_format
+    assert '"decision": "approve"' in verdict_format
+    assert '"findings": []' in verdict_format
+    assert (
+        '{"title": "Optional naming improvement", "detail": "No acceptance impact."}'
+        in verdict_format
+    )
+    assert "missing `advisories`" in verdict_format
+    assert "invalidates" in verdict_format
+    assert "Role match" in verdict_format
+    assert "Same-iteration identity" in verdict_format
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    (
+        "Legacy approval",
+        "Advisory approval",
+        "Contradictory approval",
+        "Stale iteration",
+        "Missing persona",
+        "Mode conflict",
+    ),
+)
+def test_cddl_verdict_contract_has_table_driven_examples(
+    spec_bundle: Path, scenario: str
+) -> None:
+    verdict_format = (
+        spec_bundle / "skills/spec-implement-loop/prompts/verdict-format.md"
+    ).read_text(encoding="utf-8")
+
+    assert f"**{scenario}**" in verdict_format
+
+
+def test_cddl_prompt_and_charter_links_resolve(spec_bundle: Path) -> None:
+    charters = {"developer", "developer-reviewer", "qa-critic", "arch-critic"}
+    cddl_dir = spec_bundle / "runtime/prompts/cddl"
+    assert charters.issubset({p.stem for p in cddl_dir.glob("*.md")})
+    for name in charters:
+        assert (cddl_dir / f"{name}.md").is_file()
+
+    skill = (spec_bundle / "skills/spec-implement-loop/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    for name in charters:
+        assert f"`{name}.md`" in skill
+
+    prompts_dir = spec_bundle / "skills/spec-implement-loop/prompts"
+    developer_dispatch = (prompts_dir / "developer-dispatch.md").read_text(
+        encoding="utf-8"
+    )
+    match = re.search(
+        r"<BUNDLE_ROOT>/(runtime/prompts/cddl/[\w.-]+)", developer_dispatch
+    )
+    assert match is not None
+    assert (spec_bundle / match.group(1)).is_file()
+
+    reviewer_dispatch = (prompts_dir / "reviewer-dispatch.md").read_text(
+        encoding="utf-8"
+    )
+    assert "{{CHARTER_FILE}}" in reviewer_dispatch
+    assert "<BUNDLE_ROOT>/runtime/prompts/cddl/{{CHARTER_FILE}}" in reviewer_dispatch
+
+    for prompt_name in (
+        "cli-dispatch.md",
+        "developer-dispatch.md",
+        "reviewer-dispatch.md",
+        "verdict-format.md",
+    ):
+        assert (prompts_dir / prompt_name).is_file()
+
+    cli_dispatch = (prompts_dir / "cli-dispatch.md").read_text(encoding="utf-8")
+    assert "verdict-format.md" in cli_dispatch
