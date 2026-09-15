@@ -2,12 +2,20 @@
 
 ## Unreleased
 
+- Make refactor and security review fan-out risk-based: one reviewer is now the
+  default, with independent review reserved for consequential or uncertain changes.
 - Make Context7 authentication persistent across harnesses: device OAuth now
   stores one long-lived API key, Manifest writes private bearer-authenticated
   `/mcp` entries, and deploys preserve existing MCP credentials.
 - Reconcile the complete Codex plugin marketplace before retiring flat skills.
 - Add the pinned, cross-harness `manifest-i-have-adhd` plugin and reversible upstream migration.
 - Add portable skill model chains, bounded failure classification, explicit fallback authorization, and `manifest skill-run`.
+- Add `stitch-design` 0.4.0's OMP-local UI delivery: Astra and local-only
+  model qualification, isolated two-route pilot preparation, and constrained
+  builder/reviewer roles. Separate builder and reviewer digests gate each stage;
+  verification requires current candidate-bound build checks and capture evidence
+  from their authorized routes;
+  it does not claim deployment, publication, or live Stitch access.
 
 > Version history for the Manifest parallel agent orchestration framework
 

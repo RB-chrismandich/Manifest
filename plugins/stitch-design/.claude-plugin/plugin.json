@@ -11,6 +11,27 @@
     "compatibility": {
       "degraded": [
         {
+          "component_id": "ui-builder",
+          "component_type": "agents",
+          "mode": "not_applicable",
+          "path": "agents/ui-builder.md",
+          "reason": "This constrained agent is OMP-only."
+        },
+        {
+          "component_id": "ui-reviewer",
+          "component_type": "agents",
+          "mode": "not_applicable",
+          "path": "agents/ui-reviewer.md",
+          "reason": "This constrained agent is OMP-only."
+        },
+        {
+          "component_id": "model-qualification",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "runtime/model-qualification",
+          "reason": "claude native manifest cannot encode runtime component 'model-qualification' at 'runtime/model-qualification'"
+        },
+        {
           "component_id": "react-native-validator",
           "component_type": "runtime",
           "mode": "degraded",
@@ -58,6 +79,27 @@
           "mode": "degraded",
           "path": "runtime/dist",
           "reason": "claude native manifest cannot encode runtime component 'stitch-dist' at 'runtime/dist'"
+        },
+        {
+          "component_id": "stitch-omp-extension",
+          "component_type": "runtime",
+          "mode": "not_applicable",
+          "path": "extensions/ui-delivery-policy.ts",
+          "reason": "This extension is OMP-only."
+        },
+        {
+          "component_id": "stitch-omp-mcp-definition",
+          "component_type": "runtime",
+          "mode": "not_applicable",
+          "path": ".mcp.json",
+          "reason": "This MCP definition is OMP-only."
+        },
+        {
+          "component_id": "stitch-omp-package",
+          "component_type": "runtime",
+          "mode": "not_applicable",
+          "path": "package.json",
+          "reason": "This package manifest is OMP-only."
         }
       ],
       "native": [
@@ -100,6 +142,8 @@
     "./skills/spec-amend",
     "./skills/stitch-loop",
     "./skills/taste-design",
+    "./skills/ui-delivery",
+    "./skills/ui-verification",
     "./skills/upload-to-stitch",
     "./skills/ux-review"
   ],

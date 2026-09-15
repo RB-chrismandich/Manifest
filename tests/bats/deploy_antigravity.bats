@@ -111,6 +111,8 @@ setup_verify() {
     export MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
     export ENABLE_CLAUDE=true ENABLE_GEMINI=false ENABLE_CURSOR=false ENABLE_CODEX=false
     export ENABLE_ANTIGRAVITY=true ENABLE_GH=false ENABLE_GLAB=false
+    export MANIFEST_APM_DOMAINS="$SANDBOX/apm_domains.yml"
+    printf 'domains: []\nretired:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"
     export RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
     mkdir -p "$HOME"
     MOCK_BIN="$SANDBOX/mock_bin"
@@ -176,13 +178,12 @@ EOF
     assert_output --partial ".antigravity/skills/code-audit/SKILL.md"
 }
 
-@test "verify_installation reports the antigravity SKILL.md as Missing when enabled but not deployed" {
+@test "verify_installation omits retired Antigravity skill paths when enabled but not deployed" {
     setup_verify
     make_verify_stub claude
     make_verify_stub agy
     run verify_installation
-    assert_output --partial "Missing:"
-    assert_output --partial ".antigravity/skills/code-audit/SKILL.md"
+    refute_output --partial ".antigravity/skills/code-audit/SKILL.md"
 }
 
 # ---- print_summary: antigravity auth hint (G17) ----

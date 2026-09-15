@@ -213,7 +213,7 @@ def test_generator_emits_release_command_catalog(
     catalog_path = tmp_path / "manifest-workspace/skills/help/catalog/commands.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 
-    assert len(catalog["commands"]) == 119
+    assert len(catalog["commands"]) == 121
     assert any(
         command["qualified_name"] == "manifest-workspace:parallel-agent"
         for command in catalog["commands"]

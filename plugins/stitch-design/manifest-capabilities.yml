@@ -11,6 +11,24 @@ components:
   agents:
     - {id: design-lens-reviewer, path: agents/design-lens-reviewer.md}
     - {id: skeptic-verifier, path: agents/skeptic-verifier.md}
+    - id: ui-builder
+      path: agents/ui-builder.md
+      compatibility:
+        claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        gemini: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+    - id: ui-reviewer
+      path: agents/ui-reviewer.md
+      compatibility:
+        claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        gemini: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
   hooks: []
   runtime:
     - {id: stitch-dist, path: runtime/dist}
@@ -18,8 +36,36 @@ components:
     - {id: stitch-build-lock, path: runtime/node/package-lock.json}
     - {id: stitch-build-package, path: runtime/node/package.json}
     - {id: static-html-sources, path: skills/extract-static-html/scripts}
+    - {id: model-qualification, path: runtime/model-qualification}
     - {id: react-validator, path: skills/react-components/scripts}
     - {id: react-native-validator, path: skills/react-native/scripts}
+    - id: stitch-omp-package
+      path: package.json
+      compatibility:
+        claude: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        codex: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        gemini: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        cursor: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        devin: {mode: not_applicable, reason: This package manifest is OMP-only.}
+    - id: stitch-omp-mcp-definition
+      path: .mcp.json
+      compatibility:
+        claude: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        codex: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        gemini: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        cursor: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        devin: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+    - id: stitch-omp-extension
+      path: extensions/ui-delivery-policy.ts
+      compatibility:
+        claude: {mode: not_applicable, reason: This extension is OMP-only.}
+        codex: {mode: not_applicable, reason: This extension is OMP-only.}
+        gemini: {mode: not_applicable, reason: This extension is OMP-only.}
+        cursor: {mode: not_applicable, reason: This extension is OMP-only.}
+        antigravity: {mode: not_applicable, reason: This extension is OMP-only.}
+        devin: {mode: not_applicable, reason: This extension is OMP-only.}
   guidance: []
 capabilities:
   mcp:

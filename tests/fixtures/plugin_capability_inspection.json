@@ -53,6 +53,7 @@
           "runtime:constitution-config",
           "runtime:constitution-references",
           "runtime:constitution-scripts",
+          "runtime:review-escalation-reference",
           "runtime:scaffold-templates",
           "runtime:smoke-scripts",
           "runtime:smoke-vendor",
@@ -224,6 +225,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -253,6 +255,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -325,6 +329,7 @@
           "runtime:constitution-config",
           "runtime:constitution-references",
           "runtime:constitution-scripts",
+          "runtime:review-escalation-reference",
           "runtime:scaffold-templates",
           "runtime:smoke-scripts",
           "runtime:smoke-vendor",
@@ -497,6 +502,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -526,6 +532,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -598,6 +606,7 @@
           "runtime:constitution-config",
           "runtime:constitution-references",
           "runtime:constitution-scripts",
+          "runtime:review-escalation-reference",
           "runtime:scaffold-templates",
           "runtime:smoke-scripts",
           "runtime:smoke-vendor",
@@ -772,6 +781,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -801,6 +811,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -873,6 +885,7 @@
           "runtime:constitution-config",
           "runtime:constitution-references",
           "runtime:constitution-scripts",
+          "runtime:review-escalation-reference",
           "runtime:scaffold-templates",
           "runtime:smoke-scripts",
           "runtime:smoke-vendor",
@@ -1044,6 +1057,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1073,6 +1087,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -1145,6 +1161,7 @@
           "runtime:constitution-config",
           "runtime:constitution-references",
           "runtime:constitution-scripts",
+          "runtime:review-escalation-reference",
           "runtime:scaffold-templates",
           "runtime:smoke-scripts",
           "runtime:smoke-vendor",
@@ -1316,6 +1333,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1345,6 +1363,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
@@ -1417,6 +1437,7 @@
           "runtime:constitution-config",
           "runtime:constitution-references",
           "runtime:constitution-scripts",
+          "runtime:review-escalation-reference",
           "runtime:scaffold-templates",
           "runtime:smoke-scripts",
           "runtime:smoke-vendor",
@@ -1588,6 +1609,7 @@
         "stitch-design": [
           "agent:design-lens-reviewer",
           "agent:skeptic-verifier",
+          "runtime:model-qualification",
           "runtime:react-native-validator",
           "runtime:react-validator",
           "runtime:static-html-sources",
@@ -1617,6 +1639,8 @@
           "skill:spec-amend",
           "skill:stitch-loop",
           "skill:taste-design",
+          "skill:ui-delivery",
+          "skill:ui-verification",
           "skill:upload-to-stitch",
           "skill:ux-review"
         ]
