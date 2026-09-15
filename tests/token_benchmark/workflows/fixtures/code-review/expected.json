@@ -1,0 +1,9 @@
+{
+  "required_findings": [
+    {"file": "counter.py", "line": 2, "category": "off_by_one"}
+  ],
+  "required_dispositions": [
+    {"id": "C1", "decision": "refute"}
+  ],
+  "forbidden_categories": ["sql_injection"]
+}

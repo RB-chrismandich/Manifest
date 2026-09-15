@@ -2,30 +2,32 @@
 
 Use these examples to format your Stitch MCP design system tool calls correctly.
 
+## UI Delivery Runtime Inventory
+
+When UI delivery policy is active, only registered Stitch tools with these exact
+registry names are classified. Every mutation requires an independently approved
+`tool_name` plus canonical input hash. Project-scoped reads remain bound to the
+approved project; only `mcp__stitch_list_projects` and URL-based
+`mcp__stitch_read_url_content` are projectless reads.
+
+| Classification | Exact registry names |
+| --- | --- |
+| Read | `mcp__stitch_list_projects`, `mcp__stitch_get_project`, `mcp__stitch_list_screens`, `mcp__stitch_get_screen`, `mcp__stitch_list_design_systems`, `mcp__stitch_read_url_content` |
+| Mutation | `mcp__stitch_create_project`, `mcp__stitch_generate_screen_from_text`, `mcp__stitch_edit_screens`, `mcp__stitch_generate_variants`, `mcp__stitch_upload_design_md`, `mcp__stitch_create_design_system_from_design_md`, `mcp__stitch_update_design_system`, `mcp__stitch_apply_design_system` |
+
+Unknown Stitch tools are denied. The inventory covers the bundled
+`generate-design` and `manage-design-system` workflows.
+
 ---
 
-## Upload `DESIGN.md` (via `upload_to_stitch.py` script)
+## Upload `DESIGN.md`
 
-Uploads a `DESIGN.md` file to a project via the `BatchCreateScreens` endpoint.
-This is the first step in creating a design system from a markdown file.
-
-> [!NOTE]
-> Use the `upload-to-stitch` skill's script instead of the `upload_design_md`
-> MCP tool. The script handles base64 encoding in-process, avoiding the model's
-> output token limit.
-
-```bash
-STITCH_API_KEY=<API_KEY> python3 \
-  "${CLAUDE_PLUGIN_ROOT}/skills/upload-to-stitch/scripts/upload_to_stitch.py" \
-  --project-id <PROJECT_ID> \
-  --file-path /path/to/DESIGN.md
-```
-
-The script reads the key from the `STITCH_API_KEY` environment variable; there
-is no `--api-key` flag. It ships with the sibling `stitch-design:upload-to-stitch`
-skill, not
-this one, so the path is anchored on `${CLAUDE_PLUGIN_ROOT}` rather than written
-relative to a working directory the caller may not be in.
+Dispatch `mcp__stitch_upload_design_md` only through the
+`/stitch-design:ui-delivery` policy extension. The request must match the
+externally approved task digest, project, and exact content; then reconcile it
+using the approved post-mutation readback.
+The retired `upload_to_stitch.py` script deliberately rejects every upload
+invocation and must not be used.
 
 ---
 

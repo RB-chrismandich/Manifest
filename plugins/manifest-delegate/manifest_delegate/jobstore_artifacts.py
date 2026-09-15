@@ -134,7 +134,7 @@ class JobArtifactsMixin:
 
     def replace_owned_file(self, job_id, name, content=""):
         """Atomically replace one regular file confined to its private job dir."""
-        if name not in {"output.txt", "job.log"}:
+        if name not in {"output.txt", "job.log", "changes.patch"}:
             raise ValueError("job file is not coordinator-owned")
         job_dir = os.path.realpath(self.job_dir(job_id))
         path = os.path.join(job_dir, name)
@@ -163,6 +163,7 @@ class JobArtifactsMixin:
             os.replace(temporary, path)
             os.chmod(path, 0o600)
             _fsync_directory(job_dir)
+        # constitution: exempt C-ERR — cleanup preserves atomic replacement across all interruptions before re-raising
         except BaseException:
             with contextlib.suppress(OSError):
                 os.unlink(temporary)

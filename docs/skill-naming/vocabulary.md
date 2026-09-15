@@ -2,7 +2,7 @@
 
 > The allowed domain prefixes and what each one covers.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-14
 
 ## Domain Vocabulary
 
@@ -58,6 +58,7 @@ speckit
 terraform
 test
 token
+ui
 ux
 version
 ```

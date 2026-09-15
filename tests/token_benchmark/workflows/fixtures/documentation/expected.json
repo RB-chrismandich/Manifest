@@ -1,0 +1,9 @@
+{
+  "readme_sections": ["# minicli", "## Requirements", "## Commands"],
+  "required_facts": ["Python 3.11", "check", "render"],
+  "command_map": {
+    "check": "validate input",
+    "render": "render output"
+  },
+  "forbidden_claims": ["install from PyPI", "MIT license"]
+}

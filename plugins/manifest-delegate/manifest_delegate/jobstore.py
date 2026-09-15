@@ -62,6 +62,15 @@ class JobStore(
         )
         _mkdir_0700(self.workspace_dir)
 
+    @classmethod
+    def _for_workspace_dir(cls, workspace_dir):
+        """Build a store bound to an already-existing workspace directory,
+        bypassing cwd-based slug derivation (used to search other workspaces
+        for a remote-session job not tied to the current directory)."""
+        store = cls.__new__(cls)
+        store.workspace_dir = workspace_dir
+        return store
+
     def job_dir(self, job_id):
         return os.path.join(self.workspace_dir, job_id)
 

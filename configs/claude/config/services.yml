@@ -63,6 +63,12 @@ services:
       - flash    # Balanced (default)
       - advanced  # Maximum capability
 
+  # Jules is a remote task backend, not a local harness/deploy target.
+  jules:
+    enabled: false
+    command: jules
+    description: "Remote GitHub tasks via Jules CLI; authenticate with jules login"
+
   # Devin CLI - Cognition's terminal coding agent (devin)
   # Install: brew install --cask devin-cli
   #          (or curl -fsSL https://cli.devin.ai/install.sh | bash)
