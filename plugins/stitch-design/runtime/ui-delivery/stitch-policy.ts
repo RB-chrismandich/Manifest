@@ -134,13 +134,27 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     screen: /^projects\/[^/]+\/screens\/[^/]+$/,
     design_system: /^projects\/[^/]+\/designSystems\/[^/]+$/,
   };
+  const resourceNameIdPatterns: Record<StitchIdentityKind, RegExp> = {
+    project: /^projects\/([^/]+)$/,
+    screen: /^projects\/[^/]+\/screens\/([^/]+)$/,
+    design_system: /^projects\/[^/]+\/designSystems\/([^/]+)$/,
+  };
+  const canonicalIdentityValue = (kind: StitchIdentityKind, value: string): string | undefined =>
+    resourceNameIdPatterns[kind].exec(value)?.[1] ?? (!value.includes('/') ? value : undefined);
   const identityFrom = (value: unknown, kind: StitchIdentityKind): StitchIdentity | undefined => {
     const record = recordFrom(value);
     if (!record) return undefined;
     for (const candidate of [record, ...identityContainers[kind].map((key) => recordFrom(record[key]))]) {
       if (!candidate) continue;
-      for (const key of identityKeys[kind]) if (typeof candidate[key] === 'string' && candidate[key]) return { kind, value: candidate[key] };
-      if (typeof candidate.name === 'string' && resourceNamePatterns[kind].test(candidate.name)) return { kind, value: candidate.name };
+      for (const key of identityKeys[kind]) {
+        if (typeof candidate[key] !== 'string' || !candidate[key]) continue;
+        const normalized = canonicalIdentityValue(kind, candidate[key]);
+        if (normalized) return { kind, value: normalized };
+      }
+      if (typeof candidate.name === 'string' && resourceNamePatterns[kind].test(candidate.name)) {
+        const normalized = canonicalIdentityValue(kind, candidate.name);
+        if (normalized) return { kind, value: normalized };
+      }
     }
     return undefined;
   };
@@ -179,7 +193,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     const candidates = [...entries].flatMap(([entryKey, lifecycle]) => {
       const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
       const identity = identities.get(entryKey);
-      return lifecycle === 'consumed'
+      return (lifecycle === 'consumed' || (recovery && lifecycle === 'pending'))
         && Boolean(mutation)
         && validExpectedReadback(mutation!)
         && mutation!.expected_readback.tool_name === toolName

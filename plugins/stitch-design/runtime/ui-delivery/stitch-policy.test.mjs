@@ -232,6 +232,67 @@ test('recovers a unique persisted consumed mutation only through its exact resta
   );
 });
 
+test('recovers a persisted pending mutation left by a crash before its result callback, without permitting a second mutation', async () => {
+  const definition = task();
+  let saved;
+  const persist = async (state) => {
+    saved = { ...state, entries: { ...state.entries }, version: state.version + 1 };
+    return saved;
+  };
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now, persist });
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'mutation-1' });
+  assert.equal(Object.values(saved.entries)[0], 'pending');
+
+  const restarted = createStitchPolicy({ task: definition, registry, now: () => now, state: saved, persist });
+  await assert.rejects(
+    () => restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'mutation-2' }),
+    /reconcil/i,
+  );
+  await restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: {}, toolCallId: 'readback-1' });
+  await assert.rejects(
+    () => restarted.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { screen: { id: 'stale' } } }),
+    /reconcil/i,
+  );
+  await restarted.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: readback });
+  assert.equal(restarted.state(), 'reconciled');
+  await assert.rejects(
+    () => restarted.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'mutation-3' }),
+    /consum/i,
+  );
+});
+
+test('normalizes a resource-name learned identity against a bare id observed on readback', async () => {
+  const generation = { screenId: 'seed', prompt: 'Create a checkout screen' };
+  const definition = task({
+    stitch_grant: {
+      ...task().stitch_grant,
+      mutations: [{
+        tool_name: 'mcp__stitch_generate_screen_from_text',
+        input_hash: hashStitchInput(generation),
+        max_uses: 1,
+        expected_readback: { tool_name: 'mcp__stitch_get_screen', predictable_fields: { title: 'Learned Screen' }, resource_identity: 'screen' },
+      }],
+    },
+  });
+  const policy = createStitchPolicy({ task: definition, registry, now: () => now });
+
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' });
+  await policy.recordMutationResult({
+    toolName: 'mcp__stitch_generate_screen_from_text',
+    toolCallId: 'generate-1',
+    succeeded: true,
+    result: { name: 'projects/project-17/screens/s-99' },
+  });
+
+  await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: { screenId: 's-99' }, toolCallId: 'readback-1' });
+  await assert.rejects(
+    () => policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { screenId: 'other-screen', projectId: 'project-17', title: 'Learned Screen' } }),
+    /reconcil/i,
+  );
+  await policy.recordReadback({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', toolCallId: 'readback-1', reconciled: true, observation: { screenId: 's-99', projectId: 'project-17', title: 'Learned Screen' } });
+  assert.equal(policy.state(), 'reconciled');
+});
+
 test('binds Stitch reads and readback reconciliation to the approved project', async () => {
   const policy = createStitchPolicy({ task: task(), registry, now: () => now });
   await policy.authorize({ projectId: 'project-17', toolName: 'mcp__stitch_get_screen', input: {}, toolCallId: 'before-mutation' });
