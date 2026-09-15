@@ -78,7 +78,7 @@ def test_bash_turn_with_pending_diff_runs_the_gate(tmp_path, monkeypatch, capsys
     monkeypatch.setattr(
         delegate.process,
         "_spawn_backend",
-        lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (
+        lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None, before_popen=None: (
             0,
             raw_output,
             None,

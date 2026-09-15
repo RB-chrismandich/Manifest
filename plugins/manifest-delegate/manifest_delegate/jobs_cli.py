@@ -286,6 +286,22 @@ def _mark_containment_cleaned(store, job_id):
     store.mutate(job_id, _cleaned)
 
 
+def _cancel_liveness(store, job_id, record, before_pgid):
+    """Whether cancel found anything of this job's to stop.
+
+    `was_alive` False is consumed as "cancel won the claim before anything
+    spawned" -- its only stable meaning, because a live backend's pgid may not
+    be published yet and a short-lived one can exit between its fork and this
+    kill, so neither kill success nor the backend.lock probe can decide it. A
+    recorded `dispatch.backend_launched` proves a Popen was authorized under
+    the job lock before this cancel's CAS landed, so cancel did NOT win the
+    claim, whether or not the process is still running now."""
+    was_alive = _terminate_job_processes(store, job_id, record)
+    if _reap_raced_pgid(store, job_id, before_pgid):
+        was_alive = True
+    return was_alive or bool((record.get("dispatch") or {}).get("backend_launched"))
+
+
 def _cancel_active(store, resolved, record, args, expected):
     before_pgid = record.get("pgid")
 
@@ -310,7 +326,10 @@ def _cancel_active(store, resolved, record, args, expected):
     # Reproduced at ~1 in 24 runs under parallel load (#846) as a job that
     # reached state "cancelled" with was_alive False -- cancel found nothing to
     # kill -- while the stub backend's start sentinel existed, proving the
-    # executable ran anyway.
+    # executable ran anyway. This CAS is only half the barrier: a worker that
+    # already reserved its spawn (dispatch.backend_launched, written under this
+    # same lock immediately before Popen) is past it, and the report below owns
+    # that case.
     #
     # A stale-version CAS failure now returns before any kill, which is also
     # the safer order: this process has not cancelled the job, so it has no
@@ -323,9 +342,7 @@ def _cancel_active(store, resolved, record, args, expected):
         # path instead of surfacing a traceback.
         print(f"delegate: {error}", file=sys.stderr)
         return 2
-    was_alive = _terminate_job_processes(store, resolved, record)
-    if _reap_raced_pgid(store, resolved, before_pgid):
-        was_alive = True
+    was_alive = _cancel_liveness(store, resolved, record, before_pgid)
     if (
         containment.reap(
             store.job_dir(resolved), required=containment.is_contained(record)
