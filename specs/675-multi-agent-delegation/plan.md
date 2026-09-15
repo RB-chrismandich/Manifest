@@ -38,7 +38,7 @@ engine is replaced, not vendored).
 **Primary Dependencies**: External CLIs invoked as subprocesses: `codex`
 (npm `@openai/codex` / brew cask), `claude` (npm `@anthropic-ai/claude-code`),
 `agy` (Antigravity IDE + `agy install`). Optional reads (degrade to compiled
-factory defaults when absent, per SC-005): `~/.claude/config/parallel_agent.yml`
+factory defaults when absent, per SC-005): `~/.claude/config/model_policy.yml`
 (`model_tiers`; PyYAML-if-importable, else tier passthrough),
 `~/.claude/config/services.yml` (workspace disables; fixed-format extraction
 of the generator-owned layout — never requires PyYAML),
@@ -80,7 +80,7 @@ enforced with process-group termination (FR-012).
   byte budget 12707/12900 constrains the agent-context update.
 - Harness routing: no model IDs or per-harness config in SKILL.md/agent
   frontmatter (`configs/claude/references/harness-routing.md`); tiers by name,
-  resolved via `parallel_agent.yml` `model_tiers` when present.
+  resolved via `model_policy.yml` `model_tiers` when present.
 - Non-autonomy (FR-008): read-only delegation by default; never
   `--dangerously-*` flags; gate never auto-applies fixes.
 - First bundle in this repo to ship plugin `hooks/` (baseline proves Claude
@@ -98,9 +98,9 @@ re-check note at end of section).*
 | Principle | Verdict | Evidence |
 |---|---|---|
 | I. Configuration-as-Code | PASS | All shipped artifacts live in `plugins/manifest-delegate/` + registration files, version-controlled. Runtime state (`.agent_outputs/delegations/`) and user config (`delegation.{json,yml}`) are user-scope files no deployer owns — explicitly blessed by V.4's note; nothing writes into deployed trees. |
-| II. Parallel Agent Orchestration | PASS (obligation carried to implement phase) | This is an architectural change: the implementation PR MUST run `manifest parallel-agent` cross-verification (Tier 1) before merge; the plan records this as a task-phase gate. |
+| II. Parallel Agent Orchestration | PASS (obligation carried to implement phase) | This is an architectural change: the implementation PR MUST run an OMP reviewer-wave cross-verification (Tier 1) before merge; the plan records this as a task-phase gate. |
 | III. Consensus-Driven Decisions | PASS | Applies at the implementation review gates; thresholds unchanged. |
-| IV. Skill-First Extensibility | PASS | Capability ships as skills in a bundle; the dispatcher is new plugin-local code — `parallel_agent.py` is not expanded (D5 explicitly rejected absorbing it). Constitution's `.skillshare/` wording is stale (superseded by feature 674's `plugins/` layout, per SKILL-NAMING.md); we follow the current authoritative lifecycle. |
+| IV. Skill-First Extensibility | PASS | Capability ships as skills in a bundle; the dispatcher is new plugin-local code — the retired cross-harness coordinator is not expanded (D5 explicitly rejected absorbing it). Constitution's `.skillshare/` wording is stale (superseded by feature 674's `plugins/` layout, per SKILL-NAMING.md); we follow the current authoritative lifecycle. |
 | V. Reproducible, Idempotent Deployment | PASS | Plugin distributed via the marketplace mechanism (674); repo `configs/` untouched except docs. `delegation.{json,yml}` is user state written only by the user (or by `delegate-setup` on explicit request, to the user-scope path — canonically `delegation.json`; YAML updated in place only when PyYAML is importable, research.md D3). Single ownership: no path is written by two mechanisms; job records are runtime output, not deployment. |
 | VI. State-Gated Lifecycle | PASS with logged note | Phases 1–4 complete (spec, 5/5 clarifications, 16/16 requirements checklist, plan + design artifacts). Phase-3 product review ran 2026-08-05 — its findings were fixed into the artifacts, but the synthesizer artifact (`.spec-review/feedback.md`) recorded no verdict (known agy-stdin false-green); re-run the synthesizer before the phase-7 technical review gate is claimed. Phase 5: `/speckit-tasks` complete; hierarchy provisioning via `/speckit-taskstoissues` DEFERRED — **logged here as the Principle VI override record** (human-driven work): tracker issues will be provisioned before implementation begins. Phase 6: `/speckit-analyze` ran 2026-08-05 → 0 critical findings (gate PASS); 2 HIGH + 12 MEDIUM remediated into the artifacts same day. Phase 7: `/spec-review --mode technical` ran 2026-08-05 — panel: codex completed (5 findings: read-only enforceability, CAS locking, worker-crash reaper, envelope extraction contract, transfer-vocabulary scoping); agy returned NO_ISSUES in 14s (unreliable — known stdin false-green) and cursor/gemini failed (usage-limited/retired); the script's synthesizer false-greened again, so findings were synthesized from the raw agent outputs, all 5 adjudicated valid and fixed into the artifacts same day → **APPROVED** (single-reliable-reviewer caveat recorded; Constitution II's Tier-1 cross-verification gate still runs on the implementation PR, T050). Verify gate: each shipped workflow gets a critical-path smoke test, executed by T048's `smoke_test.py run --tier Lite` gate. |
 | VII. Published Artifact Integrity | DORMANT/PASS | The bundle is consumed from the local checkout via the marketplace path `./plugins/manifest-delegate` — not a published package. If it is ever published, VII's pinning/scrubbing obligations activate (noted in MIGRATION.md). |

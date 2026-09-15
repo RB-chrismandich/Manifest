@@ -2,7 +2,7 @@
 
 ## Objective
 
-Process the provided GitHub Issue into a fully implemented, tested, and validated feature. You act as the Orchestrator, coordinating domain-specific Sub-Agents for each component and using parallel agent tooling for planning and validation.
+Process the provided GitHub Issue into a fully implemented, tested, and validated feature. You act as the Orchestrator, coordinating domain-specific Sub-Agents for each component and using OMP task/hub dispatch for planning and validation.
 
 **Issue to process**: $ARGUMENTS
 
@@ -122,13 +122,10 @@ Before planning or implementing anything, verify that the issue has been through
    - Its current checked/unchecked state
    Each checklist item becomes a trackable deliverable that must be addressed during implementation. If neither the body nor comments contain checklists, note this and proceed — the implementation summary will still be posted.
 3. **Cross-reference checklists with the plan**: Map each checklist item to the relevant task(s) in the implementation plan extracted in Step 0.5. This ensures no acceptance criteria are missed during implementation.
-4. **Validate the plan against current codebase state**: Run a quick sanity check — do the files referenced in the plan still exist? Have they changed significantly since the plan was created? If the plan references files that no longer exist or have been substantially modified, warn the user that the plan may be stale and suggest re-running `/plan-issue`.
-5. Use the **Implementation Order** from the plan to produce the per-component task breakdown. Only run a cross-component impact analysis if the plan lacks an Implementation Order section:
-
-   ```bash
-   ~/.claude/scripts/parallel_agent.py --json --timeout 600 \
-     --analyze "Analyze impact of: [ISSUE_SUMMARY]. Components: [AFFECTED_COMPONENTS]"
-   ```
+4. Use the **Implementation Order** from the plan to produce the per-component task
+   breakdown. Only run a cross-component impact analysis if the plan lacks an
+   Implementation Order section; dispatch those independent analysis units together
+   through OMP `task` and aggregate their evidence in the parent.
 
 ### Step 2: Implementation (Sub-Agent Delegation)
 

@@ -1,7 +1,7 @@
 # Tier-1 Security Cross-Verification (T038)
 
 Constitution II/III gate for the smoke-test orchestrator (security-sensitive:
-CLI/shell execution + secret handling). Run via `parallel_agent.py` on the
+CLI/shell execution + secret handling). Run via `the retired cross-harness coordinator` on the
 attack surface: `steps/cli.py`, `steps/api.py`, `state.py`, `redact.py`,
 `executor.py`, `report.py`.
 

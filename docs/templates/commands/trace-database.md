@@ -345,20 +345,12 @@ Output the database access catalog and topology in the requested format:
 
 ---
 
-## Integration with Parallel Agents
+## Independent Analysis
 
-For complex queries or ambiguous patterns, use parallel agents:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json --timeout 300 \
-  "Is this code accessing a database table? [CODE_SNIPPET]. What table and what operation (read/write)?"
-```
-
-Use consensus to validate:
-
-- >= 80%: Confident this is a database access
-- 50-79%: Likely but needs verification
-- < 50%: Ambiguous, flag for human review
+For complex queries or ambiguous patterns, dispatch independent read-only OMP `scout`
+units in one `task` batch. Ask each to identify the accessed table and operation from
+the supplied snippet; the parent compares evidence and flags ambiguity for human
+review. If OMP `task` is unavailable, analyze inline and report `DEGRADED`.
 
 ---
 

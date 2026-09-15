@@ -13,7 +13,7 @@ All spec-level unknowns were resolved during `/speckit-specify` (deep research +
 
 **Alternatives considered**:
 - *Mirror the Antigravity pattern* (a `configs/emdash/` tree symlinked to `~/.emdash/`): **rejected** — emdash reads no such directory; the tree would be inert.
-- *Register emdash as a parallel-agent provider* (config.py/cli.py): **rejected** — emdash runs agents; it is not an agent invoked by `parallel_agent.py`.
+- *Register emdash as a retired cross-harness coordinator provider* (former config/CLI): **rejected** — emdash runs agents; it is not an agent invoked by that coordinator.
 
 ## R2 — Verification method (clarify Q1)
 

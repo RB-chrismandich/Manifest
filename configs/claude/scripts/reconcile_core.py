@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
-import importlib.util
 import json
 import os
 import re
@@ -54,30 +53,17 @@ def _default_roster_path():
 
 
 def _agent_roster_loader():
-    """Load ``load_agent_roster`` from ``agents/config.py`` WITHOUT importing
-    the ``agents`` package. ``agents/__init__.py`` re-exports the full
-    orchestration stack (cli/orchestrator/runners/synthesis/validation) —
-    heavy and unrelated to this read-only engine — and importing it would
-    make PyYAML a hard runtime dependency of this module, which currently has
-    none (see ``_parse_protected_yaml`` below). Loaded standalone via
-    ``spec_from_file_location``, the same technique
-    ``tests/python/test_reconcile_policy.py`` already uses to load this very
-    module. Returns None on any failure (missing file, missing PyYAML, ...)
-    so callers fall back gracefully.
+    """Return the public optional-roster loader without importing the coordinator.
+
+    The policy package owns this parsing concern. Import failures remain
+    nonfatal so reconciliation preserves its historical hardcoded-root
+    fallback on partial or old deployments.
     """
     try:
-        cfg_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "agents", "config.py"
-        )
-        spec = importlib.util.spec_from_file_location(
-            "_reconcile_agents_config", cfg_path
-        )
-        if spec is None or spec.loader is None:
-            return None
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod.load_agent_roster
-    except Exception:
+        from manifest_model_policy import load_agent_roster
+
+        return load_agent_roster
+    except ImportError:
         return None
 
 
@@ -154,10 +140,9 @@ def load_fleet_tags(roster_path=None):
     below) > the sibling ``../config/agent_roster.yml``. Only agents whose
     home_dir is a managed "$HOME/.<name>" root are returned (see the
     _DEFAULT_ROOT_TAGS header). Falls back to the hardcoded 5-tag default if
-    the registry is missing, unparseable, or the
-    ``agents/config.py`` loader can't be imported — this CLI must keep
-    working with no config file present (same invariant as
-    ``_parse_protected_yaml``).
+    the registry is missing, unparseable, or the public optional-roster loader
+    cannot be imported — this CLI must keep working with no config file
+    present (same invariant as ``_parse_protected_yaml``).
     """
     path = (
         roster_path or os.environ.get("MANIFEST_AGENT_ROSTER") or _default_roster_path()

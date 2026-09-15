@@ -71,7 +71,7 @@ pip3 install pre-commit --user
 ~/Library/Python/3.9/bin/pre-commit run shellcheck --all-files
 
 # Run on specific files
-~/Library/Python/3.9/bin/pre-commit run --files bootstrap.sh configs/claude/scripts/parallel_agent.py
+~/Library/Python/3.9/bin/pre-commit run --files bootstrap.sh configs/claude/scripts/manifest_model_policy/headless.py
 ```
 
 ## Bypassing Hooks (Not Recommended)

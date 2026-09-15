@@ -329,8 +329,7 @@ check_devin_auth() {
     echo ""
     echo -e "    ${CYAN}devin auth login${NC}"
     echo ""
-    echo "  Until then, leave it disabled (--disable-devin): an unauthenticated"
-    echo "  agent errors in the parallel-agent panel instead of abstaining."
+    echo "  Until then, leave it disabled (--disable-devin)."
     echo ""
     return 1
 }

@@ -5,8 +5,8 @@
 Inputs: spec.md (clarified 5/5), baseline inventory of the externally installed
 `openai/codex-plugin-cc` v1.0.6 (marketplace cache
 `~/.claude/plugins/cache/openai-codex/codex/1.0.6/`), repo invocation
-infrastructure (`configs/claude/scripts/agents/runners.py`, `agents/config.py`,
-`parallel_agent.yml`), bootstrap install/toggle mechanics, and the live catalog
+infrastructure (the retired cross-harness coordinator's former runner/config,
+`model_policy.yml`), bootstrap install/toggle mechanics, and the live catalog
 budget/registration gates. All facts below were read from files or measured by
 running the gates on 2026-08-05.
 
@@ -70,7 +70,7 @@ Mechanism notes that informed decisions below:
   `agy -p --conversation <ID>` / `--continue`. Storing the session/thread id in
   the delegation record is sufficient — the same identity model the baseline
   uses (`threadId` in the job index).
-- Repo convention is one-shot exec (`parallel_agent.yml` `cli_agents`:
+- Repo convention is one-shot exec (`model_policy.yml` `cli_agents`:
   `codex exec --full-auto --color never --output-last-message {output_file}`,
   `claude --model {m} -p {prompt}`, `agy --model {m} --print {prompt}`), so the
   invocation shapes are already proven here.
@@ -139,13 +139,13 @@ containing `record.json` (metadata + normalized result envelope), `output.txt`
 (backend's final message), and `job.log` (timestamped progress + raw
 stdout/stderr tail). Retention: prune to the newest 50 jobs per workspace on
 write (matching the baseline's `MAX_JOBS=50` and the existing
-`output.keep_last: 50` convention in `parallel_agent.yml`).
+`output.keep_last: 50` convention in the retired cross-harness coordinator).
 
 **Rationale**:
 
 - `~/.claude/.agent_outputs/` is the repo's established runtime-artifact
-  location (parallel-agent logs live there; `output.directory` in
-  `parallel_agent.yml` declares it with a keep-last policy). Runtime state is
+  location (the retired coordinator's logs lived there; its former output
+  policy declared a keep-last limit). Runtime state is
   deliberately *not* deployer-owned, so Constitution I/V are satisfied (a
   deployed tree stays a build output; user-scope state lives where no deploy
   mechanism claims ownership).
@@ -217,7 +217,7 @@ backends:
   blocked a backend ("disabled by workspace services.yml" vs "disabled by user
   delegation.yml").
 - `model` values are **tier names** (per `harness-routing.md` rule 1: raw model
-  IDs live only in `parallel_agent.yml` `model_tiers`), with verbatim
+  IDs live only in `model_policy.yml` `model_tiers`), with verbatim
   passthrough for values that aren't known tiers (the devin precedent).
   Factory default tier per backend follows FR-009's economical-model rule:
   codex `auto`, claude `sonnet`, antigravity `flash` (the
@@ -245,7 +245,7 @@ prompting reference (path to the per-backend guidance file), and
 `services_key` (the `services.yml` toggle it honors).
 
 Seed invocation facts (verified against installed CLIs and
-`parallel_agent.yml` `cli_agents`):
+`model_policy.yml` `cli_agents`):
 
 | Backend | One-shot | Resume | Read-only mode | Auth probe |
 |---|---|---|---|---|
@@ -347,7 +347,7 @@ config) iterates the registry rather than switching on names. The cross-CLI
 resume asymmetry (subcommand vs flag) is exactly why invocation shapes belong
 in data, not code.
 
-**Alternatives considered**: reusing `parallel_agent.yml` `cli_agents` as the
+**Alternatives considered**: reusing `model_policy.yml` `cli_agents` as the
 registry — rejected: it lacks readiness/remediation/sandbox/prompting fields,
 is deployed-tree-resident (breaks marketplace-only install, SC-005), and
 serves a different consumer. Instead, a bats drift test asserts the plugin
@@ -399,7 +399,7 @@ patching a module-level constant patches the module that owns it.
   `services.yml` **enable flags** are extracted with a fixed-format line reader
   matched to `write_services_config()`'s generator-owned layout (bats-gated
   against that generator), so the FR-013 MUST — workspace disables outrank
-  user enables — holds unconditionally; `parallel_agent.yml` `model_tiers` is
+  user enables — holds unconditionally; `model_policy.yml` `model_tiers` is
   consulted only when PyYAML is importable, else tier names pass through
   verbatim (the devin precedent). When deployed config is absent entirely,
   compiled factory defaults apply. The `manifest-docker` bundle set this

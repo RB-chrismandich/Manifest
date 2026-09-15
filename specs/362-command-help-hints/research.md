@@ -128,7 +128,7 @@ listing. No match → explicit "no command matches" message (edge case in spec).
 
 **Alternatives rejected**:
 - *Embedding/semantic search* — adds a runtime dependency and nondeterminism; overkill for ~84 entries.
-- *Bake discovery into `parallel_agent.py`* — violates Skill-First.
+- *Bake discovery into `the retired cross-harness coordinator`* — violates Skill-First.
 
 ---
 

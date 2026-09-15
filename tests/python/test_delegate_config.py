@@ -189,9 +189,8 @@ class TestModelTiers:
         tiers = delegate.load_model_tiers(config_dir=str(tmp_path))
         assert tiers == {}
 
-    def test_pyyaml_unavailable_returns_empty(self, tmp_path, monkeypatch):
-        (tmp_path / "parallel_agent.yml").write_text("model_tiers:\n  auto: gpt\n")
-        monkeypatch.setattr(delegate.config, "_yaml_module", lambda: None)
+    def test_malformed_policy_returns_empty(self, tmp_path):
+        (tmp_path / "model_policy.yml").write_text("model_tiers: [unclosed\n")
         tiers = delegate.load_model_tiers(config_dir=str(tmp_path))
         assert tiers == {}
 

@@ -40,7 +40,7 @@ pytest tests/python/ -v
 ```
 
 Expected: All tests pass. If any fail, the import paths in
-`tests/python/test_parallel_agent.py` or the per-module test files need correction.
+`the retired coordinator integration test` or the per-module test files need correction.
 
 ---
 
@@ -76,7 +76,7 @@ Each command must exit 0 without requiring external agent connections.
 
 ```bash
 # Verify help output is identical to pre-modularization
-python configs/claude/scripts/parallel_agent.py --help
+python configs/claude/scripts/the retired cross-harness coordinator --help
 ```
 
 Confirm all flags (`--json`, `--validate`, `--review`, `--analyze`, `--timeout`,
@@ -88,7 +88,7 @@ Confirm all flags (`--json`, `--validate`, `--review`, `--analyze`, `--timeout`,
 
 ```bash
 # This will fail gracefully if no API keys are present — that is expected
-python configs/claude/scripts/parallel_agent.py --json --claude-only "smoke test" \
+python configs/claude/scripts/the retired cross-harness coordinator --json --claude-only "smoke test" \
   2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print('keys:', sorted(d.keys()))" \
   || echo "(No API key available — CLI parsing still verified)"
 ```
@@ -112,10 +112,10 @@ above; see Complexity Tracking in plan.md for accepted justification).
 
 **ImportError: No module named 'agents'**
 → Ensure `sys.path` in the test file includes `configs/claude/scripts/`.
-The existing `SCRIPTS_DIR` setup in `test_parallel_agent.py` handles this automatically.
+The existing `SCRIPTS_DIR` setup in `the retired coordinator integration test` handles this automatically.
 
 **Tests pass but `--help` fails**
-→ `parallel_agent.py` shim is missing or not calling `agents.cli.main`. Check the
+→ `the retired cross-harness coordinator` shim is missing or not calling `agents.cli.main`. Check the
 shim's import and `asyncio.run(main())` call.
 
 **`runners.py` has circular import**

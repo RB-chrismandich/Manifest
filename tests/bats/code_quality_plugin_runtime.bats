@@ -46,6 +46,6 @@ teardown() {
 }
 
 @test "code-quality instructions contain no legacy runtime commands" {
-    run bash -c "grep -R -nE '(configs/claude/scripts|~/.claude/scripts|manifest smoke|parallel_agent.py|learning_capture.sh)' '$BUNDLE/skills' --include='SKILL.md' || true"
+    run bash -c "grep -R -nE '(configs/claude/scripts|~/.claude/scripts|manifest smoke|parallel_'"agent.py"'|learning_capture.sh)' '$BUNDLE/skills' --include='SKILL.md' || true"
     assert_output ""
 }

@@ -123,7 +123,7 @@ Single project. Runtime artifact under `configs/claude/`; repo-infra at root
 - [X] T020 [P] Update `CONTRIBUTING.md` "Development Workflow" to reference the edit-time advisory hook and the CI pre-commit changed-files run as the authoritative gate (`--all-files` is a local full-sweep)
 - [X] T021 Run `specs/366-coding-standards/quickstart.md` end-to-end (edit-time advisory demo, gate demo, currency greps) and fix any gaps
 - [X] T022 Run the full suite: `npx bats tests/bats/` and `pytest tests/python/` — ensure ≥100 tests pass and local results match the CI changed-files `pre-commit run --from-ref/--to-ref`
-- [X] T023 Constitution II gate: run `~/.claude/scripts/parallel_agent.py --review` (or equivalent ≥2-agent cross-verification) on the diff before opening the PR; record the verdict in the PR description
+- [X] T023 Constitution II gate: run `~/.claude/scripts/the retired cross-harness coordinator --review` (or equivalent ≥2-agent cross-verification) on the diff before opening the PR; record the verdict in the PR description
 
 ---
 

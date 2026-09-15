@@ -375,8 +375,7 @@ def test_refactor_policies_share_risk_gate_and_check_only_verification(
     expected_trigger = " OR ".join(config["review_escalation"]["conditions"])
     for skill_name in ("refactor", *REFACTOR_SKILLS):
         policy = config["tool_policies"][skill_name]
-        assert policy["parallel_agents"] == "conditional"
-        assert policy["trigger_condition"] == expected_trigger
+        assert policy["subagents"] == "conditional"
         assert policy["subagent_trigger"] == expected_trigger
 
     for skill_name in REFACTOR_SKILLS:

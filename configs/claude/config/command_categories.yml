@@ -128,7 +128,6 @@ overrides:
   antipattern-detect: meta
   session-checkpoint: meta
   code-audit: meta
-  metrics-report: meta
   env-check: meta
   help: meta
   learning-capture: meta

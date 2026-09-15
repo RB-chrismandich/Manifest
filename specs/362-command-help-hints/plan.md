@@ -45,9 +45,9 @@ through the existing `ai-hooks-integration` hook plumbing, and a **drift-check**
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | ✅ PASS | All artifacts live in `configs/` + `.retired skill supply/`; `docs/COMMANDS.md` is **generated** (never hand-edited) and deployed reproducibly. Drift-check enforces no manual edits. |
-| II. Parallel Agent Orchestration | ✅ PASS (process gate) | Change will exceed 200 lines across generator + skill + hooks → MUST be cross-verified by ≥2 parallel agents before merge (`parallel_agent.py`). Recorded as a PR-time gate, not a design violation. |
+| II. Parallel Agent Orchestration | ✅ PASS (process gate) | Change will exceed 200 lines across generator + skill + hooks → MUST be cross-verified by ≥2 parallel agents before merge (`the retired cross-harness coordinator`). Recorded as a PR-time gate, not a design violation. |
 | III. Consensus-Driven Decisions | ✅ PASS | Applies at review; thresholds unchanged. |
-| IV. Skill-First Extensibility | ✅ PASS | Discovery is a new **skill**; hints/reminders ride hooks + a registry. `parallel_agent.py` and other core scripts are NOT expanded to absorb this. The generator is a discrete support script, not core-engine growth. |
+| IV. Skill-First Extensibility | ✅ PASS | Discovery is a new **skill**; hints/reminders ride hooks + a registry. `the retired cross-harness coordinator` and other core scripts are NOT expanded to absorb this. The generator is a discrete support script, not core-engine growth. |
 | V. Bootstrap Reproducibility | ✅ PASS | Generator + deployment are idempotent and guarded; non-zero exit on unrecoverable failure. |
 
 **Result**: No violations. Complexity Tracking table intentionally left empty.

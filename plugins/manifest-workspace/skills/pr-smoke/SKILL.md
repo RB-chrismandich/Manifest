@@ -21,6 +21,8 @@ Use `--quick` to skip slower test suites. Exit codes are `0` PASS, `1` WARN for
 missing optional tools, and `2` FAIL for a regression. Relay the emitted result
 table and first failing gate.
 
-When an independent cross-provider review is required, invoke
-`manifest-workspace:parallel-agent` separately and consume its structured output. If the
-harness cannot invoke it, perform the review inline and report `DEGRADED`.
+When an independent review is required, dispatch the review units in one OMP
+`task` call (in waves of at most 32), using `reviewer`. Each child reviews only
+its assigned unit and never re-dispatches; the parent directly aggregates the
+evidence. Use `hub` only to coordinate or wait. If `task` is unavailable,
+perform the review inline and report `DEGRADED`.

@@ -7,7 +7,7 @@ def component_is_installed(path: Path) -> bool:
     """Whether a declared component path is present in an installed plugin root.
 
     A component may declare either a single file (`runtime/catalog.py`) or a
-    whole directory (`skills/parallel-agent/scripts`); roughly half of the
+    whole directory (`skills/session-checkpoint/scripts`); roughly half of the
     components declared across `plugins/*/plugin.json` are directories. Testing
     only `is_file()` silently denied evidence to every directory-valued
     component and pinned the harness at BLOCKED with no reachable repair —

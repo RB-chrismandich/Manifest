@@ -62,14 +62,17 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     config = json.load(stream)
 
-# Extract key thresholds
+# Extract local and OMP-review thresholds.
 dup = config['duplicate_detection']
+review = config['review']
 print(f"DUP_TITLE_HIGH={dup['title_similarity_high']}")
 print(f"DUP_TITLE_MEDIUM={dup['title_similarity_medium']}")
 print(f"STALENESS_DAYS={config['staleness']['inactivity_days']}")
 print(f"FILE_MISSING_THRESHOLD={config['staleness']['file_missing_threshold']}")
-print(f"CONSENSUS_HIGH={config['consensus']['high_threshold']}")
-print(f"CONSENSUS_MEDIUM={config['consensus']['medium_threshold']}")
+print(f"REVIEWERS_PER_ITEM={review['reviewers_per_item']}")
+print(f"MINIMUM_VALID_VERDICTS={review['minimum_valid_verdicts']}")
+print(f"DUPLICATE_AGREEMENT_THRESHOLD={review['duplicate_agreement_threshold']}")
+print(f"PRIORITY_AGREEMENT_THRESHOLD={review['priority_agreement_threshold']}")
 PY
 }
 
@@ -85,10 +88,14 @@ while IFS= read -r line; do
             val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; STALENESS_DAYS="$val" ;;
         FILE_MISSING_THRESHOLD=*)
             val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; FILE_MISSING_THRESHOLD="$val" ;;
-        CONSENSUS_HIGH=*)
-            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; CONSENSUS_HIGH="$val" ;;
-        CONSENSUS_MEDIUM=*)
-            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; CONSENSUS_MEDIUM="$val" ;;
+        REVIEWERS_PER_ITEM=*|MINIMUM_VALID_VERDICTS=*|DUPLICATE_AGREEMENT_THRESHOLD=*|PRIORITY_AGREEMENT_THRESHOLD=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"
+            case "$line" in
+                REVIEWERS_PER_ITEM=*) REVIEWERS_PER_ITEM="$val" ;;
+                MINIMUM_VALID_VERDICTS=*) MINIMUM_VALID_VERDICTS="$val" ;;
+                DUPLICATE_AGREEMENT_THRESHOLD=*) DUPLICATE_AGREEMENT_THRESHOLD="$val" ;;
+                PRIORITY_AGREEMENT_THRESHOLD=*) PRIORITY_AGREEMENT_THRESHOLD="$val" ;;
+            esac ;;
     esac
 done <<< "$config_string"
 
@@ -465,44 +472,37 @@ PYEOF
 
 detect_duplicates "$TEMP_DIR/issues_with_components.json" > "$DUPLICATES_FILE"
 
-# For MEDIUM confidence duplicates, use parallel agents
-echo "Verifying medium-confidence duplicates with parallel agents..."
+```
 
-jq -c '.[] | select(.needs_agent_review == true)' "$DUPLICATES_FILE" | while read -r dup; do
-    primary_title=$(echo "$dup" | jq -r '.primary_issue.title')
-    duplicate_title=$(echo "$dup" | jq -r '.duplicate_issue.title')
-    primary_desc=$(jq -r --arg id "$(echo "$dup" | jq -r '.primary_issue.identifier')" \
-        '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_with_components.json")
-    duplicate_desc=$(jq -r --arg id "$(echo "$dup" | jq -r '.duplicate_issue.identifier')" \
-        '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_with_components.json")
+#### OMP duplicate-review wave
 
-    # Call parallel agents for consensus
-    consensus=$(manifest-workspace:parallel-agent --json --timeout 300 \
-        --cursor-model mini --claude-model haiku \
-        "Are these issues duplicates?
+For every MEDIUM pair, the parent dispatches **five independent read-only
+`reviewer` tasks** in one OMP `task` call (or multiple waves of at most 32
+tasks). A task receives exactly one pair and must return this JSON object:
 
-        Issue A: $primary_title
-        Description A: $primary_desc
+```json
+{"is_duplicate": true, "confidence": 0, "reasoning": "..."}
+```
 
-        Issue B: $duplicate_title
-        Description B: $duplicate_desc
+`is_duplicate` must be a JSON boolean, `confidence` an integer from 0 through
+100, and `reasoning` a string. Each malformed, missing, or wrong-typed result
+is recorded by its reviewer task identity as invalid and excluded. The parent
+must not reinterpret prose or infer a verdict.
 
-        Return JSON: {\"is_duplicate\": true/false, \"confidence\": 0-100, \"reasoning\": \"...\"}")
+After collecting the five results for a pair, the parent requires at least
+`MINIMUM_VALID_VERDICTS` valid results (3), calculates
+`true_votes / valid_votes`, and promotes the pair to HIGH only when that ratio
+is at least `DUPLICATE_AGREEMENT_THRESHOLD` (0.8). Otherwise it leaves the
+pair MEDIUM.
 
-    consensus_score=$(echo "$consensus" | jq -r '.cross_verification.consensus_score // 0')
-    is_duplicate=$(echo "$consensus" | jq -r '.agents.claude.output' | jq -r '.is_duplicate // false')
+If fewer than three valid verdicts arrive, record `DEGRADED` with the invalid
+or missing reviewer identities and leave the pair MEDIUM. A DEGRADED review
+never changes a duplicate disposition. If OMP `task` is unavailable, review
+the pair inline, record `DEGRADED`, and do not promote it automatically.
 
-    # Update confidence based on consensus
-    if [[ "$is_duplicate" == "true" && $consensus_score -ge 80 ]]; then
-        # Promote to HIGH confidence
-        jq --arg id1 "$(echo "$dup" | jq -r '.primary_issue.identifier')" \
-           --arg id2 "$(echo "$dup" | jq -r '.duplicate_issue.identifier')" \
-           '(.[] | select(.primary_issue.identifier == $id1 and .duplicate_issue.identifier == $id2) | .confidence) = "HIGH"' \
-           "$DUPLICATES_FILE" > "$TEMP_DIR/dups_updated.json"
-        mv "$TEMP_DIR/dups_updated.json" "$DUPLICATES_FILE"
-    fi
-done
+Only after applying those outcomes:
 
+```bash
 DUP_COUNT=$(jq '[.[] | select(.confidence == "HIGH")] | length' "$DUPLICATES_FILE")
 echo "Found $DUP_COUNT high-confidence duplicates"
 ```
@@ -629,68 +629,141 @@ echo "Found $STALE_COUNT closable stale issues"
 
 ### Step 7: Priority Validation
 
-```bash
-echo "Validating issue priorities..."
+For each candidate with a priority, the parent dispatches **five independent
+read-only `reviewer` tasks** in one OMP `task` call (or waves of at most 32
+tasks). A task receives exactly one candidate and must return this JSON object:
 
-PRIORITY_FILE="$TEMP_DIR/priority_issues.json"
-
-validate_priorities() {
-    local issues_file="$1"
-
-    # Use parallel agents for complex priority scoring
-    jq -c '.[] | select(.priority != null)' "$issues_file" | while read -r issue; do
-        identifier=$(echo "$issue" | jq -r '.identifier')
-        title=$(echo "$issue" | jq -r '.title')
-        description=$(echo "$issue" | jq -r '.description // ""')
-        current_priority=$(echo "$issue" | jq -r '.priority')
-
-        # Call parallel agents for priority scoring
-        consensus=$(manifest-workspace:parallel-agent --json --timeout 300 \
-            --cursor-model flash --claude-model sonnet \
-            "Score this issue for prioritization:
-
-            Title: $title
-            Description: $description
-            Current priority: $current_priority (0=None, 1=Urgent, 2=High, 3=Medium, 4=Low)
-
-            Rate on scale 1-5:
-            - Impact: User/business impact if not addressed
-            - Urgency: Time sensitivity
-            - Readiness: Prerequisites/dependencies ready
-            - Risk: Implementation risk/complexity
-
-            Calculate score: (Impact × 3) + (Urgency × 2) + (Readiness × 2) - Risk
-
-            Return JSON with:
-            - impact_score: 1-5
-            - urgency_score: 1-5
-            - readiness_score: 1-5
-            - risk_score: 1-5
-            - total_score: calculated value
-            - recommended_priority: 0-4 (based on score thresholds: 28+=1, 22+=2, 16+=3, 10+=4, <10=0)
-            - reasoning: brief explanation")
-
-        # Parse consensus
-        consensus_score=$(echo "$consensus" | jq -r '.cross_verification.consensus_score // 0')
-
-        # Extract recommendation from agent output
-        claude_output=$(echo "$consensus" | jq -r '.agents.claude.output // "{}"')
-        recommended_priority=$(echo "$claude_output" | jq -r '.recommended_priority // null')
-
-        if [[ "$recommended_priority" != "null" && "$recommended_priority" != "$current_priority" && $consensus_score -ge 70 ]]; then
-            echo "{
-                \"identifier\": \"$identifier\",
-                \"title\": \"$title\",
-                \"current_priority\": $current_priority,
-                \"recommended_priority\": $recommended_priority,
-                \"consensus_score\": $consensus_score,
-                \"reasoning\": $(echo "$claude_output" | jq -r '.reasoning // "N/A"' | jq -Rs .)
-            }"
-        fi
-    done | jq -s . > "$PRIORITY_FILE"
+```json
+{
+  "impact_score": 1,
+  "urgency_score": 1,
+  "readiness_score": 1,
+  "risk_score": 1,
+  "recommended_priority": 0,
+  "reasoning": "..."
 }
+```
 
-validate_priorities "$TEMP_DIR/issues_with_components.json"
+Each reviewer prompt must include the scoring rule and mapping retained by the
+priority policy:
+
+- Calculate total score as `(impact_score × 3) + (urgency_score × 2) +
+  (readiness_score × 2) - risk_score`.
+- Map total score to `recommended_priority` as: 28 or greater → 1; 22–27 → 2;
+  16–21 → 3; 10–15 → 4; below 10 → 0.
+
+All four dimension scores must be integers from 1 through 5;
+`recommended_priority` must be an integer from 0 through 4; and `reasoning`
+must be a string. Record every invalid, malformed, or missing result by its
+reviewer task identity and exclude it from the vote.
+
+For each candidate, require at least `MINIMUM_VALID_VERDICTS` valid results
+(3). Find the modal `recommended_priority`; a recommendation changes the
+candidate only if its modal votes divided by valid votes is at least
+`PRIORITY_AGREEMENT_THRESHOLD` (0.7) **and** differs from the current
+priority. Include the modal vote ratio and valid reviewer count in the
+recommendation report. Ties have no modal recommendation and leave the
+priority unchanged.
+
+If a candidate has fewer than three valid results, record `DEGRADED` naming
+the invalid or missing reviewers and make no priority recommendation or
+mutation for that candidate. If OMP `task` is unavailable, perform the review
+inline, record `DEGRADED`, and make no automatic priority change.
+
+The parent serializes the returned verdicts in task submission order to
+`$TEMP_DIR/priority_verdicts.json`. Each entry has `identifier`, `title`,
+`current_priority`, and ordered `verdicts`; every verdict has a `reviewer`
+identity and a `result` object (or `null` when missing). Materialize the
+recommendations and named invalid/degraded audit before Step 8:
+
+```bash
+PRIORITY_FILE="$TEMP_DIR/priority_issues.json"
+PRIORITY_AUDIT_FILE="$TEMP_DIR/priority_review_audit.json"
+
+python3 - "$TEMP_DIR/priority_verdicts.json" "$PRIORITY_FILE" "$PRIORITY_AUDIT_FILE" \
+    "$MINIMUM_VALID_VERDICTS" "$PRIORITY_AGREEMENT_THRESHOLD" <<'PY'
+import json
+import sys
+from collections import Counter
+
+source, recommendation_path, audit_path, minimum, threshold = sys.argv[1:]
+minimum = int(minimum)
+threshold = float(threshold)
+
+with open(source, encoding="utf-8") as stream:
+    candidates = json.load(stream)
+
+recommendations = []
+audit = []
+
+def valid_result(result):
+    if not isinstance(result, dict):
+        return False
+    dimensions = ("impact_score", "urgency_score", "readiness_score", "risk_score")
+    return (
+        all(type(result.get(key)) is int and 1 <= result[key] <= 5 for key in dimensions)
+        and type(result.get("recommended_priority")) is int
+        and 0 <= result["recommended_priority"] <= 4
+        and isinstance(result.get("reasoning"), str)
+    )
+
+for candidate in candidates:
+    valid = []
+    invalid_reviewers = []
+    for verdict in candidate.get("verdicts", []):
+        reviewer = verdict.get("reviewer", "unknown-reviewer")
+        result = verdict.get("result")
+        if valid_result(result):
+            valid.append((reviewer, result))
+        else:
+            invalid_reviewers.append(reviewer)
+
+    record = {
+        "identifier": candidate["identifier"],
+        "valid_reviewer_count": len(valid),
+        "invalid_or_missing_reviewers": invalid_reviewers,
+    }
+    if len(valid) < minimum:
+        record["status"] = "DEGRADED"
+        audit.append(record)
+        continue
+
+    votes = Counter(result["recommended_priority"] for _, result in valid)
+    modal_priority, modal_votes = votes.most_common(1)[0]
+    if sum(count == modal_votes for count in votes.values()) != 1:
+        record["status"] = "NO_MODAL_RECOMMENDATION"
+        audit.append(record)
+        continue
+
+    agreement_ratio = modal_votes / len(valid)
+    modal_reasoning = next(
+        result["reasoning"]
+        for _, result in valid
+        if result["recommended_priority"] == modal_priority
+    )
+    record.update(
+        status="RECOMMENDED" if agreement_ratio >= threshold else "INSUFFICIENT_AGREEMENT",
+        modal_priority=modal_priority,
+        modal_votes=modal_votes,
+        agreement_ratio=agreement_ratio,
+    )
+    audit.append(record)
+    if agreement_ratio >= threshold and modal_priority != candidate["current_priority"]:
+        recommendations.append({
+            "identifier": candidate["identifier"],
+            "title": candidate["title"],
+            "current_priority": candidate["current_priority"],
+            "recommended_priority": modal_priority,
+            "agreement_ratio": agreement_ratio,
+            "valid_reviewer_count": len(valid),
+            "reasoning": modal_reasoning,
+        })
+
+with open(recommendation_path, "w", encoding="utf-8") as stream:
+    json.dump(recommendations, stream, indent=2)
+with open(audit_path, "w", encoding="utf-8") as stream:
+    json.dump(audit, stream, indent=2)
+PY
 
 PRIORITY_COUNT=$(jq 'length' "$PRIORITY_FILE")
 echo "Found $PRIORITY_COUNT priority misalignments"
@@ -766,7 +839,7 @@ $(jq -r '.[] | select(.safe_to_close == false) |
 These issues have priority misalignments based on impact/urgency scoring:
 
 $(jq -r '.[] |
-"- **\(.identifier)**: Current P\(.current_priority) → Recommended P\(.recommended_priority) (Consensus: \(.consensus_score)%)
+"- **\(.identifier)**: Current P\(.current_priority) → Recommended P\(.recommended_priority) (Agreement: \(.agreement_ratio * 100)% across \(.valid_reviewer_count) valid verdicts)
   - Title: \(.title)
   - Reasoning: \(.reasoning)"' "$PRIORITY_FILE")
 

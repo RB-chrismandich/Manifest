@@ -1,6 +1,6 @@
 ---
 name: pr-monitor
-description: "Babysit a just-opened pull/merge request until CI is green and every reviewer is satisfied. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\"."
+description: "Babysit a just-opened pull/merge request until CI is green and existing reviewer feedback is addressed. Use for PR/MR monitoring, Copilot reviews, and Jules feedback when present."
 ---
 
 # Post-PR Review Monitor
@@ -34,7 +34,7 @@ URL if the user gave one.
 
 If no PR exists for the branch, say so and ask whether to create one (or point
 the user at `/manifest-forge:git-commit`) rather than guessing. If the PR is a **draft**,
-note it — Copilot/Jules often won't auto-review a draft; offer to mark it ready.
+note it — Copilot may not auto-review a draft; offer to mark it ready.
 
 See `references/platform-commands.md` for the full GitHub/GitLab command
 cookbook and bot-identity detection.
@@ -65,16 +65,16 @@ or the failure is environmental / needs a decision (flaky infra, a secret, a
 product choice), stop and hand back a crisp diagnosis instead of thrashing. A
 human un-sticking you in 30 seconds beats ten more failed pushes.
 
-Bot identities (logins, invoke method, mention syntax) live in
+Bot identities (logins, invoke method, issue labels) live in
 `../../runtime/config/review_bots.json`, not hardcoded here — for each bot in
 that registry with `role: reviewer`, check whether it's on the PR and act per
-its `invoke` field. Phases 2 and 3 below cover the two reviewer entries
-(`copilot`, `jules`) with their registry-keyed behavioral notes attached.
+its `invoke` field. Phase 2 covers Copilot review; phase 3 covers existing
+feedback from Jules, whose registry role is author and invocation scope is issue-only.
 
 ### 2. GitHub Copilot (`review_bots.json` bot: `copilot`) — address findings if it reviewed
 
 Copilot is **addressed-if-present**, not summoned: this phase only acts when
-Copilot is already on the PR. (Jules is the one you tag in phase 3.)
+Copilot is already on the PR. Jules feedback is also addressed only when present.
 
 - **Is Copilot on the PR?** Check both requested reviewers and submitted
   reviews for the Copilot bot — its login is registry field `copilot.author_login`
@@ -91,39 +91,21 @@ Copilot is already on the PR. (Jules is the one you tag in phase 3.)
   evidence, re-test, push, and reply to / resolve every thread. Don't
   re-implement that here.
 
-### 3. Google Jules (`review_bots.json` bot: `jules`) — tag it, then watch for and address its feedback
+### 3. Google Jules (`review_bots.json` bot: `jules`) — address feedback when present
 
-Jules is **not** a GitHub-native reviewer: requesting it as a reviewer or
-assignee is silently ignored. The only programmatic trigger in this repo is a
-**comment mention** (registry field `jules.mention`) that the `jules-trigger.yml`
-workflow acts on.
+Jules starts implementation from a **GitHub issue** carrying the `jules` label
+(case insensitive), with the Jules GitHub App authorized for the repository.
+This is an issue task trigger, not a PR review request. See the registry's
+`invoke: label`, `label: jules`, and `invoke_scope: github_issue`.
 
-1. **Is Jules already tagged?** Scan the PR's comments (not reviews) for a
-   `jules.mention` (`@google-labs-jules`). Also note whether the trigger landed:
-   the workflow reacts with 👀 on the triggering comment.
-2. **Not tagged → tag it.** Post a comment mentioning it with a clear ask:
-   `gh pr comment <N> --body "@google-labs-jules please review this PR"`
-   (GitLab: `glab mr note <N> --message "..."`). Only a trusted commenter
-   (repo OWNER/MEMBER/COLLABORATOR) actually triggers Jules — if you're acting
-   as the PR author that's normally satisfied; if the mention gets no 👀 within
-   a few minutes, surface that the trigger may be gated and let the user post it.
-3. **Watch for Jules activity, then address it.** Jules does not leave inline
-   GitHub *review* comments the way Copilot does — its feedback shows up as one
-   or more of:
-   - **PR comments** from the Jules bot / its personas (the registry's
-     `role: author` entries — `palette`, `bolt` — plus Forge and Sentinel,
-     which aren't separately registered),
-   - **commits pushed to the PR branch**, or
-   - a **separate linked PR**.
-   Poll for these (see waiting strategy below). When findings land as comments,
-   route them through **`pr-address-comments`** just like Copilot's. If Jules
-   pushes commits or opens a sibling PR, review that diff on its merits before
-   accepting (the `pr-triage-bots` skill covers judging bot diffs) — Jules
-   over-produces and is sometimes wrong, so verify, don't rubber-stamp. Note
-   that `palette`/`bolt` PRs carry no distinct GitHub bot account (see
-   `review_bots.json`'s `identified_by: title_prefix` for those two) — they post
-   under whichever account's credentials ran the Jules session, so identify
-   them by title/branch prefix, not by author login.
+1. Check for existing Jules comments, commits, or linked PRs. Route findings to
+   **`pr-address-comments`** and assess generated diffs with **`pr-triage-bots`**.
+2. If there is no Jules activity, skip this phase. Never post mention triggers,
+   automatically label a linked issue, or create a new Jules task while monitoring.
+3. If the user explicitly requests issue implementation by Jules, use the label
+   workflow in `references/platform-commands.md`. A separate CLI submission for
+   the same labeled issue would duplicate the task. GitLab has no equivalent
+   native Jules issue-label integration in the documented flow.
 
 ### 4. Close the loop
 
@@ -146,8 +128,8 @@ don't busy-spin every few seconds.
   rather than a foreground sleep.
 - **Cap the wait.** Pick a sensible overall budget (e.g. ~15-20 min of polling
   for a bot to first respond) and a max number of rounds. When you hit the cap
-  with no response, **don't loop forever** — report current state ("Jules tagged,
-  👀 seen, no findings yet after 20 min") and let the user decide whether to keep
+  with no response, **don't loop forever** — report current state ("Jules task
+  acknowledged on the issue, no PR yet after 20 min") and let the user decide whether to keep
   waiting. Silent infinite polling is worse than an honest pause.
 
 ## Scope and honesty

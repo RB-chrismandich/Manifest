@@ -56,9 +56,9 @@ _run_wrapper() {
 
 @test "forwards argv byte-for-byte and preserves the exit code" {
     _stub_runtime 42
-    _run_wrapper parallel-agent --json "two words" '$literal' --
+    _run_wrapper smoke --json "two words" '$literal' --
     assert_failure 42
-    assert_output "RAN:parallel-agent --json two words \$literal --"
+    assert_output "RAN:smoke --json two words \$literal --"
 }
 
 @test "exits 1 with home runtime message when venv manifest is missing" {

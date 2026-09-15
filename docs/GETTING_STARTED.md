@@ -1,8 +1,8 @@
 # Getting Started
 
-> Step-by-step guide to installing and using the Manifest parallel agent orchestration framework
+> Step-by-step guide to installing and using Manifest's OMP-native workflow configuration
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-09-12
 **Audience**: New users
 **Prerequisites**: macOS 10.15+ or Linux, internet connection
 **Estimated Time**: 10-15 minutes
@@ -11,26 +11,18 @@
 
 ## What is Manifest?
 
-Manifest deploys a parallel LLM agent orchestration system that enables Claude Code to leverage multiple AI agents simultaneously:
+Manifest deploys shared AI coding guides, skills, prompts, and scripts for
+Claude Code, Cursor, Gemini CLI, Codex CLI, Antigravity, and opt-in Devin.
 
-- **Cursor Agent**: IDE-integrated context and code analysis
-- **Gemini CLI**: Broad knowledge and creative solutions
-- **Claude CLI**: Deep reasoning and security analysis
-- **Codex CLI**: Terminal-based coding agent with sandbox execution
-- **Antigravity (agy)**: Independent IDE-backed agent for cross-family verification
-- **Devin CLI** *(opt-in)*: Cognition's terminal agent, off by default — enable with
-  `./bootstrap.sh --enable-devin` after `devin auth login`
+Interactive sub-agent work uses OMP-native `task` batches: submit all ready,
+independent units in one call (at most 32 per wave), assign each child one unit,
+and have the parent validate and aggregate evidence. Use `hub` only to
+coordinate or wait. If OMP is unavailable, work inline and report `DEGRADED`;
+do not fall back to provider CLI fan-out.
 
-These agents run in parallel, analyze the same task from different perspectives,
-and their outputs are synthesized with consensus scoring to provide higher-quality
-results than any single agent.
-
-**Key Benefits**:
-
-- Cross-verification reduces hallucinations
-- Diverse perspectives catch more edge cases
-- Automatic model selection based on task complexity
-- Consensus scoring (≥80% agreement = high confidence)
+Retained noninteractive tools such as CDDL, delegation, and SkillClaw use
+`model_policy.yml` to resolve a single provider CLI, model tier, and bounded
+fallback.
 
 ---
 
@@ -96,7 +88,7 @@ curl https://cursor.com/install -fsS | bash
 # 4. Deploy configuration
 cp -r configs/claude/* ~/.claude/
 cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
-chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
+chmod +x ~/.claude/scripts/*.sh
 
 # 5. Configure services (see Configuration section)
 ```
@@ -107,74 +99,22 @@ chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
 
 ### Step 1: Verify Installation
 
-Check that the parallel agent script is accessible:
+Confirm the installed command surface:
 
 ```bash
-~/.claude/scripts/parallel_agent.py --help
+~/.local/bin/manifest --help
 ```
 
-**Expected output:**
+### Step 2: Start a Coding Session
 
-```text
-Parallel Agent Orchestration
+Open a supported coding harness and invoke a skill. For independent work,
+follow the OMP dispatch guidance in the installed orchestration guide: use one
+`task` batch for all ready units, validate worker evidence in the parent, and
+keep shared mutations sequential.
 
-Usage:
-  ./parallel_agent.py <prompt>
-  ./parallel_agent.py --analyze <file>
-  ./parallel_agent.py --review <file>
-...
-```
-
-### Step 2: Test Agent Connectivity
-
-Run a simple test to verify all agents are working:
-
-```bash
-~/.claude/scripts/parallel_agent.py --json "What is 2+2?"
-```
-
-**Expected output:**
-
-```json
-{
-  "timestamp": "20260127_123456",
-  "mode": "prompt",
-  "agents": {
-    "cursor": {"status": "complete", "output": "..."},
-    "gemini": {"status": "complete", "output": "..."},
-    "claude": {"status": "complete", "output": "..."}
-  },
-  "cross_verification": {
-    "consensus_score": 100,
-    "confidence": "high"
-  }
-}
-```
-
-**If an agent fails:**
-
-- `status: "missing"` → Agent CLI not installed
-- `status: "failed"` → Authentication issue or quota exceeded
-
-> **No API keys required**: the Claude and Gemini agents pick an execution backend
-> per run — the provider SDK when its package and API key
-> (`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) are both present, otherwise the
-> logged-in `claude` / `gemini` CLI. OAuth/subscription logins work out of the box.
-
-See [Troubleshooting](troubleshooting/README.md) for solutions.
-
-### Step 3: Test Single Agent Mode
-
-```bash
-# Test Claude CLI only
-~/.claude/scripts/parallel_agent.py --claude-only "Hello"
-
-# Test Gemini CLI only
-~/.claude/scripts/parallel_agent.py --gemini-only "Hello"
-
-# Test Cursor Agent only (if installed)
-~/.claude/scripts/parallel_agent.py --cursor-only "Hello"
-```
+For a retained noninteractive integration, configure the relevant provider CLI
+and `~/.claude/config/model_policy.yml`; see
+[Model Policy](MODEL-POLICY.md) for its scope.
 
 ---
 

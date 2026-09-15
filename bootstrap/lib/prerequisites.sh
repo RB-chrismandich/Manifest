@@ -94,7 +94,7 @@ check_python() {
         fi
     else
         print_warning "Python not found"
-        print_info "The parallel agent (parallel_agent.py) requires Python 3.9+"
+        print_info "Python 3.9+ is required by several Manifest scripts"
         print_info ""
         print_info "To install Python:"
         if [[ "$PLATFORM" == "macos" ]]; then

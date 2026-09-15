@@ -104,34 +104,6 @@
           "reason": "claude native manifest cannot encode runtime component 'learning-capture-scripts' at 'skills/learning-capture/scripts'"
         },
         {
-          "component_id": "parallel-agent-config",
-          "component_type": "runtime",
-          "mode": "degraded",
-          "path": "skills/parallel-agent/config",
-          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-config' at 'skills/parallel-agent/config'"
-        },
-        {
-          "component_id": "parallel-agent-prompts",
-          "component_type": "runtime",
-          "mode": "degraded",
-          "path": "skills/parallel-agent/prompts",
-          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-prompts' at 'skills/parallel-agent/prompts'"
-        },
-        {
-          "component_id": "parallel-agent-references",
-          "component_type": "runtime",
-          "mode": "degraded",
-          "path": "skills/parallel-agent/references",
-          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-references' at 'skills/parallel-agent/references'"
-        },
-        {
-          "component_id": "parallel-agent-scripts",
-          "component_type": "runtime",
-          "mode": "degraded",
-          "path": "skills/parallel-agent/scripts",
-          "reason": "claude native manifest cannot encode runtime component 'parallel-agent-scripts' at 'skills/parallel-agent/scripts'"
-        },
-        {
           "component_id": "pr-smoke-scripts",
           "component_type": "runtime",
           "mode": "degraded",
@@ -270,8 +242,6 @@
     "./skills/help",
     "./skills/learning-capture",
     "./skills/memory-compress",
-    "./skills/metrics-report",
-    "./skills/parallel-agent",
     "./skills/pass-cli",
     "./skills/pr-smoke",
     "./skills/prompt-optimize",

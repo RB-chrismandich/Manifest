@@ -30,7 +30,7 @@ When **<condition, e.g. ≥3 independent modules>**, dispatch **one sub-agent pe
 **<per-agent task>**, then merge results. Below that threshold, do the work inline.
 
 Choose the mechanism per the shared **Sub-Agent Selection Rules**
-(`configs/claude/references/sub-agent-dispatch.md`) — native Task sub-agents vs. `parallel_agent.py`;
+(`configs/claude/references/sub-agent-dispatch.md`) — native Task sub-agents vs. `the retired cross-harness coordinator`;
 cross-platform fallback. Dispatched sub-agents execute their task directly and do not re-dispatch.
 ```
 

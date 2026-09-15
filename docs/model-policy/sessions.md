@@ -4,10 +4,11 @@
 
 **Last Updated**: 2026-08-20
 
-## 2. Sessions start on Opus (1M context); there is no tier above it
+## 2. Sessions retain the configured Opus default
 
-**Rule.** Opus is the default start model and, since the Fable tier was retired
-on **2026-08-17**, also the top tier. Both `sonnet` and `opus` now pin their
+**Rule.** Opus is the repository's default start model and, since its Fable mapping was retired
+on **2026-08-17**, also its top mapped tier. This does not assert that the host
+offers no other models. Both `sonnet` and `opus` pin their
 1M-context variants (`claude-sonnet-5[1m]`, `claude-opus-5[1m]`).
 
 Because no costlier Claude tier remains, the ask-before-switching rule this
@@ -70,13 +71,13 @@ belongs in `.local.json`.
 > §"Not yet harvested" — `reasoning` is the class that would move, and the
 > decision is deliberately held until lever 1 reads clean.
 
-**Enforcement — and what it does *not* prove.** `session_model` +
+**Historical enforcement, retired with the Fable mapping.** `session_model` +
 `session_model_rationale` in `command_config.yml`; skills declaring
 `session_model: fable` must carry a `## Session model` section instructing them
 to ask. Gated by `tests/bats/subagent_policy.bats` (check T9). Currently
 declared by `issue-dev-auto`, `lifecycle-run`, `spec-implement-loop`.
 
-T9 has the same limit as T7/T8, one layer up: **it proves the SKILL.md contains
+The historical T9 had the same limit as T7/T8, one layer up: **it proved the SKILL.md contained
 the instruction to ask, not that any session actually stopped and asked.** It is
 a documentation check, and naming it one here is deliberate — lever 1 was
 believed landed on exactly this kind of evidence until the class × model matrix

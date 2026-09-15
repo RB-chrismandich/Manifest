@@ -13,7 +13,7 @@ bypass) only when every safety signal clears. Add self-paced advancement with a 
 per-run ceiling, a stop-after-5-empty-runs control, serialized merges with interleaved
 monitoring, and a halt-on-post-merge-breakage guard. The implementation is a set of
 **testable shell helpers** plus extensions to the `auto-issue-dev` skill — it *consumes*
-`parallel_agent.py` and the #360 verification gate; it does not modify them.
+`the retired cross-harness coordinator` and the #360 verification gate; it does not modify them.
 
 ## Technical Context
 
@@ -21,7 +21,7 @@ monitoring, and a halt-on-post-merge-breakage guard. The implementation is a set
 (consistent with repo conventions).
 
 **Primary Dependencies**: `gh` (GitHub) / `glab` (GitLab) via `git_ops.sh` + `git_platform.sh`;
-`parallel_agent.py` (consensus engine); the #360 `verification_gate.sh`; existing skills
+`the retired cross-harness coordinator` (consensus engine); the #360 `verification_gate.sh`; existing skills
 `/address-pr-comments`, `/pr-review`, `/verify`; `audit_log.sh` (audit + redaction); `jq`;
 the `/loop` harness that re-invokes the skill with fresh context.
 
@@ -58,9 +58,9 @@ review-state classification, (3) PR + post-merge-`main` CI status (pass/pending/
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | ✅ PASS | All logic in `configs/claude/scripts/`, `.retired skill supply/skills/`, `.specify/`, `configs/claude/config/`; deployed via `bootstrap.sh`. No manual `~/.claude` edits. |
-| II. Parallel Agent Orchestration | ⚠️ PASS w/ design constraint | Security-sensitive change (merge authority). The runtime honors it: **no PR is auto-merged without parallel-agent cross-verification** (the #360 gate runs `parallel_agent.py` as a merge precondition). Crucially, **for the merge gate, consensus `cross_verification` is BLOCKING** — stricter than #360's PR-open gate where it is advisory. The bar to *merge autonomously* is higher than the bar to *open a PR*. See Complexity Tracking. |
+| II. Parallel Agent Orchestration | ⚠️ PASS w/ design constraint | Security-sensitive change (merge authority). The runtime honors it: **no PR is auto-merged without parallel-agent cross-verification** (the #360 gate runs `the retired cross-harness coordinator` as a merge precondition). Crucially, **for the merge gate, consensus `cross_verification` is BLOCKING** — stricter than #360's PR-open gate where it is advisory. The bar to *merge autonomously* is higher than the bar to *open a PR*. See Complexity Tracking. |
 | III. Consensus-Driven Decisions | ✅ PASS | The merge decision references the canonical thresholds: consensus ≥0.80 → eligible to auto-merge; 0.50–0.79 → hand to human (do not auto-merge); <0.50 → block + synthesize. No consensus bypass — the gate *runs* consensus, it does not skip it. |
-| IV. Skill-First Extensibility | ✅ PASS | Implemented as `auto-issue-dev` skill extensions + discrete testable shell helpers. `parallel_agent.py` is *consumed*, never expanded (Principle IV prohibition respected). |
+| IV. Skill-First Extensibility | ✅ PASS | Implemented as `auto-issue-dev` skill extensions + discrete testable shell helpers. `the retired cross-harness coordinator` is *consumed*, never expanded (Principle IV prohibition respected). |
 | V. Bootstrap Reproducibility | ✅ PASS | New scripts are idempotent; lock/counter state is existence-guarded; scripts exit non-zero on unrecoverable failure. |
 
 **Quality-gate note (breaking change)**: this feature **supersedes `auto-issue-dev` Critical

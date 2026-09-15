@@ -13,9 +13,9 @@
 ### Session 2026-06-28
 
 - Q: Which skills should gain sub-agent dispatch guidance? → A: All 89 skills (full audit).
-- Q: Which kind of sub-agent should the guidance cover? → A: Both Claude-native Task sub-agents and the existing `parallel_agent.py` external CLI agents, with explicit rules for choosing between them.
+- Q: Which kind of sub-agent should the guidance cover? → A: Both Claude-native Task sub-agents and the existing `the retired cross-harness coordinator` external CLI agents, with explicit rules for choosing between them.
 - Q: Where is each skill's disposition recorded as the single source of truth? → A: Extend the existing `tool_policies` block in `command_config.yml` (add native-Task-subagent fields alongside `parallel_agents`); SKILL.md bodies carry the prose triggers that reference it.
-- Q: Where do the native-vs-`parallel_agent.py` selection rules live? → A: Centralized in one referenced location (orchestration guide / references doc); each skill body carries only its own concrete trigger and links to the shared rules.
+- Q: Where do the native-vs-`the retired cross-harness coordinator` selection rules live? → A: Centralized in one referenced location (orchestration guide / references doc); each skill body carries only its own concrete trigger and links to the shared rules.
 - Q: What canonical minimum-scale default gates "conditional" dispatch? → A: Dispatch only when ≥3 independent units of work exist, OR an existing per-skill scale threshold (e.g., `docs_improve_lines: 500`) is exceeded; fewer → inline.
 - Q: How is audit coverage and config/prose consistency enforced? → A: An automated test (bats/pytest) wired into CI asserts every skill has a `tool_policies` disposition and that prose triggers do not contradict it.
 
@@ -56,7 +56,7 @@ and confirm it stays inline.
 ### User Story 2 - Selection rules choose the right sub-agent mechanism (Priority: P2)
 
 The repository exposes two sub-agent paradigms: Claude-native Task/Agent sub-agents (in-session,
-read-and-fan-out, Claude-only) and the external `parallel_agent.py` cross-verification harness
+read-and-fan-out, Claude-only) and the external `the retired cross-harness coordinator` cross-verification harness
 (Gemini/Cursor/Codex/Antigravity, cross-platform). When a skill instructs dispatch, the agent needs
 to know **which** mechanism to use. Each skill's guidance (or a shared, referenced rule set) tells
 the agent which paradigm fits the task and the running platform.
@@ -66,7 +66,7 @@ the Task tool on a platform that lacks it). Selection rules make the P1 guidance
 all supported assistants. It depends on P1 existing but is independently testable.
 
 **Independent Test**: For a skill that supports both mechanisms, confirm its guidance states the
-selection rule (e.g., "use native Task sub-agents for parallel reads/research; use `parallel_agent.py`
+selection rule (e.g., "use native Task sub-agents for parallel reads/research; use `the retired cross-harness coordinator`
 for independent cross-model verification of a security-sensitive change"). Confirm the rule names the
 cross-platform fallback for non-Claude assistants.
 
@@ -75,7 +75,7 @@ cross-platform fallback for non-Claude assistants.
 1. **Given** a task that is parallel information-gathering, **When** the selection rule is applied,
    **Then** it directs the agent to native Task sub-agents (or the platform equivalent).
 2. **Given** a task that is independent cross-model verification, **When** the selection rule is
-   applied, **Then** it directs the agent to `parallel_agent.py`.
+   applied, **Then** it directs the agent to `the retired cross-harness coordinator`.
 3. **Given** a non-Claude assistant running the skill, **When** native Task sub-agents are
    unavailable, **Then** the guidance names the cross-platform path so the skill still works.
 4. **Given** the existing per-skill parallel-agent policy in `command_config.yml`
@@ -145,7 +145,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 - **FR-003**: Skills dispositioned "never" MUST carry a brief rationale explaining why sub-agent
   fan-out does not apply.
 - **FR-004**: Dispatch guidance MUST cover both paradigms — Claude-native Task/Agent sub-agents and
-  the external `parallel_agent.py` harness — and MUST provide selection rules for choosing between
+  the external `the retired cross-harness coordinator` harness — and MUST provide selection rules for choosing between
   them based on task type and running platform.
 - **FR-005**: Selection rules MUST always yield a path that works on the assistant actually running
   the skill (Claude, Cursor, Gemini, Codex, Antigravity), including the cross-platform fallback when
@@ -154,7 +154,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
   store for each skill's disposition; it MUST be extended with native-Task-subagent field(s)
   alongside the current `parallel_agents` field rather than introducing a parallel store. New
   guidance MUST also defer to the orchestration guide's mandatory-parallel-agent rules.
-- **FR-007**: The shared native-vs-`parallel_agent.py` selection rules (including the cross-platform
+- **FR-007**: The shared native-vs-`the retired cross-harness coordinator` selection rules (including the cross-platform
   fallback) MUST live in ONE referenced, read-on-demand location —
   `configs/claude/references/sub-agent-dispatch.md`, indexed by a one-line pointer in the
   auto-loaded `configs/claude/CLAUDE.md` "Reference Index" (kept out of the auto-loaded body to
@@ -193,7 +193,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 - **Dispatch trigger**: The checkable condition embedded in a skill that tells the agent when to fan
   out (scale, count, independence) and what each sub-agent should do.
 - **Selection rule**: The decision logic mapping a task + running platform to the correct sub-agent
-  mechanism (native Task sub-agents vs. `parallel_agent.py`), defined once in a shared referenced
+  mechanism (native Task sub-agents vs. `the retired cross-harness coordinator`), defined once in a shared referenced
   location and linked from skills.
 - **Audit artifact**: The `tool_policies` block in `command_config.yml` (canonical dispositions) plus
   the automated coverage/consistency test that verifies every skill is represented — together they
@@ -226,7 +226,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
   time of writing; the clarification's "89" was an `ls` count that included `README.md`), confirmed
   via clarification; `configs/claude/skills` is the compat symlink to the same source of truth.
 - "Sub-agents" covers both Claude-native Task/Agent sub-agents and the repo's existing external
-  `parallel_agent.py` harness, confirmed via clarification.
+  `the retired cross-harness coordinator` harness, confirmed via clarification.
 - The existing `tool_policies` block in `command_config.yml` (per-skill always/conditional/never
   parallel-agent policy) is the canonical disposition store and is extended in place with
   native-Task-subagent field(s) — never replaced by or duplicated into a parallel mechanism
@@ -236,6 +236,6 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 - Guidance is authored for AI assistants as the primary readers (consistent with how `SKILL.md`
   bodies are written), with contributors as secondary readers.
 - Changes are confined to skill bodies, the audit artifact, and configuration/convention docs; no
-  change to `parallel_agent.py` behavior or the Task tool itself is in scope.
+  change to `the retired cross-harness coordinator` behavior or the Task tool itself is in scope.
 - Cross-platform deployment (Cursor/Gemini/Codex/Antigravity) follows the existing symlink/rules
   deployment model; no new deployment mechanism is introduced.

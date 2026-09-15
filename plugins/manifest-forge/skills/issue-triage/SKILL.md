@@ -15,8 +15,8 @@ This skill performs comprehensive issue triage by:
 1. Detecting duplicate issues using semantic similarity
 2. Identifying stale/obsolete issues (deleted file references, long inactivity)
 3. Validating priority alignment with impact/urgency
-4. Using parallel agents for complex/ambiguous decisions
-5. Generating actionable recommendations with confidence scores
+4. Using OMP-native reviewer waves for ambiguous duplicate and priority decisions
+5. Generating actionable recommendations with explicit verdict evidence
 
 ## Arguments
 
@@ -40,8 +40,8 @@ This skill performs comprehensive issue triage by:
    - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
      shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
      of shelling out)
-2. **Tools installed**: `jq`, `python3`
-3. **Scripts available**: `../../runtime/bin/tracker_ops.sh`, `manifest-workspace:parallel-agent`
+2. **Tools installed**: `jq`, `python3`, plus OMP `task` for reviewer waves
+3. **Scripts available**: `../../runtime/bin/tracker_ops.sh`
 4. **Config loaded**: `../../runtime/config/tracker_triage.json`
 
 ## Workflow
@@ -63,10 +63,11 @@ session** (later steps consume env vars and intermediate files set by earlier on
 ## Safety Rules
 
 1. **Never auto-close issues with "planned" label** - these are intentionally kept in backlog
-2. **Require ≥85% consensus for duplicate marking** - conservative threshold to avoid false positives
-3. **Verify file deletion before marking stale** - check if files truly don't exist
-4. **Require explicit --close-stale flag** - no accidental closures
-5. **Log all actions to audit trail** - full accountability
+2. **Promote a MEDIUM duplicate only with three valid reviewer verdicts and ≥80% duplicate votes**
+3. **Change a priority recommendation only with three valid verdicts and ≥70% modal agreement**
+4. **Verify file deletion before marking stale** - check if files truly don't exist
+5. **Require explicit --close-stale flag** - no accidental closures
+6. **Log all actions to audit trail** - full accountability
 
 ## Error Handling
 
@@ -121,31 +122,27 @@ fi
 - **JSON audit log** in `$XDG_STATE_HOME/manifest/forge/triage_audits/`
 - **Action summary** with counts and recommendations
 
-## Integration with Parallel Agents
+## OMP reviewer waves
 
-Parallel agents are invoked for:
+The parent dispatches OMP-native, read-only `reviewer` tasks only for:
 
-1. **Medium-confidence duplicates** (70-85% similarity) - Get semantic verification
-2. **Priority scoring** - Use multi-agent consensus for impact/urgency assessment
-3. **Gray-area staleness** - Issues with "planned" label but deleted files
+1. **MEDIUM-confidence duplicates** — five reviewers per pair return the
+   duplicate verdict schema from Step 5.
+2. **Priority validation** — five reviewers per candidate return the priority
+   verdict schema from Step 7.
 
-Consensus thresholds:
-
-- ≥85%: AUTO-EXECUTE (duplicates only)
-- 70-84%: RECOMMEND (require user approval)
-- 50-69%: HIGHLIGHT disagreements
-- <50%: ESCALATE to user
+Dispatch each independent wave in one `task` call, with at most 32 task items
+per wave. Children execute one assigned review and never redispatch. The parent
+validates every structured result, excludes and names invalid results, applies
+the configured quorum and thresholds, and aggregates the evidence. If OMP
+`task` is unavailable, execute the review inline and report `DEGRADED`; never
+fall back to a provider CLI or model-specific dispatch.
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
-
-When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
-inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`the current harness native sub-agent dispatch contract`):
-native Task sub-agents on Claude, or `manifest-workspace:parallel-agent` / inline on other assistants.
-Dispatched sub-agents execute
-their task directly and do not re-dispatch.
-
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.

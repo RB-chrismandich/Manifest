@@ -141,30 +141,25 @@ state. This principle is stated as *properties*, not as a named script: a govern
 that hardcodes its own implementation is contradicted by any improvement to that
 implementation, which converts routine engineering into a constitutional violation.
 
-### II. Parallel Agent Orchestration
+### II. OMP-Native Cross-Verification
 
 Security-sensitive code changes (authentication, cryptography, secrets handling, input
 validation), architectural decisions, and modifications exceeding 200 lines MUST be
-cross-verified by two or more parallel agents before merge. Single-agent review is
-insufficient for Tier 1 concerns. `parallel_agent.py` is the canonical tool for
-orchestrating multi-agent validation; ad-hoc single-model reviews do not satisfy this
-gate.
+cross-verified by two or more independent OMP `task` reviewers before merge. Single-agent
+review is insufficient for Tier 1 concerns. The parent MUST aggregate the reviewers'
+evidence, use `hub` only for coordination, and escalate unresolved findings for human
+review.
 
-**Rationale**: Cross-verification surfaces blind spots that a single model misses;
-consensus scoring provides a quantified confidence signal for human escalation decisions.
+**Rationale**: Independent cross-verification surfaces blind spots that a single model
+misses while keeping the review contract native to the interactive harness.
 
-### III. Consensus-Driven Decisions
+### III. Evidence-Driven Decisions
 
-All parallel agent outputs MUST be evaluated against defined thresholds:
+Automated gate decisions MUST identify the evidence and reviewer findings that support
+them. Conflicting or insufficient evidence requires documented justification and human
+review; it MUST NOT be hidden behind an aggregate score.
 
-- ≥80% agreement → auto-proceed (high confidence)
-- 50–79% agreement → surface disagreements for human review (medium confidence)
-- <50% agreement → block and trigger synthesis via Claude Sonnet (low confidence)
-
-Automated gate decisions MUST reference these thresholds. Bypassing consensus scoring
-requires documented justification in the PR description.
-
-**Rationale**: Quantified consensus prevents false confidence while reducing unnecessary
+**Rationale**: Explicit evidence prevents false confidence while preserving meaningful
 human escalation for routine, low-risk changes.
 
 ### IV. Skill-First Extensibility
@@ -177,7 +172,7 @@ tree's location is recorded in `docs/SKILL-NAMING.md` (currently
 is engineering, not amendment. Skills MUST be independently invocable in
 Claude Code under the invocation contract recorded in `docs/SKILL-NAMING.md`
 (currently `/<bundle>:<name>`, e.g. `/manifest-docs:docs-all`; there is no
-bare-name alias). Expanding `parallel_agent.py` or other core
+bare-name alias). Expanding the retired cross-harness coordinator or other core
 scripts to absorb new behaviors is prohibited when a skill is sufficient.
 
 **Rationale**: Composable skills enable independent testing, per-platform deployment, and

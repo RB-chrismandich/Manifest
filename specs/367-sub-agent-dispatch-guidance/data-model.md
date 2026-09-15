@@ -12,8 +12,8 @@ unchanged; **new** fields are added by this feature.
 |-------|--------|------|---------------|
 | `allowed` | existing | list | Tool names the skill may use |
 | `forbidden` | existing | list | Tool names the skill may not use |
-| `parallel_agents` | existing | enum | `always` \| `conditional` \| `never` \| `gate-only` — governs **external** `parallel_agent.py` |
-| `trigger_condition` | existing | string | Scale expr for `parallel_agents: conditional` (e.g., `total_doc_lines >= 500`) |
+| `parallel_agents` | existing | enum | `always` \| `conditional` \| `never` \| `gate-only` — governs **external** `the retired cross-harness coordinator` |
+| `trigger_condition` | existing | string | Scale expr for `retired_cross_harness_coordinator_policy: conditional` (e.g., `total_doc_lines >= 500`) |
 | `validation_tier` | existing | int | `1` \| `2` |
 | `subagents` | **NEW** | enum | `always` \| `conditional` \| `never` — governs **native Task/Agent** sub-agents |
 | `subagent_trigger` | **NEW** | string | Required iff `subagents: conditional`. Checkable expr, default floor `independent_units >= 3` |
@@ -51,7 +51,7 @@ No runtime transitions; this is a one-time classification recorded in config.
 
 - **Single instance** (read-on-demand reference, indexed from `configs/claude/CLAUDE.md`), referenced
   by all dispatching skills.
-- **Contents**: native Task sub-agents vs `parallel_agent.py` decision logic; cross-platform
+- **Contents**: native Task sub-agents vs `the retired cross-harness coordinator` decision logic; cross-platform
   fallback; no-recursion rule; the ≥3-unit default floor.
 
 ## Entity: Enforcement Test

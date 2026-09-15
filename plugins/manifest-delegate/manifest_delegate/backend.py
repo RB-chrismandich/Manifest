@@ -33,12 +33,10 @@ def _substitute_argv(tokens, mapping):
 
 
 def map_model_tier(entry, tier):
-    """Map a tier name through parallel_agent.yml model_tiers (D3/D4/D5 contract).
+    """Map a tier name through model_policy.yml's model_tiers contract.
 
-    Consults `model_tiers.<entry["tier_source-keyed backend id]>.<tier>` only
-    when PyYAML is importable and the deployed config + key + tier are all
-    present; any of those being absent falls back to verbatim passthrough
-    (the devin precedent — never an error).
+    A missing or unreadable optional policy retains verbatim passthrough (the
+    devin precedent), never an error.
     """
     if not tier:
         return tier

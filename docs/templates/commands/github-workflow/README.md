@@ -250,7 +250,6 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 - Identifies affected components
 - Designs implementation approach
 - Lists specific file changes, migrations, schema updates
-- Validates plan with parallel agents
 - Posts plan to GitHub issue
 - Adds `planned` label
 
@@ -263,7 +262,12 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 
 **Output**: Detailed plan posted to issue (replaces body if empty, adds comment if body exists).
 
-**Parallel Agent Integration**: Validates plan with `~/.claude/scripts/parallel_agent.py` for consensus scoring.
+**OMP Integration**: Use one capable reviewing agent by default. Add independent
+plan-review units only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment change, conflicting evidence or unresolved
+uncertainty, or a codebase-wide investigation with genuinely independent
+tracks. File, package, module, language, keyword, and independent-unit counts
+never trigger independent review.
 
 ---
 
@@ -278,7 +282,6 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 - Follows implementation plan from issue
 - Delegates to Task sub-agents per component
 - Runs unit/integration tests and linting
-- Validates with parallel agents (consensus scoring)
 - Updates checklists in issue body/comments
 - Posts implementation update comment
 - Creates follow-up issues for partial/blocked items
@@ -294,7 +297,9 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 
 **Output**: Implementation comment on issue, follow-up issues created, commit (if status=processed).
 
-**Parallel Agent Integration**: Validates each modified file with consensus scoring.
+**Parallel Agent Integration**: Decompose genuinely independent component work
+when it reduces latency. Independent review is separately limited to the
+risk-gated cases above; it does not validate each modified file by default.
 
 ---
 
@@ -350,24 +355,32 @@ Issues progress through labeled states:
 **Labels Used**:
 
 - `planned` — Has implementation plan
-- `processed` — Fully implemented, all tests pass, high consensus
+- `processed` — Fully implemented with validation evidence
 - `needs-review` — Implemented but requires human review
 - `follow-up` — Created as follow-up from processed issue
 
 ---
 
-## Integration with Parallel Agents
+## OMP Sub-Agent Integration
 
-All commands integrate with `~/.claude/scripts/parallel_agent.py` for cross-verification:
+Commands may decompose genuinely independent analysis or implementation units
+in one OMP `task` batch. That workload fan-out is distinct from independent
+review: use one capable reviewing agent by default and add independent review
+only for a trust-boundary change, destructive behavior, broad compatibility or
+deployment change, conflicting evidence or unresolved uncertainty, or a
+codebase-wide investigation with genuinely independent tracks. File, package,
+module, language, keyword, and independent-unit counts never trigger
+independent review. Use `scout` for read-only exploration and `reviewer` for
+quality review; the parent aggregates evidence and uses `hub` only for
+coordination or waiting. If OMP `task` is unavailable, execute the review inline
+and report `DEGRADED`; do not fall back to a provider CLI.
 
-| Command | Use Case | Consensus Threshold |
-|---------|----------|---------------------|
-| `issue-triage` | Duplicate detection | >= 80% = HIGH confidence to close |
-| `issue-prioritize` | Scoring validation | >= 80% = confident in score |
-| `issue-plan` | Plan validation | >= 80% = HIGH confidence, 50-79% = MEDIUM (note disagreements), < 50% = LOW (add warning) |
-| `issue-process` | Code validation | >= 80% = status "processed", 50-79% = status "needs-review" |
-
-**Setup**: Ensure `~/.claude/scripts/parallel_agent.py` is installed and configured. See [README.md](../../README.md) for setup instructions.
+| Command | Use Case |
+|---------|----------|
+| `issue-triage` | Duplicate detection |
+| `issue-prioritize` | Scoring validation |
+| `issue-plan` | Plan validation |
+| `issue-process` | Code validation |
 
 ---
 
@@ -524,16 +537,12 @@ Adjust prioritization weights in `issue-prioritize`:
 cp templates/commands/issue-triage.md .claude/commands/
 ```
 
-### Issue: Parallel agent script not found
+### Issue: OMP task unavailable
 
-**Symptom**: Commands report "parallel_agent.py not available"
+**Symptom**: The interactive harness does not expose OMP `task`.
 
-**Solution**: Install the parallel agent script:
-
-```bash
-cp .claude/scripts/parallel_agent.py ~/.claude/scripts/
-chmod +x ~/.claude/scripts/parallel_agent.py
-```
+**Solution**: Perform the independent review inline, mark the result `DEGRADED`, and
+report the limitation. Do not install or invoke an external provider coordinator.
 
 ### Issue: GitHub CLI not authenticated
 

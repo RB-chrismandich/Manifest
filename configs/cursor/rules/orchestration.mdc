@@ -11,14 +11,6 @@ This rule defines how the Cursor agent should leverage parallel LLM agents
 
 <!-- Adapted from: .claude/CLAUDE.md -->
 
-## Risk-based review routing
-
-Use a single capable reviewer by default. Independent review is risk-based:
-escalate only for a trust-boundary change, destructive behavior, broad
-compatibility or deployment impact, conflicting evidence or unresolved
-uncertainty, or genuinely independent codebase-wide tracks. Counts of files,
-packages, modules, languages, keywords, and units do not independently escalate.
-
 ## Token Economy (always on)
 
 Apply at all times, in every session:
@@ -139,11 +131,11 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 
 ## Proactive Decision Framework
 
-Use risk-based review routing. One capable reviewer is the default. Escalate
-only for a trust-boundary change, destructive behavior, broad compatibility or
-deployment impact, conflicting evidence or unresolved uncertainty, or genuinely
-independent codebase-wide tracks. File, package, module, language, keyword, and
-independent-unit counts are not escalation conditions.
+Use one capable agent by default. Add independent review only for a trust-boundary
+change, destructive behavior, a broad public compatibility or deployment change,
+conflicting evidence or unresolved uncertainty, or a codebase-wide investigation
+with genuinely independent tracks. File size, language, generic keywords, and
+independent-unit counts are advisory context; they do not trigger a panel.
 
 ---
 
@@ -289,6 +281,12 @@ All configuration is symlinked from `.claude/`:
 
 **Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
 `claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
+
+### Security Review Rule
+
+`@code-audit` activates for an explicit security-review request or a confirmed
+change in behavior at a security boundary. Keywords and complexity metrics alone
+do not activate it. Feedback remains inline and non-blocking.
 
 ### Auto-Triggered Rule
 

@@ -12,7 +12,7 @@ Run the automated health check to see your system status:
 
 ```bash
 # Quick check
-~/.claude/scripts/parallel_agent.py --status
+manifest check-status
 
 # Or directly
 ~/.claude/scripts/check_status.sh
@@ -32,11 +32,9 @@ This checks:
 ### Manual Installation Check
 
 ```bash
-# Verify script exists
-ls -la ~/.claude/scripts/parallel_agent.py
-
-# Verify configuration files
+# Verify retained configuration files
 ls -la ~/.claude/config/
+cat ~/.claude/config/model_policy.yml
 
 # Check CLI installations
 which claude
@@ -65,18 +63,11 @@ echo $ANTHROPIC_API_KEY
 echo $GEMINI_API_KEY
 ```
 
-### Test Individual Agents
+### Test a Retained Provider Route
 
-```bash
-# Test Claude CLI
-~/.claude/scripts/parallel_agent.py --claude-only "What is 2+2?"
-
-# Test Gemini CLI
-~/.claude/scripts/parallel_agent.py --gemini-only "What is 2+2?"
-
-# Test Cursor (if applicable)
-~/.claude/scripts/parallel_agent.py --cursor-only "What is 2+2?"
-```
+Use the documented CDDL or SkillClaw provider seam for the relevant workflow. For
+interactive independent work, use OMP `task` batches; do not test them through a
+provider coordinator.
 
 ### View Configuration
 
@@ -94,18 +85,11 @@ cat ~/.claude/config/validation_criteria.yml
 ### Check Logs
 
 ```bash
-# View recent outputs
+# View recent outputs retained by supported tools
 ls -lth ~/.claude/.agent_outputs/ | head -20
 
-# View latest agent outputs
-tail ~/.claude/.agent_outputs/claude_*.txt
-tail ~/.claude/.agent_outputs/gemini_*.txt
-
-# View JSON results
-cat ~/.claude/.agent_outputs/results_*.json | python3 -m json.tool
-
-# View the orchestrator log
-tail ~/.claude/.agent_outputs/parallel_agent.log
+# View relevant service logs and status
+manifest check-status
 ```
 
 ### Test Network Connectivity
@@ -135,10 +119,10 @@ curl -I https://registry.npmjs.org
    gemini auth status
    ```
 
-2. **Run with verbose output:**
+2. **Collect status output:**
 
    ```bash
-   ~/.claude/scripts/parallel_agent.py --json --full-output "Test" 2>&1 | tee debug.log
+   manifest check-status --verbose 2>&1 | tee debug.log
    ```
 
 3. **Check GitHub Issues:**

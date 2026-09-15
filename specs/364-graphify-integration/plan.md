@@ -6,7 +6,7 @@
 
 ## Summary
 
-Make graphify (an AI-powered knowledge-graph generator + `/graphify` skill, PyPI package `graphifyy`) a first-class **default-enabled** managed tool inside Manifest's bootstrap pipeline. The integration adds: (1) a `--enable-graphify`/`--disable-graphify` service toggle persisted to `services.yml`; (2) idempotent CLI installation (`check_uv` + `install_graphify` via `uv tool install graphifyy`); (3) a vendored thin `/graphify` skill in `.retired skill supply/skills/` that deploys across all enabled assistants through the existing pipeline; (4) health-check reporting; and (5) documentation + tests. Graphify is treated as a managed *tool/skill*, **not** a consensus agent — it is deliberately excluded from `parallel_agent.py` agent gating.
+Make graphify (an AI-powered knowledge-graph generator + `/graphify` skill, PyPI package `graphifyy`) a first-class **default-enabled** managed tool inside Manifest's bootstrap pipeline. The integration adds: (1) a `--enable-graphify`/`--disable-graphify` service toggle persisted to `services.yml`; (2) idempotent CLI installation (`check_uv` + `install_graphify` via `uv tool install graphifyy`); (3) a vendored thin `/graphify` skill in `.retired skill supply/skills/` that deploys across all enabled assistants through the existing pipeline; (4) health-check reporting; and (5) documentation + tests. Graphify is treated as a managed *tool/skill*, **not** a consensus agent — it is deliberately excluded from `the retired cross-harness coordinator` agent gating.
 
 ## Technical Context
 
@@ -35,9 +35,9 @@ Make graphify (an AI-powered knowledge-graph generator + `/graphify` skill, PyPI
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | ✅ PASS | All changes live in `configs/`, `bootstrap/`, `.retired skill supply/skills/`, deployed via `bootstrap.sh`. **D5 explicitly rejects** graphify's own installer because it would patch deployed `~/.claude/CLAUDE.md`/`GEMINI.md` out-of-band, violating this principle. Skill is vendored to the source of truth. |
-| II. Parallel Agent Orchestration | ✅ PASS (with action) | Change >200 lines + architectural → requires multi-agent cross-verification before merge. Satisfied by: parallel research panel (5 agents, done), `/spec-review` (Antigravity) at plan time, and `parallel_agent.py --review` at PR time. Recorded as a pre-merge gate. |
+| II. Parallel Agent Orchestration | ✅ PASS (with action) | Change >200 lines + architectural → requires multi-agent cross-verification before merge. Satisfied by: parallel research panel (5 agents, done), `/spec-review` (Antigravity) at plan time, and `the retired cross-harness coordinator --review` at PR time. Recorded as a pre-merge gate. |
 | III. Consensus-Driven Decisions | ✅ PASS | PR review consensus evaluated against the 80/50 thresholds; this plan documents the gate. |
-| IV. Skill-First Extensibility | ✅ PASS | New capability shipped as a discrete `.retired skill supply/skills/graphify/SKILL.md` with `name`/`description` frontmatter, invocable as `/graphify`. **Does NOT** expand `parallel_agent.py` (D4). |
+| IV. Skill-First Extensibility | ✅ PASS | New capability shipped as a discrete `.retired skill supply/skills/graphify/SKILL.md` with `name`/`description` frontmatter, invocable as `/graphify`. **Does NOT** expand `the retired cross-harness coordinator` (D4). |
 | V. Bootstrap Reproducibility | ✅ PASS | `check_uv()` and `install_graphify()` are existence-guarded (`command_exists uv`, `uv tool list \| grep graphifyy`); toggle write is deterministic; failures warn-and-continue (non-fatal for an optional-capability install) without leaving a degraded core environment. |
 
 **No violations.** Complexity Tracking table is empty (below).

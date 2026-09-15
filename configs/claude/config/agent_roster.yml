@@ -4,11 +4,9 @@
 #
 # This registry EXTRACTS facts already declared elsewhere — it does not
 # replace them:
-#   - `parallel_agent.yml` keeps its own tuning tables (model_tiers,
-#     rate_limits, credit_fallback) and its `cli_agents` binary/args block.
-#     test_agent_roster.py::test_binary_matches_parallel_agent_cli_agents is a
-#     drift guard asserting the two files agree on `binary` per agent — it is
-#     not a migration.
+#   - `model_policy.yml` keeps shared model tiers, fallback chains, and
+#     `cli_agents` binary/args. test_agent_roster.py's drift guard asserts the
+#     two files agree on each agent binary; it is not a migration.
 #   - `bootstrap/lib/config.sh` write_services_config() is the source for
 #     `enabled_default` (all 5 agents default to true there).
 #   - `.apm/skills/env-check/SKILL.md` documents claude/gemini
@@ -21,7 +19,7 @@
 #
 # Fields (all required):
 #   name             agent key, repeated as a value for lookup convenience
-#   binary           CLI executable name (must match parallel_agent.yml
+#   binary           CLI executable name (must match model_policy.yml
 #                    cli_agents[name].binary — enforced by drift-guard test)
 #   home_dir         this agent's deployed config home. `~/.<name>` for the
 #                    five original agents; devin is the exception — its CLI

@@ -27,7 +27,7 @@ drop the daemon.** Do not merge #346 as a standalone system.
 | Dimension (long-term) | issue-dev-auto (#354) | orchestrator daemon (#346) |
 |---|---|---|
 | Maintenance surface | ~1 script + skill | ~4031 LOC second runtime |
-| Reuse vs reinvent harness | Reuses `/loop`, skills, `parallel_agent.py` | Re-implements looping/phases/consensus outside the session |
+| Reuse vs reinvent harness | Reuses `/loop`, skills, and OMP task batches | Re-implements looping/phases outside the session |
 | Autonomous-output safety | Thin (`/project-verify` only) | Strong (consensus + Tier 1/2 gates) |
 | Auditability | None | Redacted append-only log |
 | Failure/reliability | In-session; no state to corrupt | Daemon lifecycle + persisted state |
@@ -42,7 +42,7 @@ The value of #346 lives in three features, not its runtime; those are harvested:
 
 - **#358** — unblock-aware prioritization in `next-issue` (`auto-dev`)
 - **#359** — redacted append-only audit log (`auto-dev`)
-- **#360** — post-implementation verification gate via existing `parallel_agent.py`
+- **#360** — post-implementation verification gate via an injected single-reviewer seam
   (`planned`, human-led — reshapes the autonomy pipeline and has open design
   questions)
 

@@ -97,11 +97,17 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 
 ## Sub-agent dispatch
 
-When ≥3 independent task groups need auditing, dispatch one sub-agent per group to verify completion, then merge;
-below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`../../runtime/references/sub-agent-dispatch.md`): native Task sub-agents on
-Claude, or `manifest-workspace:parallel-agent` / inline on other
-assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-Dispatch on **Sonnet** per the bundled sub-agent dispatch reference; pass the
-model explicitly rather than inheriting the session model.
+When ≥3 independent task groups need auditing, dispatch one read-only
+verification unit per group in a single OMP `task` call (in waves of at most
+32), using `reviewer`. Each child verifies only its assigned group and never
+re-dispatches. The parent directly merges the evidence into the required task
+statuses; it does not use text-overlap consensus. Use `hub` only to coordinate
+or wait. If `task` is unavailable, audit inline and report `DEGRADED`. Below
+the threshold, audit inline.

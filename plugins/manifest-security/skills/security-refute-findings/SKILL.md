@@ -39,10 +39,19 @@ refuted one, each reason citing concrete `file:line` evidence. An empty survived
 
 ## Sub-agent dispatch
 
-Follow the [finding refutation dispatch rules](references/security-refute-findings-dispatch.md).
-Use the pinned `opus` model. For three or more candidate findings, refute one
-finding per review unit and aggregate structured verdicts. Below that threshold,
-refute inline; if structured output is unavailable, report `DEGRADED`.
+Follow the [finding refutation dispatch rules](references/security-refute-findings-dispatch.md)
+and the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When dispatching, invoke `manifest-workspace:parallel-agent --json` with one
-candidate per review unit and aggregate its structured verdicts.
+When ≥3 candidate findings need refutation, dispatch one adversarial
+security-review unit per finding in a single OMP `task` call (in waves of at
+most 32). Use `security-reviewer`, pinned to the `opus` model; each child
+returns its concrete verdict and cited evidence for only its assigned finding
+and never re-dispatches. The parent directly aggregates those verdicts under
+the refutation rules above. Use `hub` only to coordinate or wait. If `task` is
+unavailable, perform the same refutation inline and report `DEGRADED`. Below the
+threshold, refute inline.

@@ -1,63 +1,19 @@
 #!/usr/bin/env bats
-# End-to-end 6th-agent + hyphenated-agent integration proof (goal-task-E,
-# "close out the agent-fleet single source of truth").
+# End-to-end roster-driven configuration coverage.
 #
-# Tasks A-D each already have their OWN unit-level 6th-agent acceptance test
-# against an ISOLATED synthetic fixture:
-#   - tests/python/test_reconcile_policy.py::test_sixth_agent_extends_fleet_via_config_only
-#   - tests/bats/check_status.bats "6th roster-only agent is picked up by..."
-#   - tests/bats/sync_skills.bats "6th roster-only agent is picked up by the
-#     secondary sync loop..."
-#   - tests/python/agents/test_cli.py::TestRosterDrivenSixthAgent /
-#     TestHyphenatedRosterAgentName
-#
-# This file proves something none of those four do alone: that a SINGLE
-# agent_roster.yml fixture -- written ONCE -- flows through ALL FOUR pieces
-# of roster-derived infrastructure with zero source edits, and that the
-# hyphenated-name fix in agents/cli.py holds under a REAL subprocess spawn
-# (not just the in-process getattr()/argparse reproduction in test_cli.py).
-#
-# The four scripts read agent_roster.yml via two DIFFERENT mechanisms:
-#   - reconcile_core.py / check_status.sh / sync-skills.sh: MANIFEST_AGENT_ROSTER
-#     env var takes precedence (see each script's resolve_agent_roster_path()
-#     equivalent).
-#   - agents/config.py's load_agent_roster()/Config()/ServiceConfig() (used by
-#     cli.py via parallel_agent.py): always HOME-relative
-#     (~/.claude/config/agent_roster.yml, ~/.claude/config/services.yml) --
-#     agent_roster.yml's own header documents this is a config-injection gap,
-#     not a bug (cli.py has no MANIFEST_AGENT_ROSTER support).
-# This test reconciles the two mechanisms onto ONE physical file: the roster
-# lives at $HOME/.claude/config/agent_roster.yml (satisfying cli.py's
-# HOME-relative default AND check_status.sh/sync-skills.sh's own "deployed
-# home copy" fallback tier), and MANIFEST_AGENT_ROSTER is ALSO exported
-# pointing at that exact same path (satisfying reconcile_core.py, which has
-# no HOME-relative fallback). One file, two resolution paths, same bytes.
-#
-# The fixture carries two synthetic additions:
-#   - "beta": a plain 6th agent (the four-piece proof; mirrors the "beta"
-#     name already used by Task B/C's own bats fixtures).
-#   - "test-agent": a HYPHENATED 7th agent -- the specific gap the Task D
-#     re-reviewer flagged: a real, live `parallel_agent.py --test-agent-only`
-#     subprocess spawn, not just the unit-level dest-mangling reproduction
-#     already covered by test_cli.py::TestHyphenatedRosterAgentName.
+# This file proves a single agent_roster.yml fixture flows through reconcile,
+# check-status, and secondary skill synchronization without source edits. The
+# fixture carries a plain sixth agent and a hyphenated seventh agent, exercising
+# both name shapes across every retained consumer.
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
-load '../test_helper/stub_home_runtime.bash'
 
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 CHECK_STATUS="$REPO_ROOT/configs/claude/scripts/check_status.sh"
 SYNC_SKILLS="$REPO_ROOT/configs/claude/scripts/sync-skills.sh"
 RECONCILE_CORE="$REPO_ROOT/configs/claude/scripts/reconcile_core.py"
-PARALLEL_AGENT="$REPO_ROOT/configs/claude/scripts/parallel_agent.py"
 
-# The [4/4 cli.py] tests invoke parallel_agent.py, which is a deprecation shim
-# routing to ~/.claude/.venv/bin/manifest. setup() stubs that from the repo's
-# project venv when present; skip when it isn't (local run without `uv sync`).
-require_home_runtime() {
-    [[ -x "$HOME/.claude/.venv/bin/manifest" ]] ||
-        skip "manifest home runtime not built (run: uv sync --project configs/claude)"
-}
 
 setup() {
     # Isolate the APM domain registry — this suite drives a writer that stands
@@ -68,12 +24,8 @@ setup() {
 
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
 
-    # Captured BEFORE any PATH restriction below -- always the real,
-    # fully-featured interpreter (PyYAML, rich, ...) this repo's own tooling
-    # runs under, regardless of what PATH a given `run` command uses for its
-    # own subprocess/CLI discovery (shutil.which() inside parallel_agent.py
-    # reads the CHILD process's PATH, which we control per-test; the
-    # interpreter itself is resolved here, once, up front).
+    # Captured before restricting PATH below so retained Python consumers always
+    # use the repository interpreter.
     PY_BIN="$(command -v python3)"
 
     TEST_DIR=$(mktemp -d "$BATS_TMPDIR/agent_roster_integration.XXXXXX")
@@ -82,14 +34,6 @@ setup() {
     export HOME="$TEST_DIR/home"
     mkdir -p "$HOME/.claude/config" "$HOME/.claude/skills"
     mkdir -p "$HOME/.beta/skills" "$HOME/.test-agent/skills"
-
-    # The [4/4 cli.py] tests invoke the parallel_agent.py deprecation shim, which
-    # routes to ~/.claude/.venv/bin/manifest. Stub that from the repo's project
-    # venv (uv-synced, as CI does) via the shared helper; the [4/4] tests skip
-    # when it isn't built (see require_home_runtime).
-    if [[ -x "$REPO_ROOT/configs/claude/.venv/bin/manifest" ]]; then
-        stub_home_manifest_runtime "$REPO_ROOT"
-    fi
 
     ROSTER="$HOME/.claude/config/agent_roster.yml"
     cat > "$ROSTER" << 'EOF'
@@ -293,48 +237,4 @@ teardown() {
     grep -q "\.test-agent/skills" "$RSYNC_LOG"
     # claude is the primary target, never duplicated into the secondary loop.
     [ "$(grep -c "rsync -a" "$RSYNC_LOG")" -eq 3 ]
-}
-
-# ---------------------------------------------------------------------------
-# 4/4: agents/cli.py (via parallel_agent.py) -- flags + a REAL live dispatch
-# ---------------------------------------------------------------------------
-
-@test "[4/4 cli.py] --help advertises working flags for both the plain 6th agent and the hyphenated 7th agent" {
-    require_home_runtime
-    run "$PY_BIN" "$PARALLEL_AGENT" --help
-    assert_success
-    assert_output --partial "--beta-only"
-    assert_output --partial "--no-beta"
-    assert_output --partial "--beta-model"
-    assert_output --partial "--test-agent-only"
-    assert_output --partial "--no-test-agent"
-    assert_output --partial "--test-agent-model"
-}
-
-@test "[4/4 cli.py] --beta-only dispatches a REAL live CLIAgent subprocess (plain 6th agent)" {
-    require_home_runtime
-    run "$PY_BIN" "$PARALLEL_AGENT" --beta-only --no-synthesize --timeout 15 --json "ping"
-    assert_success
-    assert_output --partial '"beta"'
-    assert_output --partial '"status": "complete"'
-    assert_output --partial "BETA-STUB-OUTPUT: ping"
-}
-
-@test "[4/4 cli.py] --test-agent-only dispatches a REAL live CLIAgent subprocess (hyphenated 7th agent) -- closes the Task D live-run gap" {
-    # This is the specific gap the Task D re-reviewer flagged: prior coverage
-    # (test_cli.py::TestHyphenatedRosterAgentName) exercises the dest-mangling
-    # fix (_dest()) via build_parser()/resolve_enabled_agents() directly, in
-    # process, with a fabricated roster dict -- never a real `python3
-    # parallel_agent.py --gemini-pro-only ...` process spawn. Here the roster
-    # is read from disk (agent_roster.yml, HOME-relative), argv is parsed by
-    # a genuine argparse.ArgumentParser, and a real subprocess.exec of the
-    # stub binary ("echo", matching Task D's own echo-as-CLI pattern) runs
-    # end to end -- proving the fix holds under a real process boundary, not
-    # just the in-process reproduction.
-    require_home_runtime
-    run "$PY_BIN" "$PARALLEL_AGENT" --test-agent-only --no-synthesize --timeout 15 --json "ping"
-    assert_success
-    assert_output --partial '"test-agent"'
-    assert_output --partial '"status": "complete"'
-    assert_output --partial '"output": "ping"'
 }

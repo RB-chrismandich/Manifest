@@ -10,10 +10,21 @@ find. Concision is measured, not judged: read
 `../../runtime/references/doc-concision.md` first, and treat
 `docs_lint.py` as the arbiter of "too long".
 
-## Parallel Agent Integration
+## Sub-agent dispatch
 
-Uses parallel agents CONDITIONALLY when total documentation lines > 500:
-`manifest-workspace:parallel-agent --json --validate`
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
+
+Use native OMP sub-agents **conditionally** when total documentation lines
+exceed 500. Above ~10 docs, dispatch one `reviewer` per independent topic
+directory in one OMP `task` call (waves of at most 32). Children execute their
+assigned review directly and never re-dispatch; the parent aggregates the
+returned evidence directly before making documentation edits. If OMP `task` is
+unavailable, review inline and report `DEGRADED`.
 
 ## Steps
 
@@ -98,12 +109,9 @@ reads as a pass it did not earn.
 - **Connected**: one hub per topic, no orphans.
 - **Current**: if the code moved, the doc is wrong, not merely stale.
 
-## Sub-agent dispatch
+### Dispatch scope
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
-
-Above ~10 docs, fan out one sub-agent per topic directory through
-`manifest-workspace:parallel-agent`, or use native Task sub-agents on Claude. Dispatch on
-**Sonnet** (`subagent_model: sonnet`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+The scale trigger above governs dispatch. Each dispatched `reviewer` covers one
+topic directory; the parent merges direct evidence, resolves any overlap, and
+performs the edits. No external coordinator, result artifact, or prose-similarity
+scoring is used.

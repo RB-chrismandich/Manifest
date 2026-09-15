@@ -1,47 +1,50 @@
 # Sub-Agent Dispatch & Selection Rules
 
-> Read-on-demand reference (NOT auto-loaded). Skills that fan work out link here instead of
-> restating these rules. Indexed from `configs/claude/CLAUDE.md` → "Reference Index".
+> Read-on-demand reference. Skills that dispatch work link here rather than
+> restating these rules.
 
-This repo has **two** sub-agent paradigms. A skill's `tool_policies` entry in
-`config/command_config.yml` records which it uses (`subagents` and/or `parallel_agents`); the skill
-body states the concrete trigger and links here.
+## OMP-native dispatch
 
-## The two mechanisms
+OMP `task` and `hub` are the only interactive sub-agent contract. When work has
+independent units, the parent dispatches all ready units in **one** `task` call,
+in waves of at most 32. Each task states its bounded unit, acceptance criteria,
+and read/write scope.
 
-| Mechanism | What it is | Use for | Availability |
-|-----------|-----------|---------|--------------|
-| **Native Task/Agent sub-agents** | In-session sub-agents dispatched via the Task tool (Explore, general-purpose, …) | Parallel reads, fan-out research, independent per-item work, broad audits, **CDDL personas** | **Claude Code, Cursor** |
-| **`parallel_agent.py`** | External multi-CLI cross-verification (Gemini/Cursor/Codex/Antigravity) with consensus scoring | Independent cross-model verification of one artifact/decision | Cross-platform |
-| **Headless CLI invoke** (`cddl_invoke.py`, `EVOLVE_CLI`, `SYNTH_CLI`) | Single-provider subprocess using `cli_agents` config | CDDL critics on Gemini/Codex/Agy; synthesis; SkillClaw evolve | Cross-platform (CLI on PATH) |
+Choose the narrowest role:
 
-## Review and cross-verification escalation
+| Work | `task` agent |
+|---|---|
+| Read-only exploration, inventory, or research | `scout` |
+| Quality, correctness, or maintainability review | `reviewer` |
+| Security review | `security-reviewer` |
+| Strictly mechanical collection or updates | `sonic` |
+| Implementation or mixed work | Omit `agent` for the default worker |
 
-This risk gate governs **review and cross-verification only**. It does not
-replace a skill's workload-decomposition trigger: `/docs-all`, `/docs-improve`,
-and `/issue-prioritize` retain their documented fan-out rules for independent
-documents, analysis items, or issues.
+Children execute their assigned unit directly and **never redispatch**. Use
+`hub` only to coordinate or wait for already-dispatched workers. The parent
+validates results, resolves material disagreements from evidence, and aggregates
+the final outcome.
 
-Use a single capable reviewer by default. Add independent review only when the
-review work has at least one of these conditions:
+If `task` is unavailable, perform the units inline and report `DEGRADED`. Never
+fall back to a provider CLI for interactive fan-out.
 
-- a trust-boundary change;
-- destructive behavior;
-- broad compatibility or deployment impact;
-- conflicting evidence or unresolved uncertainty; or
-- a codebase-wide investigation with genuinely independent analysis tracks.
+## Workload decomposition
 
-Counts of files, packages, modules, languages, keywords, and units never
-escalate review by themselves. A skill may choose its cross-verification
-mechanism after this risk gate opens: native Task/Agent sub-agents for
-independent review work, or `parallel_agent.py` for cross-model verification.
-If none of the conditions is present, review inline.
+Fanning out independent units is workload decomposition; requesting a second
+opinion on one artifact is review. Dispatch genuinely independent units when
+doing so reduces latency or separates non-overlapping work. A numeric threshold in an owning skill's
+`subagent_trigger` is a workload-decomposition rule, not an independent-review
+trigger. Counts of files, packages, modules, languages, keywords, or units are
+decomposition signals only and never trigger independent review.
 
-## workload decomposition
+Independent review and cross-verification follow the five-condition risk gate
+in `orchestration.md`: trust-boundary change, destructive behavior, broad
+compatibility or deployment change, conflicting evidence or unresolved
+uncertainty, or a codebase-wide investigation with genuinely independent
+tracks. Skills whose fan-out is decomposition rather than review — `docs-all`,
+`docs-improve`, `issue-prioritize` — stay outside that gate.
 
-For work other than review and cross-verification, follow each skill's own
-documented fan-out trigger. Those workload triggers may use counts or other
-scale signals and remain independent of the risk gate.
+A skill records one disposition in `configs/claude/config/command_config.yml`:
 
 ## Model selection (measured — the one cache-safe cost lever)
 
@@ -72,71 +75,42 @@ halves the Sonnet figure again.
 
 ### Enforcement
 
-Every skill with `subagents: always|conditional` declares a `subagent_model` in
-`config/command_config.yml`, and its `## Sub-agent dispatch` section states the
-same model. Both are gated by `tests/bats/subagent_policy.bats` (checks T7/T8),
-enumerated from the disposition — a new dispatching skill fails until it pins a
-model, with no name list to maintain.
+`tests/bats/subagent_policy.bats` enumerates the disposition from
+`config/command_config.yml`: every skill carries a `subagents` value, every
+`conditional` entry names a `subagent_trigger`, every `never` entry gives a
+`subagent_rationale`, dispatching skills link a selection-reference contract
+from their `## Sub-agent dispatch` section, and the retired coordinator
+settings (`parallel_agents`, `subagent_model`, `session_model`,
+`harness_routing`, `consensus`, and their siblings) are rejected anywhere in
+the tree. Model choice is therefore stated at the dispatch site, not pinned in
+configuration:
 
-| `subagent_model` | Use for |
+| Model | Use for |
 |---|---|
 | `sonnet` | **The default.** Any dispatch that is not one of the rows below. |
 | `haiku` | Purely mechanical fan-out: file reads, greps, per-item transforms. |
 | `opus` | Genuinely hard reasoning — adversarial verification of security or correctness findings. |
 | `charter` | Per-role tiers declared in the CDDL charters (`cddl-role-models.md`). |
 
-Ad-hoc dispatches outside a skill (Explore, general-purpose, one-off fan-out)
-are not reachable by that gate, so the same default is stated as a rule in the
+Ad-hoc dispatches outside a skill (scout, general-purpose, one-off fan-out) are
+not reachable by that gate, so the same default is stated as a rule in the
 always-loaded orchestration guides' Token Economy section.
 
-## No recursion
-
-A dispatched sub-agent performs its assigned task **directly** and does **not** itself fan out
-further sub-agents. This prevents agent-explosion.
-
-## Cross-platform fallback
-
-| Platform | Native Task | Fallback for fan-out / CDDL critics |
-|----------|-------------|-------------------------------------|
-| Claude Code | Yes | — |
-| Cursor | Yes | — |
-| Gemini CLI, Codex, Antigravity | No | `cddl_invoke.py`, `parallel_agent.py`, or inline |
-
-Never leave an assistant without an executable path. Headless seams share
-`parallel_agent.yml` → `cli_agents` and `SYNTH_*` / `CDDL_INVOKE_*` / `EVOLVE_*` env overrides.
-
----
-
-## Convention: adding sub-agent guidance to a skill
-
-### 1. Classify the skill
-
-Record whether it can use native sub-agents or external cross-model review.
-Use `never` for single-step, sequential, or shared-state work; use
-`conditional` when the shared risk gate can justify independent review. This
-classification does not create a count-based trigger.
-
-### 2. Record it in `config/command_config.yml`
+## Skill authoring convention
 
 ```yaml
 tool_policies:
   <skill-name>:
     subagents: conditional
-    subagent_trigger: "trust_boundary_change OR destructive_behavior OR broad_compatibility_or_deployment_change OR conflicting_evidence_or_unresolved_uncertainty OR codebase_wide_independent_tracks"
-    subagent_model: sonnet
+    subagent_trigger: "independent analysis tracks with no shared state"
 ```
 
-For `never`, record `subagent_rationale` in the policy or a one-line marker in
-the skill body.
+`conditional` entries require `subagent_trigger`; `never` entries require a
+one-line `subagent_rationale`. Dispatching skills include a `## Sub-agent
+dispatch` section that names the units, links this reference, and says that
+children do not redispatch and the parent validates and aggregates results.
 
-### 3. Add the in-body policy
-
-State that a single capable reviewer is the default, name the five conditions,
-and require inline review otherwise. Link here rather than duplicating
-mechanics. Dispatched sub-agents perform their assigned work directly and do
-not re-dispatch.
-
-### 4. Verify
+### Verify
 
 ```bash
 bats tests/bats/subagent_policy.bats

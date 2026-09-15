@@ -360,6 +360,9 @@ def main(argv: list[str] | None = None) -> int:
         )
     print()
     model_rows, priced_total, unpriced = cost_by_model(per_model)
+    print(
+        "Estimated API-equivalent cost; actual billing and subscription quota unknown."
+    )
     print(f"{'model':<28}{'reqs':>9}{'cost':>13}{'% of total':>12}")
     for row in model_rows:
         if row["cost_usd"] is None:
@@ -380,6 +383,8 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.json).write_text(
                 json.dumps(
                     {
+                        "cost_basis": "estimated_api_equivalent",
+                        "actual_billing_usd": None,
                         "agg": dict(agg),
                         "cost_by_model": model_rows,
                         "cost_total_usd": round(priced_total, 2),

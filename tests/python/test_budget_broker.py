@@ -2,8 +2,8 @@
 
 Written BEFORE the CON-003 refactor that removes the module's hand-copied model
 table, to pin the behavior that must survive it. The values below are asserted
-against `parallel_agent.yml` rather than written out again — a test that
-restates the constant is a fourth copy of the thing the refactor is deleting.
+against `model_policy.yml` rather than written out again — a test that restates
+the constant is a fourth copy of the thing the refactor is deleting.
 """
 
 import sys
@@ -18,7 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import budget_broker
 
-REPO_YAML = REPO_ROOT / "configs" / "claude" / "config" / "parallel_agent.yml"
+REPO_YAML = REPO_ROOT / "configs" / "claude" / "config" / "model_policy.yml"
 
 
 @pytest.fixture(scope="module")
@@ -28,7 +28,7 @@ def config():
 
 @pytest.fixture(autouse=True)
 def _use_repo_config(monkeypatch, tmp_path):
-    """Point Config at the repo YAML.
+    """Point policy loading at the repo YAML.
 
     Without this the module under test resolves `~/.claude/config`, so the test
     would pass or fail on whatever the developer last deployed — the ambient
@@ -78,7 +78,7 @@ def test_unknown_binary_yields_none():
     assert budget_broker.get_fallback_model("not-a-cli", "anything") is None
 
 
-def test_chains_agree_with_parallel_agent_yml(config):
+def test_chains_agree_with_model_policy(config):
     """The regression this refactor exists to prevent: a hand-copied chain
     silently drifting from the registry every other consumer reads."""
     for binary, provider in BINARIES:
@@ -89,4 +89,4 @@ def test_chains_agree_with_parallel_agent_yml(config):
             if nxt is None:
                 break
             walked.append(nxt)
-        assert walked == expected, f"{binary} chain drifted from parallel_agent.yml"
+        assert walked == expected, f"{binary} chain drifted from model_policy.yml"

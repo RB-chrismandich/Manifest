@@ -50,7 +50,7 @@ def _contract() -> BundleContract:
             guidance=(),
             runtime=(
                 Component("catalog", "runtime/catalog.py"),
-                Component("agent-scripts", "skills/parallel-agent/scripts"),
+                Component("skill-scripts", "skills/env-check/scripts"),
                 Component("empty-dir", "runtime/empty"),
             ),
         ),
@@ -93,7 +93,7 @@ def installed(tmp_path: Path) -> tuple[DesiredState, Path]:
     for base in (tmp_path / "plugins" / "manifest-workspace", tmp_path / "installed"):
         (base / "runtime").mkdir(parents=True)
         (base / "runtime" / "catalog.py").write_text("x = 1\n", encoding="utf-8")
-        scripts = base / "skills" / "parallel-agent" / "scripts"
+        scripts = base / "skills" / "env-check" / "scripts"
         scripts.mkdir(parents=True)
         (scripts / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
         (base / "runtime" / "empty").mkdir()
@@ -107,7 +107,7 @@ def test_directory_component_with_content_is_evidence(
 
     evidence = _evidence(desired, root)
 
-    assert "manifest-workspace:runtime:agent-scripts" in evidence
+    assert "manifest-workspace:runtime:skill-scripts" in evidence
 
 
 def test_file_component_remains_evidence(
@@ -136,14 +136,14 @@ def test_absent_directory_component_is_not_evidence(
     desired, root = installed
     # The source declares it, but this install never received it.
     for path in sorted(
-        (root / "skills" / "parallel-agent" / "scripts").iterdir(), reverse=True
+        (root / "skills" / "env-check" / "scripts").iterdir(), reverse=True
     ):
         path.unlink()
-    (root / "skills" / "parallel-agent" / "scripts").rmdir()
+    (root / "skills" / "env-check" / "scripts").rmdir()
 
     evidence = _evidence(desired, root)
 
-    assert "manifest-workspace:runtime:agent-scripts" not in evidence
+    assert "manifest-workspace:runtime:skill-scripts" not in evidence
 
 
 def test_component_is_installed_accepts_populated_directory(tmp_path: Path) -> None:

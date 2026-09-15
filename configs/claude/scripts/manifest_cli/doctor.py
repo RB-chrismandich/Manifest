@@ -32,14 +32,10 @@ from manifest_cli.runtime import (
     wrapper_path,
 )
 
-# Cheap core imports that a partially-applied `uv sync` leaves behind. Heavier
-# SDKs (google-genai) are deliberately excluded: they cost seconds to import and
-# their absence surfaces through the same guarded_imports path at call time.
-# Terminal rendering falls back to stdlib output when Rich is unavailable.
+# Cheap core imports that a partially-applied `uv sync` leaves behind.
 CORE_MODULES = ("yaml", "click")
 
 OPTIONAL_SERVICE_DEPS = (
-    ("claude", "anthropic", "uv sync --group claude"),
     ("smoke", "playwright", "./bootstrap.sh --enable-smoke"),
     ("browser_use", "browser_use", "./bootstrap.sh --enable-browser-use"),
 )

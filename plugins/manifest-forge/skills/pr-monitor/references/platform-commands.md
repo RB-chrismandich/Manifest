@@ -11,7 +11,7 @@ REFERENCE_DIR=$(CDPATH='' cd -- . && pwd -P)
 FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$REFERENCE_DIR/../../../runtime" && pwd -P)
 ```
 
-Bot identities used below (`author_login`, `mention`, `identified_by`) come
+Bot identities used below (`author_login`, `label`, `identified_by`) come
 from `$FORGE_RUNTIME_DIR/config/review_bots.json` — the registry, not this file, is
 the source of truth if a login ever changes. Commands here embed the
 registry's current values; re-check the registry, not just this cookbook, when
@@ -22,7 +22,7 @@ a detection query stops matching.
 - [Resolve PR + platform](#resolve-pr--platform)
 - [CI / pipeline status](#ci--pipeline-status)
 - [Detect Copilot](#detect-copilot)
-- [Detect / tag Jules](#detect--tag-jules)
+- [Jules issue labels](#jules-issue-labels)
 - [Fetch review feedback](#fetch-review-feedback)
 
 ## Resolve PR + platform
@@ -90,31 +90,30 @@ gh api repos/{owner}/{repo}/pulls/<N>/reviews \
 GitLab: GitHub Copilot PR review is GitHub-specific; on GitLab this phase is a
 no-op unless an equivalent review bot is configured.
 
-## Detect / tag Jules
+## Jules issue labels
 
-Jules is triggered by a **comment mention** (`review_bots.json`'s
-`jules.mention`), acted on by `.github/workflows/jules-trigger.yml`. Its login
-(`jules.author_login` = `google-labs-jules[bot]`) was confirmed via its own
-greeting comment on real PRs (#580, #581) — `gh api
-.../issues/<N>/comments`.
+Only when the user requests Jules implementation of an issue: verify the Jules
+GitHub App can access the repository, verify the target is an issue (not a PR),
+then apply the case-insensitive `jules` label. PR monitoring never runs this
+mutation automatically. If already labeled, observe the existing task; do not
+remove/re-add the label or also launch a CLI task.
 
 ```bash
-# Already mentioned on the PR? (look at issue/PR comments, NOT reviews)
-gh pr view <N> --comments | grep -i 'google-labs-jules'
-# or structured:
-gh api repos/{owner}/{repo}/issues/<N>/comments \
-  --jq '.[] | select(.body | test("google-labs-jules")) | {user: .user.login, body}'
+# Read-only checks: pull_request must be absent on the target issue.
+gh api repos/{owner}/{repo}/issues/<ISSUE> --jq '{number, pull_request, labels: [.labels[].name]}'
+gh label list --search jules --json name
 
-# Tag Jules
-gh pr comment <N> --body "@google-labs-jules please review this PR"
+# When absent, create the label; use an existing case-insensitive match otherwise.
+gh label create jules --description "Implementation task for the Jules GitHub App"
+gh issue edit <ISSUE> --add-label jules
 
-# Did the trigger land? The workflow adds a 👀 reaction to the triggering comment.
-gh api repos/{owner}/{repo}/issues/comments/<comment-id>/reactions \
-  --jq '.[] | .content'    # expect "eyes"
-
-# GitLab equivalent (mention/note)
-glab mr note <N> --message "@google-labs-jules please review this PR"
+# Observe Jules' acknowledgement and eventual PR link.
+gh issue view <ISSUE> --comments
 ```
+
+There is no documented GitLab equivalent. See
+[Running tasks](https://jules.google/docs/running-tasks/). A successful Jules CLI
+login alone does not establish GitHub App installation or trigger delivery.
 
 ### Jules feedback shows up as (poll for all three)
 

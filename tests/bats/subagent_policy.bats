@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 # non-zero and prints offending skills on failure.
 run_check() {
     python3 - "$REPO_ROOT" "$1" <<'PY'
-import os, re, sys
+import glob, os, re, sys
 import yaml
 
 repo, check = sys.argv[1], sys.argv[2]
@@ -23,13 +23,10 @@ skills = sorted(
     if os.path.isfile(os.path.join(skills_dir, d, "SKILL.md"))
 )
 with open(cfg, encoding="utf-8") as fh:
-    tp = (yaml.safe_load(fh) or {}).get("tool_policies", {}) or {}
+    policy = yaml.safe_load(fh) or {}
+tp = policy.get("tool_policies", {}) or {}
 VALID = {"always", "conditional", "never"}
-VALID_MODELS = {"haiku", "sonnet", "opus", "charter"}
-VALID_SESSION_MODELS = {"opus"}
-DISPATCHING = ("always", "conditional")
 MARKER = "## Sub-agent dispatch"
-SESSION_MARKER = "## Session model"
 
 def body(s):
     with open(os.path.join(skills_dir, s, "SKILL.md"), encoding="utf-8") as fh:
@@ -51,9 +48,56 @@ def dispatch_section(s):
             out.append(line)
     return "\n".join(out)
 
+def bundled_omp_contract(s):
+    """Return whether the source skill links a resolvable, local OMP contract."""
+    sources = glob.glob(os.path.join(repo, "plugins", "*", "skills", s, "SKILL.md"))
+    if len(sources) != 1:
+        return False
+    source = sources[0]
+    with open(source, encoding="utf-8") as fh:
+        text = fh.read()
+    section, on = [], False
+    for line in text.splitlines():
+        if line.startswith(MARKER):
+            on = True
+            continue
+        if on and line.startswith("## "):
+            break
+        if on:
+            section.append(line)
+    section_text = "\n".join(section)
+    links = re.findall(r"`([^`]+\.md)`", section_text)
+    links += re.findall(r"\[[^]]+\]\(([^)]+\.md)\)", section_text)
+    for link in links:
+        candidate = os.path.normpath(os.path.join(os.path.dirname(source), link))
+        if os.path.isfile(candidate):
+            with open(candidate, encoding="utf-8") as fh:
+                if re.search(r"\bOMP\b.*`task`", fh.read(), re.I):
+                    return True
+    return False
+
 fail = []
 
-if check == "coverage":          # T1
+if check == "retired_config":    # T0
+    retired = {
+        "parallel_agents", "subagent_model", "session_model",
+        "session_model_rationale", "harness_routing", "consensus",
+        "synthesis_priority", "error_recovery", "task_model_defaults",
+        "parallel_agent", "script_path", "output_dir", "default_options",
+        "modes",
+    }
+    def walk(value, path=""):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                child_path = f"{path}.{key}" if path else str(key)
+                if str(key) in retired:
+                    fail.append(f"{child_path}: retired coordinator setting")
+                walk(child, child_path)
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                walk(child, f"{path}[{index}]")
+    walk(policy)
+elif check == "coverage":          # T1
     for s in skills:
         if "subagents" not in entry(s):
             fail.append(f"{s}: no `subagents` disposition in tool_policies")
@@ -98,15 +142,10 @@ elif check == "body_trigger":          # T5
                 f"{s}: dispatch section does not link a selection-reference contract"
             )
 elif check == "no_contradiction":      # T6
-    # Two ways a `never` skill can contradict its disposition. The section
-    # heading is the obvious one; the DISPATCH ITSELF is the one that actually
-    # leaked. plan-manage declared `never` — which exempts it from the T7/T8
-    # model-pin gate — while SKILL.md step 4 dispatched
-    # `Task(subagent_type: "general-purpose")` with no model. It carried no
-    # `## Sub-agent dispatch` heading, so the heading-only check passed it, and
-    # the one dispatch it made inherited the session's premium model unchecked.
-    # Matching the call syntax closes the exemption for good.
-    DISPATCH_RE = re.compile(r"subagent_type\s*[:=]", re.I)
+    # A `never` skill may not contain an explicit OMP task dispatch. The body
+    # section heading catches declared dispatch guidance; matching task calls
+    # catches an undeclared dispatch that would otherwise evade the policy.
+    DISPATCH_RE = re.compile(r"\btask\s*\(", re.I)
     for s in skills:
         if entry(s).get("subagents") != "never":
             continue
@@ -117,54 +156,9 @@ elif check == "no_contradiction":      # T6
         if hits:
             fail.append(
                 f"{s}: never but body dispatches a sub-agent at line(s) "
-                f"{', '.join(map(str, hits))} (subagent_type=...) — reclassify as "
-                f"conditional and pin subagent_model, or remove the dispatch"
+                f"{', '.join(map(str, hits))} (task(...)) — reclassify as "
+                f"conditional or remove the dispatch"
             )
-elif check == "model_pinned":          # T7
-    # A dispatch site that names no model inherits the parent session's model,
-    # which bills the premium main-loop tier for fan-out work. Measured
-    # 2026-07-25: $845/yr of avoidable premium sub-agent spend, $643 of it from
-    # inherited Fable 5 alone. Enumerated from the disposition, not a name list.
-    for s in skills:
-        e = entry(s)
-        if e.get("subagents") not in DISPATCHING:
-            continue
-        m = e.get("subagent_model")
-        if m is None:
-            fail.append(f"{s}: {e['subagents']} but no subagent_model (default: sonnet)")
-        elif m not in VALID_MODELS:
-            fail.append(f"{s}: invalid subagent_model {m!r} (expected one of {sorted(VALID_MODELS)})")
-elif check == "model_in_body":         # T8
-    # The dispatch prose must state the same model the config pins, so a reader
-    # of SKILL.md alone cannot dispatch on the inherited model by accident.
-    for s in skills:
-        e = entry(s)
-        if e.get("subagents") not in DISPATCHING:
-            continue
-        m = e.get("subagent_model")
-        if m not in VALID_MODELS:
-            continue                    # already reported by T7
-        sec = dispatch_section(s).lower()
-        needle = "cddl-role-models.md" if m == "charter" else m
-        if needle not in sec:
-            fail.append(f"{s}: dispatch section does not name the pinned model ({m!r}; expected {needle!r})")
-elif check == "session_model":         # T9
-    # The `fable` session tier was retired 2026-08-17; Opus (1M) is now both the
-    # top tier and the default, so no skill can name a costlier session model.
-    # Any session_model pin must still be a known tier and justify itself.
-    # Enumerated from the field's presence, not a name list.
-    for s in skills:
-        e = entry(s)
-        sm = e.get("session_model")
-        if sm is None:
-            if "session_model_rationale" in e:
-                fail.append(f"{s}: session_model_rationale without session_model")
-            continue
-        if sm not in VALID_SESSION_MODELS:
-            fail.append(f"{s}: invalid session_model {sm!r} (expected one of {sorted(VALID_SESSION_MODELS)})")
-            continue
-        if not e.get("session_model_rationale"):
-            fail.append(f"{s}: session_model: {sm} but no session_model_rationale")
 else:
     print(f"unknown check: {check}", file=sys.stderr)
     sys.exit(2)
@@ -176,6 +170,11 @@ if fail:
     sys.exit(1)
 print(f"check '{check}' OK ({len(skills)} skills)")
 PY
+}
+
+@test "command policy has no custom coordinator settings or provider-model routing" {
+    run run_check retired_config
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
 }
 
 @test "every skill has a subagents disposition (dynamic coverage)" {
@@ -205,20 +204,5 @@ PY
 
 @test "never skills do not instruct dispatch (no contradiction)" {
     run run_check no_contradiction
-    [ "$status" -eq 0 ] || { echo "$output"; false; }
-}
-
-@test "always/conditional skills pin a sub-agent model (no inherit-by-accident)" {
-    run run_check model_pinned
-    [ "$status" -eq 0 ] || { echo "$output"; false; }
-}
-
-@test "dispatch prose names the same model the config pins" {
-    run run_check model_in_body
-    [ "$status" -eq 0 ] || { echo "$output"; false; }
-}
-
-@test "session_model pins are valid and carry a rationale" {
-    run run_check session_model
     [ "$status" -eq 0 ] || { echo "$output"; false; }
 }

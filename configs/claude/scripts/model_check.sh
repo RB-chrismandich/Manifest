@@ -30,7 +30,7 @@ Always exits 0; every failure degrades to a SKIPPED report line.
 Report lines: OK / STALE / SKIPPED / UNSUPPORTED
 
 Environment:
-  MODEL_CHECK_CONFIG          config path (default ~/.claude/config/parallel_agent.yml)
+  MODEL_CHECK_CONFIG          config path (default ~/.claude/config/model_policy.yml)
   MODEL_CHECK_PROBE=1         live one-shot CLI probes (claude, gemini, antigravity,
                               cursor, codex) — one tiny LLM call per pin. Required to
                               verify codex at all: it has no listing command. Never
@@ -41,7 +41,7 @@ EOF
     exit 0
 fi
 
-MODEL_CHECK_CONFIG="${MODEL_CHECK_CONFIG:-$HOME/.claude/config/parallel_agent.yml}"
+MODEL_CHECK_CONFIG="${MODEL_CHECK_CONFIG:-$HOME/.claude/config/model_policy.yml}"
 
 # list_tiers PROVIDER -> "tier<TAB>model" lines from model_tiers.<provider>
 list_tiers() {

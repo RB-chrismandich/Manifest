@@ -19,17 +19,11 @@
       "remove_label"
     ]
   },
-  "batch": {
-    "cache_ttl_seconds": 604800,
-    "chunk_size": 15,
-    "max_concurrent": 3
-  },
-  "consensus": {
-    "high_threshold": 0.8,
-    "medium_threshold": 0.5,
-    "timeout_seconds": 300,
-    "use_for_duplicates": true,
-    "use_for_priority": true
+  "review": {
+    "reviewers_per_item": 5,
+    "minimum_valid_verdicts": 3,
+    "duplicate_agreement_threshold": 0.8,
+    "priority_agreement_threshold": 0.7
   },
   "duplicate_detection": {
     "description_overlap_high": 0.7,

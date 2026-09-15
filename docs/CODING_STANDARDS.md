@@ -150,10 +150,9 @@ array-expansion lint at commit and CI.
 
   **Coverage is enumerated, never listed.** The gate walks every `*.py` and
   `*.sh` in the directory. An inclusion list fails in the direction you cannot
-  see — a new script that forgets to join it is silently ungated — and a name
-  in the list that cannot satisfy the gate breaks CI, which is exactly how
-  `parallel_agent.py` broke the build. Exclusions come from one of three
-  places, in order of preference:
+  see — a new script that forgets to join it is silently ungated — and a stale
+  name in the list can break CI. Exclusions come from one of three places, in
+  order of preference:
 
   1. **Derived from the code.** A file with no `__main__` block is a library,
      not an entry point (`_manifest_shim.py`). A file importing

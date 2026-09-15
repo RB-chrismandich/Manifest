@@ -63,10 +63,10 @@ is installed, independent of MCP.
 
 ## Repository Purpose
 
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`) on target machines. It contains
-orchestration guides, skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI, Antigravity, Devin CLI).
+This repository manages AI coding workflow configuration for deployment to
+`~/.claude/` (and mirrored to `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and
+`~/.antigravity/`). It contains OMP-native orchestration guides, skills,
+prompts, and retained single-provider scripts.
 
 ## Repository Structure
 
@@ -80,7 +80,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
 │   ├── .plans/                      # Plan management (template, archive, abandoned)
 │   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/manifest_cli/        # Manifest CLI router (manifest parallel-agent, manifest smoke, …)
+│   └── scripts/manifest_cli/        # Manifest CLI router (manifest smoke, skill-run, …)
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
 │   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
 │   ├── mcp.json                     # Cursor MCP server defaults
@@ -102,7 +102,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 └── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
-    └── (symlinks to ../claude/)     # config, skills, .plans (no scripts/prompts: agy is a parallel_agent provider, not an orchestrator)
+    └── (symlinks to ../claude/)     # config, skills, .plans (shared configuration and skills)
 
 .claude/                             # Repo-specific config (minimal — does NOT override sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
@@ -182,7 +182,7 @@ If not using bootstrap.sh, copy the configuration directories manually:
 # Deploy Claude Code configuration
 cp -r configs/claude/* ~/.claude/
 cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
-chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
+chmod +x ~/.claude/scripts/*.sh
 
 # Other platforms (Cursor/Gemini/Codex/Antigravity): copy the platform guide +
 # settings, then symlink scripts/config/prompts/.plans/skills from ~/.claude/.
@@ -204,7 +204,7 @@ Required CLI tools (install those you want to use):
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/manifest_cli/` | Manifest CLI (`manifest parallel-agent`, `manifest smoke`, `manifest doctor`) |
+| `configs/claude/scripts/manifest_cli/` | Manifest CLI (`manifest smoke`, `manifest skill-run`, `manifest doctor`) |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 
@@ -230,7 +230,7 @@ Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 | `/terraform-refactor` | Terraform/OpenTofu IaC security, modularity, and quality analysis | CONDITIONAL (risk-based) |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/plan-manage` | Plan lifecycle with OMP-native independent review | CONDITIONAL |
 | `/smoke-manage` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
 | `/session-checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/env-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
@@ -245,7 +245,6 @@ Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
 | `/code-audit` | Auto-triggered security and quality checks | AUTO (always when triggered) |
-| `/metrics-report` | Visualize agent efficiency metrics | NO |
 | `/learning-capture` | Capture structured lessons learned | NO |
 | `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
 | `/project-scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
@@ -279,42 +278,18 @@ Skills are shared across all platforms via symlinks from `configs/claude/skills/
   A second copy under its home would register every skill twice
   (`/devin:<name>` beside `/claude:<name>`), so there deliberately is none.
 
-### emdash (external harness, not a deploy target)
+## OMP Sub-Agent Dispatch
 
-[emdash](https://github.com/generalaction/emdash) is an external desktop **harness**
-— it is **not** a Manifest deploy platform. It launches your agent CLIs (Claude Code,
-Codex, Gemini, Cursor) in parallel git worktrees using your **real `HOME`**, so those
-agents **inherit the full Manifest configuration transitively** — home `~/.claude/`
-skills/subagents/hooks/MCP/orchestration guide plus the repo's committed
-`CLAUDE.md`/`.claude/`/`AGENTS.md`. There is deliberately **no `~/.emdash/` config
-directory and no `configs/emdash/` tree** (either would be inert). Prerequisite: run
-`./bootstrap.sh` (home deploy) first. See [docs/EMDASH.md](docs/EMDASH.md).
+OMP `task` and `hub` are the only interactive sub-agent contract. When work has
+independent units, submit all ready units in one `task` call, in waves of at
+most 32. Choose `scout` for read-only exploration, `reviewer` for quality
+review, `security-reviewer` for security review, `sonic` only for mechanical
+work, and omit `agent` for default implementation work.
 
-## Parallel Agent Orchestration
-
-All agents share the same Manifest CLI entry point (`manifest parallel-agent`), installed to
-`~/.local/bin/manifest` by bootstrap. Legacy shims under `~/.claude/scripts/parallel_agent.py`
-still forward but are deprecated.
-
-```bash
-# Basic code review (all 5 agents)
-manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
-
-# Security analysis with maximum capability models
-manifest parallel-agent --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Smoke catalog (when smoke service enabled)
-manifest smoke run --app manifest --tier Lite
-```
-
-### Validation
-
-- **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
-  changes. **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
-- Authoritative weights: `configs/claude/config/validation_criteria.yml`.
-  Consensus thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
-  `configs/claude/references/orchestration.md`.
+Children execute their assigned unit directly and never redispatch. Use `hub`
+only to coordinate or wait. The parent validates evidence, resolves material
+disagreement, and aggregates results. If `task` is unavailable, execute inline
+and report `DEGRADED`; never fall back to a provider CLI.
 
 ## Proactive Coding Guardrails (always on)
 
@@ -371,12 +346,6 @@ lints each file you edit; the CI gate runs `pre-commit` on changed files.
 ## Testing Changes
 
 ```bash
-# Test parallel agent CLI
-manifest parallel-agent --json "Test prompt"
-
-# Test specific mode
-manifest parallel-agent --json --review /path/to/file
-
 # Validate YAML configs
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_criteria.yml'))"
@@ -442,8 +411,8 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 - **Skill Authoring**: `/ai-hooks-integration` · `/prompt-optimize` · `/skill-evolve`
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
 - **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-compose-commandments` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
-- **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
-- **Uncategorized**: `/automation-rework-breakeven` · `/code-audit-constitution` · `/code-to-design` · `/delegate` · `/delegate-setup` · `/deploy-reconcile` · `/design-loop` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/i-have-adhd` · `/issue-manage` · `/lifecycle-run` · `/loop-scaffold` · `/manage-design-system` · `/parallel-agent` · `/pr-manage` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/refactor` · `/remotion` · `/render-verify` · `/review-round` · `/screen-prompts` · `/shadcn-ui` · `/shell-audit` · `/spec-amend` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/ui-delivery` · `/ui-verification` · `/upload-to-stitch`
+- **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/help` · `/learning-capture` · `/memory-compress` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
+- **Uncategorized**: `/automation-rework-breakeven` · `/code-audit-constitution` · `/code-to-design` · `/delegate` · `/delegate-setup` · `/deploy-reconcile` · `/design-loop` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/i-have-adhd` · `/issue-manage` · `/lifecycle-run` · `/loop-scaffold` · `/manage-design-system` · `/pr-manage` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/refactor` · `/remotion` · `/render-verify` · `/review-round` · `/screen-prompts` · `/shadcn-ui` · `/shell-audit` · `/spec-amend` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/ui-delivery` · `/ui-verification` · `/upload-to-stitch`
 
 Run `/help <query>` for descriptions and when-to-use.
 

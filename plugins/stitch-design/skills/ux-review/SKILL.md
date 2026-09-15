@@ -147,13 +147,17 @@ Static analysis checks that indicate Core Web Vitals risk:
 
 ## Sub-agent dispatch
 
-Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
-pinned `sonnet` model.
+This skill uses the shared OMP dispatch contract in
+`references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-When ≥3 independent pages or flows need review, dispatch one sub-agent per page/flow to review it, then merge findings;
-below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-use native sub-agents when available, or `manifest-workspace:parallel-agent` / inline
-on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+When ≥3 independent pages or flows need review, dispatch one review unit per
+page or flow in a single OMP `task` call (in waves of at most 32), using
+`reviewer`. Each child reviews only its assigned unit and never re-dispatches.
+The parent directly merges cited findings into this skill's report. Use `hub`
+only to coordinate or wait. If `task` is unavailable, review inline and report
+`DEGRADED`. Below the threshold, review inline.

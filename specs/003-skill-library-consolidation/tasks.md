@@ -54,7 +54,7 @@
 
 - [x] T013 [US1] Repo-wide reference sweep for all 14 deleted skill dirs (net −12 after 2 new survivors) (quickstart.md §US1 loop); fix any hits outside specs/003-* and CHANGELOG; confirm skill count = 69
 - [x] T014 [US1] Run quickstart.md §US1 + full gate (pre-commit, bats, pytest); regenerate cursor rules (`configs/claude/scripts/generate_cursor_rules.sh`) since skill set changed; commit
-- [x] T015 [US1] Parallel-agent cross-verification of the consolidation diff (Constitution II — >200 lines of skill content); address findings; open PR-1 with content-preservation table (per-cluster: variant → where its content landed) and the R1 directory-scope pruning interpretation for reviewer sign-off. *As executed*: `parallel_agent.py --review` was unavailable (its Claude/Gemini backends need the `anthropic`/`google-generativeai` SDKs + API keys; this machine uses OAuth CLIs), so the gate ran as two independent reviewers — Gemini CLI + an isolated Claude code-reviewer agent — with findings synthesized per the same consensus thresholds
+- [x] T015 [US1] Parallel-agent cross-verification of the consolidation diff (Constitution II — >200 lines of skill content); address findings; open PR-1 with content-preservation table (per-cluster: variant → where its content landed) and the R1 directory-scope pruning interpretation for reviewer sign-off. *As executed*: `the retired cross-harness coordinator --review` was unavailable (its Claude/Gemini backends need the `anthropic`/`google-generativeai` SDKs + API keys; this machine uses OAuth CLIs), so the gate ran as two independent reviewers — Gemini CLI + an isolated Claude code-reviewer agent — with findings synthesized per the same consensus thresholds
 
 **Checkpoint**: PR-1 merged → library consolidated, pruning live, evolve dedup-hardened. MVP complete.
 
@@ -71,7 +71,7 @@
 - [x] T018 [P] [US2] CHANGELOG.md: move shipped Unreleased items (promote audit log etc.) into a dated `[2026-06]` section; add entries for this feature's PRs as they land
 - [x] T019 [P] [US2] Prepend archive banner to docs/SHELL_ANALYSIS_REPORT.md: `> [ARCHIVED 2026-06-10] Analyzes the retired parallel_agent.sh; superseded — see configs/claude/scripts/ for current tooling`
 - [x] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/superpowers/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md
-- [x] T021 [US2] Run quickstart.md §US2 + full gate; markdownlint clean; if the diff exceeds 200 lines (likely), run parallel-agent cross-verification (`~/.claude/scripts/parallel_agent.py --json --timeout 600 --review` on changed files) per Constitution II before opening PR-2
+- [x] T021 [US2] Run quickstart.md §US2 + full gate; markdownlint clean; if the diff exceeds 200 lines (likely), run parallel-agent cross-verification (`~/.claude/scripts/the retired cross-harness coordinator --json --timeout 600 --review` on changed files) per Constitution II before opening PR-2
 
 **Checkpoint**: docs match reality; drift map published.
 
@@ -89,8 +89,8 @@
 - [x] T025 [US3] Write tests/lint/check_array_expansion.sh per contracts/array-guard.md (detection rule, `# array-safe` opt-out, exit 0/1, findings as `file:line: name`); include fixture self-test proving a planted violation is caught
 - [x] T026 [US3] Sweep all tracked *.sh for unsafe empty-array expansions; convert to `${arr[@]+"${arr[@]}"}` or annotate `# array-safe`; guard exits 0 at HEAD
 - [x] T027 [US3] Wire the guard both places (clarification): local repo hook in .pre-commit-config.yaml + step in the lint job of .github/workflows/ci.yml
-- [x] T028 [P] [US3] `git mv configs/claude/scripts/test_oauth.py configs/claude/scripts/test_parallel_agent.py tests/python/`; fix their sys.path inserts for the new location; `grep -rn "scripts/test_oauth\|scripts/test_parallel_agent"` → fix any references; pytest green
-  - _Closeout note (2026-07-01, issue #456): test_parallel_agent.py moved to tests/python/; test_oauth.py was later deleted (OAuth path retired in PR #333) rather than moved._
+- [x] T028 [P] [US3] `git mv configs/claude/scripts/test_oauth.py configs/claude/the retired coordinator integration test tests/python/`; fix their sys.path inserts for the new location; `grep -rn "scripts/test_oauth\|scripts/test_parallel_agent"` → fix any references; pytest green
+  - _Closeout note (2026-07-01, issue #456): the retired coordinator integration test moved to tests/python/; test_oauth.py was later deleted (OAuth path retired in PR #333) rather than moved._
 - [x] T029 [US3] Run quickstart.md §US3 + full gate; parallel-agent cross-verification (Constitution II — security-adjacent quoting changes); open PR-3
 
 **Checkpoint**: robustness class bugs closed and guarded.

@@ -11,12 +11,12 @@ consensus is a different workflow.
 
 ## Personas (strict separation)
 
-| Persona | Sub-agent type | Writes code? | Phase |
-|---------|----------------|--------------|-------|
-| **Developer** | `generalPurpose` | **Yes — only role** | 2 |
-| **Developer reviewer** | `code-reviewer` (`readonly: true`) | **Never** | 2 |
-| **QA / security critic** | `security-review` (`readonly: true`) | **Never** | 1 + 2 |
-| **Architecture critic** | `code-architect` (`readonly: true`) | **Never** | 1 + 2 |
+| Persona | OMP role | Writes code? | Phase |
+|---------|----------|--------------|-------|
+| **Developer** | Omit `agent` (default implementation worker) | **Yes — only role** | 2 |
+| **Developer reviewer** | `reviewer` | **Never** | 2 |
+| **QA / security critic** | `security-reviewer` | **Never** | 1 + 2 |
+| **Architecture critic** | `reviewer` | **Never** | 1 + 2 |
 
 The orchestrator (you) **never** writes implementation code — only dispatches
 sub-agents, runs verification, parses verdicts, persists run artifacts, and
@@ -28,17 +28,20 @@ same iteration. Any findings → feed back to the developer and iterate.
 
 ## Sub-agent dispatch
 
-> Sub-agents: **always** — one fresh sub-agent per persona per round/iteration.
-> Sequential dispatch only (no parallel critics — each must see the same tree).
+> Sub-agents: **always** — one fresh worker per persona per round or iteration.
 
-**Primary (Claude Code, Cursor):** native Task sub-agents per
-`../../runtime/references/sub-agent-dispatch.md`.
+Use one OMP `task` call for each ready persona batch, in waves of at most 32.
+Phase-1 QA and architecture critics may run together; phase-2 reviewers run
+only after the developer's verification result is available. Every child gets
+one bounded charter and artifact paths, executes directly, and never
+redispatches. Use `hub` only to coordinate or wait. The parent parses verdicts,
+gates progress, validates evidence, and aggregates the result.
 
-**CLI fallback (Gemini, Codex, Antigravity, Devin):** critics and developer-reviewer via
-`../../runtime/cddl/cddl_invoke.py` — see `prompts/cli-dispatch.md`. Model tiers:
-`../../runtime/references/cddl-role-models.md`. The developer role still
-requires a writer — run implementation in the main session when Task is absent, or
-ask the operator to use Cursor / Claude Code for full separation.
+If `task` is unavailable, perform the corresponding work inline and report
+`DEGRADED`. Never use a provider CLI as an interactive fallback.
+
+See `../../runtime/references/sub-agent-dispatch.md` for the shared role and
+batching rules.
 
 Charters are packaged under `../../runtime/prompts/cddl/`:
 
@@ -47,20 +50,9 @@ Charters are packaged under `../../runtime/prompts/cddl/`:
 - `qa-critic.md` — security / validation / runtime safety
 - `arch-critic.md` — layering / design / DRY
 
-Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
-**file paths**, not pasted artifacts.
-
-## Session model
-
-This workflow runs on the session default, Opus (1M context) — the top tier. It previously required Fable, retired 2026-08-17.
-
-This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
-until the gates clear.
-
-Use a high-capability reasoning model for the orchestration session. CLI critic
-models resolve only through the adjacent
-`../../runtime/config/review_models.json`; Devin uses its documented no-model
-route.
+Dispatch templates live in this skill's `prompts/` directory. Hand workers
+**file paths**, not pasted artifacts. `cddl_invoke.py` remains a separate
+noninteractive, headless API; it is not part of this interactive workflow.
 
 ## Prerequisites
 
@@ -84,17 +76,14 @@ Defaults: clarification rounds **3**, implementation iterations **10**.
 
 ### 1. Phase 1 — clarification gate (no code)
 
-For each round until both critics `complete` or rounds exhaust:
-
-1. Dispatch **QA critic** (`security-review`, `readonly: true`) with
-   `reviewer-dispatch.md` — phase 1, artifacts = spec + plan only.
-2. Dispatch **architecture critic** (`code-architect`, `readonly: true`) —
-   same inputs, independent.
-3. Parse last `cddl-verdict` block from each output (`prompts/verdict-format.md`).
-4. If **either** has `questions` findings → write `questions.md`, relay to the
+1. Dispatch **QA critic** (`security-reviewer`) and **architecture critic**
+   (`reviewer`) in one OMP `task` batch with `reviewer-dispatch.md`, phase 1,
+   and spec/plan artifacts.
+2. Parse last `cddl-verdict` block from each output (`prompts/verdict-format.md`).
+3. If **either** has `questions` findings → write `questions.md`, relay to the
    operator, collect answers → `answers-<round>.md`, append to `context.md`,
    next round.
-5. If **both** `complete` with zero findings → enter phase 2.
+4. If **both** `complete` with zero findings → enter phase 2.
 
 If rounds exhaust with open questions → **gate failure** (no code produced);
 write `report.md` and stop.
@@ -103,20 +92,19 @@ write `report.md` and stop.
 
 For each iteration until all three reviewers approve or iterations exhaust:
 
-1. **Developer** (`generalPurpose`, **not** readonly) — `developer-dispatch.md`.
-   Only this sub-agent may modify the repo.
-2. **Verification** (orchestrator): run the verify command from context (or
+1. **Developer** (default implementation worker, not a named `agent`) —
+   `developer-dispatch.md`. Only this worker may modify the repo.
+2. **Verification** (parent): run the verify command from context (or
    `/manifest-code-quality:project-verify`). On failure, write deficiencies to
-   `iterations/<n>/verify.log`, skip critics, next iteration with verify output
-   as developer feedback.
+   `iterations/<n>/verify.log`, skip critics, and send that output to the next
+   developer iteration.
 3. Generate review package: `git diff` + `git diff --cached` →
    `iterations/<n>/review-package.diff`.
-4. Dispatch **developer reviewer** (`code-reviewer`, `readonly: true`).
-5. Dispatch **QA critic** (`security-review`, `readonly: true`).
-6. Dispatch **architecture critic** (`code-architect`, `readonly: true`).
-7. Parse verdicts. If **any** persona has findings → merge into
+4. Dispatch **developer reviewer** and **architecture critic** as `reviewer`,
+   and **QA critic** as `security-reviewer`, in one OMP `task` batch.
+5. Parse verdicts. If **any** persona has findings → merge into
    `iterations/<n>/findings.md` for the next developer dispatch.
-8. If **all three** `approve` with **empty findings** → success (step 3).
+6. If **all three** `approve` with **empty findings** → success (step 3).
 
 If iterations exhaust without triple approval → **ceiling failure**; leave work
 applied but **unstaged**; `report.md` lists per-persona outstanding findings.
@@ -134,16 +122,12 @@ When critics ask questions, present them conversationally, collect answers in on
 message, persist to `answers-<round>.md`, and continue — one continuous session.
 Do not ask the operator to run CLI tools.
 
-## Tunables
+## Headless API boundary
 
-| Flag / env | Default | Meaning |
-|------------|---------|---------|
-| `--max-rounds` | 3 | Clarification rounds |
-| `--max-iterations` | 10 | Implementation iterations |
-| `--verify-cmd` | auto-detect | Override verification command |
-| `--allow-dirty` | off | Allow dirty tree at start |
-| `CDDL_INVOKE_PROVIDER` | auto | Headless critic CLI provider |
-| `CDDL_INVOKE_CLI` | — | Binary override for `cddl_invoke.py` |
+`../../runtime/cddl/cddl_invoke.py` remains available to programmatic,
+noninteractive callers that need one stdin-driven provider invocation. Its
+`CDDL_INVOKE_PROVIDER` and `CDDL_INVOKE_CLI` controls apply only to that API;
+they never replace OMP `task` in this interactive loop.
 
 ## Persistence
 

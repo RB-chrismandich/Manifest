@@ -194,7 +194,7 @@ Save normalized issues to `$TEMP_DIR/issues.json`.
 ### Step 4: Heuristic Pre-Scoring
 
 Apply local heuristic scoring to every issue for initial ranking. This avoids
-calling parallel agents for the full list.
+dispatching OMP reviewer tasks for the full list.
 
 ```python
 #!/usr/bin/env python3
@@ -351,130 +351,55 @@ Save scored and sorted issues to `$TEMP_DIR/scored_issues.json`.
 
 ### Step 5: Agent-Refined Scoring for Top Candidates
 
-For the top N+2 candidates (default: top 7), use parallel agents for refined scoring.
-This provides multi-perspective validation of the heuristic rankings.
+Extract the top N+2 candidates (default: top 7). For every candidate, create
+three independent, read-only OMP `reviewer` tasks. Dispatch all of these task
+items in one `task` call, splitting only into waves of at most 32 tasks. Each
+task receives one candidate, the optional project context, and this required
+JSON result contract:
 
-```bash
-# Extract top candidates
-TOP_COUNT=$((TOP_N + 2))
-jq ".[:$TOP_COUNT]" "$TEMP_DIR/scored_issues.json" > "$TEMP_DIR/top_candidates.json"
-
-# Load optional project context
-PROJECT_CONTEXT=""
-if [[ -n "$PROJECT_CONTEXT_FILE" && -f "$PROJECT_CONTEXT_FILE" ]]; then
-    PROJECT_CONTEXT=$(cat "$PROJECT_CONTEXT_FILE")
-fi
-
-# Build scoring prompt
-CANDIDATES=$(jq -r '.[] | "### #\(.number) — \(.title)\nBody: \(.body // "No description" | .[0:300])\nLabels: \(.labels | join(", "))\nHeuristic scores: Impact=\(.scores.impact) Urgency=\(.scores.urgency) Readiness=\(.scores.readiness) Risk=\(.scores.risk) Score=\(.scores.score)\n"' "$TEMP_DIR/top_candidates.json")
-
-manifest-workspace:parallel-agent --json --full-output --timeout 600 \
-    --cursor-model flash --claude-model sonnet \
-    "You are an issue prioritization analyst. Score these open issues for a software project.
-
-${PROJECT_CONTEXT:+## Project Context
-$PROJECT_CONTEXT
+```json
+{
+  "number": "candidate identifier",
+  "impact": 1,
+  "urgency": 1,
+  "readiness": 1,
+  "risk": 1,
+  "type": "feature",
+  "rationale": "...",
+  "services": [],
+  "dependencies": "..."
 }
-## Scoring Dimensions (1-5 each)
-
-- **Impact**: 5=blocks core functionality/data loss, 4=major user-facing, 3=reliability/DX, 2=nice-to-have, 1=cosmetic
-- **Urgency**: 5=production problems, 4=blocks other work, 3=this sprint, 2=can wait, 1=backlog
-- **Readiness**: 5=has implementation plan, 4=clear requirements, 3=needs design, 2=needs exploration, 1=vague
-- **Risk**: 1=isolated/safe, 2=one service, 3=cross-service, 4=architectural, 5=critical path
-
-**Formula**: (Impact × 3) + (Urgency × 2) + (Readiness × 2) - Risk
-
-## Candidates
-
-$CANDIDATES
-
-## Instructions
-
-For each issue return a JSON array:
-[{\"number\": N, \"impact\": N, \"urgency\": N, \"readiness\": N, \"risk\": N, \"score\": N, \"type\": \"...\", \"rationale\": \"...\", \"services\": [\"...\"], \"dependencies\": \"...\"}]
-
-Score objectively. Prefer bugs over features in ties. Consider which issues unblock others." \
-    > "$TEMP_DIR/agent_scores.json"
 ```
 
-Parse agent outputs and merge with heuristic scores:
+The parent validates that the returned `number` identifies the assigned
+candidate and that all four dimension values are integers from 1 through 5.
+It records malformed, missing, wrong-candidate, or wrong-typed outputs as
+invalid and excludes them. The scoring prompt must retain these dimension
+definitions and formula:
 
-```python
-#!/usr/bin/env python3
-"""Merge agent-refined scores with heuristic scores."""
-import json
-import sys
+- **Impact**: 5=blocks core functionality/data loss, 4=major user-facing,
+  3=reliability/DX, 2=nice-to-have, 1=cosmetic.
+- **Urgency**: 5=production problems, 4=blocks other work, 3=this sprint,
+  2=can wait, 1=backlog.
+- **Readiness**: 5=has implementation plan, 4=clear requirements, 3=needs
+  design, 2=needs exploration, 1=vague.
+- **Risk**: 1=isolated/safe, 2=one service, 3=cross-service,
+  4=architectural, 5=critical path.
+- **Formula**: `(impact × 3) + (urgency × 2) + (readiness × 2) - risk`.
 
-with open(sys.argv[1]) as f:
-    candidates = json.load(f)
+Merge the valid results in stable task submission order. For each candidate
+with one or more valid results, average each valid dimension (round to the
+nearest integer), recompute the formula from those averages, and set
+`agent_refined: true`. Preserve optional `type`, `rationale`, `services`, and
+`dependencies` only from the first valid result in that stable order, falling
+back to the heuristic type where absent. Do not trust any agent-supplied total
+or score. If no valid result exists, retain every heuristic score unchanged
+and set `agent_refined: false`.
 
-# Try to parse agent scores from JSON output
-agent_data = {}
-try:
-    with open(sys.argv[2]) as f:
-        agent_output = json.load(f)
-
-    # Try each agent's output for parseable JSON
-    for agent_name in ["claude", "gemini", "cursor"]:
-        agent = agent_output.get("agents", {}).get(agent_name, {})
-        if agent.get("status") != "complete":
-            continue
-        output = agent.get("output", "")
-        # Find JSON array in output
-        import re
-        match = re.search(r'\[[\s\S]*?\]', output)
-        if match:
-            try:
-                scores = json.loads(match.group())
-                for s in scores:
-                    num = str(s.get("number", ""))
-                    if num not in agent_data:
-                        agent_data[num] = []
-                    agent_data[num].append(s)
-            except json.JSONDecodeError as e:
-                print(f"Skipping unparseable agent JSON array: {e}", file=sys.stderr)
-except (FileNotFoundError, json.JSONDecodeError) as e:
-    print(f"Skipping agent data due to read error: {e}", file=sys.stderr)
-
-# Merge: average agent scores if available, otherwise keep heuristic
-for candidate in candidates:
-    num = str(candidate["number"])
-    if num in agent_data:
-        agent_scores = agent_data[num]
-        # Average across agents
-        for dim in ["impact", "urgency", "readiness", "risk"]:
-            vals = [s[dim] for s in agent_scores if dim in s]
-            if vals:
-                candidate["scores"][dim] = round(sum(vals) / len(vals))
-
-        # Recalculate score with averaged dimensions
-        s = candidate["scores"]
-        s["score"] = (s["impact"] * 3) + (s["urgency"] * 2) + (s["readiness"] * 2) - s["risk"]
-
-        # Merge metadata from first agent response
-        first = agent_scores[0]
-        candidate["scores"]["type"] = first.get("type", candidate["scores"].get("type", "feature"))
-        candidate["scores"]["rationale"] = first.get("rationale", "")
-        candidate["scores"]["services"] = first.get("services", [])
-        candidate["scores"]["dependencies"] = first.get("dependencies", "None")
-        candidate["agent_refined"] = True
-    else:
-        candidate["agent_refined"] = False
-
-# Re-sort
-def sort_key(issue):
-    s = issue["scores"]
-    type_priority = 0 if s["type"] == "bug" else 1
-    has_plan = 0 if "planned" in {l.lower() for l in issue.get("labels", [])} else 1
-    created = issue.get("created_at", "9999")
-    return (-s["score"], type_priority, has_plan, created)
-
-candidates.sort(key=sort_key)
-
-print(json.dumps(candidates, indent=2))
-```
-
-Save final ranked candidates to `$TEMP_DIR/final_ranked.json`.
+Re-sort candidates with the existing score/type/planned/creation-order key and
+save the final ranking to `$TEMP_DIR/final_ranked.json`. If OMP `task` is
+unavailable, score inline and record `DEGRADED`; no provider CLI fallback is
+permitted.
 
 ### Step 6: Codebase Context Validation (Optional)
 
