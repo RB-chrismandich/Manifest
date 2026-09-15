@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
+const execFileAsync = promisify(execFile);
 const fixtureRoot = resolve(dirname(fileURLToPath(import.meta.url)));
 const requestedRoot = process.argv[2];
 if (requestedRoot !== undefined && !isAbsolute(requestedRoot)) throw new Error('preparation root must be absolute');
@@ -15,7 +18,36 @@ const canonical = (value) => {
   if (value && typeof value === 'object') return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`;
   return JSON.stringify(value);
 };
-const qualificationHash = `sha256:${createHash('sha256').update('ui-delivery-consumer-qualification-v1').digest('hex')}`;
+const astraModelRoute = 'openai-codex/gpt-6-astra:high';
+const qualifyCli = resolve(fixtureRoot, '../../../plugins/stitch-design/runtime/model-qualification/qualify-models.mjs');
+const astraOverlay = {
+  modelRoles: { designer: astraModelRoute, ui_code: astraModelRoute, ui_review: astraModelRoute },
+  retry: { modelFallback: false },
+  enabledProviders: ['openai-codex'],
+  mcp: { enableProjectConfig: true },
+};
+const astraCatalog = {
+  models: [{
+    provider: 'openai-codex',
+    id: 'gpt-6-astra',
+    selector: 'openai-codex/gpt-6-astra',
+    input: ['text', 'image'],
+    contextWindow: 128000,
+    maxTokens: 16000,
+    thinking: ['low', 'medium', 'high', 'xhigh', 'max'],
+  }],
+};
+const { stdout: qualificationStdout } = await execFileAsync(process.execPath, [
+  qualifyCli,
+  '--overlay', JSON.stringify(astraOverlay),
+  '--catalog', JSON.stringify(astraCatalog),
+  '--json',
+]);
+const qualificationReport = JSON.parse(qualificationStdout);
+const qualificationHash = qualificationReport.qualificationHash;
+if (typeof qualificationHash !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(qualificationHash)) {
+  throw new Error('qualify-models.mjs did not produce a valid qualification hash for the Astra route');
+}
 const authorizationDigest = (task) => {
   const projection = Object.fromEntries(['task_id', 'design_revision', 'qualification_hash', 'allowed_paths', 'forbidden_policy_paths', 'approved_check_recipes', 'capture_recipes', 'model_route', 'stitch_grant'].filter((key) => key in task).map((key) => [key, task[key]]));
   return `sha256:${createHash('sha256').update(canonical(projection)).digest('hex')}`;
@@ -78,7 +110,7 @@ for (const definition of cases) {
   launches.push({
     id: definition.id, repo, task: taskPath, external_approval_sha256: authorizationDigest(task),
     active_qualification_sha256: qualificationHash,
-    astra_model_route: 'openai-codex/gpt-6-astra:high', target: definition.target,
+    astra_model_route: astraModelRoute, target: definition.target,
   });
 }
 process.stdout.write(`${JSON.stringify({ schema: 'ui-delivery-consumer-launch-v1', fixture_root: fixtureRoot, cases: launches })}\n`);

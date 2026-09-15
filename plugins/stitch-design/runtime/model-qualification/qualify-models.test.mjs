@@ -203,6 +203,14 @@ test('rejects enabled model fallback and provider constraints that drift from se
   await expectFailure(qualificationArgs(overlay({ enabledProviders: ['openai-codex', 'ollama'] })), /enabledProviders|provider/i);
 });
 
+test('rejects a cloud catalog entry whose selector prefix does not match its declared provider', async () => {
+  const mismatchedCatalog = catalog([model({ provider: 'anthropic', selector: 'openai-codex/gpt-6-astra' })]);
+  await expectFailure(
+    qualificationArgs(overlay(), mismatchedCatalog),
+    /selector.*provider|provider.*selector/i,
+  );
+});
+
 test('never echoes secret-shaped overlay input on a qualification failure', async () => {
   const result = await invoke(qualificationArgs(overlay({ credential: secret, retry: { modelFallback: true } })));
   assert.notEqual(result.status, 0, failureText(result));
