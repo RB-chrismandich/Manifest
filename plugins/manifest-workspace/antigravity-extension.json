@@ -30,6 +30,13 @@
         "reason": "This component records the Codex Stop surface only."
       },
       {
+        "component_id": "workspace-token-economy-context",
+        "component_type": "hooks",
+        "mode": "not_applicable",
+        "path": "hooks/token-economy-context.json",
+        "reason": "Antigravity already receives this guidance through the guidance component's imported contextFileName; a duplicate SessionStart hook is not a verified Antigravity surface."
+      },
+      {
         "component_id": "command-catalog",
         "component_type": "runtime",
         "mode": "degraded",
