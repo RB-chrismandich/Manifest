@@ -27,12 +27,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        harness: [claude, codex, gemini, cursor, antigravity, devin]
+        # Each row names the ONE protected secret its job may read, so a job
+        # never receives another harness's credential.
+        include:
+          - harness: claude
+            secret: LIVE_CLAUDE_CREDENTIAL
+          - harness: codex
+            secret: LIVE_CODEX_CREDENTIAL
+          - harness: gemini
+            secret: LIVE_GEMINI_CREDENTIAL
+          - harness: cursor
+            secret: LIVE_CURSOR_CREDENTIAL
+          - harness: antigravity
+            secret: LIVE_ANTIGRAVITY_CREDENTIAL
+          - harness: devin
+            secret: LIVE_DEVIN_CREDENTIAL
     env:
       HARNESS: ${{ matrix.harness }}
-      # A public PR runner cannot manufacture a licensed/authenticated native
-      # CLI. The protected environment supplies the audited harness installer.
-      MANIFEST_LIVE_SETUP_COMMAND: ${{ secrets.MANIFEST_LIVE_SETUP_COMMAND }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
@@ -43,27 +54,18 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Require licensed native harness setup
+      - name: Install and authenticate the requested native harness
         shell: bash
+        env:
+          # A public PR runner cannot manufacture a licensed CLI: the credential
+          # comes from the protected environment, and only this step sees it.
+          LIVE_HARNESS_CREDENTIAL: ${{ secrets[matrix.secret] }}
         run: |
           set -euo pipefail
-          if [[ -z "${MANIFEST_LIVE_SETUP_COMMAND:-}" ]]; then
-            echo "BLOCKED: protected MANIFEST_LIVE_SETUP_COMMAND is required"
-            exit 1
-          fi
-          # The protected release environment owns this audited, harness-specific
-          # installer. It must authenticate and put exactly one requested CLI on PATH.
-          bash -lc "$MANIFEST_LIVE_SETUP_COMMAND"
-          case "$HARNESS" in
-            claude) native=claude ;;
-            codex) native=codex ;;
-            gemini) native=gemini ;;
-            cursor) native=cursor-agent ;;
-            antigravity) native=agy ;;
-            devin) native=devin ;;
-          esac
-          command -v "$native" >/dev/null || { echo "BLOCKED: $native is absent after protected setup"; exit 1; }
-          "$native" --version
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          PATH="$HOME/.local/bin:$PATH" python3 tools/live_harness_setup.py \
+            --harness "$HARNESS"
 
       - name: Build immutable coordinator and release artifacts
         shell: bash
