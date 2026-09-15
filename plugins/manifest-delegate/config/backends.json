@@ -2,6 +2,38 @@
   "$schema": "../../../specs/675-multi-agent-delegation/contracts/backend-registry.schema.json",
   "backends": [
     {
+      "id": "jules",
+      "aliases": [],
+      "display_name": "Jules (remote)",
+      "binary": "jules",
+      "invoke": ["jules", "remote", "new", "--repo", "{repo}"],
+      "resume": null,
+      "model_args": [],
+      "default_tier": "auto",
+      "session_id_capture": {"method": "none"},
+      "input": {"transport": "stdin", "max_payload_bytes": 1048576, "max_context_bytes": null},
+      "readiness": {
+        "version_cmd": ["jules", "version"],
+        "auth_probe_cmd": ["jules", "remote", "list", "--repo"],
+        "auth_success_pattern": "(?m)^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+$",
+        "install_fix": "npm install -g @google/jules@0.1.42",
+        "login_fix": "jules login; authorize the repository in the Jules GitHub App",
+        "retired_check": null
+      },
+      "sandbox": {"read_only_args": [], "write_args": []},
+      "execution": {
+        "kind": "remote_session",
+        "driver": "jules_cli",
+        "read_only": false,
+        "model_selection": false,
+        "resume": false,
+        "cancel": false
+      },
+      "prompting_ref": "skills/delegate/references/prompting-jules.md",
+      "services_key": "jules",
+      "transfer": null
+    },
+    {
       "id": "codex",
       "aliases": [],
       "display_name": "Codex",

@@ -88,6 +88,11 @@
           "minItems": 1,
           "description": "Non-interactive, <=10s; exit 0 = authenticated. MUST NOT prompt (US2-AS3)"
         },
+        "auth_success_pattern": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional regex that must match successful auth-probe output; exit 0 alone is insufficient when the CLI can return an empty unauthenticated result"
+        },
         "install_fix": { "type": "string", "minLength": 1, "description": "Exact installation remediation (FR-003)" },
         "login_fix": { "type": "string", "minLength": 1, "description": "Exact authentication remediation (FR-003)" },
         "retired_check": {
@@ -109,6 +114,20 @@
       "properties": {
         "read_only_args": { "type": "array", "items": { "$ref": "#/$defs/safeArg" }, "description": "Default posture (FR-008), enforceably read-only: codex --sandbox read-only; claude sandbox-enabled --settings + --permission-mode plan + --disallowedTools write-tool denylist (a denylist alone leaves Bash as a mutation path); agy --sandbox --mode plan (bare --sandbox does not select the read-only mode)" },
         "write_args": { "type": "array", "items": { "$ref": "#/$defs/safeArg" }, "description": "Opt-in via --write. MUST map to a mode that pre-authorizes only sandbox-scoped workspace edits, keeping the sandbox engaged (codex --sandbox workspace-write; claude sandbox-enabled --settings + --permission-mode acceptEdits, no --add-dir beyond the workspace; agy --sandbox --mode accept-edits — the sandbox is never dropped in write mode); approval-escalating actions (network, outside-workspace paths, force-push/deletes that trip the backend's approval boundary) remain DENIED by the CLI's non-interactive mode — the dispatcher never grants approvals on the user's behalf and never uses bypass flags" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "driver", "read_only", "model_selection", "resume", "cancel"],
+      "description": "Optional non-local execution contract. Absent entries use the local subprocess lifecycle; remote_session entries delegate lifecycle operations to the named driver.",
+      "properties": {
+        "kind": { "enum": ["remote_session"] },
+        "driver": { "type": "string", "minLength": 1 },
+        "read_only": { "type": "boolean" },
+        "model_selection": { "type": "boolean" },
+        "resume": { "type": "boolean" },
+        "cancel": { "type": "boolean" }
       }
     },
     "prompting_ref": {

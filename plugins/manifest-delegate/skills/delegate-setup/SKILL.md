@@ -1,6 +1,6 @@
 ---
 name: delegate-setup
-description: Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin) via parallel probes; reports state and a fix per backend.
+description: Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin, Jules) via parallel probes; reports state and a fix per backend.
 ---
 
 # Delegate Setup
@@ -33,6 +33,13 @@ devin        disabled_workspace 3000.x    enable in $XDG_CONFIG_HOME/manifest/se
 Devin ships **disabled** in `services.yml` (opt-in: `./bootstrap.sh
 --enable-devin`), so a `disabled_workspace` row for it is the default state,
 not a fault.
+
+Jules also ships disabled in bootstrap (`--enable-jules` opts in). Its probe
+requires a positive repository listing, not just exit zero: the CLI can print
+authentication errors and still exit zero. Run `jules login` and authorize the
+repository in the Jules GitHub App. The report does not invent an account name
+from repository rows, and empty output means access is unverified. Existing
+services files that predate Jules can opt out with `--disable-jules`.
 
 States: `ready`, `not_installed`, `not_authenticated`, `disabled_workspace`,
 `disabled_user`, `retired`, `error`. The `fix` column is the exact remediation

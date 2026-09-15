@@ -52,6 +52,8 @@ SUBCOMMANDS = [
     "status",
     "result",
     "cancel",
+    "pull",
+    "apply",
     "setup",
     "transfer",
     "gate",

@@ -315,7 +315,9 @@ def load_services_disabled(config_dir=None):
                     stripped = line.strip()
                     if not stripped or stripped.startswith("#"):
                         continue
-                    top_match = re.match(r"^([A-Za-z0-9_-]+):\s*$", line.rstrip("\n"))
+                    top_match = re.match(
+                        r"^(?:  )?([A-Za-z0-9_-]+):\s*$", line.rstrip("\n")
+                    )
                     if top_match:
                         current_key = top_match.group(1)
                         continue
