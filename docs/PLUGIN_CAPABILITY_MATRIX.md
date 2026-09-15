@@ -232,10 +232,15 @@ matching installed plugin, component, and capability evidence.
 | `stitch-design:skill:spec-amend` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:stitch-loop` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:taste-design` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:ui-delivery` | contract skill | READY | READY | READY | READY | READY | READY |
+| `stitch-design:skill:ui-verification` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:upload-to-stitch` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:skill:ux-review` | contract skill | READY | READY | READY | READY | READY | READY |
 | `stitch-design:agent:design-lens-reviewer` | contract agent | READY | READY | READY | READY | READY | READY |
 | `stitch-design:agent:skeptic-verifier` | contract agent | READY | READY | READY | READY | READY | READY |
+| `stitch-design:agent:ui-builder` | contract agent | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) |
+| `stitch-design:agent:ui-reviewer` | contract agent | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) | N/A(This constrained agent is OMP-only.) |
+| `stitch-design:runtime:model-qualification` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:react-native-validator` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:react-validator` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:static-html-sources` | contract runtime | READY | READY | READY | READY | READY | READY |
@@ -243,6 +248,9 @@ matching installed plugin, component, and capability evidence.
 | `stitch-design:runtime:stitch-build-lock` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:stitch-build-package` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `stitch-design:runtime:stitch-dist` | contract runtime | READY | READY | READY | READY | READY | READY |
+| `stitch-design:runtime:stitch-omp-extension` | contract runtime | N/A(This extension is OMP-only.) | N/A(This extension is OMP-only.) | N/A(This extension is OMP-only.) | N/A(This extension is OMP-only.) | N/A(This extension is OMP-only.) | N/A(This extension is OMP-only.) |
+| `stitch-design:runtime:stitch-omp-mcp-definition` | contract runtime | N/A(This MCP definition is OMP-only.) | N/A(This MCP definition is OMP-only.) | N/A(This MCP definition is OMP-only.) | N/A(This MCP definition is OMP-only.) | N/A(This MCP definition is OMP-only.) | N/A(This MCP definition is OMP-only.) |
+| `stitch-design:runtime:stitch-omp-package` | contract runtime | N/A(This package manifest is OMP-only.) | N/A(This package manifest is OMP-only.) | N/A(This package manifest is OMP-only.) | N/A(This package manifest is OMP-only.) | N/A(This package manifest is OMP-only.) | N/A(This package manifest is OMP-only.) |
 | `stitch-design:mcp:stitch` | contract optional mcp | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `stitch-design:executable:bash` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `stitch-design:executable:git` | contract required executable | READY | READY | READY | READY | READY | READY |

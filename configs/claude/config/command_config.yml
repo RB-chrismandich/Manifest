@@ -747,6 +747,12 @@ tool_policies:
   taste-design:
     subagents: never
     subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single DESIGN.md generation, not a multi-item fan-out."
+  ui-delivery:
+    subagents: never
+    subagent_rationale: "Portable skill is a coordinator contract; only OMP may invoke its package-local constrained agents."
+  ui-verification:
+    subagents: never
+    subagent_rationale: "Portable skill is a reviewer contract; only OMP may invoke its package-local read-only agent."
   upload-to-stitch:
     subagents: never
     subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single asset-upload operation."

@@ -107,6 +107,22 @@ teardown() {
     [ ! -e "$HOME/.claude/skills/alpha" ]
 }
 
+@test "--apply preserves spaces in deployed paths" {
+    mkdir -p "$HOME/.claude/skills/with space"
+    echo "apm" > "$HOME/.claude/skills/with space/SKILL.md"
+    cat > "$APM_LOCKFILE" << 'YML'
+dependencies:
+- repo_url: _local/manifest-skills
+  deployed_files:
+  - .claude/skills/with space/SKILL.md
+YML
+
+    run "$SCRIPT" skills --apply
+    assert_success
+    assert_output --partial ".claude/skills/with space/SKILL.md"
+    [ ! -e "$HOME/.claude/skills/with space/SKILL.md" ]
+}
+
 @test "--apply leaves files APM did not deploy alone" {
     # The reason reclamation reads the lockfile instead of globbing the
     # directory: ~/.claude/skills legitimately holds other tools' skills.
