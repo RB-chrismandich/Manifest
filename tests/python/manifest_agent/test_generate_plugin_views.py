@@ -149,6 +149,38 @@ def test_adhd_views_generate_effective_antigravity_and_devin_context(
     assert (bundle / "devin/global-rule.md").read_text(encoding="utf-8") == guidance
 
 
+def test_antigravity_projection_states_antigravity_reasons(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """agy imports Gemini's file shape, never Gemini's compatibility verdicts."""
+    render_views(repo_root, output_root=tmp_path, check=False)
+    contract = yaml.safe_load(
+        (repo_root / "plugins/manifest-workspace/manifest-capabilities.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    declared = contract["components"]["hooks"]
+    hook = next(
+        item for item in declared if item["id"] == "claude-compaction-continuity"
+    )
+    view = json.loads(
+        (tmp_path / "manifest-workspace/antigravity-extension.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    reasons = {
+        record["component_id"]: record["reason"]
+        for record in view["compatibility"]["degraded"]
+        if "reason" in record
+    }
+
+    assert (
+        reasons["claude-compaction-continuity"]
+        == hook["compatibility"]["antigravity"]["reason"]
+    )
+    assert not any("Gemini" in reason for reason in reasons.values())
+
+
 def test_codex_lifecycle_events_are_independent_native_components(
     repo_root: Path, tmp_path: Path
 ) -> None:

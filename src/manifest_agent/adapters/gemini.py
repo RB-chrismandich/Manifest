@@ -130,7 +130,6 @@ class GeminiAdapter(CapabilityAdapterMixin):
                     "install",
                     str(desired.bundle_path(contract.name)),
                     "--consent",
-                    "--skip-settings",
                 )
             )
             if error is not None:

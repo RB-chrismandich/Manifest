@@ -393,3 +393,28 @@ def test_result_combination_preserves_all_diagnostics() -> None:
     assert result.errors == ("blocked", "degraded")
     assert result.warnings == ("first warning", "second warning")
     assert result.declared_degradations == ("degraded",)
+
+
+def test_result_combination_reports_a_repeated_diagnostic_once() -> None:
+    """install() re-inspects internally, and the service layer inspects again;
+    an identical missing-evidence diagnostic from both passes must not repeat."""
+    first_pass = HarnessResult(
+        "claude",
+        ResultState.DEGRADED,
+        (),
+        {"manifest-workspace:mcp:context7": "missing"},
+        ("missing default capability evidence: manifest-workspace:mcp:context7",),
+    )
+    second_pass = HarnessResult(
+        "claude",
+        ResultState.DEGRADED,
+        (),
+        {"manifest-workspace:mcp:context7": "missing"},
+        ("missing default capability evidence: manifest-workspace:mcp:context7",),
+    )
+
+    result = combine_results(first_pass, second_pass)
+
+    assert result.errors == (
+        "missing default capability evidence: manifest-workspace:mcp:context7",
+    )

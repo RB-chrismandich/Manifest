@@ -7,7 +7,7 @@ import os
 import re
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from shlex import quote
 from typing import Any
@@ -173,6 +173,7 @@ class ManifestService:
                     inspected = _adapter_call(name, adapter.inspect, desired)
                     results[name] = combine_results(installed, inspected)
                 results = ordered(results, HARNESS_ORDER)
+                results = _with_native_version(results, detections)
                 receipt = build_receipt(
                     desired,
                     results,
@@ -186,7 +187,7 @@ class ManifestService:
         except Exception as exception:
             return report(
                 "install",
-                ordered(results, HARNESS_ORDER),
+                _with_native_version(ordered(results, HARNESS_ORDER), detections),
                 notes,
                 (diagnostic(exception),),
             )
@@ -760,6 +761,25 @@ def _adapter_call(name: str, operation: Callable[..., Any], arg: Any) -> Harness
         )
 
 
+def _with_native_version(
+    results: dict[str, HarnessResult], detections: Mapping[str, Detection]
+) -> dict[str, HarnessResult]:
+    """Attach the exact native CLI version each adapter's own `detect()` probed.
+
+    `reconcile --json` is inspection evidence: a harness that genuinely ran and
+    converged must report the real probed version, never a placeholder, and a
+    harness whose CLI went missing must leave it unset rather than invent one.
+    """
+    annotated = {}
+    for name, result in results.items():
+        detection = detections.get(name)
+        version = detection.version if detection is not None else None
+        annotated[name] = (
+            result if version is None else replace(result, native_version=version)
+        )
+    return annotated
+
+
 def _reconcile_desired(service, receipt, desired, *, apply):
     selected, detections, missing, notes = _detect_reconcile(service, receipt)
     results = dict(missing)
@@ -797,15 +817,18 @@ def _reconcile_desired(service, receipt, desired, *, apply):
             current = combine_results(installed, verified)
         results[name] = current
     results = ordered(results, HARNESS_ORDER)
+    results = _with_native_version(results, detections)
     persist_error = _persist_reconcile(
         service,
         receipt,
         desired,
-        results,
-        detections,
-        release_errors,
-        owned_harnesses,
-        mutated_owned,
+        _ReconcileOutcome(
+            results,
+            detections,
+            release_errors,
+            owned_harnesses,
+            mutated_owned,
+        ),
     )
     if persist_error is not None:
         return report("reconcile", results, notes, (persist_error,))
@@ -821,16 +844,22 @@ def _identity_scope_error(apply, release_errors, scoped_owned, owned_harnesses):
     return None
 
 
-def _persist_reconcile(
-    service,
-    receipt,
-    desired,
-    results,
-    detections,
-    release_errors,
-    owned_harnesses,
-    mutated_owned,
-):
+@dataclass(frozen=True)
+class _ReconcileOutcome:
+    """What one reconcile pass observed, as the receipt writer needs it."""
+
+    results: dict[str, HarnessResult]
+    detections: Mapping[str, Detection]
+    release_errors: tuple[str, ...]
+    owned_harnesses: set[str]
+    mutated_owned: set[str]
+
+
+def _persist_reconcile(service, receipt, desired, outcome):
+    results = outcome.results
+    release_errors = outcome.release_errors
+    owned_harnesses = outcome.owned_harnesses
+    mutated_owned = outcome.mutated_owned
     if not mutated_owned:
         return None
     if release_errors and not all(
@@ -845,7 +874,7 @@ def _persist_reconcile(
     updated = build_receipt(
         desired,
         owned_results,
-        detections,
+        outcome.detections,
         service.adapters,
         HARNESS_ORDER,
         previous=receipt,

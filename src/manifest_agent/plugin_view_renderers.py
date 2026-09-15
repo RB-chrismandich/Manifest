@@ -215,20 +215,21 @@ def _record_gemini_components(
     records: dict[str, list[dict[str, str]]],
     component_type: str,
     native_path: str,
+    harness: str = "gemini",
 ) -> None:
     for component in components(contract, component_type):
-        declared = _declared_degradation(contract, "gemini", component_type, component)
+        declared = _declared_degradation(contract, harness, component_type, component)
         if declared is not None:
             _add_record(records, declared["mode"], declared)
         elif component.path == native_path or component.path.startswith(native_path):
-            status = _component_status(contract, "gemini", component)
+            status = _component_status(contract, harness, component)
             _add_record(
                 records,
                 status.mode,
                 _component_record(component_type, component, status.mode),
             )
         else:
-            fallback = _degradation("gemini", component_type, component)
+            fallback = _degradation(harness, component_type, component)
             _add_record(records, fallback["mode"], fallback)
 
 
@@ -236,14 +237,15 @@ def _gemini_guidance(
     contract: Any,
     view: dict[str, Any],
     records: dict[str, list[dict[str, str]]],
+    harness: str = "gemini",
 ) -> None:
     exposed: list[Component] = []
     for component in components(contract, "guidance"):
-        declared = _declared_degradation(contract, "gemini", "guidance", component)
+        declared = _declared_degradation(contract, harness, "guidance", component)
         if declared is not None:
             _add_record(records, declared["mode"], declared)
             continue
-        status = _component_status(contract, "gemini", component)
+        status = _component_status(contract, harness, component)
         exposed.append(component)
         _add_record(
             records,
@@ -256,13 +258,15 @@ def _gemini_guidance(
 
 
 def _append_gemini_model_policy(
-    view: dict[str, Any], policies: dict[str, SkillModelPolicy]
+    view: dict[str, Any],
+    policies: dict[str, SkillModelPolicy],
+    harness: str = "gemini",
 ) -> None:
-    policy = model_policy_records(policies, "gemini")
+    policy = model_policy_records(policies, harness)
     if not policy:
         return
     view["modelPolicy"] = policy
-    guidance = "guidance/model-policy-gemini.md"
+    guidance = f"guidance/model-policy-{harness}.md"
     current = view.get("contextFileName")
     if current is None:
         view["contextFileName"] = guidance
@@ -272,20 +276,27 @@ def _append_gemini_model_policy(
         view["contextFileName"] = [current, guidance]
 
 
-def gemini_view(contract: Any, policies: dict[str, SkillModelPolicy]) -> dict[str, Any]:
-    """Render Gemini's extension manifest and compatibility evidence."""
+def _gemini_extension_view(
+    contract: Any, policies: dict[str, SkillModelPolicy], harness: str
+) -> dict[str, Any]:
+    """Render the Gemini extension shape against one harness's own contract."""
     view: dict[str, Any] = {"name": contract.name, "version": contract.version}
     records: dict[str, list[dict[str, str]]] = {}
-    _gemini_guidance(contract, view, records)
-    _record_gemini_components(contract, records, "agents", "agents/")
-    _record_gemini_components(contract, records, "hooks", "hooks/hooks.json")
+    _gemini_guidance(contract, view, records, harness)
+    _record_gemini_components(contract, records, "agents", "agents/", harness)
+    _record_gemini_components(contract, records, "hooks", "hooks/hooks.json", harness)
     for component in components(contract, "runtime"):
-        record = _declared_degradation(contract, "gemini", "runtime", component)
-        record = record or _degradation("gemini", "runtime", component)
+        record = _declared_degradation(contract, harness, "runtime", component)
+        record = record or _degradation(harness, "runtime", component)
         _add_record(records, record["mode"], record)
     _add_compatibility(view, records)
-    _append_gemini_model_policy(view, policies)
+    _append_gemini_model_policy(view, policies, harness)
     return view
+
+
+def gemini_view(contract: Any, policies: dict[str, SkillModelPolicy]) -> dict[str, Any]:
+    """Render Gemini's extension manifest and compatibility evidence."""
+    return _gemini_extension_view(contract, policies, "gemini")
 
 
 def _generic_harness_surface(
@@ -343,8 +354,12 @@ def _generic_harness_surface(
 def antigravity_view(
     contract: Any, policies: dict[str, SkillModelPolicy]
 ) -> dict[str, Any]:
-    """Use Antigravity's measured Gemini-extension import surface."""
-    return gemini_view(contract, policies)
+    """Reuse the measured Gemini-extension shape with Antigravity's own contract.
+
+    agy imports the Gemini extension *format*, not Gemini's compatibility
+    verdicts: every reason here must name the harness the file describes.
+    """
+    return _gemini_extension_view(contract, policies, "antigravity")
 
 
 def devin_rule(contract: Any, bundle_path: Path) -> str | None:

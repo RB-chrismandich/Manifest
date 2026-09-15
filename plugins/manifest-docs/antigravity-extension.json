@@ -6,14 +6,14 @@
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/docs_lint.py",
-        "reason": "gemini native manifest cannot encode runtime component 'docs-lint' at 'runtime/docs_lint.py'"
+        "reason": "antigravity native manifest cannot encode runtime component 'docs-lint' at 'runtime/docs_lint.py'"
       },
       {
         "component_id": "docs-references",
         "component_type": "runtime",
         "mode": "degraded",
         "path": "runtime/references",
-        "reason": "gemini native manifest cannot encode runtime component 'docs-references' at 'runtime/references'"
+        "reason": "antigravity native manifest cannot encode runtime component 'docs-references' at 'runtime/references'"
       }
     ]
   },

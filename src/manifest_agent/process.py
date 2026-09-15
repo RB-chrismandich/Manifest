@@ -66,6 +66,37 @@ def names_credential_field(key: str) -> bool:
     return bool(_CREDENTIAL_KEY.search(key))
 
 
+def _decode_partial_output(value: str | bytes | None) -> str:
+    """Normalize the partial buffer `subprocess.TimeoutExpired` captured.
+
+    Despite `text=True`, `TimeoutExpired.stdout`/`.stderr` carry raw bytes
+    (or `None`) rather than the decoded `str` a completed run returns."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+class CommandTimeoutError(RuntimeError):
+    """A native command exceeded an explicit, caller-provided bound.
+
+    Carries whatever stdout/stderr the process had already produced (Python's
+    ``subprocess.TimeoutExpired`` captures this on kill) so a caller can tell
+    an interactive prompt it cannot answer from a command that is merely
+    slow.
+    """
+
+    def __init__(
+        self, argv: tuple[str, ...], timeout: float, stdout: str, stderr: str
+    ) -> None:
+        super().__init__(f"command {argv!r} did not return within {timeout:g}s")
+        self.argv = argv
+        self.timeout = timeout
+        self.stdout = stdout
+        self.stderr = stderr
+
+
 class CommandRunner:
     """Execute an explicit argv without involving a command shell."""
 
@@ -74,8 +105,14 @@ class CommandRunner:
         argv: Sequence[str],
         *,
         env: Mapping[str, str] | None = None,
+        timeout: float | None = None,
     ) -> CommandResult:
-        """Return captured, redacted output for one validated argv."""
+        """Return captured, redacted output for one validated argv.
+
+        `timeout`, when given, bounds the native process in seconds; a
+        command still running past it is killed and reported as
+        `CommandTimeoutError` rather than left to hang the caller.
+        """
         if isinstance(argv, (str, bytes)) or not isinstance(argv, Sequence):
             raise TypeError("argv must be a sequence of strings, not a command string")
         command = tuple(argv)
@@ -95,13 +132,25 @@ class CommandRunner:
         merged_env = os.environ.copy()
         if env:
             merged_env.update(env)
-        completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            env=merged_env,
-        )
+        try:
+            completed = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=merged_env,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as error:
+            # subprocess.run's own TimeoutExpired carries the partial buffers
+            # it captured before the kill as raw bytes even under text=True --
+            # decoding to str only happens on the successful-completion path.
+            raise CommandTimeoutError(
+                command,
+                timeout,
+                _decode_partial_output(error.stdout),
+                redact_text(_decode_partial_output(error.stderr)),
+            ) from error
         return CommandResult(
             command,
             completed.returncode,

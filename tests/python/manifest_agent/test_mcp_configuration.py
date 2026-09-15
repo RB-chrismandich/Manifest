@@ -45,8 +45,9 @@ class RecordingRunner:
         argv: Sequence[str],
         *,
         env: Mapping[str, str] | None = None,
+        timeout: float | None = None,
     ) -> CommandResult:
-        del env
+        del env, timeout
         command = tuple(argv)
         self.calls.append(command)
         if self.results:

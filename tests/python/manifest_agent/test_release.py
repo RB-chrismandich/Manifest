@@ -181,6 +181,37 @@ def test_local_checkout_requires_clean_generated_views(tmp_path):
         resolve_release(repo)
 
 
+def test_local_checkout_gives_the_generator_its_own_import_roots(tmp_path, monkeypatch):
+    """`manifest install --source <checkout>` must verify generated views in a
+    bare environment — the live-parity job runs it from `uvx --from <wheel>`,
+    where only the wheel's dependencies are importable.
+
+    The real generator imports `manifest_model_policy`, which ships in
+    `configs/claude/scripts`, so resolving a checkout has to put that directory
+    on the child's `PYTHONPATH` alongside `src`. Without it the view check dies
+    on ModuleNotFoundError and every install reports BLOCKED for reasons that
+    have nothing to do with the checkout being unclean.
+    """
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+    repo = _local_checkout(tmp_path)
+    # The child asserts what it was handed: a dev venv happens to import
+    # manifest_model_policy from site-packages, so importing it here would pass
+    # on ambient state and stay green while the wheel-only job fails.
+    (repo / "tools" / "generate_plugin_views.py").write_text(
+        "import os\n"
+        "from pathlib import Path\n"
+        "roots = os.environ['PYTHONPATH'].split(os.pathsep)\n"
+        "root = Path(__file__).resolve().parents[1]\n"
+        "required = {str(root / 'src'), str(root / 'configs/claude/scripts')}\n"
+        "raise SystemExit(0 if required <= set(roots) else 2)\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "generator needs both import roots")
+
+    assert resolve_release(repo).source == str(repo)
+
+
 @pytest.mark.parametrize("selector", ["main", "master", "develop", "feature/topic"])
 def test_mutable_release_selectors_are_rejected(selector):
     with pytest.raises(ReleaseError, match="immutable version"):

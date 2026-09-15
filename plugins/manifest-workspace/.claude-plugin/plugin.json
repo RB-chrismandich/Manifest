@@ -20,6 +20,9 @@
     "name": "ReefBytes"
   },
   "description": "Workspace configuration, environment, session, and learning workflows.",
+  "hooks": [
+    "./hooks/session-continuity.json"
+  ],
   "metadata": {
     "compatibility": {
       "degraded": [
@@ -136,6 +139,20 @@
           "reason": "claude native manifest cannot encode runtime component 'pr-smoke-scripts' at 'skills/pr-smoke/scripts'"
         },
         {
+          "component_id": "session-checkpoint-references",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/session-checkpoint/references",
+          "reason": "claude native manifest cannot encode runtime component 'session-checkpoint-references' at 'skills/session-checkpoint/references'"
+        },
+        {
+          "component_id": "session-continuity-scripts",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/session-checkpoint/scripts",
+          "reason": "claude native manifest cannot encode runtime component 'session-continuity-scripts' at 'skills/session-checkpoint/scripts'"
+        },
+        {
           "component_id": "skill-evolve-scripts",
           "component_type": "runtime",
           "mode": "degraded",
@@ -233,6 +250,12 @@
           "component_type": "agents",
           "mode": "native",
           "path": "agents/orchestration/verifier.md"
+        },
+        {
+          "component_id": "claude-compaction-continuity",
+          "component_type": "hooks",
+          "mode": "native",
+          "path": "hooks/session-continuity.json"
         }
       ]
     }

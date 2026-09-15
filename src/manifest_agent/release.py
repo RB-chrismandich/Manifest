@@ -199,7 +199,14 @@ def _resolve_local(candidate: Path) -> ResolvedRelease:
     generator = root / "tools" / "generate_plugin_views.py"
     if not generator.is_file():
         raise ReleaseError("local source is missing the generated-view verifier")
-    python_path = str(root / "src")
+    # The generator imports both this package (src) and manifest_model_policy
+    # (configs/claude/scripts). Installing from a checkout runs under whatever
+    # interpreter invoked us — in live parity that is a bare `uvx --from
+    # <wheel>` environment — so the child is handed the checkout's own import
+    # roots rather than inheriting a developer venv's site-packages.
+    python_path = os.pathsep.join(
+        (str(root / "src"), str(root / "configs" / "claude" / "scripts"))
+    )
     if inherited_python_path := os.environ.get("PYTHONPATH"):
         python_path += os.pathsep + inherited_python_path
     generated = runner.run(

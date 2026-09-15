@@ -25,10 +25,18 @@ from manifest_agent.adapters.claude_inventory import (
     _marketplace_row,
     _native_inventory,
     _plugin_rows,
+    read_claude_native_mcp_servers,
+)
+from manifest_agent.capabilities import (
+    CapabilityConflict,
+    McpDefinition,
+    load_mcp_catalog,
+    merge_mcp_definitions,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES, PORTABLE_BUNDLES
 from manifest_agent.models import (
     AdapterPluginState,
+    BundleContract,
     CapabilityTier,
     CommandResult,
     DesiredState,
@@ -99,7 +107,11 @@ class ClaudeAdapter(CapabilityAdapterMixin):
         if parse_error is not None:
             return _blocked(parse_error)
         plugins = _verify_rows(desired, rows, require_user_scope=True)
-        evidence = _component_evidence(desired, rows, self._which)
+        served_mcp = {
+            **read_claude_native_mcp_servers(self._env),
+            **_native_mcp_definitions(self._native_mcp_inventory),
+        }
+        evidence = _component_evidence(desired, rows, self._which, served_mcp)
         components = verify_declared_components(self.name, desired, evidence)
         return combine_results(marketplace, plugins, components)
 
@@ -377,9 +389,11 @@ def _component_evidence(
     desired: DesiredState,
     rows: Sequence[Mapping[str, Any]],
     which: Callable[[str], str | None],
+    served_mcp: Mapping[str, McpDefinition],
 ) -> set[str]:
     roots: dict[str, Path] = {}
     mcp_servers: dict[str, tuple[str, ...]] = {}
+    matching_mcp = _matching_mcp_names(served_mcp)
     by_id = {row.get("id"): row for row in rows if isinstance(row.get("id"), str)}
     for contract in desired.all_contracts:
         row = by_id.get(f"{contract.name}@{_MARKETPLACE}")
@@ -388,12 +402,47 @@ def _component_evidence(
         root_value = row.get("installPath")
         if isinstance(root_value, str):
             roots[contract.name] = Path(root_value)
-        native_mcp = row.get("mcpServers")
-        if isinstance(native_mcp, Mapping):
-            mcp_servers[contract.name] = tuple(
-                server for server in native_mcp if isinstance(server, str)
-            )
+        declared_and_served = tuple(
+            name for name in _declared_mcp(contract) if name in matching_mcp
+        )
+        if declared_and_served:
+            mcp_servers[contract.name] = declared_and_served
     return collect_native_component_evidence(desired, roots, mcp_servers, which)
+
+
+def _declared_mcp(contract: BundleContract) -> tuple[str, ...]:
+    """Every MCP identity this bundle declares, across all tiers."""
+    return tuple(
+        dict.fromkeys(
+            name for tier in CapabilityTier for name in contract.capabilities.mcp[tier]
+        )
+    )
+
+
+def _matching_mcp_names(served_mcp: Mapping[str, McpDefinition]) -> frozenset[str]:
+    """Native registrations whose transport matches the reviewed catalog exactly."""
+    catalog = load_mcp_catalog()
+    matches: set[str] = set()
+    for name, observed in served_mcp.items():
+        expected = catalog.get(name)
+        if expected is None:
+            continue
+        try:
+            merge_mcp_definitions(expected, observed)
+        except CapabilityConflict:
+            continue
+        matches.add(name)
+    return frozenset(matches)
+
+
+def _native_mcp_definitions(inventory: NativeMcpInventory) -> dict[str, McpDefinition]:
+    """Normalize an already-known native inventory into MCP definitions."""
+    if isinstance(inventory, Mapping):
+        return dict(inventory)
+    return {
+        name: McpDefinition(name, "native-existing", discovery_prefixes=(name,))
+        for name in inventory
+    }
 
 
 def _selected_plugins_match(desired: DesiredState, result: HarnessResult) -> bool:

@@ -116,9 +116,13 @@ class StubRunner(CommandRunner):
         self.log: list[list[str]] = []
 
     def run(
-        self, argv: Sequence[str], *, env: Mapping[str, str] | None = None
+        self,
+        argv: Sequence[str],
+        *,
+        env: Mapping[str, str] | None = None,
+        timeout: float | None = None,
     ) -> CommandResult:
-        del env
+        del env, timeout
         self.log.append(list(argv))
         return CommandResult(tuple(argv), self.returncode, self.stdout, "")
 

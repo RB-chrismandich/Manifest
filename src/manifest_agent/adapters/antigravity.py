@@ -10,6 +10,7 @@ from typing import Any
 from manifest_agent.adapters.antigravity_evidence import (
     _component_evidence,
     _expected_skill_paths,
+    imported_plugin_roots,
 )
 from manifest_agent.adapters.base import (
     CapabilityAdapterMixin,
@@ -36,7 +37,7 @@ from manifest_agent.models import (
 from manifest_agent.process import CommandRunner, redact_text
 
 _ADAPTER_VERSION = "1"
-_MARKETPLACE = "manifest"
+_NATIVE_SOURCE = "antigravity"
 
 
 class AntigravityAdapter(CapabilityAdapterMixin):
@@ -95,7 +96,12 @@ class AntigravityAdapter(CapabilityAdapterMixin):
         if parse_error is not None:
             return _blocked(parse_error)
         plugins = _verify_imports(desired, rows)
-        evidence = _component_evidence(desired, rows, self._which)
+        evidence = _component_evidence(
+            desired,
+            rows,
+            self._which,
+            imported_plugin_roots(desired, self._env),
+        )
         components = verify_declared_components(self.name, desired, evidence)
         return combine_results(plugins, components)
 
@@ -119,27 +125,13 @@ class AntigravityAdapter(CapabilityAdapterMixin):
         if validation_failures:
             return combine_results(*validation_failures)
 
-        link_failures = self._run_mutations(
-            [
-                (
-                    self.executable,
-                    "plugin",
-                    "link",
-                    _MARKETPLACE,
-                    str(desired.release_root),
-                )
-            ]
-        )
-        if link_failures:
-            return combine_results(*link_failures)
-
         install_failures = self._run_mutations(
             [
                 (
                     self.executable,
                     "plugin",
                     "install",
-                    f"{name}@{_MARKETPLACE}",
+                    str(desired.bundle_path(name)),
                 )
                 for name in (contract.name for contract in desired.all_contracts)
             ]
@@ -209,7 +201,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
             for component in values
         )
         return json.dumps(
-            {"components": components, "source": _MARKETPLACE},
+            {"components": components, "source": _NATIVE_SOURCE},
             sort_keys=True,
             separators=(",", ":"),
         )
@@ -354,9 +346,14 @@ def _generic_view_errors(desired: DesiredState, harness: str) -> list[str]:
     return errors
 
 
+_NO_IMPORTS_TEXT = "No imported plugins."
+
+
 def _import_rows(
     stdout: str,
 ) -> tuple[list[Mapping[str, Any]], str | None]:
+    if stdout.strip() == _NO_IMPORTS_TEXT:
+        return [], None
     try:
         document = json.loads(stdout)
     except json.JSONDecodeError:
@@ -391,11 +388,11 @@ def _verify_imports(
         if not isinstance(source, str):
             identity_error = True
             errors.append(f"plugin {contract.name} source must be a string")
-        elif source != _MARKETPLACE:
+        elif source != _NATIVE_SOURCE:
             identity_error = True
             errors.append(
                 redact_text(
-                    f"plugin {contract.name} expected source {_MARKETPLACE}, "
+                    f"plugin {contract.name} expected source {_NATIVE_SOURCE}, "
                     f"found {source}"
                 )
             )

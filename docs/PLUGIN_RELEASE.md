@@ -85,3 +85,33 @@ See [SKILL-NAMING.md](SKILL-NAMING.md) for the naming grammar itself.
 an already checked-out, reviewed Git commit. The tool reads regular-file bytes
 directly from the pinned commit object, rejects symlinks/submodules, verifies
 checksums in `upstream-lock.json`, and never fetches mutable upstream content.
+
+## Live Parity Credentials
+
+`.github/workflows/plugin-parity-live.yml` proves READY parity against real,
+licensed, authenticated CLIs. It runs one job per harness, and each job may read
+exactly **one** credential, resolved from its matrix row
+(`secrets[matrix.secret]`). Configure these in the protected
+`manifest-plugin-live` environment:
+
+| Secret | Value | How the CLI reads it |
+|--------|-------|----------------------|
+| `LIVE_CLAUDE_CREDENTIAL` | Anthropic API key | `ANTHROPIC_API_KEY` |
+| `LIVE_CODEX_CREDENTIAL` | OpenAI API key | `OPENAI_API_KEY` |
+| `LIVE_GEMINI_CREDENTIAL` | AI Studio API key | `GEMINI_API_KEY` |
+| `LIVE_CURSOR_CREDENTIAL` | Cursor dashboard API key | `CURSOR_API_KEY` |
+| `LIVE_ANTIGRAVITY_CREDENTIAL` | AI Studio API key | `GEMINI_API_KEY` plus a pinned `modelProvider: gemini` |
+| `LIVE_DEVIN_CREDENTIAL` | Full `credentials.toml` document | `~/.local/share/devin/credentials.toml`, mode 0600 |
+
+Set one without exposing it to your shell history:
+
+```bash
+gh secret set LIVE_CLAUDE_CREDENTIAL --env manifest-plugin-live < key.txt
+```
+
+`tools/live_harness_setup.py` performs the install, credential placement, and
+the CLI's own authentication probe. It is committed code on purpose: a step that
+handles credentials must be reviewable, so no secret may carry executable shell.
+The credential is withheld from the third-party installer's environment, the
+probe failing fails the job, and a missing secret is an explicit `BLOCKED`
+error rather than a silent skip.

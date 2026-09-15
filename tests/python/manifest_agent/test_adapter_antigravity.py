@@ -116,7 +116,7 @@ def desired(tmp_path: Path) -> DesiredState:
     )
 
 
-def inventory_json(*, source: str = "manifest", missing: str | None = None) -> str:
+def inventory_json(*, source: str = "antigravity", missing: str | None = None) -> str:
     return json.dumps(
         {
             "imports": [
@@ -132,6 +132,48 @@ def inventory_json(*, source: str = "manifest", missing: str | None = None) -> s
     )
 
 
+def test_inspect_credits_runtime_present_in_the_imported_plugin(
+    tmp_path: Path, desired: DesiredState
+) -> None:
+    """`agy plugin list` reports only `components: ["skills"]`, so runtime
+    evidence has to come from the imported plugin tree on disk.
+
+    The adapter used to credit runtime/hook components only when the bundle
+    declared a guidance file that appeared in `antigravity-extension.json`'s
+    `contextFileName`. Bundles that declare runtime but no guidance context —
+    manifest-code-quality is one — could therefore never earn runtime evidence,
+    which pinned the harness at BLOCKED with no reachable repair even though
+    every declared path was installed.
+    """
+    bundle = DOMAIN_BUNDLES[0]
+    runtime = Component("constitution-config", f"skills/skill-{bundle}/config")
+    contracts = tuple(
+        replace(
+            contract,
+            components=replace(contract.components, runtime=(runtime,)),
+        )
+        if contract.name == bundle
+        else contract
+        for contract in desired.contracts
+    )
+    declared = replace(desired, contracts=contracts)
+    for root in (
+        declared.bundle_path(bundle),
+        tmp_path / "home/.gemini/config/plugins" / bundle,
+    ):
+        installed = root / runtime.path
+        installed.mkdir(parents=True, exist_ok=True)
+        (installed / "policy.yml").write_text("{}\n", encoding="utf-8")
+    runner = QueueRunner([command(stdout=inventory_json())])
+
+    result = AntigravityAdapter(
+        runner=runner, env={"HOME": str(tmp_path / "home")}
+    ).inspect(declared)
+
+    assert result.capabilities[f"{bundle}:runtime:constitution-config"] == "verified"
+    assert "constitution-config" not in " ".join(result.errors)
+
+
 def test_detection_reports_absent_cli_explicitly() -> None:
     detection = AntigravityAdapter(which=lambda _name: None).detect()
 
@@ -140,12 +182,11 @@ def test_detection_reports_absent_cli_explicitly() -> None:
     assert detection.reason == "agy CLI not present"
 
 
-def test_antigravity_validates_all_bundles_before_link_and_install(
+def test_antigravity_installs_bundles_directly_without_marketplace(
     desired: DesiredState,
 ) -> None:
     runner = QueueRunner(
         [command()] * len(DOMAIN_BUNDLES)
-        + [command()]
         + [command()] * len(DOMAIN_BUNDLES)
         + [command(stdout=inventory_json())]
     )
@@ -157,21 +198,31 @@ def test_antigravity_validates_all_bundles_before_link_and_install(
         ["agy", "plugin", "validate", str(desired.bundle_path(name))]
         for name in DOMAIN_BUNDLES
     ]
-    assert runner.log[len(DOMAIN_BUNDLES)] == [
-        "agy",
-        "plugin",
-        "link",
-        "manifest",
-        str(desired.release_root),
+    assert runner.log[len(DOMAIN_BUNDLES) : len(DOMAIN_BUNDLES) * 2] == [
+        ["agy", "plugin", "install", str(desired.bundle_path(name))]
+        for name in DOMAIN_BUNDLES
     ]
-    assert runner.log[len(DOMAIN_BUNDLES) + 1 : len(DOMAIN_BUNDLES) * 2 + 1] == [
-        ["agy", "plugin", "install", f"{name}@manifest"] for name in DOMAIN_BUNDLES
-    ]
+    assert not any(row[:3] == ["agy", "plugin", "link"] for row in runner.log)
+    assert not any("@" in cell for row in runner.log for cell in row)
     assert runner.log[-1] == ["agy", "plugin", "list"]
     assert result.installed_plugin_ids == DOMAIN_BUNDLES
     assert result.capabilities["manifest-workspace:skill:skill-manifest-workspace"] == (
         "verified"
     )
+
+
+def test_antigravity_inspect_treats_empty_plugin_list_text_as_no_imports(
+    desired: DesiredState,
+) -> None:
+    runner = QueueRunner([command(stdout="No imported plugins.\n")])
+
+    result = AntigravityAdapter(runner=runner).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert result.installed_plugin_ids == ()
+    joined = " ".join(result.errors)
+    assert "did not return valid JSON" not in joined
+    assert all(f"missing required plugin: {name}" in joined for name in DOMAIN_BUNDLES)
 
 
 def test_antigravity_validation_failure_blocks_every_mutation(
@@ -202,7 +253,7 @@ def test_antigravity_requires_exact_manifest_source_inventory(
     result = AntigravityAdapter(runner=runner).inspect(desired)
 
     assert result.state is ResultState.BLOCKED
-    assert "expected source manifest" in " ".join(result.errors)
+    assert "expected source antigravity" in " ".join(result.errors)
 
 
 def test_antigravity_redacts_untrusted_inventory_source(

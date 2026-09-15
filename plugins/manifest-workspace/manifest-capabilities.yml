@@ -25,6 +25,15 @@ components:
     - {id: devpanel-spec-guard, path: agents/devpanel/spec-guard.md}
     - {id: devpanel-tester, path: agents/devpanel/tester.md}
   hooks:
+    - id: claude-compaction-continuity
+      path: hooks/session-continuity.json
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: not_applicable, reason: Codex exposes no verified completed-compaction lifecycle sequence.}
+        gemini: {mode: not_applicable, reason: Gemini exposes no verified completed-compaction lifecycle sequence.}
+        cursor: {mode: not_applicable, reason: Cursor exposes no verified completed-compaction lifecycle sequence.}
+        antigravity: {mode: not_applicable, reason: Antigravity exposes no verified completed-compaction lifecycle sequence.}
+        devin: {mode: not_applicable, reason: Devin exposes no verified completed-compaction lifecycle sequence.}
     - id: codex-session-start
       path: hooks/codex-lifecycle-events.json
       compatibility:
@@ -53,6 +62,8 @@ components:
         antigravity: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
   runtime:
+    - {id: session-continuity-scripts, path: skills/session-checkpoint/scripts}
+    - {id: session-checkpoint-references, path: skills/session-checkpoint/references}
     - {id: parallel-agent-scripts, path: skills/parallel-agent/scripts}
     - {id: parallel-agent-config, path: skills/parallel-agent/config}
     - {id: parallel-agent-prompts, path: skills/parallel-agent/prompts}

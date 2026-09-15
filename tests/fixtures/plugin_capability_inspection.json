@@ -1,5 +1,4 @@
 {
-  "provenance": "synthetic-fixture",
   "harnesses": {
     "antigravity": {
       "capabilities": {
@@ -201,6 +200,8 @@
           "runtime:parallel-agent-references",
           "runtime:parallel-agent-scripts",
           "runtime:pr-smoke-scripts",
+          "runtime:session-checkpoint-references",
+          "runtime:session-continuity-scripts",
           "runtime:skill-evolve-scripts",
           "skill:ai-hooks-integration",
           "skill:automation-rework-breakeven",
@@ -464,6 +465,7 @@
           "agent:verifier",
           "guidance:workspace-orchestration",
           "guidance:workspace-token-economy",
+          "hook:claude-compaction-continuity",
           "runtime:command-catalog",
           "runtime:deploy-reconcile-scripts",
           "runtime:env-check-scripts",
@@ -475,6 +477,8 @@
           "runtime:parallel-agent-references",
           "runtime:parallel-agent-scripts",
           "runtime:pr-smoke-scripts",
+          "runtime:session-checkpoint-references",
+          "runtime:session-continuity-scripts",
           "runtime:skill-evolve-scripts",
           "skill:ai-hooks-integration",
           "skill:automation-rework-breakeven",
@@ -752,6 +756,8 @@
           "runtime:parallel-agent-references",
           "runtime:parallel-agent-scripts",
           "runtime:pr-smoke-scripts",
+          "runtime:session-checkpoint-references",
+          "runtime:session-continuity-scripts",
           "runtime:skill-evolve-scripts",
           "skill:ai-hooks-integration",
           "skill:automation-rework-breakeven",
@@ -1026,6 +1032,8 @@
           "runtime:parallel-agent-references",
           "runtime:parallel-agent-scripts",
           "runtime:pr-smoke-scripts",
+          "runtime:session-checkpoint-references",
+          "runtime:session-continuity-scripts",
           "runtime:skill-evolve-scripts",
           "skill:ai-hooks-integration",
           "skill:automation-rework-breakeven",
@@ -1300,6 +1308,8 @@
           "runtime:parallel-agent-references",
           "runtime:parallel-agent-scripts",
           "runtime:pr-smoke-scripts",
+          "runtime:session-checkpoint-references",
+          "runtime:session-continuity-scripts",
           "runtime:skill-evolve-scripts",
           "skill:ai-hooks-integration",
           "skill:automation-rework-breakeven",
@@ -1574,6 +1584,8 @@
           "runtime:parallel-agent-references",
           "runtime:parallel-agent-scripts",
           "runtime:pr-smoke-scripts",
+          "runtime:session-checkpoint-references",
+          "runtime:session-continuity-scripts",
           "runtime:skill-evolve-scripts",
           "skill:ai-hooks-integration",
           "skill:automation-rework-breakeven",
@@ -1648,5 +1660,6 @@
       "verified": true,
       "version": "fixture-1"
     }
-  }
+  },
+  "provenance": "synthetic-fixture"
 }

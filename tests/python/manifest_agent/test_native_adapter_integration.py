@@ -344,8 +344,7 @@ def _assert_lifecycle_commands(
             ("plugin", "add", f"{name}@manifest", "--json") for name in bundle_names
         ],
         "gemini": [
-            ("extensions", "install", path, "--consent", "--skip-settings")
-            for path in bundle_paths
+            ("extensions", "install", path, "--consent") for path in bundle_paths
         ],
         "cursor": [
             (
@@ -358,8 +357,7 @@ def _assert_lifecycle_commands(
             )
         ],
         "antigravity": [("plugin", "validate", path) for path in bundle_paths]
-        + [("plugin", "link", "manifest", str(desired.release_root))]
-        + [("plugin", "install", f"{name}@manifest") for name in bundle_names],
+        + [("plugin", "install", path) for path in bundle_paths],
         "devin": [("plugins", "install", path, "--yes") for path in bundle_paths],
     }
     expected_removals = {
@@ -719,7 +717,6 @@ def _gemini_responses(desired: DesiredState, phase: str) -> str:
                             "install",
                             str(desired.bundle_path(name)),
                             "--consent",
-                            "--skip-settings",
                         ]
                     )
                     for name in bundle_names
@@ -787,7 +784,7 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
             "imports": [
                 {
                     "name": name,
-                    "source": "manifest",
+                    "source": "antigravity",
                     "components": [
                         "skills",
                         *([]),
@@ -806,11 +803,8 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
             _response(["plugin", "validate", str(desired.bundle_path(name))])
             for name in bundle_names
         ]
-        responses.append(
-            _response(["plugin", "link", "manifest", str(desired.release_root)])
-        )
         responses.extend(
-            _response(["plugin", "install", f"{name}@manifest"])
+            _response(["plugin", "install", str(desired.bundle_path(name))])
             for name in bundle_names
         )
         responses.append(_response(["plugin", "list"], inventory))
