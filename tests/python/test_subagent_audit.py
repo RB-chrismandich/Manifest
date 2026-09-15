@@ -156,6 +156,24 @@ def test_fork_does_not_inflate_pin_compliance(corpus):
     assert report["coverage"]["fork"]["observed"] == 1
 
 
+def test_inherit_sentinel_does_not_inflate_pin_compliance(corpus):
+    dispatch(corpus, model="inherit", served="claude-sonnet-5")
+    result, report = audit(corpus)
+    assert result.returncode == 0
+    assert report["records"][0]["status"] == "observed"
+    assert report["pinned"] == 0
+
+
+def test_channel_with_only_incomplete_evidence_is_not_observed(corpus):
+    dispatch(corpus)
+    path = dispatch(corpus, "w", channel="workflow")
+    path.with_name("agent-w.jsonl").unlink()
+    result, report = audit(corpus, "--channel", "all")
+    assert result.returncode == 2
+    assert report["coverage"]["workflow"]["status"] == "unobserved"
+    assert report["coverage"]["workflow"]["observed"] == 0
+
+
 def test_until_and_invalid_windows_are_honored(corpus):
     dispatch(corpus)
     result, report = audit(corpus, "--until", "2026-09-01T12:00:00Z")

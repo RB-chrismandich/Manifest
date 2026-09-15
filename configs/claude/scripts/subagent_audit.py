@@ -191,7 +191,7 @@ def audit(root: str, since: datetime | None, channel: str, options) -> int:
     """Emit bounded JSON/text coverage; exit 2 for incomplete scoped evidence."""
     rows = collect_dispatches(root, since, options.until)
     scoped = [r for r in rows if channel == "all" or r.channel == channel]
-    counts = Counter(r.channel for r in rows)
+    counts = Counter(r.channel for r in rows if r.status != "incomplete-evidence")
     incomplete = sum(r.status != "observed" for r in scoped)
     status = "complete" if scoped and not incomplete else "incomplete"
     coverage = {
@@ -211,7 +211,10 @@ def audit(root: str, since: datetime | None, channel: str, options) -> int:
         "since": since.isoformat() if since else None,
         "until": options.until.isoformat() if options.until else None,
         "dispatches": len(scoped),
-        "pinned": sum(bool(r.requested) and r.channel != "fork" for r in scoped),
+        "pinned": sum(
+            bool(r.requested) and r.requested != "inherit" and r.channel != "fork"
+            for r in scoped
+        ),
         "incomplete_dispatches": incomplete,
         "coverage": coverage,
         "global_coverage": "incomplete",

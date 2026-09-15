@@ -55,6 +55,30 @@ def test_headless_prompt_rejects_empty_provider_output() -> None:
         run_headless_prompt(route, "prompt", policy)
 
 
+def test_headless_prompt_failure_omits_raw_stderr() -> None:
+    secret = "sk-super-secret-credential"
+    policy = {
+        "provider_order": ["fixture"],
+        "cli_agents": {
+            "fixture": {
+                "binary": sys.executable,
+                "base_args": [
+                    "-c",
+                    f"import sys; sys.stderr.write('{secret}'); sys.exit(1)",
+                ],
+                "skill_prompt_transport": "stdin",
+                "skill_prompt_args": [],
+            }
+        },
+    }
+    route = resolve_cli_route(policy)
+
+    assert route is not None
+    with pytest.raises(RuntimeError, match="exit status 1") as excinfo:
+        run_headless_prompt(route, "prompt", policy)
+    assert secret not in str(excinfo.value)
+
+
 def test_provider_invocation_preserves_placeholder_like_prompt_text(
     tmp_path: Path,
 ) -> None:

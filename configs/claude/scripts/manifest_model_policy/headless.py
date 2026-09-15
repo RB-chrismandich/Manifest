@@ -167,7 +167,9 @@ def run_headless_prompt(
             if not output:
                 output = result.stdout
         if result.returncode != 0:
-            raise RuntimeError(f"{argv[0]} failed: {result.stderr.strip()}")
+            raise RuntimeError(
+                f"{route.provider} failed with exit status {result.returncode}"
+            )
         if result.truncated or file_truncated:
             raise RuntimeError(f"{argv[0]} output exceeded the provider output limit")
         if not output.strip():
