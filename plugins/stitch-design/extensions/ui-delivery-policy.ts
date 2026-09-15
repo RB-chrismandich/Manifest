@@ -1,13 +1,13 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, readFile } from 'node:fs/promises';
+import { lstat, readFile, realpath } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, readEvidence, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
-import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile } from '../runtime/ui-delivery/task.ts';
+import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
 import { createStitchPolicy, stitchObservation, stitchProjectIdFrom, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
@@ -170,9 +170,12 @@ async function verifiedStatus(repo: string, task: any): Promise<boolean> {
   } catch { return false; }
 }
 async function resultSnapshot(path: string): Promise<{ hash: string } | undefined> { try { return { hash: await fileDigest(path) }; } catch { return undefined; } }
-async function freshResult(path: string, before: { hash: string } | undefined): Promise<void> {
+async function freshResult(path: string, before: { hash: string } | undefined, attemptStartedAtMs: number): Promise<void> {
   const hash = await fileDigest(path);
-  if (before?.hash === hash) throw new Error('stale check result');
+  if (before?.hash === hash) {
+    const stat = await lstat(path);
+    if (stat.mtimeMs < attemptStartedAtMs) throw new Error('stale check result');
+  }
   if (!exactResult(JSON.parse(await readFile(path, 'utf8')))) throw new Error('check result is unverified');
 }
 async function updateTask(repo: string, taskFile: string, task: Record<string, unknown>, signal: AbortSignal): Promise<void> {
@@ -194,25 +197,29 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const digest = authorizationDigest(task);
     const approved = process.env.UI_DELIVERY_APPROVED_TASK_SHA256 === digest;
     const registry = pi.getAllTools?.() ?? [];
-    if (approved && task.state === 'approved' && stitch?.authorizationDigest !== digest) {
-      const state = await loadStitchMutationState({ repo: ctx.cwd, taskId: task.task_id, authorizationDigest: digest });
-      stitch = {
-        authorizationDigest: digest,
-        repo: ctx.cwd,
-        taskFile,
-        policy: createStitchPolicy({
-          task,
-          registry,
-          state,
-          persist: async (next) => updateStitchMutationState({
-            repo: ctx.cwd,
-            taskId: task.task_id,
-            authorizationDigest: digest,
-            expectedVersion: next.version,
-            state: { entries: next.entries, ...(next.identities && Object.keys(next.identities).length ? { identities: next.identities } : {}), ...(next.projectId ? { projectId: next.projectId } : {}) },
+    if (approved && task.state === 'approved') {
+      const canonicalRepo = await realpath(ctx.cwd);
+      const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
+      if (stitch?.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
+        const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
+        stitch = {
+          authorizationDigest: digest,
+          repo: canonicalRepo,
+          taskFile: canonicalTaskFile,
+          policy: createStitchPolicy({
+            task,
+            registry,
+            state,
+            persist: async (next) => updateStitchMutationState({
+              repo: canonicalRepo,
+              taskId: task.task_id,
+              authorizationDigest: digest,
+              expectedVersion: next.version,
+              state: { entries: next.entries, ...(next.identities && Object.keys(next.identities).length ? { identities: next.identities } : {}), ...(next.projectId ? { projectId: next.projectId } : {}) },
+            }),
           }),
-        }),
-      };
+        };
+      }
     }
     const verified = await verifiedStatus(ctx.cwd, task);
     return result({ extension: STATUS.extension, taskId: task.task_id, state: task.state, outcome: verified ? task.outcome : 'evidence_unverified', verified, authorizationDigest: digest, approved: approved && verified || approved && task.outcome === 'unverified' });
@@ -297,10 +304,10 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (!task.candidate_revision || !task.candidate_hash || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate hash does not match current worktree');
     const recipe = task.approved_check_recipes.find((entry: any) => entry.id === args.checkId); if (!recipe) throw new Error('unknown approved check');
     if ((task.capture_recipes as Array<{ check_id: string }>).some((entry) => entry.check_id === args.checkId)) throw new Error('capture check is reviewer-only');
-    const path = await outputPath(ctx.cwd, task, args.checkId, recipe.result_path); const before = await resultSnapshot(path); const attemptId = randomUUID(); const selector = { checkId: args.checkId }; let checked: any;
+    const path = await outputPath(ctx.cwd, task, args.checkId, recipe.result_path); const before = await resultSnapshot(path); const attemptStartedAtMs = performance.timeOrigin + performance.now(); const attemptId = randomUUID(); const selector = { checkId: args.checkId }; let checked: any;
     await appendAttempt(ctx.cwd, task, evidenceRecord(task, attemptId, 'started', 'ui_run_check', selector, 'pending', [], 0));
     try {
-      checked = await checkRunner({ repo: ctx.cwd, task, checkId: args.checkId, signal }); if (checked.exitCode !== 0) throw new Error('check result is unverified'); await freshResult(path, before);
+      checked = await checkRunner({ repo: ctx.cwd, task, checkId: args.checkId, signal }); if (checked.exitCode !== 0) throw new Error('check result is unverified'); await freshResult(path, before, attemptStartedAtMs);
       if (await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate changed');
       await appendAttempt(ctx.cwd, task, evidenceRecord(task, attemptId, 'completed', 'ui_run_check', selector, 'verified', [], Math.max(0, Math.round(performance.now() - started)), checked));
       return result({ taskId: task.task_id, operation: 'ui_run_check', checkId: args.checkId, exitCode: checked.exitCode, stdoutHash: checked.stdout.hash, stderrHash: checked.stderr.hash });
@@ -313,11 +320,11 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const args = params as { taskFile: string; recipeId: string }; const task = await loadTask({ repo: ctx.cwd, taskFile: args.taskFile, operation: 'capture' }); const started = performance.now();
     if (!task.candidate_revision || !task.candidate_hash || await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate hash does not match current worktree');
     const recipe = task.capture_recipes.find((entry: any) => entry.id === args.recipeId); if (!recipe) throw new Error('unknown capture recipe'); const check = task.approved_check_recipes.find((entry: any) => entry.id === recipe.check_id); if (!check) throw new Error('unknown approved check');
-    const resultPath = await outputPath(ctx.cwd, task, recipe.check_id, check.result_path); const resultBefore = await resultSnapshot(resultPath); const before = await Promise.all(recipe.artifacts.map(async (artifact: any) => resultSnapshot(await outputPath(ctx.cwd, task, recipe.check_id, artifact.path))));
+    const resultPath = await outputPath(ctx.cwd, task, recipe.check_id, check.result_path); const resultBefore = await resultSnapshot(resultPath); const attemptStartedAtMs = performance.timeOrigin + performance.now(); const before = await Promise.all(recipe.artifacts.map(async (artifact: any) => resultSnapshot(await outputPath(ctx.cwd, task, recipe.check_id, artifact.path))));
     const attemptId = randomUUID(); const selector = { recipeId: args.recipeId }; let checked: any;
     await appendAttempt(ctx.cwd, task, evidenceRecord(task, attemptId, 'started', 'ui_capture', selector, 'pending', [], 0));
     try {
-      checked = await checkRunner({ repo: ctx.cwd, task, checkId: recipe.check_id, signal }); if (checked.exitCode !== 0) throw new Error('capture check did not succeed'); await freshResult(resultPath, resultBefore);
+      checked = await checkRunner({ repo: ctx.cwd, task, checkId: recipe.check_id, signal }); if (checked.exitCode !== 0) throw new Error('capture check did not succeed'); await freshResult(resultPath, resultBefore, attemptStartedAtMs);
       const artifacts = await Promise.all(recipe.artifacts.map(async (artifact: any, index: number) => ({ path: artifact.path, ...(await freshArtifact(await outputPath(ctx.cwd, task, recipe.check_id, artifact.path), before[index])) })));
       if (await candidateHash({ repo: ctx.cwd, task }) !== task.candidate_hash) throw new Error('candidate changed');
       await appendAttempt(ctx.cwd, task, evidenceRecord(task, attemptId, 'completed', 'ui_capture', selector, 'captured', artifacts, Math.max(0, Math.round(performance.now() - started)), checked));

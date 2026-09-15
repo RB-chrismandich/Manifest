@@ -6,6 +6,7 @@ import test from 'node:test';
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
 import { bindCandidate, digest, execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
+import { loadStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 
 test('fails package activation before registering tools when required enforcement hooks are unavailable', () => {
   const { api, tools, handlers } = extensionApi({ hooks: false });
@@ -264,5 +265,33 @@ test('revalidates the task lifecycle before each Stitch call instead of using an
     const blocked = await handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' });
     assert.equal(blocked.block, true);
     assert.match(blocked.reason, /stale|authorized/i);
+  });
+});
+
+test('binds Stitch mutation state to the canonical repository, not just the authorization digest', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const repoA = await fixture(definition);
+  const repoB = await fixture(definition);
+  const status = tools.find((entry) => entry.name === 'ui_delivery_status');
+  const authDigest = digest(definition);
+
+  await withApproval(definition, async () => {
+    await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repoA.repo);
+    await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repoB.repo);
+    assert.equal(await handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+    await handlers.get('tool_result')({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } });
+  });
+
+  const stateB = await loadStitchMutationState({ repo: repoB.repo, taskId: definition.task_id, authorizationDigest: authDigest });
+  assert.ok(stateB, 'the second repository must record its own mutation state');
+  const stateA = await loadStitchMutationState({ repo: repoA.repo, taskId: definition.task_id, authorizationDigest: authDigest });
+  assert.equal(stateA, undefined, 'the first repository must not absorb a mutation issued after the second repository was activated');
+
+  await withApproval(definition, async () => {
+    await execute(status, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repoA.repo);
+    const replay = await handlers.get('tool_call')({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-2' });
+    assert.equal(replay, undefined, 'repository A must still be able to authorize its own untouched mutation grant');
   });
 });
