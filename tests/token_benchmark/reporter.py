@@ -235,8 +235,9 @@ def _latest_unsupported_cells(cli_recs: list[dict]) -> list[tuple]:
     return sorted(cells)
 
 
-def render_report(stats: dict, run_id: str) -> str:
-    """Render TOKEN_BENCHMARK.md markdown from computed stats."""
+def render_report(stats: dict, run_id: str, workflow_stats: dict | None = None) -> str:
+    """Render TOKEN_BENCHMARK.md markdown from computed academic stats plus
+    an optional workflow-suite stats table (see compute_workflow_stats)."""
     unsupported = set(stats.get("unsupported_providers", []))
     lines = [
         "# Token Benchmark Report",
@@ -391,19 +392,30 @@ def render_report(stats: dict, run_id: str) -> str:
                 f"| {vs_after:<8} |"
             )
 
+    from tests.token_benchmark.workflows.reporting import render_workflow_section
+
+    lines.extend(render_workflow_section(workflow_stats))
     lines.append("")
     return "\n".join(lines)
 
 
 def update_report(results_dir: Path, output_path: Path) -> None:
-    """Load all results, compute stats, render, and write TOKEN_BENCHMARK.md."""
+    """Load all results, split academic from workflow rows, compute each
+    suite's own stats, render, and write TOKEN_BENCHMARK.md."""
+    from tests.token_benchmark.workflows.reporting import (
+        compute_workflow_stats,
+        split_suites,
+    )
+
     records = load_results(results_dir)
     if not records:
         output_path.write_text(
             "# Token Benchmark Report\n\nNo results yet. Run `/token-benchmark` to populate.\n"
         )
         return
-    stats = compute_stats(records)
-    latest_run_id = stats["run_ids"][-1] if stats["run_ids"] else "unknown"
-    report = render_report(stats, run_id=latest_run_id)
+    academic_records, workflow_records = split_suites(records)
+    stats = compute_stats(academic_records)
+    workflow_stats = compute_workflow_stats(workflow_records)
+    latest_run_id = max(r.get("run_id", "") for r in records) or "unknown"
+    report = render_report(stats, run_id=latest_run_id, workflow_stats=workflow_stats)
     output_path.write_text(report)

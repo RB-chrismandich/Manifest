@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 try:
@@ -612,7 +613,117 @@ def missing_api_sdks(providers: list[str]) -> list[str]:
     return missing
 
 
-def main(argv: list[str] | None = None) -> None:
+WORKFLOW_FIXTURES_DIR = Path(__file__).parent / "workflows" / "fixtures"
+WORKFLOW_CONDITIONS = ("none", "slim", "full")
+ACADEMIC_CONDITIONS = ("before", "after", "cached", "tiered", "compressed")
+ACADEMIC_DEFAULT_CONDITIONS = ("before", "after")
+WORKFLOW_DEFAULT_TIER = {"claude": "sonnet", "gemini": "flash"}
+
+
+def _workflow_fixture_ids(root: Path) -> list[str]:
+    """List the fixture ids declared in the frozen workflow manifest."""
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    return sorted(manifest.get("workflows", {}))
+
+
+def _validate_conditions(conditions, valid, label, parser) -> None:
+    bad = [c for c in conditions if c not in valid]
+    if bad:
+        parser.error(
+            f"Unknown {label} conditions: {', '.join(bad)}. Valid: {', '.join(valid)}"
+        )
+
+
+def _resolve_conditions(args, parser) -> tuple[list[str], list[str]]:
+    """Resolve academic and workflow condition lists from --suite/--conditions.
+
+    `--suite all` uses each suite's own default and rejects an explicit
+    `--conditions` (ambiguous which suite it targets); a custom list requires
+    a single selected suite.
+    """
+    if args.conditions is not None and args.suite == "all":
+        parser.error(
+            "--conditions is ambiguous for --suite all; select a single --suite"
+        )
+    requested = (
+        [c.strip() for c in args.conditions.split(",") if c.strip()]
+        if args.conditions is not None
+        else None
+    )
+    academic = list(ACADEMIC_DEFAULT_CONDITIONS)
+    workflow = list(WORKFLOW_CONDITIONS)
+    if requested is not None and args.suite == "academic":
+        _validate_conditions(requested, ACADEMIC_CONDITIONS, "academic", parser)
+        academic = requested
+    if requested is not None and args.suite == "workflow":
+        _validate_conditions(requested, WORKFLOW_CONDITIONS, "workflow", parser)
+        workflow = requested
+    return academic, workflow
+
+
+def _sdk_guard_providers(args, providers: list[str]) -> list[str]:
+    """Providers this invocation will call through an SDK-backed adapter and
+    must therefore have an importable SDK for, before any writes happen."""
+    from tests.token_benchmark.workflows.transport import SUPPORTED_PROVIDERS
+
+    if args.report_only:
+        return []
+    needed: set[str] = set()
+    if args.suite in ("academic", "all") and not args.cli_only:
+        needed.update(providers)
+    if args.suite in ("workflow", "all"):
+        needed.update(p for p in providers if p in SUPPORTED_PROVIDERS)
+    return sorted(needed)
+
+
+@dataclass(frozen=True)
+class WorkflowRunSpec:
+    """Settings for one `run_workflow()` invocation."""
+
+    providers: list[str]
+    conditions: list[str]
+    run_id: str
+    trials: int
+    timeout_s: float
+    fixture_image: str | None
+    results_dir: Path | None = None
+    fixtures_dir: Path | None = None
+
+
+async def run_workflow(spec: WorkflowRunSpec) -> list[dict]:
+    """Run the workflow suite for each requested supported provider and
+    write each validated version-2 record to results/<run_id>.jsonl."""
+    from tests.token_benchmark.workflows.evaluate import ContainerExecutor
+    from tests.token_benchmark.workflows.runner import TrialContext, run_workflow_suite
+    from tests.token_benchmark.workflows.transport import SUPPORTED_PROVIDERS
+    from tests.token_benchmark.workflows.transport import invoke as workflow_invoke
+
+    root = spec.fixtures_dir or WORKFLOW_FIXTURES_DIR
+    fixture_ids = _workflow_fixture_ids(root)
+    executor = ContainerExecutor(spec.fixture_image) if spec.fixture_image else None
+
+    records: list[dict] = []
+    for provider in spec.providers:
+        if provider not in SUPPORTED_PROVIDERS or provider not in WORKFLOW_DEFAULT_TIER:
+            continue
+        config = TrialContext(
+            invoke_fn=workflow_invoke,
+            executor=executor,
+            provider=provider,
+            model=WORKFLOW_DEFAULT_TIER[provider],
+            timeout_s=spec.timeout_s,
+        )
+        provider_records = await run_workflow_suite(
+            root, fixture_ids, spec.conditions, spec.trials, config
+        )
+        for record in provider_records:
+            record["run_id"] = spec.run_id
+            write_result(record, spec.run_id, spec.results_dir)
+            records.append(record)
+    return records
+
+
+def _build_arg_parser():
     import argparse
 
     parser = argparse.ArgumentParser(description="Token benchmark harness")
@@ -631,25 +742,104 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
     parser.add_argument(
         "--conditions",
-        default="before,after",
-        help="Comma-separated conditions to run: before,after,cached,tiered,compressed",
+        default=None,
+        help=(
+            "Comma-separated conditions for the selected --suite: "
+            "before,after,cached,tiered,compressed (academic) or "
+            "none,slim,full (workflow). Invalid for --suite all."
+        ),
     )
+    parser.add_argument(
+        "--suite",
+        choices=("academic", "workflow", "all"),
+        default="workflow",
+        help="Which benchmark suite(s) to run",
+    )
+    parser.add_argument(
+        "--trials", type=int, default=3, help="Workflow suite repetitions"
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=120.0,
+        help="Workflow suite per-call timeout",
+    )
+    parser.add_argument(
+        "--fixture-image",
+        default=None,
+        help="Container image for workflow implementation-fixture execution",
+    )
+    return parser
+
+
+def _run_selected_suites(
+    args, providers, academic_conditions, workflow_conditions, run_id
+) -> None:
+    if args.suite in ("academic", "all"):
+        mode = (
+            "cli-only"
+            if args.cli_only
+            else ("api-only" if args.api_only else "api+cli")
+        )
+        print(
+            f"Running academic benchmark: providers={providers}, mode={mode}, run_id={run_id}"
+        )
+        records = asyncio.run(
+            run_benchmark(
+                providers=providers,
+                api_only=args.api_only,
+                cli_only=args.cli_only,
+                conditions=academic_conditions,
+                run_id=run_id,
+                claude_model=args.claude_model,
+                gemini_model=args.gemini_model,
+            )
+        )
+        print(
+            f"Done. {len(records)} academic records written to {RESULTS_DIR}/{run_id}.jsonl"
+        )
+    if args.suite in ("workflow", "all"):
+        print(
+            f"Running workflow benchmark: providers={providers}, "
+            f"conditions={workflow_conditions}, trials={args.trials}, run_id={run_id}"
+        )
+        spec = WorkflowRunSpec(
+            providers=providers,
+            conditions=workflow_conditions,
+            run_id=run_id,
+            trials=args.trials,
+            timeout_s=args.timeout_seconds,
+            fixture_image=args.fixture_image,
+        )
+        records = asyncio.run(run_workflow(spec))
+        print(
+            f"Done. {len(records)} workflow records written to {RESULTS_DIR}/{run_id}.jsonl"
+        )
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = _build_arg_parser()
     args = parser.parse_args(argv)
 
-    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
+    if args.trials <= 0:
+        parser.error("--trials must be positive")
+    if args.timeout_seconds <= 0:
+        parser.error("--timeout-seconds must be positive")
 
-    # Hard-fail before any writes: an API-path run without its SDK previously
-    # "succeeded" in seconds while appending 40 junk error rows (#547).
-    if not args.report_only and not args.cli_only:
-        missing = missing_api_sdks(providers)
-        if missing:
-            print(
-                "harness: API path requested but required SDK(s) are not "
-                "importable: " + "; ".join(missing) + ". Install them via "
-                "`uv run --group benchmark ...` or rerun with --cli-only.",
-                file=sys.stderr,
-            )
-            raise SystemExit(2)
+    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
+    academic_conditions, workflow_conditions = _resolve_conditions(args, parser)
+
+    # Hard-fail before any writes: an SDK-backed run without its SDK previously
+    # "succeeded" in seconds while appending junk error rows (#547).
+    missing = missing_api_sdks(_sdk_guard_providers(args, providers))
+    if missing:
+        print(
+            "harness: API path requested but required SDK(s) are not "
+            "importable: " + "; ".join(missing) + ". Install them via "
+            "`uv run --group benchmark ...` or rerun with --cli-only.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
     if args.sync_fixtures:
         print("Syncing fixtures from live home...")
@@ -659,31 +849,9 @@ def main(argv: list[str] | None = None) -> None:
         from datetime import datetime
 
         run_id = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        mode = (
-            "cli-only"
-            if args.cli_only
-            else ("api-only" if args.api_only else "api+cli")
+        _run_selected_suites(
+            args, providers, academic_conditions, workflow_conditions, run_id
         )
-        print(f"Running benchmark: providers={providers}, mode={mode}, run_id={run_id}")
-        _valid = {"before", "after", "cached", "tiered", "compressed"}
-        conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
-        _bad = [c for c in conditions if c not in _valid]
-        if _bad:
-            parser.error(
-                f"Unknown conditions: {', '.join(_bad)}. Valid: {', '.join(sorted(_valid))}"
-            )
-        records = asyncio.run(
-            run_benchmark(
-                providers=providers,
-                api_only=args.api_only,
-                cli_only=args.cli_only,
-                conditions=conditions,
-                run_id=run_id,
-                claude_model=args.claude_model,
-                gemini_model=args.gemini_model,
-            )
-        )
-        print(f"Done. {len(records)} records written to {RESULTS_DIR}/{run_id}.jsonl")
 
     print("Regenerating TOKEN_BENCHMARK.md...")
     from tests.token_benchmark.reporter import update_report
