@@ -85,4 +85,5 @@ source provenance:
 
 > Absorbed: session-memory-digest (2026-06); merged from the former memory-log-compress and
 > session-memory-compress skills (specs/480, 2026-07). Scope note (2026-09): this skill governs memory-log
-> compression only; it does not touch `session-checkpoint`'s compaction-continuity artifacts.
+> compression only; it does not touch `manifest-workspace:session-checkpoint`'s
+> compaction-continuity artifacts.
