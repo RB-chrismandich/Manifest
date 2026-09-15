@@ -78,9 +78,9 @@ all` runs both, using each suite's own default conditions — pass
 `--conditions` only with a single explicit `--suite`; it is rejected as
 ambiguous with `--suite all`. The workflow suite only ever calls the
 isolated, no-tool Claude/Gemini API adapters (`tests/token_benchmark/
-workflows/transport.py`); a requested provider/model tier the shared
-`configs/claude/config/model_policy.yml` does not resolve is recorded
-`unsupported`, never called.
+workflows/transport.py`); a requested provider/model tier that Manifest's
+central model policy does not resolve is recorded `unsupported`, never
+called.
 
 ## Arguments
 
