@@ -1,0 +1,8 @@
+{
+  "survived": [1],
+  "refuted": [0],
+  "required_evidence_terms": {
+    "0": ["resolve", "is_relative_to"],
+    "1": ["authorization", "admin"]
+  }
+}
