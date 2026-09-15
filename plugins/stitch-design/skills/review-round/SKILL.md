@@ -1,7 +1,6 @@
 ---
 name: review-round
-description: Run one adversarial design review round — parallel lens reviewers, skeptic-verified blockers, consensus gate.
-version: 0.1.0
+description: Run one bounded adversarial review round for an exact UI candidate.
 ---
 
 # Run one round — review (adversarial) or production (mechanical)
@@ -96,3 +95,7 @@ inheriting an Opus session multiplies its cost by the number of lenses.
 - **`references/decisions-format.md`** — verbatim worked examples of every
   DECISIONS.md entry shape: early rulings, corrections, panel headers,
   consensus rounds, REFUTED/UPHELD findings.
+
+## Candidate binding and repair bound
+
+Bind every review and capture to the candidate revision and hash. After two repair cycles, unresolved findings produce `blocked` with open findings; do not loop again.

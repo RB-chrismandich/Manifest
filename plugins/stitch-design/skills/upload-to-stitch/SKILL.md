@@ -1,92 +1,93 @@
 ---
 name: upload-to-stitch
-description: "Upload local assets (images, mockups, HTML, design markdown) to a Stitch project. ALWAYS use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits."
-allowed-tools:
-  - "stitch*:*"
-  - "Bash"
-  - "Read"
-  - "Write"
-  - "web_fetch"
+description: Use when an authorized local DESIGN.md or Markdown document must be uploaded to a Stitch project.
 ---
 
 # Upload-to-Stitch
 
-Upload local assets (images, mockups, HTML, and markdown files) to a Stitch project using the
-provided upload script, which bypasses the MCP tool's base64 output token limits.
+Upload an authorized local `DESIGN.md` or Markdown document only through the
+policy-controlled `mcp__stitch_upload_design_md` Stitch tool. The policy binds
+the approved task digest, project, and exact document content to one mutation,
+then requires matching post-mutation readback. The bundled Python script is
+retired and deliberately fails closed.
 
-> [!NOTE]
-> The AI model cannot upload files via MCP tools directly because the base64
-> encoding of even a small file exceeds the model's output token limit (~16K
-> tokens). This script reads the file and sends it directly over HTTP.
+## When to use
 
-## Steps
+- An approved task names a Stitch project and a local `DESIGN.md` or Markdown
+  document to upload.
+- The document's exact content and canonical
+  `sha256:<64 lowercase hexadecimal characters>` input hash are approved.
 
-### 1. Identify Target Project
+This skill does not upload images, mockups, binary assets, or HTML. No
+policy-controlled MCP mutation exists for those asset types.
 
-Use `list_projects` to find the correct `projectId`.
+## Required OMP preflight
 
-### 2. Get the API Key
+Before any mutation, confirm that this is an OMP host with the OMP UI-delivery
+policy extension loaded. Invoke `ui_delivery_status` for the approved task and
+require a successful response before using any Stitch MCP tool. Its approved
+authorization and policy-extension state are the precondition for every later
+step; an absent tool, error, unavailable extension, or unapproved result means
+stop without a mutation.
 
-Require the secret through the `STITCH_API_KEY` environment variable. Never
-read an assistant configuration or persist the key in a project file. The
-optional `STITCH_API_URL` environment variable overrides the default
-`https://stitch.googleapis.com` endpoint.
+On Claude, Cursor, Gemini, or any other non-OMP host, upload-to-stitch is
+unavailable even when a Stitch MCP server is configured. Stop; do not invoke
+`list_projects`, `mcp__stitch_upload_design_md`, or any other Stitch MCP tool.
 
-> [!IMPORTANT]
-> If `STITCH_API_KEY` is absent, ask the user to provide it through their secure
-> environment and stop. Do not echo the value or continue without it.
+## Workflow
 
-### 3. Run Upload Script
+### 1. Identify the target project
 
-> [!WARNING]
-> **Checkpoint — User Confirmation Required.**
-> Before running the upload script, you **MUST** pause and present the file(s)
-> to be uploaded (paths, sizes, and types) to the user and wait for explicit
-> approval. Do **NOT** execute the upload script until the user confirms.
+Only after the required OMP preflight, use `list_projects` to find the approved
+`projectId`. Project listing discovers a target; it is not mutation readback.
 
-Use `run_command` to execute the Python script:
+### 2. Confirm the authorized document
 
-```bash
-python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
-  --project-id <PROJECT_ID> \
-  --file-path <PATH_TO_FILE> \
-  [--api-url "${STITCH_API_URL:-https://stitch.googleapis.com}"] \
-  [--title <SCREEN_TITLE>] \
-  [--generated-by <GENERATED_BY>]
-```
+Accept only `DESIGN.md` or another Markdown document. Confirm the approved
+project, external task digest, exact local text, and canonical input hash
+before dispatching a mutation. Do not derive content from an unapproved path
+or change even whitespace after approval.
 
-> [!TIP]
-> **macOS / SSL Certificate Troubleshooting:**
-> If the upload fails with `ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate`, this means your Python installation does not have root certificate authorities configured.
->
-> The script automatically attempts to use the `certifi` package to load the CA bundle if it is installed in your python environment. If `certifi` is not installed, you can either install it (`pip install certifi`) or manually supply the `SSL_CERT_FILE` environment variable when running the script:
->
-> ```bash
-> SSL_CERT_FILE=$(python3 -c "import certifi; print(certifi.where())") python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
->   --project-id <PROJECT_ID> \
->   --file-path <PATH_TO_FILE> \
->   [--api-url <STITCH_API_URL>] \
->   [--title <SCREEN_TITLE>] \
->   [--generated-by <GENERATED_BY>]
-> ```
+### 3. Dispatch the one authorized upload
 
-### Supported File Types
+Call `mcp__stitch_upload_design_md` with precisely the approved project and
+document content. Do not use `run_command`, call the retired Python script,
+substitute different content, or retry. Policy rejects a missing or changed
+digest, wrong project, changed content, and every consumed one-shot grant.
+
+### 4. Reconcile by readback
+
+After the successful mutation result, dispatch the approved readback tool and
+wait for that exact result. A read dispatched before the mutation result, or a
+concurrent unrelated read, cannot reconcile the upload. Compare its approved
+projection with the mutation result and the authorized document content.
+
+## Supported document type
 
 | Extension | MIME Type |
 |:---|:---|
-| `.png` | `image/png` |
-| `.jpg`, `.jpeg` | `image/jpeg` |
-| `.webp` | `image/webp` |
-| `.html`, `.htm` | `text/html` |
-| `.md` | `text/markdown` |
+| `.md`, including `DESIGN.md` | `text/markdown` |
 
-The script auto-detects MIME type from the file extension.
+The approved tool input determines the document content; do not infer or alter
+it from an unapproved local path.
 
-### Script Options
+## Example
 
-- `--project-id`: **Required**. The Stitch project ID.
-- `--file-path`: **Required**. Path to the local file to upload.
-- `STITCH_API_KEY` (environment variable): **Required**. API key for Stitch authorization. The script reads this from the environment; there is no `--api-key` flag.
-- `--api-url`: Optional. Base URL of the Stitch API. Defaults to `https://stitch.googleapis.com` (or `STITCH_API_URL`).
-- `--title`: Optional. Title for the uploaded screen.
-- `--generated-by`: Optional. Specify how the uploaded file was generated (e.g., 'stitch::extract-static-html' skill, 'Claude Code', 'Codex', 'Gemini' etc.).
+For an approval naming project `project-42` and `DESIGN.md`, submit the
+approved text to `mcp__stitch_upload_design_md` once. After its success result,
+use the pre-authorized readback for `project-42` and reconcile the returned
+projection to that result and the approved document.
+
+## Error handling
+
+| Situation | Required action |
+|:---|:---|
+| The requested asset is not Markdown | Stop; this MCP mutation cannot upload it. |
+| The task digest, project, exact text, or input hash differs from approval | Stop; obtain new authorization before any mutation. |
+| The mutation rejects, fails, or times out | Treat its outcome as unknown; do not retry automatically. |
+| Readback does not match | Report the discrepancy and do not make another mutation. |
+
+## Authorization contract
+
+Approval names the project, document, and content hash. Make one upload attempt
+only. Every reported success requires its authorized readback and reconciliation.

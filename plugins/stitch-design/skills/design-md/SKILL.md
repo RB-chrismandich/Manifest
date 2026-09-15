@@ -30,7 +30,7 @@ The `DESIGN.md` file will serve as the "source of truth" for prompting Stitch to
 
 To analyze a Stitch project, you must retrieve screen metadata and design assets using the Stitch MCP Server tools:
 
-1. **Namespace discovery**: Run `list_tools` to find the Stitch MCP prefix (e.g., `stitch:`, `mcp_stitch:`, or `mcp__stitch__`) — the prefix differs per agent platform. Use it for all subsequent calls.
+1. **Namespace discovery**: Run `list_tools` to find the Stitch MCP prefix (e.g., `stitch:`, `mcp_stitch:`, or `mcp__stitch_`) — the prefix differs per agent platform. Use it for all subsequent calls.
 
 2. **Project lookup** (if Project ID is not provided):
    - Call `[prefix]:list_projects` with `filter: "view=owned"` to retrieve all user projects

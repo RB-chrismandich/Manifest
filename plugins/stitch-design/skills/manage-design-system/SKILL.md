@@ -60,27 +60,11 @@ design system in Stitch.
 > (display name, key colors, fonts, and roundness) and wait for explicit approval
 > before proceeding. Do **NOT** upload until the user confirms.
 
-1. **Upload `DESIGN.md`**:
-   - **Option A (Recommended - Uploader Script)**: Use the modified `stitch-design:upload-to-stitch` Python script which natively handles `.md` files. It base64-encodes the markdown file in-process and sends it to the `/v1/projects/{projectId}/screens:batchCreate` endpoint, bypassing output token limits.
-
-     ```bash
-     STITCH_API_KEY=<API_KEY> python3 ../upload-to-stitch/scripts/upload_to_stitch.py \
-       --project-id <PROJECT_ID> \
-       --file-path /path/to/DESIGN.md \
-       --generated-by <GENERATED_BY>
-     ```
-
-     The script requires the `STITCH_API_KEY` environment variable (there is no
-     `--api-key` flag) — see `stitch-design:upload-to-stitch` for how to source it.
-
-     Set `<GENERATED_BY>` to identify the skill or tool that produced the
-     `DESIGN.md`. Use the calling skill name when invoked from another skill
-     (e.g. `stitch::code-to-design`), or the agent/tool name for standalone
-     use (e.g. `Gemini`, `Claude Code`). If omitted, the script defaults to
-     `UserUploadedDesignMd`.
-
-     This returns the `sourceScreen` ID and the `screenInstance` ID.
-   - **Option B (Direct MCP Tool)**: If the `DESIGN.md` is small (under ~5KB), you can call the `upload_design_md` MCP tool directly, passing the base64-encoded design markdown content as `designMdBase64`.
+1. **Upload `DESIGN.md`** through the policy-controlled
+   `mcp__stitch_upload_design_md` tool. Its input must exactly match the
+   externally approved project and content; direct Python uploads are disabled.
+   Follow it with the approved post-mutation readback before creating a design
+   system.
 2. **Create Design System**: Call the `create_design_system_from_design_md` tool immediately after the upload, passing the `projectId` and the `selectedScreenInstance` (containing the `id` and `sourceScreen` returned from the upload step).
 
 Once the upload script and `create_design_system_from_design_md` have both completed,
