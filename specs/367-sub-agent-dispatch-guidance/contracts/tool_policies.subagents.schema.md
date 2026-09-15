@@ -11,8 +11,8 @@ tool_policies:
     # ── existing fields (unchanged) ──
     allowed: [ ... ]
     forbidden: [ ... ]
-    parallel_agents: always | conditional | never | gate-only   # external parallel_agent.py
-    trigger_condition: "<expr>"        # only when parallel_agents: conditional
+    retired_cross_harness_coordinator_policy: always | conditional | never | gate-only   # external the retired cross-harness coordinator
+    trigger_condition: "<expr>"        # only when retired_cross_harness_coordinator_policy: conditional
     validation_tier: 1 | 2
 
     # ── new in feature 367 ──
@@ -50,5 +50,5 @@ tool_policies:
 
 - Additive only — no existing field is renamed or removed.
 - `parallel_agents` keeps its current meaning (external harness); `subagents` is orthogonal.
-- A skill MAY be `parallel_agents: never` while `subagents: conditional` (different mechanisms,
+- A skill MAY be `retired_cross_harness_coordinator_policy: never` while `subagents: conditional` (different mechanisms,
   different purposes).

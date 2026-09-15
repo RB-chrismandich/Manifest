@@ -203,10 +203,10 @@ def skill_run(
 ) -> None:
     """Run one skill through an explicit model-aware native handoff."""
     try:
-        config_path = files("manifest_agent.data").joinpath("parallel_agent.yml")
+        config_path = files("manifest_agent.data").joinpath("model_policy.yml")
         if not config_path.is_file():
             config_path = (
-                Path(__file__).parents[2] / "configs/claude/config/parallel_agent.yml"
+                Path(__file__).parents[2] / "configs/claude/config/model_policy.yml"
             )
         outcome = execute_skill_command(
             skill=skill_path,

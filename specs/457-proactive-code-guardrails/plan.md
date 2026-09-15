@@ -35,9 +35,9 @@ Encode proactive anti-pattern prevention into the toolkit in three layers: (1) s
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | PASS | All changes land in `configs/claude/config/`, `configs/claude/references/`, and `.retired skill supply/skills/`; deployed via existing bootstrap paths. No manual home-dir edits. |
-| II. Parallel Agent Orchestration | PASS | Feature PR will exceed 200 lines and touches security guidance → parallel-agent cross-verification required before merge (planned in tasks). The audit skill itself encodes cross-verification for Critical/High findings (FR-012). |
+| II. Parallel Agent Orchestration | PASS | Feature PR will exceed 200 lines and touches security guidance → OMP reviewer-wave cross-verification required before merge (planned in tasks). The audit skill itself encodes cross-verification for Critical/High findings (FR-012). |
 | III. Consensus-Driven Decisions | PASS | Audit verdict mapping reuses APPROVED/NEEDS_REVIEW/BLOCKED and existing thresholds; no new consensus scheme introduced (FR-006). |
-| IV. Skill-First Extensibility | PASS | New capability is a discrete skill (`ai-code-audit`); `parallel_agent.py` and other core scripts are not expanded. `learning_capture.sh` gains only additive optional fields. |
+| IV. Skill-First Extensibility | PASS | New capability is a discrete skill (`ai-code-audit`); the retired cross-harness coordinator and other core scripts are not expanded. `learning_capture.sh` gains only additive optional fields. |
 | V. Bootstrap Reproducibility | PASS | No bootstrap changes required — `knowledge_base.yml` and skills are already in the deploy set; changes are content-only and idempotent. |
 | VI. State-Gated Lifecycle | ADVISORY WARNING (logged override, since remediated) | Phase 3 (Spec-Review product) was not run before Plan; human-driven work proceeds with this logged override. REMEDIATED 2026-07-01: `/spec-review` panel ran post-tasks (4 rounds, 12 findings dispositioned) and `/speckit-analyze` passed with 0 critical findings. Verify gate: the audit skill is a shipped user-facing workflow → critical-path smoke tests planned (T013/T019/T023). |
 

@@ -159,8 +159,6 @@ matching installed plugin, component, and capability evidence.
 | `manifest-workspace:skill:help` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:learning-capture` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:memory-compress` | contract skill | READY | READY | READY | READY | READY | READY |
-| `manifest-workspace:skill:metrics-report` | contract skill | READY | READY | READY | READY | READY | READY |
-| `manifest-workspace:skill:parallel-agent` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:pass-cli` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:pr-smoke` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:prompt-optimize` | contract skill | READY | READY | READY | READY | READY | READY |
@@ -194,10 +192,6 @@ matching installed plugin, component, and capability evidence.
 | `manifest-workspace:runtime:help-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:hook-integration-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:learning-capture-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
-| `manifest-workspace:runtime:parallel-agent-config` | contract runtime | READY | READY | READY | READY | READY | READY |
-| `manifest-workspace:runtime:parallel-agent-prompts` | contract runtime | READY | READY | READY | READY | READY | READY |
-| `manifest-workspace:runtime:parallel-agent-references` | contract runtime | READY | READY | READY | READY | READY | READY |
-| `manifest-workspace:runtime:parallel-agent-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:pr-smoke-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:session-checkpoint-references` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:session-continuity-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |

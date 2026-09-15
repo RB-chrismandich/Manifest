@@ -36,7 +36,7 @@ MODEL_CHECK_PROBE=1 ~/.claude/scripts/model_check.sh
 **Codex fails with session permission errors:**
 
 ```bash
-# Symptom from parallel_agent.py/check_status.sh:
+# Symptom from check-status:
 # "Codex session storage not writable: ~/.manifest/codex/sessions"
 
 # Preferred fix (restore ownership/permissions)
@@ -49,8 +49,8 @@ chmod -R u+rwX ~/.manifest
 mkdir -p ~/.manifest/custom-codex-state
 export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 
-# Then run orchestration as normal
-~/.claude/scripts/parallel_agent.py --codex-only --codex-model advanced "Quick test"
+# Then inspect the retained runtime status
+manifest check-status
 ```
 
 **See**: [Troubleshooting Guide](../../docs/troubleshooting/README.md) for 15+ common issues with solutions

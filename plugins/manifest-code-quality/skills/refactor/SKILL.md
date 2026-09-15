@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: Inspect a target file or codebase, detect language, and route to the matching refactoring engine.
+description: Inspect a target file or codebase, detect language, and route to the matching refactoring engine (Python, Go, Node/TypeScript, Shell, Terraform) with OMP sub-agent verification.
 ---
 
 # Unified Codebase Refactor Dispatcher
@@ -31,10 +31,14 @@ and aggregating their results unless a risk condition is present.
 
 ## Sub-agent dispatch
 
-Follow the [dispatch mechanics](references/refactor-dispatch.md) as well as the
-[review escalation contract](references/review-escalation.md). When any one of
-the five conditions warrants escalation, obtain an independent review using the
-pinned `sonnet` model. Partition work among multiple reviewers only when the
-investigation has genuinely independent analysis tracks; otherwise the second
-review examines the same target independently. Dispatched reviewers do not
-re-dispatch.
+Follow the [dispatch mechanics](references/refactor-dispatch.md) and the
+[review escalation contract](references/review-escalation.md). When any one
+of the five conditions warrants escalation, obtain an independent review using
+the pinned `sonnet` model. Partition work among multiple reviewers only when
+the investigation has genuinely independent analysis tracks; otherwise the
+second review examines the same target independently.
+
+Submit independent review units in one OMP `task` call (waves of at most 32),
+using the `reviewer` agent type; children execute directly and never
+redispatch; use `hub` only to coordinate or wait. If `task` is unavailable,
+review inline and report `DEGRADED`.

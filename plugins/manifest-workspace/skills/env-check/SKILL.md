@@ -14,5 +14,8 @@ An absent or unreadable receipt yields `status: degraded` with a warning.
 Unavailable optional harnesses remain informational. Do not inspect another
 harness's home or use one tool's settings to verify another tool.
 
-For a cross-provider orchestration readiness check, invoke
-`manifest-workspace:parallel-agent` and consume its structured result when supported.
+When independent readiness dimensions require review, dispatch them in one OMP
+`task` call (in waves of at most 32), using `scout` for read-only checks. Each
+child checks only its assigned dimension and never re-dispatches; the parent
+directly aggregates the evidence. Use `hub` only to coordinate or wait. If
+`task` is unavailable, perform the checks inline and report `DEGRADED`.

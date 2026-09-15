@@ -27,14 +27,9 @@ teardown() {
 @test "workspace commands run from the bundle with empty home and offline XDG state" {
     cd "$SANDBOX"
 
-    run python3 -B "$BUNDLE/skills/parallel-agent/scripts/parallel_agent.py" --help
-    assert_success
-    refute_output --partial "configs/claude"
-    refute_output --partial ".claude"
-
     run python3 -B "$BUNDLE/skills/help/scripts/command_catalog.py" --all
     assert_success
-    assert_output --partial "parallel-agent"
+    refute_output --partial "parallel-agent"
 
     run python3 -B "$BUNDLE/skills/env-check/scripts/env_check.py" --json
     assert_success
@@ -43,7 +38,6 @@ teardown() {
 
 @test "workspace runtime contains no path arithmetic into repository config" {
     run bash -c "grep -R -nE '(configs/claude|manifest_agent)' \
-        '$BUNDLE/skills/parallel-agent/scripts' \
         '$BUNDLE/skills/learning-capture/scripts' \
         '$BUNDLE/skills/help/scripts' \
         '$BUNDLE/skills/env-check/scripts' \

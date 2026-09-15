@@ -14,13 +14,10 @@ TEMPLATE = "LIB:\n{{LIBRARY}}\nSESS:\n{{SESSIONS}}\n"
 
 @pytest.fixture
 def evolve_provider_home(monkeypatch, tmp_path):
-    """Hermetic cli_agents config + claude/gemini stubs on PATH so the evolve
-    provider resolution works without a deployed ~/.claude (CI's HOME is clean):
-    resolve_cli_route needs cli_agents specs, the provider binary on PATH, and
-    provider: auto for the EVOLVE_CLI->provider inference."""
+    """Hermetic policy + claude/gemini stubs for headless route resolution."""
     cfgdir = tmp_path / "home" / ".claude" / "config"
     cfgdir.mkdir(parents=True)
-    (cfgdir / "parallel_agent.yml").write_text(
+    (cfgdir / "model_policy.yml").write_text(
         "skillclaw_evolve:\n  provider: auto\n"
         "cli_agents:\n  claude: {binary: claude}\n  gemini: {binary: gemini}\n"
     )
@@ -216,90 +213,60 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
 def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
     # FR-010: a hung headless CLI chunk must surface as RuntimeError for promote.sh.
     monkeypatch.delenv("SKILLCLAW_CHUNK_TIMEOUT", raising=False)
-    import subprocess as sp
+    from manifest_model_policy import CliRoute
 
-    from agents.cli_invoke import CliRoute
-
+    monkeypatch.setattr(ev, "load_default_policy", lambda: {})
+    monkeypatch.setattr(ev, "resolve_cli_route", lambda *a, **k: CliRoute("claude"))
     monkeypatch.setattr(
-        "agents.cli_invoke.resolve_cli_route",
-        lambda *a, **k: CliRoute("cli", "claude"),
+        ev, "run_headless_prompt", lambda *a, **k: (_ for _ in ()).throw(TimeoutError())
     )
-    monkeypatch.setattr(
-        "agents.cli_invoke.build_subprocess_argv",
-        lambda config, route, prompt, **kw: (["claude", "-p"], prompt),
-    )
-
-    def fake_run(*a, **k):
-        assert k.get("timeout") == ev.DEFAULT_CHUNK_TIMEOUT
-        raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
-
-    monkeypatch.setattr(ev.subprocess, "run", fake_run)
-    try:
+    with pytest.raises(RuntimeError, match="timed out"):
         ev.subprocess_runner("prompt")
-        raise AssertionError("expected RuntimeError")
-    except RuntimeError as e:
-        assert "timed out" in str(e)
 
 
 def test_subprocess_runner_defaults_to_claude(monkeypatch, evolve_provider_home):
     monkeypatch.delenv("EVOLVE_CLI", raising=False)
-    import subprocess as sp
-
     seen = {}
 
-    def fake_run(cmd, **k):
-        seen["cmd"] = cmd
-        raise sp.TimeoutExpired(cmd=cmd, timeout=k["timeout"])
+    def fake_prompt(route, *args, **kwargs):
+        seen["provider"] = route.provider
+        raise TimeoutError()
 
-    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    monkeypatch.setattr(ev, "run_headless_prompt", fake_prompt)
     with contextlib.suppress(RuntimeError):
         ev.subprocess_runner("prompt")
-    assert seen["cmd"] == ["claude", "-p"]
+    assert seen["provider"] == "claude"
 
 
 def test_subprocess_runner_honors_evolve_cli_env_seam(
     monkeypatch, evolve_provider_home
 ):
-    # llm-invoke-stdin pattern: EVOLVE_CLI is role-named, vendor only as
-    # default — swapping claude -> gemini must be a one-line env-var change,
-    # not a code edit.
     monkeypatch.setenv("EVOLVE_CLI", "gemini")
-    import subprocess as sp
-
     seen = {}
 
-    def fake_run(cmd, **k):
-        seen["cmd"] = cmd
-        raise sp.TimeoutExpired(cmd=cmd, timeout=k["timeout"])
+    def fake_prompt(route, *args, **kwargs):
+        seen["binary"] = route.binary_override
+        raise TimeoutError()
 
-    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    monkeypatch.setattr(ev, "run_headless_prompt", fake_prompt)
     with contextlib.suppress(RuntimeError):
         ev.subprocess_runner("prompt")
-    assert seen["cmd"] == ["gemini", "-p"]
+    assert seen["binary"] == "gemini"
 
 
 def test_chunk_timeout_env_override(monkeypatch):
     monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
-    import subprocess as sp
-
-    from agents.cli_invoke import CliRoute
-
-    monkeypatch.setattr(
-        "agents.cli_invoke.resolve_cli_route",
-        lambda *a, **k: CliRoute("cli", "claude"),
-    )
-    monkeypatch.setattr(
-        "agents.cli_invoke.build_subprocess_argv",
-        lambda config, route, prompt, **kw: (["claude", "-p"], prompt),
-    )
+    from manifest_model_policy import CliRoute
 
     seen = {}
+    monkeypatch.setattr(ev, "load_default_policy", lambda: {})
+    monkeypatch.setattr(ev, "resolve_cli_route", lambda *a, **k: CliRoute("claude"))
 
-    def fake_run(*a, **k):
-        seen["timeout"] = k.get("timeout")
-        raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
+    def fake_prompt(*args, **kwargs):
+        seen["timeout"] = kwargs["timeout"]
+        raise TimeoutError()
 
-    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    monkeypatch.setattr(ev, "run_headless_prompt", fake_prompt)
     with contextlib.suppress(RuntimeError):
         ev.subprocess_runner("prompt")
     assert seen["timeout"] == 5

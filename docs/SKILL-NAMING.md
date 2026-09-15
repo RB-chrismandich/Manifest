@@ -79,7 +79,6 @@ help
 i-have-adhd
 loop-scaffold
 manage-design-system
-parallel-agent
 pass-cli
 react-components
 react-native
@@ -106,7 +105,6 @@ upload-to-stitch
 | `i-have-adhd` | Pinned from `ayghri/i-have-adhd`; preserving the upstream user-facing name keeps attribution and migration behavior exact. |
 | `delegate` | spec 675 delegation surface; name is the user-facing verb. |
 | `refactor` | Router over the five `<lang>-refactor` engines; the bare verb is the user-facing entry point, as with `help` and `delegate`. |
-| `parallel-agent` | Harness orchestration is an established user-facing command, not a domain-purpose skill name. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
 | `loop-scaffold`, `render-verify`, `review-round`, `screen-prompts` | Internal phase names of the `adversarial-design-loop` plugin (merged from #674). They are `<phase>-<noun>` within one closed loop, not catalog-wide verbs, and the plugin's own bodies, README and cross-references key on them. |
 

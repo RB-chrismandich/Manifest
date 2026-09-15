@@ -1,8 +1,8 @@
 # Built-in Commands
 
-> Shipped commands, label management, and the issue-linking hooks.
+> Shipped commands, OMP task batches, label management, and the issue-linking hooks.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-12
 
 ## Built-in Commands
 
@@ -12,7 +12,7 @@ generated [Command Reference](../COMMANDS.md#command-reference) below (every com
 by category) — or run `/help [query]` in-session for searchable discovery. Both
 are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 
-| Command | Description | Parallel Agents |
+| Command | Description | OMP Task Batches |
 |---------|-------------|-----------------|
 | `/git-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
 | `/docs-improve-readme` | Improve README documentation | NO |
@@ -30,14 +30,14 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `pr_merge_loop.sh run [--apply]` | Bounded self-paced merge-loop pass: enforces a hard 10-minute ceiling, stops after 5 consecutive empty runs, serializes merges via `loop_lock` (one in flight), exits 11 on halt (post-merge `main` red). Default dry-run; pass `--apply` or set `PR_MERGE_LOOP_APPLY=1` for real merges. `/loop /issue-dev-auto` is the outer re-invoker. Standalone `run` orchestrates monitoring/merge only — it does not itself push code revisions; a PR needing `revise` requires the SKILL (`/loop /issue-dev-auto`) to apply fixes, otherwise it polls until the ceiling. | NO |
 | `/issue-sync-pr` | Hook-triggered: on PR open, back-link + advance linked issue to `needs-review` + ensure closing keyword (fail-open) | NO |
 | `/issue-sync-commit` | Hook-triggered: on branch commit, advance a `planned` issue to `in-progress`, deduped (fail-open) | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/plan-manage` | Plan lifecycle with OMP-native independent review | CONDITIONAL |
 | `/smoke-manage` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
 | `/session-checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/env-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/config-audit` | Detect cross-platform config drift and broken symlinks | NO |
 | `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
-| `/pr-monitor` | Babysit a just-opened PR/MR: watch CI to green (fix failures), address Copilot findings, tag Jules and handle its feedback. Auto-triggers on `gh pr create`/`glab mr create` | NO |
+| `/pr-monitor` | Babysit a just-opened PR/MR: watch CI to green (fix failures), address Copilot findings and existing Jules feedback. Auto-triggers on `gh pr create`/`glab mr create` | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 | `/repo-clean` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches (GitHub/GitLab/local) | CONDITIONAL (close/prune path) |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
@@ -48,7 +48,6 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
 | `/code-audit` | Semantic security-boundary review | AUTO (only when triggered) |
-| `/metrics-report` | Visualize agent efficiency metrics | NO |
 | `/learning-capture` | Capture structured lessons learned | NO |
 | `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
 | `/project-scaffold` | Initialize new projects with quality gates and Manifest integration | NO |

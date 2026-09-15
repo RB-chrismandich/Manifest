@@ -289,15 +289,10 @@ jobs:
           cache-dependency-path: tests/requirements-ci.txt
 
       - name: Install test and manifest runtime dependencies (pinned)
-        # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
-        # asyncio-throttle backs RateLimiter. requirements-runtime.txt mirrors
-        # configs/claude/uv.lock core deps for manifest_cli / scripts packages.
-        #
-        # manifest-model-policy is a LOCAL-ONLY development/runtime package.
-        # The published coordinator wheel vendors its code and has no external
-        # dependency on this unregistered name, while source tests import the
-        # editable package. Install that package from its reviewed path before
-        # the root project; tests/python/test_requirements_drift.py enforces it.
+        # requirements-runtime.txt mirrors configs/claude/uv.lock core deps for
+        # manifest_cli and scripts packages. manifest-model-policy is a
+        # local-only development/runtime package; source tests import it from
+        # its reviewed path before installing the root project.
         run: |
           pip install -e ./configs/claude/scripts/manifest_model_policy
           pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
@@ -330,6 +325,7 @@ jobs:
               "PATH=$3" MANIFEST_CGROUP_ROOT="$1" CI=true \
               pytest -vv tests/python/test_delegate_containment_native.py -m native
           ' bash "$venue" "$runner_user" "$PATH"
+
       - name: Run Python tests (if any exist)
         run: |
           if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then
@@ -438,10 +434,8 @@ jobs:
           check_symlink "configs/codex/prompts"   "../claude/prompts"
           check_symlink "configs/codex/.plans"    "../claude/.plans"
 
-          # configs/antigravity symlinks (the only platform dir with a
-          # repo-level skills symlink — see issue #328). No scripts/prompts:
-          # agy is a parallel_agent provider, not an orchestrator that runs
-          # parallel_agent.py, so it does not carry the orchestrator wiring.
+          # configs/antigravity symlinks. Antigravity intentionally carries
+          # shared config, skills, and plans only.
           check_symlink "configs/antigravity/config"  "../claude/config"
           check_symlink "configs/antigravity/skills"  "../claude/skills"
           check_symlink "configs/antigravity/.plans"  "../claude/.plans"

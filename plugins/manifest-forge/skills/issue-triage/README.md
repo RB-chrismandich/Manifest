@@ -18,10 +18,9 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 ## What It Does
 
 1. **Duplicate Detection**
-   - Fuzzy title matching (≥80% = HIGH, 70-85% = MEDIUM)
-   - Description overlap analysis
-   - Parallel agent verification for gray areas
-   - Auto-marks HIGH confidence duplicates (≥85% consensus)
+   - Fuzzy title and description-overlap matching
+   - Five independent OMP reviewer verdicts for every MEDIUM-confidence pair
+   - Promotion to HIGH only with at least three valid verdicts and ≥80% duplicate votes
 
 2. **Staleness Detection**
    - Identifies inactive issues (90+ days, no priority, no labels)
@@ -54,10 +53,11 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 ## Safety Rules
 
 1. **Never auto-close issues with "planned" label**
-2. **Require ≥85% consensus for duplicate marking**
-3. **Verify file deletion before marking stale**
-4. **Require explicit --close-stale flag**
-5. **Log all actions to audit trail**
+2. **Promote duplicates only with at least three valid OMP verdicts and ≥80% duplicate votes**
+3. **Change priority recommendations only with at least three valid verdicts and ≥70% modal agreement**
+4. **Verify file deletion before marking stale**
+5. **Require explicit --close-stale flag**
+6. **Log all actions to audit trail**
 
 ## Output
 
@@ -102,20 +102,18 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 /issue-triage --close-stale
 ```
 
-## Parallel Agent Integration
+## OMP Reviewer Integration
 
-Parallel agents invoked for:
+The parent dispatches five independent read-only OMP `reviewer` tasks for each
+MEDIUM duplicate pair and each priority candidate. It submits independent work
+in `task` waves of at most 32 items, validates structured verdicts, names and
+excludes invalid results, and aggregates the required quorum:
 
-- **Medium-confidence duplicates** (70-85% similarity)
-- **Priority scoring** (complex impact assessment)
-- **Gray-area staleness** (conflicting signals)
-
-Consensus thresholds:
-
-- ≥85%: AUTO-EXECUTE
-- 70-84%: RECOMMEND
-- 50-69%: HIGHLIGHT disagreements
-- <50%: ESCALATE to user
+- **Duplicate promotion**: at least three valid verdicts and ≥80% `true` votes.
+- **Priority recommendation**: at least three valid verdicts and ≥70% modal
+  agreement; ties do not recommend a change.
+- **Missing quorum or unavailable OMP**: record `DEGRADED`, do not perform an
+  automatic disposition change, and never fall back to a provider CLI.
 
 ## Configuration
 
@@ -125,7 +123,7 @@ without modifying the immutable bundle:
 - Duplicate detection thresholds
 - Staleness criteria (inactivity days, file deletion ratio)
 - Priority scoring formula weights
-- Consensus thresholds
+- OMP reviewer counts, quorum, and agreement thresholds
 - Action safety rules
 
 ## Troubleshooting
@@ -158,5 +156,4 @@ without modifying the immutable bundle:
 ## See Also
 
 - [Linear API Documentation](https://developers.linear.app/docs)
-- `manifest-workspace:parallel-agent` for optional consensus checks
-- The active harness's native plan-management documentation
+- OMP-native `task` and `hub` guidance in the active harness

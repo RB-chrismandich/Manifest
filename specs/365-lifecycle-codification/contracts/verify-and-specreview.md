@@ -49,7 +49,7 @@ spec_review.sh --mode <m> --spec ... --plan ... --tasks ... --format json
 - The phase maps this verdict through the constitution model (FR-027): `APPROVED`→allow, `NEEDS_REVIEW`→warn, `BLOCKED`→refuse.
 
 ### Optional consensus dimension (FR-027)
-Because FR-001 allows one-or-more commands per phase, the review phase MAY also run `parallel_agent.py --validate` to obtain the Tier-1/Tier-2 + ≥80% consensus signal, combining it with the spec-review verdict (BLOCKED if either fails Tier-1).
+Because FR-001 allows one-or-more commands per phase, the review phase MAY also run `the retired cross-harness coordinator --validate` to obtain the Tier-1/Tier-2 + ≥80% consensus signal, combining it with the spec-review verdict (BLOCKED if either fails Tier-1).
 
 ## Deploy note
 Repo `spec_review.sh` (parallel-agent panel) differs from the deployed `~/.claude/scripts/spec_review.sh` (older agy-only). The `--mode` change requires `./bootstrap.sh` redeploy before the lifecycle invokes the deployed path (known config-deploy gotcha).

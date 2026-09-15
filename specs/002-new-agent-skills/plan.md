@@ -60,7 +60,7 @@ through the existing `ai-hooks-integration` skill / `settings` hooks mechanism, 
 | I. Configuration-as-Code | ✅ PASS | All four skills + scripts live in `configs/`/`.retired skill supply/`, deployed via `bootstrap.sh`. No manual edits to deployed `~/.claude`. |
 | II. Parallel Agent Orchestration | ✅ PASS | `version-pin` is security-sensitive (supply chain) → flagged for parallel-agent review at PR time. `docs-all` itself *is* a multi-sub-agent orchestrator. |
 | III. Consensus-Driven Decisions | ✅ PASS | New skills inherit the standard consensus thresholds; `version-pin` set to Tier 1. |
-| IV. Skill-First Extensibility | ✅ PASS | Each capability is a discrete `SKILL.md`; no expansion of `parallel_agent.py`. Helper scripts are siblings of existing `git_ops.sh`, not core-engine changes. |
+| IV. Skill-First Extensibility | ✅ PASS | Each capability is a discrete `SKILL.md`; no expansion of `the retired cross-harness coordinator`. Helper scripts are siblings of existing `git_ops.sh`, not core-engine changes. |
 | V. Bootstrap Reproducibility | ✅ PASS | Skills are files copied by existing `deploy_home_skills`; no new install step. Hook registration is idempotent (guarded). |
 
 **Result**: PASS — no violations. Complexity Tracking table not required.

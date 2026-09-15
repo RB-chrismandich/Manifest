@@ -301,9 +301,15 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
-Follow the [dispatch mechanics](references/go-refactor-dispatch.md) and the
+Follow the [dispatch mechanics](references/go-refactor-dispatch.md), the shared OMP dispatch
+contract in `../../runtime/references/sub-agent-dispatch.md`, and the
 [review escalation contract](../refactor/references/review-escalation.md). Use
 the pinned `sonnet` model. Start with one capable reviewer; add independent
 review only when at least one of that contract's five risk conditions is
 present. This overrides any count or size threshold. Check commands are
 check-only. Unavailable checks are reported as `unavailable`, never pass.
+
+Submit independent review units in one OMP `task` call (waves of at most 32),
+using the `reviewer` agent type; children execute directly and never
+redispatch; use `hub` only to coordinate or wait. If `task` is unavailable,
+review inline and report `DEGRADED`.

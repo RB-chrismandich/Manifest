@@ -137,7 +137,7 @@ check_rsync() {
     return 0
 }
 
-# Install the cursor-agent CLI (headless Cursor agent used by parallel_agent.py)
+# Install the cursor-agent CLI (retained single-provider integration; see model_policy.yml)
 check_cursor() {
     if [[ "$ENABLE_CURSOR" == false ]]; then
         print_info "Cursor is disabled - skipping installation"

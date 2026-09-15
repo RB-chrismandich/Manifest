@@ -125,19 +125,6 @@ EOF
     refute_output --partial "(disabled)"
 }
 
-@test "warns when fewer than 2 services are enabled" {
-    write_services_yml true false false false
-    run bash "$SCRIPT_UNDER_TEST"
-    assert_success
-    assert_output --partial "Minimum 2 services needed for parallel orchestration"
-}
-
-@test "no minimum-services warning when 2 services are enabled" {
-    write_services_yml true true false false
-    run bash "$SCRIPT_UNDER_TEST"
-    assert_success
-    refute_output --partial "Minimum 2 services needed"
-}
 
 @test "missing services.yml is handled gracefully with bootstrap hint and exit 0" {
     # no services.yml written
@@ -400,22 +387,22 @@ EOF
 
 # --- Overall status / agent readiness ---
 
-@test "system ready when 2 agents are enabled and installed" {
+@test "system ready when 2 enabled CLIs are installed" {
     write_services_yml true true false false
     make_mock_cli claude
     make_mock_cli gemini
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "System ready for parallel orchestration (2 agents available)"
+    assert_output --partial "System ready (2 agents available)"
 }
 
-@test "limited functionality when only 1 agent is available" {
+@test "reports limited CLI coverage when only 1 agent is available" {
     # gemini enabled but not installed; claude installed and enabled
     write_services_yml true true false false
     make_mock_cli claude
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Limited functionality (only 1 agent available)"
+    assert_output --partial "Limited CLI coverage (only 1 agent available)"
 }
 
 @test "not operational when no agents are available and exit code is still 0" {
@@ -440,7 +427,7 @@ EOF
     write_services_yml true true false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Parallel Agent System Health Check"
+    assert_output --partial "Manifest Runtime Health Check"
     assert_output --partial "Configuration:"
     assert_output --partial "CLI Tools:"
     assert_output --partial "Authentication:"
@@ -456,7 +443,7 @@ EOF
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Quick Test:"
-    assert_output --partial "parallel_agent.py --json"
+    assert_output --partial "manifest --help"
 
     write_services_yml false false false false
     rm -f "$MOCK_BIN/claude"
@@ -634,8 +621,7 @@ EOF
     assert_output --partial "Claude CLI installed"
     assert_output --partial "Gemini CLI installed"
 
-    # services.yml's real enabled state (claude+gemini) drives a real "ready"
     # verdict -- not the false "no agents available" the bug produced.
-    assert_output --partial "System ready for parallel orchestration (2 agents available)"
+    assert_output --partial "System ready (2 agents available)"
     refute_output --partial "System not operational (no agents available)"
 }

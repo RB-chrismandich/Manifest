@@ -31,8 +31,6 @@
 | [APM_PINNING.md](APM_PINNING.md) | Pinning the apm skill package |
 | [PRE_COMMIT.md](PRE_COMMIT.md) | Hook configuration |
 | [SKILLCLAW.md](SKILLCLAW.md) | Optional session capture and evolve |
-| [EMDASH.md](EMDASH.md) | Working in emdash worktrees |
-| [METRICS.md](METRICS.md) | Agent result metrics |
 | [TOKEN_BENCHMARK.md](TOKEN_BENCHMARK.md) | Measured context overhead |
 | [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | Antipattern registry |
 

@@ -2,7 +2,7 @@
 
 > The command surface at a glance.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-12
 
 ## Available Commands
 
@@ -11,8 +11,8 @@
 > (every command, grouped by category, drift-checked in CI). The table below is a
 > curated highlight subset.
 
-| Command | Description | Parallel Agents | Validation |
-|---------|-------------|-----------------|------------|
+| Command | Description | OMP Task Batches | Validation |
+|---------|-------------|------------------|------------|
 | `/help` | Find the right command fast — searchable, categorized discovery (read-only) | NEVER | — |
 | `/git-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL | Tier 1 + Tier 2 |
 | `/python-refactor` | Python security, architecture, code quality analysis | CONDITIONAL (five-condition review risk gate) | Tier 1 + Tier 2 (≥0.80) |

@@ -69,10 +69,8 @@ BUILTIN_LIMITS = {...}
 ```
 
 The failure this article prevents is live in this repo today:
-`budget_broker.py` holds a third hand-copied version of the model fallback
-chains and has already drifted to `claude-opus-4-8` while `parallel_agent.yml`
-and `agents/config.py` both say `claude-opus-5`. One YAML file and one loader
-would have made that divergence impossible to express.
+`budget_broker.py` once held a third hand-copied version of model fallback
+chains. A single `model_policy.yml` file and loader prevent that divergence.
 
 ## Article annexes
 

@@ -103,6 +103,6 @@ trading cost for correctness.
 ## Relationship to Manifest's existing facilities (FR-015)
 
 This is a distinct, complementary layer — not a replacement. It does not refactor the
-subagent-driven-development skill (which already does per-task model selection) or
-`parallel_agent.py` (cross-model consensus). Use those as before; use these roles when you want
-named, cost-tiered single-model delegation with a verifier gate.
+subagent-driven-development skill (which already does per-task model selection)
+or an OMP task batch for independent interactive review. Use these roles when
+you want named, cost-tiered single-model delegation with a verifier gate.

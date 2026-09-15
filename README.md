@@ -2,20 +2,23 @@
 
 [![Manifest CI](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml/badge.svg)](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml)
 
-> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI,
+> OMP-native AI coding workflow configuration for Claude Code, Cursor IDE, Gemini CLI,
 > Codex CLI, Antigravity IDE, and the Devin CLI
 
-**Last Updated**: 2026-06-21
+[Jules](docs/JULES.md) is an optional remote GitHub task backend: bootstrap with
+`--enable-jules`, authenticate through browser OAuth, and submit through `/delegate`
+or the official `jules` issue-label workflow.
 
-Manifest is a configuration repository that deploys a sophisticated parallel agent
-orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and
-`~/.antigravity/`, enabling Claude Code, Cursor IDE, Gemini CLI, Codex CLI, Antigravity
-IDE, and the Devin CLI (which reads `~/.claude` in place, see below) to share guides,
-skills, prompts, and scripts while leveraging multiple AI agents for cross-verification,
-consensus scoring, and enhanced code analysis.
+**Last Updated**: 2026-09-12
 
-**Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
-| Two-tier validation | Production-grade templates
+Manifest deploys shared guides, skills, prompts, and scripts to `~/.claude/`,
+`~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`. Interactive
+sub-agent work uses OMP-native `task` batches and `hub` coordination; the parent
+agent validates and aggregates evidence. Retained single-provider tools use
+`model_policy.yml` for model tiers and CLI fallback.
+
+**Core Capabilities**: OMP task batches | Native validation tiers | Model policy
+| Production-grade templates
 
 ---
 
@@ -32,8 +35,8 @@ cd Manifest
 # Optional: configure MCP servers (interactive per-server selection)
 ./bootstrap.sh --install-mcp
 
-# Verify installation
-~/.claude/scripts/parallel_agent.py --json "Test connection"
+# Confirm the installed CLI surface
+~/.local/bin/manifest --help
 ```
 
 Context7 uses a one-time device OAuth login. Its long-lived credential stays in
@@ -54,20 +57,17 @@ enabled harnesses without installing duplicate Context7 rules or skills.
 ## Architecture
 
 ```text
-User → Claude Code → /command → parallel_agent.py
-                                          ↓
-      ┌──────────┬──────────┬──────────┼──────────┬──────────┐
-      ↓          ↓          ↓          ↓          ↓          ↓
-Cursor Agent Gemini CLI Claude CLI Codex CLI  Antigravity  Devin
-(IDE Context)(Broad     (Deep      (Terminal  (agy)        (opt-in)
-             Knowledge) Reasoning)  Coding)
-      ↓          ↓          ↓          ↓          ↓          ↓
-      └──────────┴──────────┴──────────┼──────────┴──────────┘
-                                          ↓
-                              Synthesis & Validation
-                                          ↓
-                                      JSON Output
+User → Supported coding harness → /skill or task
+                                      ↓
+                         OMP task batches (≤32 ready units)
+                                      ↓
+                          Child workers execute one unit
+                                      ↓
+                    Parent validates evidence and aggregates results
 ```
+
+Noninteractive single-provider integrations (such as CDDL, delegation, and
+SkillClaw) resolve their provider CLI and model tier from `model_policy.yml`.
 
 **Visual Documentation**: [Architecture Diagrams](docs/diagrams/README.md) -
 Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows

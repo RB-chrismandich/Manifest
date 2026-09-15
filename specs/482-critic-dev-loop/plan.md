@@ -74,17 +74,17 @@ lifecycle advisory, below).*
   via `deploy_home_skills`); nothing is hand-edited in `~/.claude/`.
 - **II. Parallel Agent Orchestration — PASS (process gate)**: this feature touches
   security-sensitive surface (subprocess invocation, LLM-driven file writes, path
-  containment) and exceeds 200 lines, so its PRs require parallel-agent
+  containment) and exceeds 200 lines, so its PRs require an OMP reviewer-wave
   cross-verification; the lifecycle's `/spec-review --mode technical` (phase 7) runs
   before implementation. Runtime note: CDDL's unanimous two-critic verdicts are a
   deliberate, spec-declared distinct mechanism (Out of Scope), not a replacement for
-  `parallel_agent.py` consensus on PRs.
+  the retired cross-harness coordinator's historical PR consensus.
 - **III. Consensus-Driven Decisions — PASS**: PR validation for this feature uses the
   standard thresholds; CDDL itself performs no consensus scoring (unanimous
   structured verdicts, documented in spec Out of Scope).
 - **IV. Skill-First Extensibility — PASS**: capability lands as the discrete skill
   `spec-implement-loop` + standalone script package; nothing is absorbed into
-  `parallel_agent.py`/`agents/`.
+  the retired cross-harness coordinator or its former package.
 - **V. Bootstrap Reproducibility — PASS**: no bootstrap logic changes at all; the
   deploy remains idempotent by the existing rsync/no-delete mechanism.
 - **VI. State-Gated Lifecycle — ADVISORY (logged override)**: Specify (done) →

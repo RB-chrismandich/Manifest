@@ -206,14 +206,11 @@ EOF
     cat > "$SKILLCLAW_SESSIONS/preseeded.json" << 'EOF'
 {"session_id": "preseeded", "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "do a thing"}]}]}
 EOF
-    # #584 resolves EVOLVE_CLI as a *binary override* for a configured provider
-    # (agents/cli_invoke.resolve_cli_route reads cli_agents from
-    # ~/.claude/config/parallel_agent.yml). Provide a claude provider spec and pin
-    # EVOLVE_PROVIDER so a provider resolves; EVOLVE_CLI then swaps that provider's
-    # binary to our stub — proving the seam is honored/swappable, not hardcoded to
-    # claude. (#584 also inserts --model <tier> before -p, hence the .*-p match.)
+    # EVOLVE_CLI is a binary override for a configured provider. Provide a
+    # claude provider spec and pin EVOLVE_PROVIDER so a provider resolves; then
+    # swap its binary to the stub to prove the seam is not hardcoded.
     mkdir -p "$HOME/.claude/config"
-    cat > "$HOME/.claude/config/parallel_agent.yml" << 'EOF'
+    cat > "$HOME/.claude/config/model_policy.yml" << 'EOF'
 cli_agents:
   claude:
     binary: claude

@@ -57,7 +57,7 @@ def test_piped_skill_command_never_prompts_consumed_task_stream(
 ) -> None:
     skill = tmp_path / "SKILL.md"
     skill.write_text("---\nname: demo\n---\nDo the work.\n", encoding="utf-8")
-    config = tmp_path / "parallel_agent.yml"
+    config = tmp_path / "model_policy.yml"
     config.write_text("{}\n", encoding="utf-8")
     confirmations: list[str] = []
     observed: dict[str, object] = {}
@@ -213,7 +213,7 @@ def test_installed_runner_delivers_one_mib_task_over_stdin(tmp_path: Path) -> No
 
 def test_repo_skill_run_transports_keep_prompts_out_of_argv() -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    config = load_policy_config(repo_root / "configs/claude/config/parallel_agent.yml")
+    config = load_policy_config(repo_root / "configs/claude/config/model_policy.yml")
 
     # antigravity is the deliberate exception: agy discards piped stdin in print
     # mode and exposes no prompt-file flag, so inline argv is the only transport
@@ -234,7 +234,7 @@ def test_repo_skill_run_transports_keep_prompts_out_of_argv() -> None:
 def test_antigravity_skill_transport_matches_working_prompt_args() -> None:
     """agy ignores stdin under --print; skill-run must pass the prompt inline."""
     repo_root = Path(__file__).resolve().parents[3]
-    entry = load_policy_config(repo_root / "configs/claude/config/parallel_agent.yml")[
+    entry = load_policy_config(repo_root / "configs/claude/config/model_policy.yml")[
         "cli_agents"
     ]["antigravity"]
 
@@ -532,8 +532,8 @@ def test_deployed_manifest_skill_run_uses_runtime_config_from_unrelated_cwd(
 
     runtime = tmp_path / "deployed-runtime"
     (runtime / "config").mkdir(parents=True)
-    (runtime / "config/parallel_agent.yml").write_text(
-        (repo_root / "configs/claude/config/parallel_agent.yml").read_text(),
+    (runtime / "config/model_policy.yml").write_text(
+        (repo_root / "configs/claude/config/model_policy.yml").read_text(),
         encoding="utf-8",
     )
     skills_root = tmp_path / "deployed-skills"

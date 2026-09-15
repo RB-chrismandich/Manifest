@@ -1,8 +1,8 @@
 # State-Machine Commands
+>
+> Phased commands, deployment pipelines, and OMP-native task batches.
 
-> Phased commands, the deployment pipeline, and parallel-agent integration.
-
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-12
 
 ## Building State Machine Commands
 
@@ -113,7 +113,7 @@ Each phase:
 |-------|--------|----------|-------|
 | 1. Run Tests | ✅ pass | 2m 15s | Coverage: 87% |
 | 2. Build Artifacts | ✅ pass | 3m 42s | Image: myapp:abc123 |
-| 3. Validate Plan | ✅ pass | 1m 8s | Consensus: 92% |
+| 3. Validate Plan | ✅ pass | 1m 8s | Parent reviewed worker evidence |
 | 4. Deploy | ✅ pass | 45s | Rollout complete |
 | 5. Verify | ⚠️ warn | 32s | 1 endpoint slow |
 
@@ -149,7 +149,7 @@ Overall: SUCCESS (with warnings)
 
 ---
 
-## Parallel Agent Integration
+## OMP Task-Batch Integration
 
 risk-based independent review follows the five-condition gate below.
 
@@ -164,7 +164,7 @@ never trigger independent review.
 ### Integration Pattern
 
 ````markdown
-## Parallel Agent Integration
+## OMP Task-Batch Integration
 
 This command uses workload fan-out only when ready units are genuinely
 independent. It uses independent review only when the five-condition risk gate
@@ -177,40 +177,6 @@ When independently reviewing:
    check records `unavailable_reason`, never a passing result.
 4. Validate and aggregate evidence in the parent. Keep mutations sequential.
 ````
-
-### Model Selection
-
-| Task Criticality | Cursor Model | Claude Model | Gemini Model |
-|-----------------|--------------|--------------|--------------|
-| Critical (security, production) | `advanced` | `opus` | `pro` |
-| Standard (code review, analysis) | `flash` | `sonnet` | `flash` |
-| Light (suggestions, quick checks) | `mini` | `haiku` | `flash` |
-
-### Parsing Results
-
-```bash
-# Run parallel agents
-result=$(~/.claude/scripts/parallel_agent.py --json --validate --review "$file")
-
-# Extract consensus score
-consensus=$(echo "$result" | jq -r '.cross_verification.consensus_score')
-
-# Extract agent outputs
-gemini_output=$(echo "$result" | jq -r '.agents.gemini.output')
-claude_output=$(echo "$result" | jq -r '.agents.claude.output')
-
-# Decision based on consensus
-if [[ $consensus -ge 80 ]]; then
-  echo "✅ High confidence (${consensus}%)"
-  proceed
-elif [[ $consensus -ge 50 ]]; then
-  echo "⚠️ Medium confidence (${consensus}%)"
-  ask_user_whether_to_proceed
-else
-  echo "❌ Low confidence (${consensus}%)"
-  block_and_report
-fi
-```
 
 ---
 

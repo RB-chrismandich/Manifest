@@ -64,10 +64,6 @@ components:
   runtime:
     - {id: session-continuity-scripts, path: skills/session-checkpoint/scripts}
     - {id: session-checkpoint-references, path: skills/session-checkpoint/references}
-    - {id: parallel-agent-scripts, path: skills/parallel-agent/scripts}
-    - {id: parallel-agent-config, path: skills/parallel-agent/config}
-    - {id: parallel-agent-prompts, path: skills/parallel-agent/prompts}
-    - {id: parallel-agent-references, path: skills/parallel-agent/references}
     - {id: learning-capture-scripts, path: skills/learning-capture/scripts}
     - {id: help-scripts, path: skills/help/scripts}
     - {id: command-catalog, path: skills/help/catalog/commands.json}

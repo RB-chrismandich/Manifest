@@ -77,6 +77,6 @@ This is a distinct, complementary layer, not a replacement:
   directly via the `Agent` tool rather than a Python state machine. Use CDDL when you
   have a completed spec/plan and want its scripted, resumable, dual-gate contract; use
   devpanel for everything else that benefits from a develop → critique → refactor loop.
-- **`parallel_agent.py`** is cross-model consensus verification (Gemini/Cursor/Codex/
-  Antigravity agreeing on one artifact). devpanel is single-model (Claude Code
-  subagents), role-based adversarial gating — a different axis, not a substitute.
+- OMP task batches provide independent interactive review when needed. devpanel
+  remains single-model, role-based adversarial gating — a different axis, not a
+  substitute.

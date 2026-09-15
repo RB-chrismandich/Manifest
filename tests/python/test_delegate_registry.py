@@ -315,7 +315,7 @@ class TestShippedCursorSandbox:
 class TestShippedDevinProfile:
     """Devin is login-gated, so its profile is deliberately conservative:
     no resume handle is observable in print mode, and `devin models list`
-    cannot be enumerated to pin tiers (parallel_agent.yml records the same
+    cannot be enumerated to pin tiers (model_policy.yml records the same
     finding), so the factory tier is `auto`."""
 
     def test_resume_is_disclosed_as_unsupported_not_faked(self):

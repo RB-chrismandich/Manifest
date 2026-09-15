@@ -142,11 +142,11 @@ needs nine is the problem — but the honest magnitude is "at the ceiling", not
 ## M3 — Only 41% of skills are self-contained, not 80%
 
 Method: counted `.apm/skills/*/SKILL.md` containing none of
-`~/.claude/`, `configs/claude/`, `manifest parallel-agent`, `.apm/`.
+`~/.claude/`, `configs/claude/`, the retired cross-harness coordinator, `.apm/`.
 
 - **44 / 108 (41%) self-contained.**
 - 42 / 108 reference `~/.claude/` hardcoded home paths.
-- 38 invoke `manifest parallel-agent` (a PATH binary, `~/.local/bin/manifest`).
+- 38 invoked the retired cross-harness coordinator (a PATH binary, `~/.local/bin/manifest`).
 
 **Consequence**: `plugin-partition.md` claims "22 of 108 skills (20%) depend on
 at least one shared script. The other 80% are self-contained markdown." Both

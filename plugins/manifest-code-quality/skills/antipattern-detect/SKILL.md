@@ -21,7 +21,7 @@ Activate when any of the following are detected in the current session:
 | Test failure | Exit code != 0 from pytest, go test, vitest, terratest |
 | Security finding | Any finding from bandit, gosec, npm audit, tfsec |
 | Repeated pattern | Same issue type seen 3+ times across files |
-| Code review feedback | Parallel agent consensus flags a recurring concern |
+| Code review feedback | Directly evidenced reviewer reports flag a recurring concern |
 
 ---
 

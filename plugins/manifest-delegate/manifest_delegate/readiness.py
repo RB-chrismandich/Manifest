@@ -140,7 +140,7 @@ def _looks_like_auth_error(auth_out):
     """Detect an error string in an auth probe's output despite exit 0 (US2).
 
     Some backends' auth probes exit 0 even while printing a not-logged-in
-    message (e.g. `devin auth status` — see parallel_agent.yml's devin note).
+    message (e.g. `devin auth status`; see model_policy.yml's devin note).
     Exit code alone is not a sufficient readiness signal; inspect content too.
     """
     if not auth_out:

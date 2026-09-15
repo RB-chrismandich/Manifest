@@ -4,10 +4,9 @@
 #
 # Coverage is ENUMERATED, never listed. A hand-maintained inclusion list fails
 # in the direction you cannot see: a new script that forgets to join the list is
-# silently ungated, and a script listed by name that cannot satisfy the gate
-# breaks CI (that is exactly how parallel_agent.py broke the build — it is a
-# `manifest` deprecation shim with no --help of its own). So the universe is
-# every script in the directory, and an exemption must be declared IN THE FILE:
+# silently ungated, and a stale name in the list can break CI. So the universe
+# is every script in the directory, and an exemption must be declared IN THE
+# FILE:
 #
 #     # help-coverage: exempt — <one-line rationale>
 #
@@ -118,9 +117,8 @@ py_plugin_gated() {
 }
 
 @test "python --help output stays concise (<= 80 lines per script)" {
-    # 80 (vs the Bash list's 50) gives headroom for argparse's fuller,
-    # auto-generated option blocks (e.g. parallel_agent.py's full flag surface
-    # is a legitimate ~63 lines, not a defect).
+    # 80 (vs the Bash list's 50) leaves room for argparse-generated option
+    # blocks without permitting unwieldy help.
     for f in $(py_gated); do
         lines=$(python3 "$SCRIPTS/$f" --help 2>&1 | wc -l | tr -d ' ')
         [ "$lines" -le 80 ] || { echo "$f: $lines lines"; false; }

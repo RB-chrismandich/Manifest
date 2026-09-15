@@ -108,7 +108,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Inspect a target file or codebase, detect language, and route to the matching refactoring engine.",
+      "description": "Inspect a target file or codebase, detect language, and route to the matching refactoring engine (Python, Go, Node/TypeScript, Shell, Terraform) with OMP sub-agent verification.",
       "name": "refactor",
       "qualified_name": "manifest-code-quality:refactor"
     },
@@ -521,20 +521,6 @@
     {
       "bundle": "manifest-workspace",
       "category": "productivity",
-      "description": "Analyze bundle-owned agent result artifacts for completion, consensus, failure, latency, and provider trends without mutating runtime state.",
-      "name": "metrics-report",
-      "qualified_name": "manifest-workspace:metrics-report"
-    },
-    {
-      "bundle": "manifest-workspace",
-      "category": "productivity",
-      "description": "Run installed agent harness CLIs in parallel for review, analysis, synthesis, and structured cross-verification without bootstrap or shared-home runtime files.",
-      "name": "parallel-agent",
-      "qualified_name": "manifest-workspace:parallel-agent"
-    },
-    {
-      "bundle": "manifest-workspace",
-      "category": "productivity",
       "description": "Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass via pass-cli. Use when a task needs a login/secret or user mentions Proton Pass, a vault, or \"get the credentials/token for X\". Covers PAT session setup and expired-session recovery.",
       "name": "pass-cli",
       "qualified_name": "manifest-workspace:pass-cli"
@@ -815,7 +801,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Babysit a just-opened pull/merge request until CI is green and every reviewer is satisfied. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\".",
+      "description": "Babysit a just-opened pull/merge request until CI is green and existing reviewer feedback is addressed. Use for PR/MR monitoring, Copilot reviews, and Jules feedback when present.",
       "name": "pr-monitor",
       "qualified_name": "manifest-forge:pr-monitor"
     },

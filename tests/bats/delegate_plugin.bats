@@ -147,7 +147,7 @@ print('ok', val)
 }
 
 # T045: registration gates — plugin.json skills array, marketplace.json entry,
-# skill_policies bundle block + expected_total, backends.json<->parallel_agent.yml
+# skill_policies bundle block + expected_total, backends.json<->model_policy.yml
 # binary drift, services.yml reader<->write_services_config() drift.
 
 @test "plugin.json declares an explicit skills array with delegate + delegate-setup" {
@@ -197,12 +197,12 @@ print('ok', total)
   [[ "$output" == *"ok"* ]]
 }
 
-@test "backends.json binaries stay consistent with parallel_agent.yml cli_agents for shared backend ids" {
+@test "backends.json binaries stay consistent with model_policy.yml cli_agents for shared backend ids" {
   run python3 -c "
 import json, re
 backends = json.load(open('$PLUGIN_DIR/config/backends.json'))['backends']
 by_id = {b['id']: b['binary'] for b in backends}
-raw = open('$ROOT/configs/claude/config/parallel_agent.yml').read()
+raw = open('$ROOT/configs/claude/config/model_policy.yml').read()
 sec = re.search(r'^cli_agents:\n(.*?)(?=^\S|\Z)', raw, re.S | re.M).group(1)
 entries = {}
 for m in re.finditer(r'^  (\w[\w-]*):\n(?:    .*\n)*', sec, re.M):

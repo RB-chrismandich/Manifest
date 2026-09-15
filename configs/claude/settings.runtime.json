@@ -1,39 +1,11 @@
 {
   "_comment": [
-    "Hooks that MUST reach Claude Code's own runtime, merged by bootstrap into",
-    "~/.claude/settings.json (NOT settings.local.json).",
-    "",
-    "Measured 2026-07-26 on Claude Code 2.1.220: a hook registered in",
-    "~/.claude/settings.local.json never fires. Controlled A/B \u2014 same hook, same",
-    "absolute command, only the file differed \u2014 the settings.json registration",
-    "fired on every Agent dispatch and the settings.local.json one fired zero",
-    "times. Path style was ruled out separately: an absolute command in",
-    "settings.local.json also never fired, so the tilde is not the cause. At USER",
-    "scope Claude Code reads settings.json; settings.local.json is a PROJECT-scope",
-    "file (.claude/settings.local.json), and a copy at ~/.claude/ is inert.",
-    "",
-    "The defect is FILE-level, not event- or matcher-level. Confirmed with a",
-    "second controlled A/B on a different event: the same PostToolUse:Write probe",
-    "fired zero times from settings.local.json and fired from settings.json. So",
-    "EVERY hook Manifest used to register in settings.local.json was inert on a",
-    "deployed machine, which is why all of them now live here.",
-    "",
-    "Before migrating, each hook was probed with a representative payload to check",
-    "it behaves when it finally runs (these had never executed in production): all",
-    "exit 0 (non-blocking), guidance_hint/spec_review are silent on",
-    "ordinary edits, lint_on_edit emits advisory output only on a genuine lint",
-    "error, and all three PostToolUse hooks chained on one edit cost ~240ms.",
-    "",
-    "STILL INERT, deliberately not moved here: settings.local.json also carries",
-    "`permissions` (31 allow-rules), `mcpServers` (sentry, context7, linear,",
-    "atlassian) and `skillListingBudgetFraction: 0.05`. Those have the same",
-    "root cause but different blast radii \u2014 granting permissions changes the",
-    "security posture and enabling MCP servers opens connections to external",
-    "services \u2014 so they are a separate, explicit decision rather than a",
-    "ride-along. See docs/MODEL-POLICY.md.",
-    "",
-    "The `~` in the commands below is expanded by merge_claude_runtime_hooks at",
-    "deploy time; Claude Code is given an absolute path."
+    "Bootstrap merges this source into the target Claude settings.json; user scalar/model/permission choices are preserved.",
+    "merge_runtime_settings.py seeds a non-forcing worker default only on Claude Code >=2.1.251, where explicit invocation/frontmatter pins take precedence.",
+    "The Agent hook runs in native-default-only mode: diagnostics, never input rewriting. Managed and CLI agent definitions cannot be resolved safely by a filesystem scan.",
+    "Unknown/older hosts receive no new worker default. Native serving, model availability and other configuration scopes remain unverified.",
+    "Local merge receipts record hashes/status and rollback ownership; no prompts, credentials or settings values are exported.",
+    "MCP registration remains separate in .claude.json; skillListingBudgetFraction stays at 0.05."
   ],
   "hooks": {
     "PreToolUse": [
@@ -117,7 +89,6 @@
   },
   "permissions": {
     "allow": [
-      "Bash(~/.claude/scripts/parallel_agent.py:*)",
       "Bash(~/.claude/scripts/git_ops.sh:*)",
       "Bash(~/.claude/scripts/label_sync.sh:*)",
       "Bash(~/.claude/scripts/linear_ops.sh:*)",

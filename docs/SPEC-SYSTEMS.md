@@ -18,7 +18,7 @@ are not competing — each owns a distinct lifecycle stage and audience.
 ## Rules of thumb
 
 - **New feature?** Speckit. The constitution (`.specify/memory/constitution.md`)
-  is non-negotiable and its gates (parallel-agent cross-verification, quality
+  is non-negotiable and its gates (risk-gated independent review, quality
   tiers) apply to the resulting PRs.
 - **Design review for a focused swap/refactor?** A superpowers design doc is
   enough; link it from the implementing PR.

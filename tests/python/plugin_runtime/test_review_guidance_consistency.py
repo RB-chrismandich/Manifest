@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -70,19 +69,10 @@ def test_validation_configs_do_not_duplicate_code_audit_activation(
             encoding="utf-8"
         )
     )
-    json_config = json.loads(
-        (
-            repo_root
-            / "plugins/manifest-workspace/skills/parallel-agent/config/validation_criteria.json"
-        ).read_text(encoding="utf-8")
-    )
 
-    for policy in (
-        yaml_config["command_overrides"]["code-audit"],
-        json_config["command_overrides"]["code-audit"],
-    ):
-        assert "auto_trigger" not in policy
-        assert "trigger_patterns" not in policy
+    policy = yaml_config["command_overrides"]["code-audit"]
+    assert "auto_trigger" not in policy
+    assert "trigger_patterns" not in policy
 
 
 @pytest.mark.parametrize(

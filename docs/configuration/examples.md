@@ -1,65 +1,49 @@
-# Worked Examples
+# Configuration Examples
 
-> Complete configurations for common setups.
+> Common OMP dispatch and single-provider model-policy configurations.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-12
 
-## Examples
+## OMP dispatch
 
-### Example 1: Lightweight Security Scan
+A skill declares whether it can use OMP task batches in
+`command_config.yml`:
 
-```bash
-~/.claude/scripts/parallel_agent.py \
-  --cursor-model mini \
-  --claude-model haiku \
-  --timeout 120 \
-  --review auth.py
+```yaml
+tool_policies:
+  issue-triage:
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
 ```
 
-**Effect:**
+When the condition applies, the parent defines independent units and their
+result schema, sends all ready units in one `task` call (at most 32 per wave),
+and validates the returned evidence. Mutations remain sequential. If `task` is
+unavailable, execute inline and report `DEGRADED`.
 
-- Uses cheapest models (mini/haiku)
-- 2-minute timeout
-- Still runs Tier 1 security validation
+## Noninteractive model policy
 
-### Example 2: Deep Security Analysis
+`model_policy.yml` controls retained single-provider integrations:
 
-```bash
-~/.claude/scripts/parallel_agent.py \
-  --cursor-model advanced \
-  --claude-model opus \
-  --gemini-model pro \
-  --timeout 900 \
-  --full-output \
-  --validate \
-  --review auth.py
+```yaml
+provider_order: [antigravity, cursor, gemini, codex, claude, devin]
+model_tiers:
+  codex:
+    advanced: gpt-5.6-sol
+    flash: gpt-5.6-terra
+    mini: gpt-5.6-luna
+model_fallback:
+  mode: confirm
+  chains:
+    codex: [advanced, flash, mini, auto]
+credit_fallback:
+  codex: [advanced, flash, mini]
+timeouts:
+  default: 120
 ```
 
-**Effect:**
-
-- Uses the highest-capability model tier
-- 15-minute timeout
-- Full output (no truncation)
-- Explicit validation checks
-
-### Example 3: Single Agent with Custom Output
-
-```bash
-~/.claude/scripts/parallel_agent.py \
-  --claude-only \
-  --claude-model sonnet \
-  --json \
-  --output /tmp/analysis \
-  "Analyze this codebase"
-```
-
-**Effect:**
-
-- Only Claude runs (no Cursor/Gemini)
-- JSON output format
-- Custom output directory
-
----
+The integration resolves one CLI route and sends its prompt through stdin. It
+never serves as an interactive fallback for OMP task dispatch.
 
 ---
 

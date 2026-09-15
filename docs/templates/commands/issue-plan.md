@@ -89,8 +89,8 @@ Before doing anything else, run `/compact` to summarize and free up context spac
 
 - Read files (Read, Glob, Grep tools)
 - Run Git CLI commands to read/write issues (GitHub/GitLab)
-- Run `~/.claude/scripts/parallel_agent.py` for validation
-- Spawn read-only Task sub-agents (Explore type only)
+- Dispatch read-only OMP `task` sub-agents for independent plan review; use `hub`
+  only for coordination or waiting
 
 If you catch yourself about to write code or modify a file, STOP immediately. Your only deliverable is a plan posted to the GitHub issue.
 
@@ -284,25 +284,18 @@ Structure the plan using this template. Include only sections that are relevant 
 
 ---
 
-### Step 5: Validate with Parallel Agents
+### Step 5: Risk-Gated OMP Review
 
-1. Run parallel agent validation:
-
-   ```bash
-   ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 \
-     "Review this implementation plan for issue #[NUMBER]: [PLAN_SUMMARY].
-      Evaluate: completeness, component coverage, architectural correctness, implementability,
-      missing edge cases, and whether the implementation order respects dependencies."
-   ```
-
-2. If `parallel_agent.py` is not available or fails, note that validation was skipped and proceed.
-
-3. Evaluate consensus:
-   - **>= 80%**: High confidence — proceed with the plan as-is
-   - **50-79%**: Medium confidence — include agent disagreements in the plan, note areas needing human review
-   - **< 50%**: Low confidence — add a warning banner at the top of the plan: `> ⚠️ LOW CONFIDENCE: Parallel agent consensus was below 50%. This plan requires careful human review.`
-
-4. Incorporate useful agent feedback into the plan before posting.
+Use one capable reviewing agent by default. Add independent read-only
+`reviewer` units only for a trust-boundary change, destructive behavior, broad
+compatibility or deployment change, conflicting evidence or unresolved
+uncertainty, or a codebase-wide investigation with genuinely independent
+tracks. File, package, module, language, keyword, and independent-unit counts
+never trigger independent review. When the gate applies, dispatch bounded
+reviewer units in one OMP `task` batch; the parent evaluates the evidence,
+incorporates useful feedback, and flags unresolved disagreements for human
+review before posting. If OMP `task` is unavailable, perform this review inline
+and report `DEGRADED`; do not invoke a provider CLI.
 
 ---
 

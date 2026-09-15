@@ -8,7 +8,7 @@
 
 Deliver a declarative, config-driven E2E smoke-test system for the Manifest repo that an AI agent or CLI hook can drive: an **appender** turns a structured workflow description into tier-tagged YAML test definitions in a centralized per-app catalog, and an **executor** (Playwright Python) runs the catalog filtered by execution tier (`Lite`/`Full`/`Full+Extra`), passing state between chained steps and emitting a JUnit XML + console report with a gating exit code. Steps span three interaction types — UI (Playwright browser), API/HTTP (Playwright request context), and CLI/shell (subprocess) — so multi-language targets are all reachable by one engine. Secrets are never persisted: they are injected from the environment at run time and redacted from all output.
 
-Delivered per the constitution's **Skill-First** principle: a thin `/smoke-orchestrator` skill is the agent-facing surface; the logic lives in a self-contained Python package with CLI entry points, not absorbed into `parallel_agent.py`.
+Delivered per the constitution's **Skill-First** principle: a thin `/smoke-orchestrator` skill is the agent-facing surface; the logic lives in a self-contained Python package with CLI entry points, not absorbed into `the retired cross-harness coordinator`.
 
 ## Technical Context
 
@@ -37,7 +37,7 @@ Delivered per the constitution's **Skill-First** principle: a thin `/smoke-orche
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | PASS | Catalog (`smoke-catalog/*.yaml`), the skill, and Python package are version-controlled; appender edits committed YAML. No edits to deployed `~/.claude` files. |
-| II. Parallel Agent Orchestration | GATE (deferred to PR) | This feature is **security-sensitive** (CLI/shell execution + secret handling) and exceeds 200 lines → Tier-1 cross-verification by ≥2 parallel agents (`parallel_agent.py`) is REQUIRED before merge. Recorded as an implementation-phase gate, not a planning blocker. |
+| II. Parallel Agent Orchestration | GATE (deferred to PR) | This feature is **security-sensitive** (CLI/shell execution + secret handling) and exceeds 200 lines → Tier-1 cross-verification by ≥2 parallel agents (`the retired cross-harness coordinator`) is REQUIRED before merge. Recorded as an implementation-phase gate, not a planning blocker. |
 | III. Consensus-Driven Decisions | GATE (deferred to PR) | The Tier-1 review at merge applies the ≥80% / 50–79% / <50% thresholds. |
 | IV. Skill-First Extensibility | PASS | New capability ships as `.retired skill supply/skills/smoke-orchestrator/SKILL.md` invoking a discrete Python package; core scripts are not expanded to absorb it. |
 | V. Bootstrap Reproducibility | PASS w/ note | The skill deploys via existing `bootstrap.sh` skill deployment. New runtime deps (Playwright + browser binaries) must be installed idempotently and gated by existence checks — see research R1. |
@@ -46,7 +46,7 @@ Delivered per the constitution's **Skill-First** principle: a thin `/smoke-orche
 
 **No unjustified violations.** Complexity Tracking table left empty.
 
-**Post-Design Re-evaluation (after Phase 1)**: No new violations. The chosen structure keeps the engine in a discrete package behind a thin skill (IV); the Playwright/browser dependency is an idempotent opt-in extra (V, research R1); CLI steps use argument arrays with no `shell=True` and secrets are env-only + centrally redacted (Tier-1 security, research R2/R8). The only outstanding items are the **deferred merge-time gates** (II/III): the implementation PR must be cross-verified by ≥2 parallel agents via `parallel_agent.py` and clear the Tier-1 thresholds.
+**Post-Design Re-evaluation (after Phase 1)**: No new violations. The chosen structure keeps the engine in a discrete package behind a thin skill (IV); the Playwright/browser dependency is an idempotent opt-in extra (V, research R1); CLI steps use argument arrays with no `shell=True` and secrets are env-only + centrally redacted (Tier-1 security, research R2/R8). The only outstanding items are the **deferred merge-time gates** (II/III): the implementation PR must be cross-verified by ≥2 parallel agents via `the retired cross-harness coordinator` and clear the Tier-1 thresholds.
 
 ## Project Structure
 

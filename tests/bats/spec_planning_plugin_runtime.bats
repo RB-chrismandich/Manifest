@@ -38,7 +38,7 @@ printf 'NO_ISSUES\n'
 EOF
     chmod +x "$SANDBOX/reviewer"
 
-    run env SPEC_REVIEW_PANEL_CMD=/bin/false SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
+    run env SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
         bash "$SCRIPT" "$SANDBOX/project"
 
     assert_success
@@ -56,7 +56,7 @@ printf 'looks fine\n'
 EOF
     chmod +x "$SANDBOX/reviewer"
 
-    run env SPEC_REVIEW_PANEL_CMD=/bin/false SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
+    run env SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
         bash "$SCRIPT" "$SANDBOX/project"
 
     assert_failure

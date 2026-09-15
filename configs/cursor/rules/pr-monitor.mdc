@@ -1,12 +1,12 @@
 ---
-description: "Babysit a just-opened pull/merge request until CI is green and every reviewer is satisfied. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\"."
+description: "Babysit a just-opened pull/merge request until CI is green and existing reviewer feedback is addressed. Use for PR/MR monitoring, Copilot reviews, and Jules feedback when present."
 globs: ".claude/skills/pr-monitor/**"
 alwaysApply: false
 ---
 
 # pr-monitor
 
-Babysit a just-opened pull/merge request until CI is green and every reviewer is satisfied. Use when a PR/MR is just opened: "babysit my PR", "get the bots to review it", "tag jules".
+Babysit a just-opened pull/merge request until CI is green and existing reviewer feedback is addressed. Use for PR/MR monitoring, Copilot reviews, and Jules feedback when present.
 
 <!-- Auto-generated from .claude/skills/pr-monitor/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

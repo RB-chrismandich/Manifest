@@ -17,16 +17,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 from pathlib import Path
 
-from agents.cli_invoke import (
-    invoke_cli_timed,
+from manifest_model_policy import (
+    load_default_policy,
     resolve_cli_route,
     resolve_role_model_tier,
+    run_headless_prompt,
 )
-from agents.config import Config
 
 
 def _err(message: str) -> None:
@@ -47,15 +46,18 @@ def _build_prompt(charter: str, body: str) -> str:
     return charter
 
 
-async def _run(args: argparse.Namespace) -> int:
-    config = Config()
+def _run(args: argparse.Namespace) -> int:
+    try:
+        config = load_default_policy()
+    except (OSError, ValueError) as exc:
+        _err(str(exc))
+        return 6
     route = resolve_cli_route(
         config,
         section="cddl_invoke",
         env_prefix="CDDL_INVOKE",
-        allow_sdk=False,
     )
-    if route is None or route.mode != "cli":
+    if route is None:
         _err(
             "no headless CLI available — install agy/cursor-agent/gemini/codex/claude "
             "or set CDDL_INVOKE_PROVIDER / CDDL_INVOKE_CLI"
@@ -69,7 +71,7 @@ async def _run(args: argparse.Namespace) -> int:
     tier = args.model_tier or resolve_role_model_tier(charter_path)
 
     try:
-        output = await invoke_cli_timed(
+        output = run_headless_prompt(
             route,
             prompt,
             config,
@@ -108,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Per-invoke wall clock seconds (default: 600)",
     )
     args = parser.parse_args(argv)
-    return asyncio.run(_run(args))
+    return _run(args)
 
 
 if __name__ == "__main__":

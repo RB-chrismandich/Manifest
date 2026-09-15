@@ -4,7 +4,7 @@ import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 ROSTER = REPO / "configs/claude/config/agent_roster.yml"
-PARALLEL_AGENT = REPO / "configs/claude/config/parallel_agent.yml"
+MODEL_POLICY = REPO / "configs/claude/config/model_policy.yml"
 
 EXPECTED_AGENTS = {"claude", "gemini", "cursor", "codex", "antigravity", "devin"}
 REQUIRED_KEYS = {
@@ -23,8 +23,8 @@ def load_roster():
     return yaml.safe_load(ROSTER.read_text())
 
 
-def load_parallel_agent():
-    return yaml.safe_load(PARALLEL_AGENT.read_text())
+def load_model_policy():
+    return yaml.safe_load(MODEL_POLICY.read_text())
 
 
 def test_roster_exists_and_parses():
@@ -94,13 +94,10 @@ def test_prompt_args_and_model_args_are_lists():
         assert isinstance(entry["model_args"], list), name
 
 
-# Drift guard: parallel_agent.yml's cli_agents[agent].binary must match
-# agent_roster.yml's agents[agent].binary for every roster agent. parallel_agent.yml
-# keeps its own tuning tables (model_tiers, rate limits, credit_fallback) —
-# this is not a migration, just a guard that the two files agree on the fact
-# they share.
-def test_binary_matches_parallel_agent_cli_agents():
+# Drift guard: model_policy.yml's cli_agents[agent].binary must match
+# agent_roster.yml's agents[agent].binary for every roster agent.
+def test_binary_matches_model_policy_cli_agents():
     roster = load_roster()["agents"]
-    cli_agents = load_parallel_agent()["cli_agents"]
+    cli_agents = load_model_policy()["cli_agents"]
     for name in EXPECTED_AGENTS:
         assert roster[name]["binary"] == cli_agents[name]["binary"], name

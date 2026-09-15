@@ -31,19 +31,14 @@ Manifest/
 │   │   ├── config/                  # YAML configuration files
 │   │   │   ├── services.yml         # Agent enable/disable states
 │   │   │   ├── mcp_servers.yml      # Default MCP server registry
-│   │   │   ├── command_config.yml   # Tool policies, thresholds, model selection
+│   │   │   ├── command_config.yml   # Tool policies and thresholds
+│   │   │   ├── model_policy.yml     # Single-provider CLI model tiers and fallback
 │   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
 │   │   │   ├── labels.yml           # Canonical label registry
 │   │   │   └── skillclaw.yml        # SkillClaw ingest/evolve knobs + token budget config
-│   │   ├── scripts/                 # Orchestration scripts
-│   │   │   ├── parallel_agent.py    # Entry point shim (delegates to agents/)
-│   │   │   ├── agents/              # Modular orchestration package
-│   │   │   │   ├── cli.py           # Argparse + main() coroutine
-│   │   │   │   ├── orchestrator.py  # Parallel execution + consensus scoring
-│   │   │   │   ├── runners.py       # Agent classes (Claude/Gemini/Cursor/Codex)
-│   │   │   │   ├── config.py        # Config, Logger, RateLimiter, ServiceConfig
-│   │   │   │   ├── synthesis.py     # Disagreement resolution engine
-│   │   │   │   └── validation.py    # Tier 1/2 validation engine
+│   │   ├── scripts/                 # Runtime and integration scripts
+│   │   │   ├── manifest_cli/        # `manifest` command router
+│   │   │   ├── manifest_model_policy/ # Policy and headless CLI helpers
 │   │   │   ├── git_platform.sh      # Git platform detection
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
 │   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
@@ -74,7 +69,7 @@ Manifest/
 ├── .apm/skills/                     # Skill source of truth (sole; retired skill supply removed 2026-07-27)
 │   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
-│   ├── python/                      # pytest tests for parallel_agent and agents/
+│   ├── python/                      # pytest tests for runtime and policy helpers
 │   └── bats/                        # Bats shell tests for bootstrap and scripts
 └── docs/
     ├── README.md                    # Documentation hub

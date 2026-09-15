@@ -69,7 +69,6 @@ FORBIDDEN_RUNTIME_PATTERNS = (
     "configs/claude/references",
     "manifest-agent",
     "uvx --from manifest-agent",
-    "manifest parallel-agent",
     "manifest smoke",
     "../manifest-",
     "npx skills add",
@@ -197,14 +196,9 @@ _NODE_IMPORT = re.compile(
     r"(?:import\s+(?:[^'\"]+?\s+from\s+)?|require\()['\"]([^'\"]+)['\"]"
 )
 _COMPONENT_DEGRADATION_IMPORTS = {
-    # The parallel-agent component deliberately supports native-CLI fallback
-    # when an SDK or Rich rendering is unavailable.  This exception is scoped
-    # to the declared component, never a bundle directory.
-    ("manifest-workspace", "parallel-agent-scripts"): frozenset(
-        {"anthropic", "google", "rich"}
-    ),
     ("manifest-ops", "ops-bin"): frozenset({"yaml"}),
 }
+
 _COMPONENT_NODE_DEPENDENCIES = {
     # This is a generated-project template, not a dependency of Manifest's
     # installed runtime.  The exact scaffold component declares the two

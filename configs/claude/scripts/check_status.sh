@@ -1,12 +1,9 @@
 #!/bin/bash
-# Parallel Agent Orchestration Readiness Check
+# Manifest runtime readiness check
 # Usage: ./check_status.sh [--verbose]
 #
 # Scope: services.yml enabled agents, CLI availability, auth, Codex session
-#        storage, and Manifest state directories.  Reports whether the system
-#        has enough agents ready for parallel orchestration.
-#
-# Also invoked by: parallel_agent.py --status
+#        storage, and Manifest state directories.
 #
 # For full environment audit (MCP, symlinks, config syntax, labels):
 #   use the /env-check skill in Claude Code.
@@ -23,8 +20,8 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'
 Usage: check_status.sh [--verbose]
 
-Parallel-agent orchestration readiness check: services.yml enabled agents,
-CLI availability, auth, and Manifest state directories.
+Manifest runtime readiness check: services.yml enabled agents, CLI availability,
+auth, Codex session storage, and Manifest state directories.
 
   --verbose   Also print CLI locations and versions
 
@@ -124,8 +121,8 @@ resolve_agent_roster_path() {
 
 # load_agent_roster_tsv -> "name<TAB>binary<TAB>auth_check" lines, one per
 # agent, in the registry's declaration order. Missing/malformed registry
-# yields no lines -- mirrors agents/config.py's load_agent_roster (the
-# roster is an optional extensibility source, never a hard dependency).
+# yields no lines -- matching manifest_model_policy.load_agent_roster's
+# optional-extensibility contract.
 #
 # Primary parse is python3 + PyYAML (this codebase's established idiom for a
 # bash script reading YAML, e.g. model_check.sh). If that yields nothing --
@@ -286,7 +283,7 @@ antigravity_state_dir="${ANTIGRAVITY_STATE_DIR:-$manifest_state_root/antigravity
 devin_state_dir="${DEVIN_STATE_DIR:-$manifest_state_root/devin}"
 
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD}${BLUE}  Parallel Agent System Health Check${NC}"
+echo -e "${BOLD}${BLUE}  Manifest Runtime Health Check${NC}"
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -326,11 +323,6 @@ if [[ -f ~/.claude/config/services.yml ]]; then
         fi
     done
 
-    if [[ $enabled_count -lt 2 ]]; then
-        echo ""
-        echo -e "  ${YELLOW}⚠${NC}  Warning: Minimum 2 services needed for parallel orchestration"
-        echo -e "  ${BLUE}→${NC} Fix: ./bootstrap.sh --reconfigure --enable-claude --enable-gemini --enable-codex"
-    fi
 else
     echo -e "  ${YELLOW}○${NC} services.yml not found"
     echo -e "  ${BLUE}→${NC} Run: ./bootstrap.sh"
@@ -584,7 +576,7 @@ if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
     # UNSUPPORTED providers (no listing command at all) are called out in the
     # green line so "verified" never overclaims what was actually checked.
     if [[ "$stale_pins" -gt 0 ]]; then
-        echo -e "  ${YELLOW}⚠${NC}  $stale_pins stale model pin(s) — update model_tiers in parallel_agent.yml"
+        echo -e "  ${YELLOW}⚠${NC}  $stale_pins stale model pin(s) — update model_tiers in model_policy.yml"
     elif [[ "$skipped_pins" -gt 0 ]]; then
         echo -e "  ${YELLOW}○${NC} $skipped_pins check(s) unverified (no API credentials — run MODEL_CHECK_PROBE=1 model_check.sh for a live CLI probe)"
     elif [[ "$unsupported_pins" -gt 0 ]]; then
@@ -604,8 +596,8 @@ echo -e "${BOLD}Overall Status:${NC}"
 # NOTE: this tally recognizes only the 6 hardcoded agent names above — a
 # roster-only 7th+ agent (hyphenated or not) has its enabled/installed state
 # correctly read via ROSTER_NAMES elsewhere in this script, but is never
-# counted toward orchestration readiness here. Pre-existing limitation;
-# devin was added to the tally when it joined the roster.
+# counted toward readiness here. Pre-existing limitation; devin was added to
+# the tally when it joined the roster.
 working_agents=0
 [[ "$claude_installed" == true && "$claude_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$gemini_installed" == true && "$gemini_enabled" == "true" ]] && working_agents=$((working_agents + 1))
@@ -615,10 +607,10 @@ working_agents=0
 [[ "$devin_installed" == true && "$devin_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 
 if [[ $working_agents -ge 2 ]]; then
-    echo -e "  ${GREEN}✓${NC} System ready for parallel orchestration (${working_agents} agents available)"
+    echo -e "  ${GREEN}✓${NC} System ready (${working_agents} agents available)"
 elif [[ $working_agents -eq 1 ]]; then
-    echo -e "  ${YELLOW}⚠${NC}  Limited functionality (only ${working_agents} agent available)"
-    echo -e "  ${BLUE}→${NC} Enable/install at least 2 agents for full features"
+    echo -e "  ${YELLOW}⚠${NC}  Limited CLI coverage (only ${working_agents} agent available)"
+    echo -e "  ${BLUE}→${NC} Enable/install additional CLIs for broader coverage"
 else
     echo -e "  ${RED}✗${NC} System not operational (no agents available)"
     echo -e "  ${BLUE}→${NC} Run: ./bootstrap.sh"
@@ -630,7 +622,7 @@ echo ""
 # Quick test option
 if [[ $working_agents -ge 1 ]]; then
     echo -e "${BOLD}Quick Test:${NC}"
-    echo -e "  ~/.claude/scripts/parallel_agent.py --json 'What is 2+2?'"
+    echo -e "  manifest --help"
     echo ""
 fi
 

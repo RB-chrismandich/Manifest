@@ -20,7 +20,7 @@ Shipped entries: `codex`, `claude`, `antigravity`.
 | `invoke` | argv template | One-shot non-interactive execution; placeholders `{model}`, `{prompt}`, `{output_file}` |
 | `resume` | argv template or `null` | `null` ⇒ backend cannot resume: dispatcher discloses and re-sends context (FR-015) |
 | `model_args` | argv template | Dropped atomically when tier resolves to `auto` (cli_agents precedent) |
-| `tier_source` | string | Key into `parallel_agent.yml` `model_tiers` when deployed config present; verbatim passthrough otherwise |
+| `tier_source` | string | Key into `model_policy.yml` `model_tiers` when deployed config present; verbatim passthrough otherwise |
 | `default_tier` | string | Economical default (FR-009): codex `auto`, claude `sonnet`, antigravity `flash` |
 | `session_id_capture` | enum `json_field`/`jsonl_event`/`output_scan`/`none` + field/event/pattern | How to extract the resume id from run output; codex uses `jsonl_event` on the version-gated `thread.started` event of `codex exec --json` (absent on older CLIs ⇒ `session_ref` null, disclosed — never an error) |
 | `input` | object | `transport` (`stdin`/`temp_file`/`argv`) + `max_payload_bytes` (transport cap) + `max_context_bytes` (model-context bound, nullable) — large prompts go via stdin or a 0600 temp file in the job dir, never argv |

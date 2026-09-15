@@ -1,11 +1,8 @@
 #!/usr/bin/env bats
-# Drift guard (goal-task-E, Part 2): the pre-existing drift guard
-# (tests/python/test_agent_roster.py::test_binary_matches_parallel_agent_cli_agents)
-# only ever compared ONE field (binary) between agent_roster.yml and
-# parallel_agent.yml's cli_agents block. Since then, this goal's work
-# (Tasks A-D) added SEVERAL MORE independent hardcoded-default copies of
-# roster facts, each used only as an innermost fallback when agent_roster.yml
-# itself can't be read:
+# Drift guard (goal-task-E, Part 2): the Python drift guard
+# (tests/python/test_agent_roster.py::test_binary_matches_model_policy_cli_agents)
+# compares `binary` between agent_roster.yml and model_policy.yml's
+# cli_agents block. This suite protects additional independent roster fallbacks.
 #   - check_status.sh's tier-3 ROSTER_NAMES/ROSTER_BINARIES/ROSTER_AUTH_CHECKS
 #     (both binary AND auth_check -- the two fields it actually consumes)
 #   - sync-skills.sh's tier-3 ROSTER_NAMES/ROSTER_HOME_DIRS (home_dir -- the

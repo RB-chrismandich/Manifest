@@ -78,17 +78,23 @@ scope that simply ran late):
 
 ## Sub-agent dispatch
 
-Every round dispatches: one `design-lens-reviewer` per lens, all in a single
-message so they run concurrently, then one `skeptic-verifier` per BLOCKING
-finding. That is the point of the round — independence is structural, so the
-lenses must not be collapsed into one inline pass sharing context. Pick the
-mechanism per the bundled `sub-agent-dispatch.md` selection rules: native
-Task sub-agents on Claude, `manifest-workspace:parallel-agent` or sequential re-reads
-elsewhere.
+This skill uses the shared OMP dispatch contract in
+`references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`). Pass
-the model explicitly; do not inherit the session's — a lens panel is wide, and
-inheriting an Opus session multiplies its cost by the number of lenses.
+
+Every review round dispatches one `design-lens-reviewer` unit per lens in one
+OMP `task` call (in waves of at most 32), using `reviewer`; then dispatch one
+`skeptic-verifier` unit per BLOCKING finding in a subsequent OMP `task` call.
+Each child executes only its assigned lens or finding and never re-dispatches.
+The parent directly records the verdicts and re-derived numbers under the
+round rules above; unanimous approval with zero upheld blockers is a decision
+rule, not text-overlap consensus. Use `hub` only to coordinate or wait. If
+`task` is unavailable, perform the required independent re-reads inline and
+report `DEGRADED`.
 
 ## Additional resources
 

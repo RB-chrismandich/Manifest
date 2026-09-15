@@ -6,7 +6,7 @@
 
 **Status**: Planning
 
-> **Note**: Specification only — no `budget_broker` wrapper is wired into `CLIAgent` yet. Session credit fallback remains in `parallel_agent.yml` / `agents/runners.py`.
+> **Note**: Specification only — no `budget_broker` wrapper is wired into the former CLI runner yet. Session credit fallback remains in `model_policy.yml` / the former runner implementation.
 
 ---
 

@@ -1,63 +1,19 @@
 # Configuration Quickstart
 
-> The settings most people change first.
+> The settings most users change first.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-12
 
-## Configuration
+1. Use `services.yml` to enable only the supported coding harnesses you use.
+2. Review `command_config.yml` when a skill needs an OMP task-batch policy.
+3. Set `model_policy.yml` only for retained noninteractive single-provider
+   integrations.
+4. Leave validation tiers in `validation_criteria.yml` unless the command has a
+   documented safety reason for an override.
 
-### Enable/Disable Services
-
-```bash
-# Reconfigure after initial setup
-./bootstrap.sh --reconfigure --disable-cursor
-./bootstrap.sh --reconfigure --enable-gemini --disable-claude
-./bootstrap.sh --reconfigure --disable-codex
-
-# Enable SkillClaw session capture (opt-in; default: disabled)
-./bootstrap.sh --reconfigure --enable-skillclaw
-
-# Enable Git CLIs explicitly
-./bootstrap.sh --reconfigure --enable-gh --enable-glab
-
-# Configure MCP servers (interactive per-server selection; --force to auto-accept all)
-./bootstrap.sh --install-mcp
-```
-
-When Context7 is selected, bootstrap runs its pinned device OAuth login once,
-stores the resulting API key privately under `~/.config/context7/`, and writes
-bearer-authenticated `/mcp` entries for every enabled harness. Later runs reuse
-that credential. Existing user MCP servers and authenticated entries win over
-repo defaults during deployment.
-
-The "Services to configure" banner and end-of-run summary reflect the effective
-configuration (existing `~/.claude/config/services.yml` merged with explicit CLI flags).
-
-### Model Selection
-
-```bash
-# Use advanced models for security analysis
-~/.claude/scripts/parallel_agent.py \
-  --cursor-model advanced \
-  --claude-model opus \
-  --review auth.py
-
-# Use lightweight models for quick queries
-~/.claude/scripts/parallel_agent.py \
-  --cursor-model mini \
-  --claude-model haiku \
-  "Quick question"
-```
-
-Model tiers map to concrete pins in `~/.claude/config/parallel_agent.yml` (`model_tiers`),
-e.g. Gemini `flash`/`pro` → `gemini-3-flash-preview` / `gemini-3-pro-preview`. Verify pins
-against live provider listings with `model_check.sh` (add `MODEL_CHECK_PROBE=1` for a
-one-shot CLI probe per pin on OAuth-only machines without API keys).
-
-**See**: [Configuration Guide](../../docs/configuration/README.md) for complete YAML reference, environment
-variables, and advanced options
-
----
+Interactive sub-agent work is OMP-native: send all ready independent units in
+one `task` call, use `hub` only for coordination, and validate evidence in the
+parent. If task dispatch is unavailable, work inline and report `DEGRADED`.
 
 ---
 

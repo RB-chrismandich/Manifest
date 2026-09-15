@@ -54,8 +54,9 @@ cursor-agent --version
 **Causes:**
 
 1. **Authentication failure** → See [Authentication Issues](authentication.md)
-2. **Quota exceeded** → Wait or use cheaper models
-3. **Timeout** → Increase timeout with `--timeout 900`
+2. **Quota exceeded** → Wait or select a lower retained model tier in
+   `model_policy.yml`
+3. **Timeout** → Divide independent work into smaller OMP `task` units
 
 **Solution:**
 
@@ -64,14 +65,8 @@ cursor-agent --version
 claude auth status
 gemini auth status
 
-# Try with longer timeout
-~/.claude/scripts/parallel_agent.py --timeout 900 "Task"
-
-# Try with cheaper models
-~/.claude/scripts/parallel_agent.py \
-  --claude-model haiku \
-  --cursor-model mini \
-  "Task"
+# Inspect configured runtime status
+manifest check-status
 ```
 
 ---
@@ -105,65 +100,21 @@ mkdir -p ~/.manifest/custom-codex-state
 # 2) Point Codex state to it
 export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 
-# 3) Re-run status or orchestration
-~/.claude/scripts/parallel_agent.py --status
-~/.claude/scripts/parallel_agent.py --codex-only --codex-model advanced "Quick test"
+# 3) Re-run the retained status check
+manifest check-status
 ```
 
 **Tradeoff:** This avoids permission issues but uses a separate Codex state/config history path.
 
 ---
 
-### All Agents Disabled
+### OMP Task Unavailable
 
-**Symptom:**
+**Symptom:** An interactive harness does not expose OMP `task`.
 
-```text
-Warning: Only 0 services enabled (minimum: 2)
-Error: No agents available to run
-```
-
-**Solution:**
-
-```bash
-# 1. Check system status (recommended)
-~/.claude/scripts/parallel_agent.py --status
-
-# 2. Check service configuration
-cat ~/.claude/config/services.yml
-
-# 3. Reconfigure to enable services
-./bootstrap.sh --reconfigure --enable-claude --enable-gemini
-
-# 4. Or edit services.yml directly
-vim ~/.claude/config/services.yml
-# Change enabled: false → enabled: true
-
-# 5. Verify the fix
-~/.claude/scripts/parallel_agent.py --json 'Hello from all agents'
-```
-
----
-
-### Parallel Agents Not Running
-
-**Symptom:** Only one agent runs when you expect multiple
-
-**Cause:** Command-line flag overriding configuration
-
-**Solution:**
-
-```bash
-# Check for --*-only flags
-# BAD: Only runs Claude
-~/.claude/scripts/parallel_agent.py --claude-only "Task"
-
-# GOOD: Runs all enabled agents
-~/.claude/scripts/parallel_agent.py "Task"
-
-# Check services.yml for disabled agents
-cat ~/.claude/config/services.yml
-```
+**Solution:** Execute the independent units inline, report `DEGRADED`, and do not
+fall back to a provider CLI. When OMP is available, dispatch all independent units in
+one `task` batch and use `hub` only for coordination or waiting.
 
 ---
 

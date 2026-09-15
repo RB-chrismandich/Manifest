@@ -1,7 +1,6 @@
 # Claude Orchestration Guide
 
-This document defines how Claude should leverage parallel LLM agents
-(Gemini, Cursor, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
+This document defines OMP-native sub-agent dispatch, planning, and validation.
 
 ## Risk-based review routing
 
@@ -22,52 +21,31 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
-- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
 
 `/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
-## Manifest CLI
+## OMP Sub-Agent Dispatch
 
-**Entry point**: `manifest parallel-agent` (`~/.local/bin/manifest`). Legacy
-`parallel_agent.py` forwards with a deprecation warning.
+OMP `task` and `hub` are the only interactive sub-agent contract. When work has
+independent units, submit all ready units in one `task` call, in waves of at
+most 32. Choose `scout` for read-only exploration, `reviewer` for quality
+review, `security-reviewer` for security review, `sonic` only for mechanical
+work, and omit `agent` for default implementation work.
 
-### Quick Usage
-
-**IMPORTANT**: always use **absolute paths** (agents run from different working
-directories) and a **large timeout** (600-900s; the 120s default is often
-insufficient).
-
-Default MCP/tool routing — use the matching tool when the task domain matches.
-**Always registered**: **Context7** library/API docs, setup, config · **Semgrep
-CLI** local SAST, vulnerabilities, secrets (a CLI, not MCP).
-
-**Opt-in, not present unless installed** (`./bootstrap.sh --install-mcp`; every
-`npx mcp-remote` server costs a subprocess per invocation, so the shipped set is
-deliberately Context7 only — #646): **Sentry** runtime errors, stack traces,
-release regressions · **Linear** / **Atlassian** issue requirements, acceptance
-criteria · **DeepWiki** unfamiliar repos, dependency internals · **Glean**
-internal runbooks, ADRs · **Google Dev Docs** Firebase/Cloud/Android/Maps ·
-**Apify** web scraping · **OpenTofu** provider/module docs. Check the tool list
-before routing to one of these; do not assume it is available.
-
-```bash
-# Code review, all 5 agents, 10 min timeout
-manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
-
-# Full analysis (flags: parallel-agent.md)
-manifest parallel-agent --json --validate --timeout 900 --analyze /abs/path
-```
+Children execute their assigned unit directly and never redispatch. Use `hub`
+only to coordinate or wait. The parent validates evidence, resolves material
+disagreement, and aggregates results. If `task` is unavailable, execute inline
+and report `DEGRADED`; never fall back to a provider CLI.
 
 ## Reference Index
 
 Read on demand (NOT auto-loaded). You MUST read the reference before related tasks:
 
-- `~/.claude/references/parallel-agent.md` — Read for flag specs, JSON schema validation, or resolving Credit Exhaustion.
-- `~/.claude/references/orchestration.md` — Read when running multi-agent validation or debugging cross-verification failures.
+- `~/.claude/references/orchestration.md` — Read when coordinating OMP task batches or validating independent review.
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
-  `manifest parallel-agent`, when-to-dispatch threshold, model pinning, cross-platform fallback.
+  OMP task batches, selection rules, and inline `DEGRADED` behavior.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/code-constitution.md` — Read BEFORE creating or modifying
@@ -77,7 +55,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/doc-concision.md` — Read before writing or auditing docs:
   per-type line caps, fan-out-to-sub-pages rule, fluff blocklist (`docs_lint.py`).
 - `~/.claude/references/harness-routing.md` — Read before cross-harness
-  skill/agent work: per-harness execution semantics + model tiers.
+  skill/agent work: OMP dispatch semantics and single-provider policy boundaries.
 
 ## Proactive Coding Guardrails (always on)
 
@@ -98,11 +76,9 @@ independent-unit counts are not escalation conditions.
 
 ## Validation Criteria
 
-- **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
-  changes. **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
-- Authoritative weights: `~/.claude/config/validation_criteria.yml`. Consensus
-  thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
-  `~/.claude/references/orchestration.md`.
+- **Tier 1 (blocking)**: security, error handling, and breaking changes.
+  **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
+- Authoritative weights: `~/.claude/config/validation_criteria.yml`.
 
 ## Skills
 
@@ -110,7 +86,7 @@ Skills live in `~/.claude/skills/` (deployed from the repo's
 `.apm/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
 `description`) is the **authoritative registry** — Claude Code auto-loads every
 description at session start, so no table is duplicated here. Per-skill
-parallel-agent policy (always/conditional/never) lives in
+OMP dispatch policy (always/conditional/never) lives in
 `~/.claude/config/command_config.yml` under `tool_policies`.
 
 Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
@@ -120,7 +96,7 @@ Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 **Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
 `claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
 
-### Auto-Triggered Skill
+### Security Review Skill
 
 `code-audit` activates for an explicit security review or changed behavior at a
 security boundary; vocabulary and complexity metrics alone do not activate it.

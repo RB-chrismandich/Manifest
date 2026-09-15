@@ -33,34 +33,6 @@ def _make_runtime(
     return manifest_bin
 
 
-def test_exec_manifest_warns_and_execs(monkeypatch, tmp_path):
-    manifest_bin = _make_runtime(tmp_path, monkeypatch)
-    captured = {}
-
-    def fake_execv(bin_path, args):
-        captured["bin"] = bin_path
-        captured["args"] = args
-        raise SystemExit(0)
-
-    monkeypatch.setattr(_manifest_shim.os, "execv", fake_execv)
-    monkeypatch.setattr(
-        _manifest_shim.sys, "argv", ["parallel_agent.py", "--json", "prompt"]
-    )
-
-    with (
-        pytest.warns(
-            DeprecationWarning,
-            match=r"parallel_agent\.py is deprecated; use: manifest parallel-agent",
-        ),
-        pytest.raises(SystemExit) as exc,
-    ):
-        _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
-
-    assert exc.value.code == 0
-    assert captured["bin"] == str(manifest_bin)
-    assert captured["args"] == ["manifest", "parallel-agent", "--json", "prompt"]
-
-
 def test_exec_manifest_splits_multiword_subcommand(monkeypatch, tmp_path):
     _make_runtime(tmp_path, monkeypatch)
     captured = {}
@@ -84,7 +56,7 @@ def test_runs_when_uv_is_absent(monkeypatch, tmp_path):
     """uv installs the runtime; it is never needed to execute an installed one."""
     _make_runtime(tmp_path, monkeypatch)
     monkeypatch.setenv("PATH", str(tmp_path / "empty-bin"))
-    monkeypatch.setattr(_manifest_shim.sys, "argv", ["parallel_agent.py"])
+    monkeypatch.setattr(_manifest_shim.sys, "argv", ["smoke_test.py"])
     execed = {}
 
     def fake_execv(bin_path, _args):
@@ -93,7 +65,7 @@ def test_runs_when_uv_is_absent(monkeypatch, tmp_path):
 
     monkeypatch.setattr(_manifest_shim.os, "execv", fake_execv)
     with pytest.warns(DeprecationWarning), pytest.raises(SystemExit) as exc:
-        _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
+        _manifest_shim.exec_manifest("smoke", "smoke_test.py")
     assert exc.value.code == 0
     assert execed["bin"].endswith("/.venv/bin/manifest")
 
@@ -123,14 +95,14 @@ def test_exec_manifest_reports_lost_executable_bit(monkeypatch, tmp_path, capsys
 def test_execv_failure_is_reported_not_raised(monkeypatch, tmp_path, capsys):
     """A runtime that exists but cannot exec (dead interpreter, wrong arch)."""
     _make_runtime(tmp_path, monkeypatch)
-    monkeypatch.setattr(_manifest_shim.sys, "argv", ["parallel_agent.py"])
+    monkeypatch.setattr(_manifest_shim.sys, "argv", ["smoke_test.py"])
 
     def boom(_bin, _args):
         raise OSError(8, "Exec format error")
 
     monkeypatch.setattr(_manifest_shim.os, "execv", boom)
     with pytest.warns(DeprecationWarning), pytest.raises(SystemExit) as exc:
-        _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
+        _manifest_shim.exec_manifest("smoke", "smoke_test.py")
 
     assert exc.value.code == 1
     err = capsys.readouterr().err
@@ -145,10 +117,10 @@ def test_error_names_the_deploying_clone(monkeypatch, tmp_path, capsys):
     state = tmp_path / "state"
     state.mkdir()
     (state / "runtime.env").write_text(f"clone_path={clone}\n")
-    monkeypatch.setattr(_manifest_shim.sys, "argv", ["parallel_agent.py"])
+    monkeypatch.setattr(_manifest_shim.sys, "argv", ["smoke_test.py"])
 
     with pytest.warns(DeprecationWarning), pytest.raises(SystemExit):
-        _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
+        _manifest_shim.exec_manifest("smoke", "smoke_test.py")
 
     assert f"re-run {clone / 'bootstrap.sh'}" in capsys.readouterr().err
 
@@ -156,10 +128,10 @@ def test_error_names_the_deploying_clone(monkeypatch, tmp_path, capsys):
 def test_help_path_survives_a_missing_runtime(monkeypatch, tmp_path, capsys):
     """cli-help-before-dependency-checks: --help must work in a clean env."""
     _make_runtime(tmp_path, monkeypatch, installed=False)
-    monkeypatch.setattr(_manifest_shim.sys, "argv", ["parallel_agent.py", "--help"])
+    monkeypatch.setattr(_manifest_shim.sys, "argv", ["smoke_test.py", "--help"])
 
     with pytest.warns(DeprecationWarning), pytest.raises(SystemExit) as exc:
-        _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
+        _manifest_shim.exec_manifest("smoke", "smoke_test.py")
 
     assert exc.value.code == 0
     assert "deprecated shim" in capsys.readouterr().out
@@ -173,7 +145,6 @@ def test_runtime_root_defaults_to_claude_home(monkeypatch):
 @pytest.mark.parametrize(
     ("script", "subcommand", "legacy"),
     [
-        ("parallel_agent.py", "parallel-agent", "parallel_agent.py"),
         ("smoke_test.py", "smoke", "smoke_test.py"),
         ("skillclaw_ingest.py", "skillclaw ingest", "skillclaw_ingest.py"),
         ("skillclaw_evolve.py", "skillclaw evolve", "skillclaw_evolve.py"),

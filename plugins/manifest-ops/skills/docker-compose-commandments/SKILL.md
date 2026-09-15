@@ -108,3 +108,24 @@ Two neighbouring concerns are deliberately owned elsewhere in Manifest:
 supply-chain pinning across `requirements.txt`, Dockerfiles and compose alike
 (`/manifest-ops:version-pin`), and host firewall rules for a published
 port (the `manifest-security` bundle's firewall audit).
+
+## Sub-agent dispatch
+
+This skill uses the shared OMP dispatch contract in
+`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
+units in one `task` call, in waves of at most 32; children execute directly and
+never redispatch; use `hub` only to coordinate or wait; and the parent validates
+and aggregates evidence. If `task` is unavailable, work inline and report
+`DEGRADED`.
+
+**Policy: conditional.** When a compose audit covers multiple independent
+services or files, dispatch those units together in one OMP `task` call (waves
+of at most 32). Use `security-reviewer` for security-sensitive findings and
+`reviewer` for other quality findings. Children execute only their assigned
+read-only audit and never redispatch. The parent uses `hub` only to coordinate
+or wait, validates and aggregates evidence directly, and does not use
+text-consensus or synthesis. If `task` is unavailable, audit inline and report
+`DEGRADED`; never fall back to a provider CLI.
+
+Before editing a compose file, obtain a read-only `reviewer` assessment of the
+proposed fixes, then apply the approved edits sequentially.

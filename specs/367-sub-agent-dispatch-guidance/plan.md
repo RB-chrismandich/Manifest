@@ -9,7 +9,7 @@
 Audit every skill in `.retired skill supply/skills/` and give each a sub-agent **disposition** plus, where it
 dispatches, a concrete in-body **trigger**. The existing `tool_policies` block in
 `command_config.yml` is the single canonical store: its `parallel_agents` field already governs the
-external `parallel_agent.py` harness; this feature adds a parallel `subagents` field (+ optional
+external `the retired cross-harness coordinator` harness; this feature adds a parallel `subagents` field (+ optional
 `subagent_trigger`) for Claude-native Task sub-agents. The native-vs-external **selection rules**
 (including the cross-platform fallback) live once in a referenced location and are linked from
 skills, not restated. A canonical fan-out threshold (≥3 independent units, or an existing per-skill
@@ -28,7 +28,7 @@ counted `.retired skill supply/skills/README.md` in an `ls`. The enforcement tes
 Python 3 (pytest) for the enforcement test — matching existing `tests/bats/` + `tests/python/`.
 
 **Primary Dependencies**: `configs/claude/config/command_config.yml` (`tool_policies`), the
-orchestration guide `configs/claude/CLAUDE.md`, `.retired skill supply/skills/*/SKILL.md`, `parallel_agent.py`
+orchestration guide `configs/claude/CLAUDE.md`, `.retired skill supply/skills/*/SKILL.md`, `the retired cross-harness coordinator`
 (referenced, not modified), the Task/Agent tool (Claude-native, referenced).
 
 **Storage**: Files only — config YAML, Markdown skill bodies, a shared reference doc, a test file.
@@ -47,7 +47,7 @@ selection rules are centralized + linked.
 
 **Constraints**: Single source of truth (extend `tool_policies`, no parallel store); no recursive
 sub-agent dispatch; respect token-economy (≥3-unit threshold); changes confined to skill bodies, the
-shared reference doc, `command_config.yml`, and the test (no change to `parallel_agent.py` or the
+shared reference doc, `command_config.yml`, and the test (no change to `the retired cross-harness coordinator` or the
 Task tool itself).
 
 **Scale/Scope**: 88 skill dispositions (58 new + 30 reconciled), 1 schema extension, 1 shared
@@ -62,7 +62,7 @@ selection-rules section, 1 enforcement test, 1 contributor-convention doc.
 | I. Configuration-as-Code | **PASS** — all edits land in version-controlled `configs/` and `.retired skill supply/skills/`; deployed via `bootstrap.sh`. No manual edits to `~/.claude/`. |
 | II. Parallel Agent Orchestration | **APPLIES** — this is an architecture decision touching the whole skill library. The design itself was cross-verified via `/speckit-clarify` (4 locked decisions); the implementation PR MUST be cross-verified per the Tier-1 gate. The enforcement test additionally codifies the rule. |
 | III. Consensus-Driven Decisions | **PASS** — PR review applies the standard consensus thresholds; no bypass. |
-| IV. Skill-First Extensibility | **PASS** — no new behavior is absorbed into `parallel_agent.py`; guidance lives in skills + config + a reference doc. The enforcement test is a thin verifier, not a core-engine expansion. |
+| IV. Skill-First Extensibility | **PASS** — no new behavior is absorbed into `the retired cross-harness coordinator`; guidance lives in skills + config + a reference doc. The enforcement test is a thin verifier, not a core-engine expansion. |
 | V. Bootstrap Reproducibility | **PASS** — config/doc edits deploy idempotently through existing mechanisms; no new install steps. |
 
 **Quality Gates**: Tier-1 (cross-verification, no secrets, error handling, no breaking changes) and
@@ -94,7 +94,7 @@ configs/claude/config/command_config.yml     # EXTEND tool_policies: add `subage
                                               #   `subagent_trigger`) to every skill; fill 58 missing
 
 configs/claude/references/sub-agent-dispatch.md  # NEW read-on-demand reference: shared "Sub-Agent
-                                              #   Selection Rules" (native vs parallel_agent.py +
+                                              #   Selection Rules" (native vs the retired cross-harness coordinator +
                                               #   cross-platform fallback) AND the contributor
                                               #   convention (FR-013). Single source skills link to;
                                               #   satisfies SC-007. Kept out of auto-loaded CLAUDE.md

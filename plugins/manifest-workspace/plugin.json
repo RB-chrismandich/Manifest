@@ -174,30 +174,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "parallel-agent-config",
-            "component_type": "runtime",
-            "mode": "imported",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "component_id": "parallel-agent-prompts",
-            "component_type": "runtime",
-            "mode": "imported",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "component_id": "parallel-agent-references",
-            "component_type": "runtime",
-            "mode": "imported",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "component_id": "parallel-agent-scripts",
-            "component_type": "runtime",
-            "mode": "imported",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "imported",
@@ -322,22 +298,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "id": "parallel-agent-config",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "id": "parallel-agent-prompts",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "id": "parallel-agent-references",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "id": "parallel-agent-scripts",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "id": "pr-smoke-scripts",
             "path": "skills/pr-smoke/scripts"
           },
@@ -365,8 +325,6 @@
         "skills/help",
         "skills/learning-capture",
         "skills/memory-compress",
-        "skills/metrics-report",
-        "skills/parallel-agent",
         "skills/pass-cli",
         "skills/pr-smoke",
         "skills/prompt-optimize",
@@ -546,30 +504,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "parallel-agent-config",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "component_id": "parallel-agent-prompts",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "component_id": "parallel-agent-references",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "component_id": "parallel-agent-scripts",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "native",
@@ -708,22 +642,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "id": "parallel-agent-config",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "id": "parallel-agent-prompts",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "id": "parallel-agent-references",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "id": "parallel-agent-scripts",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "id": "pr-smoke-scripts",
             "path": "skills/pr-smoke/scripts"
           },
@@ -751,8 +669,6 @@
         "skills/help",
         "skills/learning-capture",
         "skills/memory-compress",
-        "skills/metrics-report",
-        "skills/parallel-agent",
         "skills/pass-cli",
         "skills/pr-smoke",
         "skills/prompt-optimize",
@@ -935,30 +851,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "parallel-agent-config",
-            "component_type": "runtime",
-            "mode": "generated",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "component_id": "parallel-agent-prompts",
-            "component_type": "runtime",
-            "mode": "generated",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "component_id": "parallel-agent-references",
-            "component_type": "runtime",
-            "mode": "generated",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "component_id": "parallel-agent-scripts",
-            "component_type": "runtime",
-            "mode": "generated",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "generated",
@@ -1083,22 +975,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "id": "parallel-agent-config",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "id": "parallel-agent-prompts",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "id": "parallel-agent-references",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "id": "parallel-agent-scripts",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "id": "pr-smoke-scripts",
             "path": "skills/pr-smoke/scripts"
           },
@@ -1126,8 +1002,6 @@
         "skills/help",
         "skills/learning-capture",
         "skills/memory-compress",
-        "skills/metrics-report",
-        "skills/parallel-agent",
         "skills/pass-cli",
         "skills/pr-smoke",
         "skills/prompt-optimize",
@@ -1310,30 +1184,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "parallel-agent-config",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "component_id": "parallel-agent-prompts",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "component_id": "parallel-agent-references",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "component_id": "parallel-agent-scripts",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "native",
@@ -1458,22 +1308,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "id": "parallel-agent-config",
-            "path": "skills/parallel-agent/config"
-          },
-          {
-            "id": "parallel-agent-prompts",
-            "path": "skills/parallel-agent/prompts"
-          },
-          {
-            "id": "parallel-agent-references",
-            "path": "skills/parallel-agent/references"
-          },
-          {
-            "id": "parallel-agent-scripts",
-            "path": "skills/parallel-agent/scripts"
-          },
-          {
             "id": "pr-smoke-scripts",
             "path": "skills/pr-smoke/scripts"
           },
@@ -1501,8 +1335,6 @@
         "skills/help",
         "skills/learning-capture",
         "skills/memory-compress",
-        "skills/metrics-report",
-        "skills/parallel-agent",
         "skills/pass-cli",
         "skills/pr-smoke",
         "skills/prompt-optimize",
@@ -1526,8 +1358,6 @@
     "skills/help",
     "skills/learning-capture",
     "skills/memory-compress",
-    "skills/metrics-report",
-    "skills/parallel-agent",
     "skills/pass-cli",
     "skills/pr-smoke",
     "skills/prompt-optimize",

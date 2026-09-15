@@ -22,8 +22,8 @@ only); catalog frontmatter 25110/29000 (two ~250-char descriptions fit);
 plugin.json needs an EXPLICIT `skills` array; `expected_total` 114 → 116;
 dispatcher is stdlib-only (registry is `backends.json`, JSON not YAML); first
 plugin `hooks/` in the repo needs a new bats wiring gate; no model IDs in
-SKILL.md/agent frontmatter (tiers by name); implementation PR carries the
-`manifest parallel-agent` Tier-1 gate; sub-agents pin Sonnet.
+SKILL.md/agent frontmatter (tiers by name); implementation PR carries an
+OMP reviewer-wave Tier-1 gate; sub-agents pin Sonnet.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -136,7 +136,7 @@ story routes through these. **No user-story work before this phase completes.**
       policy (deliberate divergence from agents-config `ConfigError`);
       `services.yml` enable flags via fixed-format line reader matched to
       `write_services_config()` in `bootstrap/lib/config.sh` (never requires
-      PyYAML); `parallel_agent.yml` `model_tiers` consulted only when PyYAML
+      PyYAML); `model_policy.yml` `model_tiers` consulted only when PyYAML
       importable
 - [x] T007 Implement the job-record store in
       `plugins/manifest-delegate/scripts/delegate.py`: per-job dirs
@@ -524,7 +524,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       present; skill_policies bundle block + count matches; registry↔
       `cli_agents` drift test (argv templates in
       `plugins/manifest-delegate/config/backends.json` stay consistent with
-      `configs/claude/config/parallel_agent.yml` where both name the same
+      `configs/claude/config/model_policy.yml` where both name the same
       binary — research.md D4); `services.yml` fixed-format reader stays
       matched to `write_services_config()` in `bootstrap/lib/config.sh`
 
@@ -567,10 +567,9 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       backend (codex/claude/agy), and
       record results in the PR description
 - [ ] T050 Run the mandatory Constitution II Tier-1 cross-verification on the
-      implementation PR: `manifest parallel-agent --json --validate --timeout
-      900 --review <absolute changed paths>` — judge completed agents only
-      (codex + agy; cursor limited until 2026-08-12), resolve findings before
-      merge
+      implementation PR with an OMP reviewer wave for the changed paths — judge
+      completed reviewers only (codex + agy; cursor limited until 2026-08-12),
+      resolve findings before merge
 
 ---
 

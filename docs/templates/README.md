@@ -67,7 +67,7 @@ mv ~/.claude/settings.json.new ~/.claude/settings.json
 | Pre-commit | pre-commit run --all-files | Low - Local checks |
 | Docker | ps, images, logs, stats | Low - Inspection |
 | AWS | Read-only describe/list operations | Low - No modifications |
-| Parallel Agents | ~/.claude/scripts/parallel_agent.py | Low - Analysis |
+| OMP sub-agents | `task` batches and `hub` coordination | Low - Analysis |
 
 **Excluded** (requires prompt):
 
@@ -80,7 +80,7 @@ mv ~/.claude/settings.json.new ~/.claude/settings.json
 
 **Hooks**:
 
-- **PreToolUse (Skill)**: Runs parallel agent pre-analysis (180s timeout)
+- **PreToolUse (Skill)**: Runs OMP sub-agent pre-analysis (180s timeout)
 - **PostToolUse (Bash)**: Post-execution validation (10s timeout)
 
 **Project-Specific Customization**:
@@ -306,35 +306,22 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 
 These templates integrate with Manifest's core features:
 
-### Parallel Agent Orchestration
+### OMP Sub-Agent Dispatch
 
-```bash
-# Use in orchestration prompts
-~/.claude/scripts/parallel_agent.py --json --timeout 600 \
-  --analyze "Check cross-service impact of migration"
-```
+For independent analysis units, dispatch one OMP `task` batch. Use `scout` for
+read-only exploration and have the parent aggregate evidence; use `hub` only to
+coordinate or wait for children.
 
 ### Validation Framework
 
-```bash
-# Validate with custom overrides
-~/.claude/scripts/parallel_agent.py --json --validate \
-  --review /absolute/path/to/file
-```
+Run the project's retained validation command. Use `check-status` to inspect the
+configured runtime and `model_policy.yml` only for retained single-provider policy.
 
 ### Command System
 
-Use in custom commands:
+Custom commands should describe their validation command explicitly and keep the
+parent responsible for the final decision.
 
-```markdown
-## Phase 3: Validation
-
-Run validation with overrides:
-```bash
-~/.claude/scripts/parallel_agent.py --validate --review $CHANGED_FILE
-```
-
-```text
 
 ---
 
@@ -367,7 +354,7 @@ To add a new template:
 - [Configuration Guide](../configuration/README.md)
 - [Skills Documentation](../../.apm/skills/)
 - [Validation Criteria](../../configs/claude/config/validation_criteria.yml)
-- [Parallel Agent Guide](../../configs/claude/CLAUDE.md)
+- [OMP Sub-Agent Guide](../../configs/claude/CLAUDE.md)
 
 ---
 

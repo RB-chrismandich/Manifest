@@ -9,6 +9,15 @@
       "role": "author",
       "title_prefix": "\u26a1 Bolt:"
     },
+    "clarity": {
+      "author_login": null,
+      "branch_prefix": "clarity",
+      "identified_by": "title_prefix",
+      "invoke": "n/a",
+      "notes": "Added 2026-08-07 after a pr-triage-bots run on RB-chrismandich/whycast surfaced five open PRs (#544, #545, #548, #550, #554) that no registry entry matched \u2014 the same gap Forge had on 2026-07-27. Fourth Jules persona. Verified via `gh pr list --state all --search \"Clarity in:title\" --json author`: the persona has 12+ PRs going back to whycast #452. Focus: static-analysis compliance \u2014 mypy type narrowing, guard clauses, Optional handling.\nTwo facts that differ from the palette/bolt entries:\n1. author_login is NOT stable across repos or across time. Older Clarity\n   PRs (whycast #452, #466, #468, #470, #494, #506, #515) show\n   author.login = RB-chrismandich (is_bot: false), matching the\n   palette/bolt situation. Newer ones (#541, #544, #545, #548, #550,\n   #554) show author.login = \"app/google-labs-jules\" with is_bot: true\n   \u2014 the Jules GitHub App was installed on that repo partway through,\n   so it now opens PRs under its own identity. The same split is visible\n   on Bolt in whycast (#516 = RB-chrismandich, #540/#543/#546/#547 =\n   app/google-labs-jules). Do not filter these personas by author;\n   the title prefix is the only identifier stable across both eras.\n\n2. branch_prefix has no consistent separator: #545/#548/#554 use\n   \"clarity/\", #544/#550 use \"clarity-\". Match the bare word, not\n   \"clarity/\".\n\nTriage caution \u2014 observed 2026-08-07: Clarity over-produces hard on a single target (5 PRs for one 8-line cli.py fix; #550 and #554 were byte-identical to #548, and #545's per-file hunk hashed identical too). It also reaches for `(events or [])` fallbacks to silence Optional errors (#544), which converts a failure into a silent empty iteration \u2014 check its diffs against the repo's silent-failure conventions before merging, and prefer the variant using explicit `is None` guards.\n",
+      "role": "author",
+      "title_prefix": "\ud83d\udc8e Clarity:"
+    },
     "copilot": {
       "author_login": "copilot-pull-request-reviewer[bot]",
       "identified_by": "author_login",
@@ -28,10 +37,11 @@
     "jules": {
       "author_login": "google-labs-jules[bot]",
       "identified_by": "author_login",
-      "invoke": "mention",
-      "mention": "@google-labs-jules",
-      "notes": "Verified 2026-07-17 via `gh api repos/RB-chrismandich/Manifest/issues/<N>/comments` on PRs #580 and #581 \u2014 the bot's own \"\ud83d\udc4b Jules, reporting for duty!\" greeting comment carries login google-labs-jules[bot]. Not a GitHub-native reviewer: requesting it as reviewer/assignee is silently ignored; the only working trigger is a comment mention acted on by .github/workflows/jules-trigger.yml, gated to author_association OWNER/MEMBER/COLLABORATOR. Jules does not leave inline GitHub review comments the way Copilot does \u2014 its feedback surfaces as PR comments, commits pushed to the PR branch, or a separate linked PR (see the palette/bolt entries below, which are Jules acting under its personas).\n",
-      "role": "reviewer"
+      "invoke": "label",
+      "invoke_scope": "github_issue",
+      "label": "jules",
+      "notes": "Apply the jules label (case insensitive) to a GitHub issue to start work, after authorizing the Jules GitHub App for that repository. Jules comments on the issue and links its PR when finished. Verified against https://jules.google/docs/running-tasks/ on 2026-09-07. PR monitoring handles existing Jules feedback; it never labels linked issues or posts trigger mentions. CLI submission is a separate alternative, not an additional trigger for the same issue. Account login does not prove App authorization.\n",
+      "role": "author"
     },
     "palette": {
       "author_login": null,

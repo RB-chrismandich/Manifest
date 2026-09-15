@@ -103,6 +103,15 @@ source "$(dirname "${BASH_SOURCE[0]}")/cli_installers.sh"
 
 # shellcheck source=bootstrap/lib/optional_cli.sh
 source "$(dirname "${BASH_SOURCE[0]}")/optional_cli.sh"
+
+# Read the optional smoke and browser-use toggles out of deployed services.yml
+# in one probe. Echoes "<smoke> <browser_use>" as 0/1 flags; returns non-zero
+# when the file cannot be parsed as the expected services mapping.
+#
+# The home venv is preferred because it normally has PyYAML. Before its first
+# sync, though, the host interpreter can lack that dependency (or, in an
+# isolated home, its user site). The awk fallback below reads only the two
+# fixed service toggles so a requested optional group is never silently lost.
 read_service_group_flags() {
     local services_yml="$1" target_dir="$2"
     local py
@@ -137,22 +146,21 @@ def on(name: str) -> str:
     return "1" if isinstance(svc, dict) and svc.get("enabled") else "0"
 
 
-print(on("smoke"), on("browser_use"), on("claude"))
+print(on("smoke"), on("browser_use"))
 PY
     done
     awk '
         /^services:[[:space:]]*$/ { services=1; next }
-        services && /^  (smoke|browser_use|claude):[[:space:]]*$/ { name=$1; sub(":", "", name); next }
+        services && /^  (smoke|browser_use):[[:space:]]*$/ { name=$1; sub(":", "", name); next }
         services && /^  [A-Za-z_][A-Za-z0-9_]*:[[:space:]]*$/ { name=""; next }
         services && /^    enabled:[[:space:]]*(true|false)[[:space:]]*$/ {
             value=$2 == "true" ? 1 : 0
             if (name == "smoke") smoke=value
             if (name == "browser_use") browser=value
-            if (name == "claude") claude=value
         }
         END {
             if (!services) exit 1
-            print smoke+0, browser+0, claude+0
+            print smoke+0, browser+0
         }
     ' "$services_yml"
 }
@@ -274,7 +282,7 @@ write_runtime_stamp() {
     return 0
 }
 
-# Sync the home Python runtime via uv (replaces pip install --user for parallel_agent deps).
+# Sync the home Python runtime via uv (replaces pip install --user).
 # Reads deployed services.yml for optional dependency groups, runs uv sync, optionally
 # installs Playwright Chromium for smoke, and deploys ~/.local/bin/manifest wrapper.
 #
@@ -303,12 +311,12 @@ uv_sync_home_runtime() {
     local install_playwright=false
     local groups_csv="core"
     local services_yml="$target_dir/config/services.yml"
-    local flags="" smoke_on=0 browser_on=0 claude_on=0
+    local flags="" smoke_on=0 browser_on=0
 
     if [[ ! -f "$services_yml" ]]; then
         print_warning "$services_yml not found — syncing core runtime only (no optional groups)"
     elif flags="$(read_service_group_flags "$services_yml" "$target_dir")"; then
-        read -r smoke_on browser_on claude_on <<< "$flags" || true
+        read -r smoke_on browser_on <<< "$flags" || true
     else
         # No interpreter could parse services.yml. Preserving the previous sync's
         # group selection beats silently downgrading an enabled service to core.
@@ -320,9 +328,6 @@ uv_sync_home_runtime() {
         esac
         case "$prev_groups" in
             *smoke*) smoke_on=1 ;;
-        esac
-        case "$prev_groups" in
-            *claude*) claude_on=1 ;;
         esac
         if [[ -n "$prev_groups" && "$prev_groups" != "core" ]]; then
             print_warning "Reusing the previous sync's groups ($prev_groups) from the runtime stamp"
@@ -344,16 +349,12 @@ uv_sync_home_runtime() {
         group_flags+=(--group smoke-agent)
         groups_csv="$groups_csv,smoke-agent"
     fi
-    if [[ "$claude_on" == 1 ]]; then
-        group_flags+=(--group claude)
-        groups_csv="$groups_csv,claude"
-    fi
 
     heal_broken_home_venv "$target_dir/.venv"
 
     print_step "Syncing home Python runtime (uv)..."
     if ! "$uv_bin" sync --project "$target_dir" "${group_flags[@]+"${group_flags[@]}"}"; then
-        print_warning "uv sync failed — parallel agent may be unavailable"
+        print_warning "uv sync failed — home runtime may be unavailable"
         if [[ -x "$HOME/.local/bin/manifest" ]]; then
             print_warning "Existing manifest CLI kept, but its runtime may be stale — fix uv and re-run ./bootstrap.sh"
         fi

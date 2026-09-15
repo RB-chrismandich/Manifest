@@ -106,9 +106,9 @@
       "Bash(tree:*)",
 
       "// ============================================",
-      "// Manifest Parallel Agent",
+      "// Manifest Runtime Status",
       "// ============================================",
-      "Bash(~/.claude/scripts/parallel_agent.py:*)",
+      "Bash(manifest check-status:*)",
 
       "// ============================================",
       "// Web Search & Fetch (for documentation)",

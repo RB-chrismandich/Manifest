@@ -6,10 +6,10 @@
 
 ## Summary
 
-Split `configs/claude/scripts/parallel_agent.py` (2145 lines, 73 functions) into a
+Split `configs/claude/scripts/the retired cross-harness coordinator` (2145 lines, 73 functions) into a
 6-module `agents/` Python package co-located with the entry point, preserving the
 existing CLI interface, updating test imports, and adding per-module unit tests. The
-entry point shim remains at `parallel_agent.py` for full backward compatibility.
+entry point shim remains at `the retired cross-harness coordinator` for full backward compatibility.
 
 ## Technical Context
 
@@ -42,13 +42,13 @@ per-module test files
 | Principle | Status | Notes |
 |-----------|--------|-------|
 | I. Configuration-as-Code | ✅ Pass | All changes within `configs/claude/scripts/`; deployment path unchanged |
-| II. Parallel Agent Orchestration | ✅ Required (MUST) | This is a >200-line modification; the constitution states MUST for cross-verification before merge. Parallel agent review (`~/.claude/scripts/parallel_agent.py --review`) is a hard gate, not advisory — see T030 (moved to pre-merge gate, not polish) |
+| II. Parallel Agent Orchestration | ✅ Required (MUST) | This is a >200-line modification; the constitution states MUST for cross-verification before merge. Parallel agent review (`~/.claude/scripts/the retired cross-harness coordinator --review`) is a hard gate, not advisory — see T030 (moved to pre-merge gate, not polish) |
 | III. Consensus-Driven Decisions | ✅ N/A | Applies to PR review phase, not planning |
 | IV. Skill-First Extensibility | ✅ Pass | No new skills added; no scripts expanded beyond their scope |
 | V. Bootstrap Reproducibility | ✅ Pass | Entry point path unchanged; `bootstrap.sh` deploy logic unaffected |
 
 **Post-design re-check** (after Phase 1): All gates still pass. The 6-module layout
-introduces no new deployment concerns and the shim pattern keeps `parallel_agent.py`
+introduces no new deployment concerns and the shim pattern keeps `the retired cross-harness coordinator`
 at its existing path. Principle II requires parallel agent review as a hard merge gate
 (not advisory); T030 in tasks.md is positioned accordingly.
 
@@ -71,7 +71,7 @@ specs/001-modularize-parallel-agent/
 
 ```text
 configs/claude/scripts/
-├── parallel_agent.py              # Entry-point shim (replaces monolith)
+├── the retired cross-harness coordinator              # Entry-point shim (replaces monolith)
 └── agents/                        # New Python package
     ├── __init__.py                # Re-exports all public symbols
     ├── config.py                  # Config, ServiceConfig, Logger, RateLimiter
@@ -82,7 +82,7 @@ configs/claude/scripts/
     └── cli.py                     # main(), argparse setup
 
 tests/python/
-├── test_parallel_agent.py         # Existing integration test (imports updated)
+├── the retired coordinator integration test         # Existing integration test (imports updated)
 └── agents/                        # New per-module unit tests
     ├── __init__.py
     ├── test_config.py

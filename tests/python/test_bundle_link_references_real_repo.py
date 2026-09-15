@@ -13,34 +13,28 @@ from __future__ import annotations
 from tests.python._bundle_link_references_harness import real_repo_violation_tuples
 
 
-def test_real_repo_catches_sub_agent_dispatch_true_positives() -> None:
-    # 25 skills / 6 bundles per the spec's blunt string count cite
-    # sub-agent-dispatch.md; 4 of those 25 (manifest-spec-planning's own
-    # skills) resolve correctly via a relative path and must NOT appear here
-    # (see test_real_repo_does_not_flag_the_documented_non_defects).
+def test_real_repo_keeps_sub_agent_dispatch_links_bundle_local() -> None:
     found = real_repo_violation_tuples()
-    assert (
-        "plugins/manifest-code-quality/skills/ai-code-audit/SKILL.md",
-        "missing-bundled-reference",
-        "sub-agent-dispatch.md",
-    ) in found
-    assert (
-        "plugins/stitch-design/skills/ux-review/SKILL.md",
-        "missing-bundled-reference",
-        "sub-agent-dispatch.md",
-    ) in found
+    assert not [
+        violation for violation in found if violation[2] == "sub-agent-dispatch.md"
+    ]
 
 
-def test_real_repo_catches_bare_command_config_yml_true_positives() -> None:
-    # code-audit now owns its dispatch reference.
+def test_real_repo_keeps_retired_command_policy_links_out_of_updated_skills() -> None:
     found = real_repo_violation_tuples()
     assert (
         "plugins/manifest-forge/skills/pr-review/SKILL.md",
         "missing-bundled-reference",
         "command_config.yml",
-    ) in found
+    ) not in found
     assert (
         "plugins/stitch-design/skills/a11y-audit/SKILL.md",
+        "missing-bundled-reference",
+        "command_config.yml",
+    ) not in found
+    # Existing issue-hook portability violations remain independently detected.
+    assert (
+        "plugins/manifest-forge/skills/issue-sync-pr/SKILL.md",
         "missing-bundled-reference",
         "command_config.yml",
     ) in found
