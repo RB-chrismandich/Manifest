@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { chmod, mkdir, mkdtemp, open, readFile, readdir, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { runCheck } from './checks.ts';
+import { forceRemoveContainer, runCheck } from './checks.ts';
 
 const verifier = {
   path: '.omp/ui-delivery/verifiers/verify.mjs',
@@ -17,7 +18,7 @@ const recipe = {
   result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'], trusted_verifier: verifier,
 };
 const mockBackends = { docker: true };
-const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20 };
+const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20, pid: process.pid };
 
 function task(overrides = {}) {
   return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
@@ -179,7 +180,7 @@ test('removes a lock created before its owner token write fails', async () => {
   await handle.close();
   const originalWriteFile = prototype.writeFile;
   prototype.writeFile = async function (data, ...args) {
-    if (String(data).length === 36) throw new Error('owner write failed');
+    if (typeof data === 'string' && data.startsWith('{"uuid"')) throw new Error('owner write failed');
     return originalWriteFile.call(this, data, ...args);
   };
   try {
@@ -191,4 +192,73 @@ test('removes a lock created before its owner token write fails', async () => {
   } finally {
     prototype.writeFile = originalWriteFile;
   }
+});
+
+test('reclaims an output lock left by a process that no longer exists on the same host', async () => {
+  const repo = await fixture();
+  const outputPath = join(repo, '.ui-results/unit.json');
+  const lockPath = `${outputPath}.ui-delivery.lock`;
+  const dead = spawn(process.execPath, ['-e', 'process.exit(0)']);
+  const deadPid = await new Promise((resolve) => { dead.once('close', () => resolve(dead.pid)); });
+  await writeFile(lockPath, JSON.stringify({ uuid: 'stale-owner', pid: deadPid, hostname: hostname() }), { mode: 0o600, flag: 'wx' });
+  const result = await runCheck({
+    repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity,
+  });
+  assert.equal(result.exitCode, 0);
+  await assert.rejects(() => readFile(lockPath, 'utf8'), { code: 'ENOENT' });
+});
+
+test('refuses to reclaim an output lock whose owner process is still alive', async () => {
+  const repo = await fixture();
+  const outputPath = join(repo, '.ui-results/unit.json');
+  const lockPath = `${outputPath}.ui-delivery.lock`;
+  await writeFile(lockPath, JSON.stringify({ uuid: 'live-owner', pid: process.pid, hostname: hostname() }), { mode: 0o600, flag: 'wx' });
+  await assert.rejects(
+    () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity }),
+    /check output is busy/,
+  );
+  assert.equal(await readFile(lockPath, 'utf8'), JSON.stringify({ uuid: 'live-owner', pid: process.pid, hostname: hostname() }));
+  await unlink(lockPath);
+});
+
+test('bounds the container cleanup subprocess so a stalled remover cannot hang the caller', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'ui-delivery-remover-'));
+  const scriptPath = join(scratch, 'fake-docker.sh');
+  const pidfile = join(scratch, 'remover.pid');
+  await writeFile(scriptPath, '#!/bin/sh\necho $$ > "$PIDFILE"\nsleep 60\n');
+  await chmod(scriptPath, 0o700);
+  const startedAt = Date.now();
+  await forceRemoveContainer(scriptPath, { ...process.env, PIDFILE: pidfile }, 'stalled-container', 200);
+  assert.ok(Date.now() - startedAt < 5000, 'bounded cleanup must not wait for the stalled remover');
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const removerPid = Number((await readFile(pidfile, 'utf8')).trim());
+  assert.throws(() => process.kill(removerPid, 0), { code: 'ESRCH' });
+  await rm(scratch, { recursive: true, force: true });
+});
+
+test('writes verifier outputs through the retained descriptor even after the output path is replaced with a symlink', async () => {
+  const repo = await fixture();
+  const outsideDir = await mkdtemp(join(tmpdir(), 'ui-delivery-outside-'));
+  const outsideTarget = join(outsideDir, 'victim.json');
+  await writeFile(outsideTarget, 'untouched\n');
+  const outputPath = join(repo, '.ui-results/unit.json');
+  let entered;
+  const enteredPromise = new Promise((resolve) => { entered = resolve; });
+  let release;
+  const releasePromise = new Promise((resolve) => { release = resolve; });
+  const running = runCheck({
+    repo, task: task(), checkId: 'unit', backends: mockBackends, hostIdentity: nonRootHostIdentity,
+    executor: async () => {
+      entered();
+      await releasePromise;
+      return { exitCode: 0, stdout: verifierOutput(), stderr: '' };
+    },
+  });
+  await enteredPromise;
+  await unlink(outputPath);
+  await symlink(outsideTarget, outputPath);
+  release();
+  await running;
+  assert.equal(await readFile(outsideTarget, 'utf8'), 'untouched\n');
+  await rm(outsideDir, { recursive: true, force: true });
 });

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, realpath, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -16,7 +16,7 @@ const recipe = {
   result_path: '.ui-results/unit.json', write_paths: ['.ui-results/unit.json'], trusted_verifier: verifier,
 };
 
-const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20 };
+const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20, pid: process.pid };
 
 function task(overrides = {}) {
   return { allowed_paths: ['src/Card.tsx'], forbidden_policy_paths: ['policy/baseline.json'], approved_check_recipes: [recipe], ...overrides };
@@ -130,17 +130,25 @@ test('rewrites the verified Docker verifier argument beneath an approved image r
 test('mounts only the digest-verified verifier file and rewrites its Docker argv', async () => {
   const repo = await fixture();
   const calls = [];
+  let snapshot;
   await runCheck({
     repo, task: task({ approved_check_recipes: [{ ...recipe, backend: 'docker' }] }),
-    checkId: 'unit', backends: { docker: true }, hostIdentity: nonRootHostIdentity, executor: executor(calls),
+    checkId: 'unit', backends: { docker: true }, hostIdentity: nonRootHostIdentity,
+    executor: async (command) => {
+      calls.push(command);
+      const verifierMount = command.mounts.find((mount) => mount.target === '/trusted-verifier');
+      snapshot = { content: await readFile(verifierMount.source, 'utf8'), mode: (await stat(verifierMount.source)).mode & 0o777 };
+      return { exitCode: 0, stdout: verifierOutput(), stderr: 'stderr' };
+    },
   });
   const [command] = calls;
   const verifierMount = command.mounts.find((mount) => mount.target === '/trusted-verifier');
   assert.deepEqual(command.recipeArgv, recipe.argv);
   assert.equal(command.argv.at(-1), '/trusted-verifier');
-  assert.deepEqual(verifierMount, {
-    source: await realpath(join(repo, verifier.path)), target: '/trusted-verifier', readOnly: true,
-  });
+  assert.notEqual(verifierMount.source, await realpath(join(repo, verifier.path)));
+  assert.equal(verifierMount.readOnly, true);
+  assert.equal(snapshot.content, await readFile(join(repo, verifier.path), 'utf8'));
+  assert.equal(snapshot.mode, 0o400);
   assert.equal(command.mounts.some((mount) => mount.source === join(repo, '.omp/ui-delivery/verifiers')), false);
   assert.equal(command.mounts.some((mount) => mount.target === `/repo/.omp/ui-delivery/verifiers`), false);
 });

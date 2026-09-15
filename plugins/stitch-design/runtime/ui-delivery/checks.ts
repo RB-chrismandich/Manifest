@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { chmod, constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, unlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { constants, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, unlink, writeFile } from 'node:fs/promises';
+import type { FileHandle } from 'node:fs/promises';
+import { hostname, tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
 export type CheckResult = { argv: string[]; exitCode: number; stdout: { text: string; bytes: number; truncated: boolean; hash: string }; stderr: { text: string; bytes: number; truncated: boolean; hash: string } };
@@ -18,6 +19,21 @@ const VERIFIER_ENVELOPE_LIMIT = 4 * 1024 * 1024;
 type VerifierEnvelope = { schema: 'ui-delivery-verifier-output-v1'; result: Record<string, unknown>; artifacts: Array<{ path: string; encoding: 'base64'; data: string }> };
 function safeDockerMountPath(path: string): void {
   if (!path || /[,\r\n=]/.test(path)) throw new Error('unsafe Docker mount path');
+}
+const CONTAINER_CLEANUP_TIMEOUT_MS = 5000;
+export async function forceRemoveContainer(executable: string, env: Record<string, string>, containerName: string, timeoutMs = CONTAINER_CLEANUP_TIMEOUT_MS): Promise<void> {
+  const { promise, resolve: done } = Promise.withResolvers<void>();
+  let settled = false;
+  const finish = () => { if (settled) return; settled = true; clearTimeout(timer); done(); };
+  const remover = spawn(executable, ['rm', '--force', containerName], { env, stdio: 'ignore', detached: true });
+  const timer = setTimeout(() => {
+    try { if (remover.pid) process.kill(-remover.pid, 'SIGKILL'); } catch {}
+    try { remover.kill('SIGKILL'); } catch {}
+    finish();
+  }, timeoutMs);
+  remover.once('close', finish);
+  remover.once('error', finish);
+  await promise;
 }
 function verifierEnvelope(stdout: string, writePaths: string[], resultPath: string): VerifierEnvelope {
   if (Buffer.byteLength(stdout) > VERIFIER_ENVELOPE_LIMIT) throw new Error('verifier output exceeds protocol limit');
@@ -40,14 +56,16 @@ function verifierEnvelope(stdout: string, writePaths: string[], resultPath: stri
   }
   return envelope as VerifierEnvelope;
 }
-async function persistVerifierOutputs(root: string, envelope: VerifierEnvelope, outputs: Map<string, string>, resultPath: string): Promise<void> {
+async function persistVerifierOutputs(envelope: VerifierEnvelope, outputs: Map<string, { path: string; handle: FileHandle }>, resultPath: string): Promise<void> {
   const result = outputs.get(resultPath);
   if (!result) throw new Error('verifier result path is unavailable');
-  await writeFile(result, `${JSON.stringify(envelope.result)}\n`, { mode: 0o600, flag: 'w' });
+  await result.handle.truncate(0);
+  await result.handle.writeFile(`${JSON.stringify(envelope.result)}\n`);
   for (const artifact of envelope.artifacts) {
     const target = outputs.get(artifact.path);
     if (!target) throw new Error('verifier artifact path is unavailable');
-    await writeFile(target, Buffer.from(artifact.data, 'base64'), { mode: 0o600, flag: 'w' });
+    await target.handle.truncate(0);
+    await target.handle.writeFile(Buffer.from(artifact.data, 'base64'));
   }
 }
 const APPROVED_DOCKER_RUNTIME_BASENAMES: Record<string, true> = { node: true, python3: true };
@@ -59,22 +77,26 @@ async function validateOutputParent(root: string, lexical: string): Promise<void
   const parentStat = await lstat(parent);
   if (!parentStat.isDirectory() || parentStat.isSymbolicLink() || await realpath(parent) !== parent) throw new Error('output parent is unsafe');
 }
-async function provisionOutput(root: string, lexical: string): Promise<string> {
+async function provisionOutput(root: string, lexical: string): Promise<{ path: string; handle: FileHandle }> {
   await validateOutputParent(root, lexical);
+  let handle: FileHandle;
   try {
     const stat = await lstat(lexical);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('output file is unsafe');
+    handle = await open(lexical, constants.O_WRONLY | constants.O_NOFOLLOW);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    const handle = await open(lexical, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
-    await handle.close();
+    handle = await open(lexical, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   }
-  await chmod(lexical, 0o600);
-  const stat = await lstat(lexical);
-  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || (stat.mode & 0o777) !== 0o600) throw new Error('output file is unsafe');
-  const actual = await realpath(lexical);
-  if (actual !== lexical || !under(root, actual)) throw new Error('symlinked writes are forbidden');
-  return actual;
+  try {
+    await handle.chmod(0o600);
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.nlink !== 1 || (stat.mode & 0o777) !== 0o600) throw new Error('output file is unsafe');
+  } catch (error) {
+    await handle.close();
+    throw error;
+  }
+  return { path: lexical, handle };
 }
 
 type OutputLock = { path: string; owner: string; dev: number; ino: number; ownerWritten: boolean };
@@ -86,24 +108,66 @@ async function releaseOutputLocks(locks: OutputLock[]): Promise<void> {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
 }
-async function acquireOutputLocks(outputs: string[]): Promise<OutputLock[]> {
+function deterministicContainerName(outputs: string[]): string {
+  const key = [...new Set(outputs)].sort().join('\n');
+  return `ui-delivery-${createHash('sha256').update(key).digest('hex').slice(0, 32)}`;
+}
+type LockOwner = { uuid: string; pid: number; hostname: string };
+function decodeLockOwner(raw: string): LockOwner | undefined {
+  try {
+    const value = JSON.parse(raw) as Partial<LockOwner>;
+    if (value && typeof value.uuid === 'string' && typeof value.pid === 'number' && Number.isInteger(value.pid) && typeof value.hostname === 'string') return value as LockOwner;
+  } catch {}
+  return undefined;
+}
+function ownerProcessAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return (error as NodeJS.ErrnoException).code !== 'ESRCH'; }
+}
+async function reclaimStaleLock(path: string, containerName: string): Promise<boolean> {
+  let contents: string;
+  let stat;
+  try {
+    [contents, stat] = await Promise.all([readFile(path, 'utf8'), lstat(path)]);
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT';
+  }
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) return false;
+  const owner = decodeLockOwner(contents);
+  if (!owner || owner.hostname !== hostname() || ownerProcessAlive(owner.pid)) return false;
+  await forceRemoveContainer('docker', { PATH: process.env.PATH ?? '/usr/bin:/bin' }, containerName);
+  try {
+    if (await readFile(path, 'utf8') !== contents) return false;
+    await unlink(path);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT';
+  }
+}
+async function acquireOutputLocks(outputs: string[], hostIdentity: Pick<typeof process, 'pid'> = process): Promise<OutputLock[]> {
   const locks: OutputLock[] = [];
+  const containerName = deterministicContainerName(outputs);
   try {
     for (const outputPath of [...new Set(outputs)].sort()) {
       const path = `${outputPath}.ui-delivery.lock`;
-      const owner = randomUUID();
+      const ownerToken = JSON.stringify({ uuid: randomUUID(), pid: hostIdentity.pid, hostname: hostname() } satisfies LockOwner);
       let handle;
-      try {
-        handle = await open(path, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('check output is busy');
-        throw error;
+      let recovered = false;
+      for (;;) {
+        try {
+          handle = await open(path, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+          break;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+          if (recovered || !(await reclaimStaleLock(path, containerName))) throw new Error('check output is busy');
+          recovered = true;
+        }
       }
       const stat = await handle.stat();
-      const lock = { path, owner, dev: stat.dev, ino: stat.ino, ownerWritten: false };
+      const lock = { path, owner: ownerToken, dev: stat.dev, ino: stat.ino, ownerWritten: false };
       locks.push(lock);
       try {
-        await handle.writeFile(owner, 'utf8');
+        await handle.writeFile(ownerToken, 'utf8');
         lock.ownerWritten = true;
       } finally {
         await handle.close();
@@ -117,7 +181,7 @@ async function acquireOutputLocks(outputs: string[]): Promise<OutputLock[]> {
 }
 
 type TrustedVerifier = { path: string; sha256: string };
-async function trustedVerifier(root: string, allowedPaths: string[], recipe: { argv: string[]; trusted_verifier?: TrustedVerifier }): Promise<{ path: string; root: string; dockerTarget: string }> {
+async function trustedVerifier(root: string, allowedPaths: string[], recipe: { argv: string[]; trusted_verifier?: TrustedVerifier }, scratch: string): Promise<{ path: string; snapshotPath: string; root: string; dockerTarget: string }> {
   const verifier = recipe.trusted_verifier;
   if (!verifier || typeof verifier.path !== 'string' || !/^[^/].*$/.test(verifier.path) || !/^sha256:[a-f0-9]{64}$/i.test(verifier.sha256)) throw new Error('trusted verifier is required');
   const declaredRoot = join(root, '.omp', 'ui-delivery', 'verifiers');
@@ -135,7 +199,8 @@ async function trustedVerifier(root: string, allowedPaths: string[], recipe: { a
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('trusted verifier path is unsafe');
   const actual = await realpath(requested);
   if (!strictlyUnder(verifierRoot, actual)) throw new Error('trusted verifier escapes protected root');
-  const digest = `sha256:${createHash('sha256').update(await readFile(actual)).digest('hex')}`;
+  const bytes = await readFile(actual);
+  const digest = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
   if (digest !== verifier.sha256.toLowerCase()) throw new Error('trusted verifier digest mismatch');
   const verifierArgument = recipe.argv.some((argument, index) => {
     if (index > 1) return false;
@@ -146,7 +211,9 @@ async function trustedVerifier(root: string, allowedPaths: string[], recipe: { a
   const executable = recipe.argv[0];
   const executablePath = executable.startsWith('/repo/') ? join(root, executable.slice('/repo/'.length)) : resolve(root, executable);
   if (allowedPaths.some((allowed) => under(resolve(root, allowed), executablePath))) throw new Error('candidate executable is forbidden');
-  return { path: actual, root: verifierRoot, dockerTarget: '/trusted-verifier' };
+  const snapshotPath = join(scratch, 'trusted-verifier');
+  await writeFile(snapshotPath, bytes, { mode: 0o400, flag: 'wx' });
+  return { path: actual, snapshotPath, root: verifierRoot, dockerTarget: '/trusted-verifier' };
 }
 
 async function executeDirect(command: Command, outputLimitBytes: number, signal?: AbortSignal): Promise<Execution> {
@@ -159,7 +226,7 @@ async function executeDirect(command: Command, outputLimitBytes: number, signal?
       if (remaining > 0) chunks.push(Buffer.from(chunk.subarray(0, remaining)));
       return Math.min(outputLimitBytes, kept + chunk.length);
     };
-    const terminate = async (reason: Error) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); try { process.kill(-child.pid!, 'SIGKILL'); } catch {} if (command.containerName) await new Promise<void>((done) => { const remover = spawn(command.executable, ['rm', '--force', command.containerName], { env: command.env, stdio: 'ignore' }); remover.once('close', () => done()); remover.once('error', () => done()); }); rejectResult(reason); };
+    const terminate = async (reason: Error) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', aborted); try { process.kill(-child.pid!, 'SIGKILL'); } catch {} if (command.containerName) await forceRemoveContainer(command.executable, command.env, command.containerName); rejectResult(reason); };
     const aborted = () => { void terminate(new Error('check aborted')); };
     const timer = setTimeout(() => { void terminate(new Error('check timed out')); }, command.timeoutMs);
     signal?.addEventListener('abort', aborted, { once: true });
@@ -193,7 +260,7 @@ function executeInjected(executor: (command: Command) => Promise<Execution>, com
   return promise;
 }
 
-export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir(), hostIdentity = process }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string; hostIdentity?: Pick<typeof process, 'getuid' | 'getgid'> }): Promise<CheckResult> {
+export async function runCheck({ repo, task, checkId, command, environment = {}, executor, backends = { docker: true }, outputLimitBytes = 65536, signal, scratchRoot = tmpdir(), hostIdentity = process }: { repo: string; task: { allowed_paths: string[]; forbidden_policy_paths: string[]; approved_check_recipes: Record<string, unknown>[] }; checkId: string; command?: unknown; environment?: Record<string, string | undefined>; executor?: (command: Command) => Promise<Execution>; backends?: Record<string, boolean>; outputLimitBytes?: number; signal?: AbortSignal; scratchRoot?: string; hostIdentity?: Pick<typeof process, 'getuid' | 'getgid' | 'pid'> }): Promise<CheckResult> {
   if (signal?.aborted) throw new Error('check aborted');
   if (command !== undefined) throw new Error('raw commands are not accepted');
   const recipe = task.approved_check_recipes.find((entry) => entry.id === checkId) as { id: string; argv: string[]; cwd: string; timeout_ms: number; backend: 'docker'; sandbox_image: string; result_path: string; write_paths: string[]; trusted_verifier?: TrustedVerifier } | undefined;
@@ -203,7 +270,6 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
   const root = await realpath(repo);
   const cwd = resolve(root, recipe.cwd);
   if (!under(root, cwd)) throw new Error('check cwd escapes repository');
-  const verifier = await trustedVerifier(root, task.allowed_paths, recipe);
   const outputPaths = new Map<string, string>();
   for (const value of recipe.write_paths) {
     const lexical = resolve(root, value);
@@ -211,13 +277,16 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     await validateOutputParent(root, lexical);
     outputPaths.set(value, lexical);
   }
-  const locks = await acquireOutputLocks([...outputPaths.values()]);
-  const outputs = new Map<string, string>();
+  const reservedLockPaths = new Set([...outputPaths.values()].map((lexical) => `${lexical}.ui-delivery.lock`));
+  for (const lexical of outputPaths.values()) if (reservedLockPaths.has(lexical)) throw new Error('check output collides with an output lock path');
+  const locks = await acquireOutputLocks([...outputPaths.values()], hostIdentity);
+  const outputs = new Map<string, { path: string; handle: FileHandle }>();
   const protectedPaths = [...new Set(['.git', '.omp', 'secrets', ...(task.forbidden_policy_paths ?? [])])];
   let scratch: string | undefined;
   try {
-    for (const [value, lexical] of outputPaths) outputs.set(value, await provisionOutput(root, lexical));
     scratch = await realpath(await mkdtemp(join(scratchRoot, 'ui-delivery-check-')));
+    const verifier = await trustedVerifier(root, task.allowed_paths, recipe, scratch);
+    for (const [value, lexical] of outputPaths) outputs.set(value, await provisionOutput(root, lexical));
     const masks: Mount[] = [];
     if (recipe.backend === 'docker') for (const [index, forbidden] of protectedPaths.entries()) {
       const target = resolve(root, forbidden);
@@ -238,12 +307,12 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
       const source = join(scratch, 'masks', `output-${index}`);
       await mkdir(dirname(source), { recursive: true, mode: 0o700 });
       await writeFile(source, '', { mode: 0o000, flag: 'wx' });
-      masks.push({ source, target: join('/repo', relative(root, output)), readOnly: true });
+      masks.push({ source, target: join('/repo', relative(root, output.path)), readOnly: true });
     }
-    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...masks, { source: verifier.path, target: verifier.dockerTarget, readOnly: true }];
+    const mounts: Mount[] = [{ source: root, target: '/repo', readOnly: true }, ...masks, { source: verifier.snapshotPath, target: verifier.dockerTarget, readOnly: true }];
     for (const mount of mounts) { safeDockerMountPath(mount.source); safeDockerMountPath(mount.target); }
     const env: Record<string, string> = { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' };
-    const containerName = `ui-delivery-${randomUUID()}`;
+    const containerName = deterministicContainerName([...outputPaths.values()]);
     const dockerUid = hostIdentity.getuid?.();
     const dockerGid = hostIdentity.getgid?.();
     if (!Number.isInteger(dockerUid) || !Number.isInteger(dockerGid) || dockerUid! <= 0 || dockerGid! <= 0) throw new Error('Docker requires non-root POSIX user IDs');
@@ -258,9 +327,10 @@ export async function runCheck({ repo, task, checkId, command, environment = {},
     const execution = executor
       ? await executeInjected(executor, spec, signal)
       : await executeDirect(spec, Math.max(outputLimitBytes, VERIFIER_ENVELOPE_LIMIT), signal);
-    if (execution.exitCode === 0) await persistVerifierOutputs(root, verifierEnvelope(execution.stdout, recipe.write_paths, recipe.result_path), outputs, recipe.result_path);
+    if (execution.exitCode === 0) await persistVerifierOutputs(verifierEnvelope(execution.stdout, recipe.write_paths, recipe.result_path), outputs, recipe.result_path);
     return { argv: recipe.argv, exitCode: execution.exitCode, stdout: output(execution.stdout, outputLimitBytes, execution.stdoutHash, execution.stdoutBytes, execution.stdoutTruncated), stderr: output(execution.stderr, outputLimitBytes, execution.stderrHash, execution.stderrBytes, execution.stderrTruncated) };
   } finally {
+    for (const entry of outputs.values()) { try { await entry.handle.close(); } catch {} }
     if (scratch) await rm(scratch, { recursive: true, force: true });
     await releaseOutputLocks(locks);
   }

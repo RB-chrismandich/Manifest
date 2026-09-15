@@ -23,7 +23,7 @@ function verifierOutput({ result = { schema: 'ui-delivery-check-v1', required: 1
   return `${JSON.stringify({ schema: 'ui-delivery-verifier-output-v1', result, artifacts })}\n`;
 }
 const mockBackends = { docker: true };
-const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20 };
+const nonRootHostIdentity = { getuid: () => 501, getgid: () => 20, pid: process.pid };
 function executor(calls, stdout = verifierOutput()) {
   return async (command) => {
     calls.push(command);
@@ -141,4 +141,22 @@ test('rejects a verifier directory symlink that escapes the repository', async (
     () => runCheck({ repo, task: task(), checkId: 'unit', executor: executor([]), backends: mockBackends, hostIdentity: nonRootHostIdentity }),
     /trusted verifier/,
   );
+});
+
+test('rejects a declared output that collides with another output\'s derived lock path', async () => {
+  const repo = await fixture();
+  await mkdir(join(repo, 'out'), { recursive: true });
+  await writeFile(join(repo, 'out/value'), 'value\n');
+  await writeFile(join(repo, 'out/value.ui-delivery.lock'), 'lock\n');
+  await assert.rejects(
+    () => runCheck({
+      repo,
+      task: task({ approved_check_recipes: [{ ...recipe, write_paths: ['out/value', 'out/value.ui-delivery.lock'], result_path: 'out/value' }] }),
+      checkId: 'unit',
+      executor: executor([]),
+      backends: mockBackends, hostIdentity: nonRootHostIdentity,
+    }),
+    /output lock/,
+  );
+  assert.equal(await realpath(join(repo, 'out/value.ui-delivery.lock')).then(() => true, () => false), true);
 });
