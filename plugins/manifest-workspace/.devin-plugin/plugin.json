@@ -1038,7 +1038,7 @@
             "component_type": "guidance",
             "mode": "not_applicable",
             "path": "guidance/token-economy.md",
-            "reason": "MIGRATION BLOCKER \u2014 Devin single-owns ~/.codeium/windsurf/memories/global_rules.md exclusively for the manifest-i-have-adhd bundle (the Devin adapter's _prepare_adhd_rule guard and the deploy_devin_adhd_rule step that writes it). Sharing that file across bundles requires extending the Devin adapter's owned-file ownership model, which is out of scope here; /token-conserve remains available for Devin users until that adapter work ships."
+            "reason": "MIGRATION BLOCKER \u2014 Devin single-owns ~/.codeium/windsurf/memories/global_rules.md exclusively for the manifest-i-have-adhd bundle (the Devin adapter guards that file for the ADHD rule and only the ADHD deploy step writes it). Sharing that file across bundles requires extending the Devin adapter's owned-file ownership model, which is out of scope here; /token-conserve remains available for Devin users until that adapter work ships."
           },
           {
             "component_id": "claude-compaction-continuity",
