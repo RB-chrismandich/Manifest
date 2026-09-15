@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/subagent_model_default.py"
+            "command": "~/.claude/scripts/subagent_model_default.py --native-default-only"
           }
         ]
       },

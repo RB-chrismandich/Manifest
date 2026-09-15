@@ -940,115 +940,19 @@ install_claude_mcp_servers() {
 
 merge_claude_runtime_settings() {
     local src="$1" tgt="$2"
-    [[ -f "$src" ]] || return 0
-    if ! command_exists python3; then
-        print_info "python3 unavailable — skipped runtime settings merge into settings.json"
+    CLAUDE_RUNTIME_MERGE_STATUS=failed
+    if [[ ! -f "$src" ]] || ! command_exists python3; then
+        print_warning "Runtime settings merge skipped: source or python3 unavailable"
         return 0
     fi
-    local rc=0
-    python3 - "$src" "$tgt" << 'PYEOF' || rc=$?
-import json, os, sys
-
-src_path, tgt_path = sys.argv[1], sys.argv[2]
-try:
-    src = json.load(open(src_path))
-except (OSError, ValueError):
-    sys.exit(4)
-try:
-    with open(tgt_path) as fh:
-        tgt = json.load(fh)
-except FileNotFoundError:
-    tgt = {}
-except (OSError, ValueError):
-    sys.exit(4)
-if not isinstance(tgt, dict):
-    sys.exit(4)
-
-changed = False
-
-def is_legacy_version_pin_hook(hook):
-    command = hook.get("command") if isinstance(hook, dict) else None
-    return isinstance(command, str) and (
-        command == "~/.claude/scripts/version_pin_hook.sh"
-        or command.endswith("/.claude/scripts/version_pin_hook.sh")
-    )
-
-# Existing homes may still contain the pre-plugin registration. Remove only
-# that command and preserve any sibling hooks sharing its matcher entry.
-for event, entries in list((tgt.get("hooks") or {}).items()):
-    retained_entries = []
-    for entry in entries:
-        hooks = entry.get("hooks") if isinstance(entry, dict) else None
-        if not isinstance(hooks, list):
-            retained_entries.append(entry)
-            continue
-        retained_hooks = [hook for hook in hooks if not is_legacy_version_pin_hook(hook)]
-        if len(retained_hooks) != len(hooks):
-            changed = True
-            if retained_hooks:
-                entry["hooks"] = retained_hooks
-                retained_entries.append(entry)
-        else:
-            retained_entries.append(entry)
-    tgt["hooks"][event] = retained_entries
-
-# Remove only the two historical Manifest grants. Literal matching preserves
-# user rules that merely mention version_pin or constrain it differently.
-retired_version_pin_rules = (
-    "Bash(~/.claude/scripts/version_pin.sh:*)",
-    "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
-)
-tgt_permissions = tgt.get("permissions")
-if isinstance(tgt_permissions, dict) and isinstance(tgt_permissions.get("allow"), list):
-    current_allow = tgt_permissions["allow"]
-    retained_allow = [rule for rule in current_allow if rule not in retired_version_pin_rules]
-    if len(retained_allow) != len(current_allow):
-        tgt_permissions["allow"] = retained_allow
-        changed = True
-
-# permissions.allow: union, order-stable, preserves every remaining user rule.
-src_allow = ((src.get("permissions") or {}).get("allow")) or []
-if src_allow:
-    tgt_perms = tgt.setdefault("permissions", {})
-    tgt_allow = tgt_perms.setdefault("allow", [])
-    for rule in src_allow:
-        if rule not in tgt_allow:
-            tgt_allow.append(rule)
-            changed = True
-
-# Top-level scalar defaults: USER-WINS. A key the user already set is never
-# overwritten; only genuinely absent keys are seeded.
-for key, value in src.items():
-    if key in ("hooks", "permissions", "_comment"):
-        continue
-    if key not in tgt:
-        tgt[key] = value
-        changed = True
-
-for event, entries in (src.get("hooks") or {}).items():
-    cur = tgt.setdefault("hooks", {}).setdefault(event, [])
-    for entry in entries:
-        resolved = json.loads(json.dumps(entry))
-        for hook in resolved.get("hooks", []):
-            cmd = hook.get("command", "")
-            if cmd.startswith("~"):
-                hook["command"] = os.path.expanduser(cmd)
-        # Compare on the resolved form so a re-run never appends a second copy.
-        if resolved not in cur:
-            cur.append(resolved)
-            changed = True
-
-if changed:
-    with open(tgt_path, "w") as fh:
-        json.dump(tgt, fh, indent=2)
-        fh.write("\n")
-sys.exit(0 if changed else 3)
-PYEOF
-    case $rc in
-        0) print_success "Merged Manifest runtime settings into settings.json" ;;
-        3) print_info "settings.json already has Manifest runtime settings - preserved" ;;
-        *) print_warning "Could not merge runtime settings into settings.json (manual merge may be needed)" ;;
-    esac
+    local merger
+    merger="$(dirname "$src")/scripts/merge_runtime_settings.py"
+    if python3 "$merger" "$src" "$tgt"; then
+        CLAUDE_RUNTIME_MERGE_STATUS=merged
+    else
+        print_warning "Runtime settings merge incomplete; deploy stamp does not certify runtime policy"
+    fi
+    return 0
 }
 
 # Union repo-shipped top-level default settings (currently
@@ -1137,6 +1041,7 @@ tree_configs=$tree_configs
 tree_skills=$tree_skills
 head_sha=$head_sha
 dirty=$dirty
+runtime_merge_status=${CLAUDE_RUNTIME_MERGE_STATUS:-unobserved}
 clone_path=$repo_root
 deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
