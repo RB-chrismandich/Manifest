@@ -26,18 +26,15 @@ Apply at all times, in every session:
 
 `@token-conserve` re-asserts this mode if drift is noticed mid-session.
 
-## Manifest CLI (parallel-agent)
+## OMP sub-agent dispatch
 
-**Canonical command**: `manifest parallel-agent` (installed to `~/.local/bin/manifest`; scripts symlinked at `.cursor/scripts/`).
+Interactive sub-agent work uses OMP `task` and `hub` only. Submit all ready
+independent units in one `task` call, in waves of at most 32; children execute
+their unit directly and never redispatch; use `hub` only to coordinate or wait.
+The parent validates evidence and aggregates results. If `task` is unavailable,
+work inline and report `DEGRADED`; never fall back to a provider CLI.
 
-Legacy shim `~/.claude/scripts/parallel_agent.py` still forwards but prints a deprecation warning — prefer `manifest parallel-agent`.
-
-### Quick Usage
-
-**IMPORTANT**:
-
-- Always use **absolute paths** when specifying files to analyze or review.
-- Always use a **large timeout** (600-900 seconds) for complex analyses.
+### Tool routing
 
 Default MCP/tool routing — use the matching tool when the task domain matches.
 `configs/cursor/mcp.json` registers **Context7 only** — it is generated from the
@@ -57,65 +54,18 @@ list before routing to one. Semgrep is a CLI, available wherever installed.
 - **Apify MCP** — web scraping/crawling for structured external data
 - **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
-```bash
-# Basic code review with JSON output (all 5 agents, 10 min timeout)
-manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
-
-# Full analysis with validation and model selection (15 min timeout)
-manifest parallel-agent --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Generic prompt to all agents
-manifest parallel-agent --json "Your question here"
-```
-
-### Options
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output JSON for programmatic parsing |
-| `--full-output` | Include complete agent outputs (no truncation) |
-| `--validate` | Check outputs against success criteria |
-| `--review <file>` | Code review mode |
-| `--analyze <file>` | Bug/security analysis mode |
-| `--cursor-only` | Run only Cursor Agent |
-| `--gemini-only` | Run only Gemini CLI |
-| `--claude-only` | Run only Claude CLI |
-| `--antigravity-only` | Run only Antigravity (agy) |
-| `--devin-only` | Run only Devin (opt-in: `--enable-devin` + `devin auth login`) |
-| `--no-claude` | Disable Claude CLI |
-| `--no-antigravity` | Disable Antigravity for this run |
-| `--no-devin` | Disable Devin for this run |
-| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus |
-| `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced |
-| `--devin-model <name>` | Devin model: verbatim name (default `auto` = no pin) |
-| `--timeout <sec>` | Timeout per agent (default: 120) |
-
-### Model Selection
-
-Select models based on task complexity:
-
-| Task Type | Cursor | Claude | Gemini | Antigravity | Reason |
-|-----------|--------|--------|--------|-------------|--------|
-| Security | advanced | opus | pro | advanced | Maximum capability for critical code |
-| Review | flash | sonnet | flash | flash | Balanced performance/cost |
-| Analyze | flash | sonnet | flash | flash | Good reasoning without opus cost |
-| Improve | mini | haiku | flash | mini | Lighter models for suggestions |
-| Quick | mini | haiku | flash | mini | Speed for simple queries |
-
 ---
 
 ## Reference Index
 
 Read on demand (NOT auto-loaded). You MUST read the reference before related tasks:
 
-- `~/.claude/references/parallel-agent.md` — Read for flag specs, JSON schema validation, or resolving Credit Exhaustion.
-- `~/.claude/references/orchestration.md` — Read when running multi-agent validation or debugging cross-verification failures.
+- `~/.claude/references/sub-agent-dispatch.md` — Read before a rule dispatches
+  sub-agents: workload decomposition vs risk-gated review, and model choice.
+- `~/.claude/references/orchestration.md` — Read when auditing review routing,
+  validation tiers, or escalation disposition.
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
-- `~/.claude/references/sub-agent-dispatch.md` — Read before a rule dispatches sub-agents: native Task vs
-  `manifest parallel-agent`, when-to-dispatch threshold, model pinning, cross-platform fallback.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* rule reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/code-constitution.md` — Read BEFORE creating or modifying
@@ -139,36 +89,21 @@ independent-unit counts are advisory context; they do not trigger a panel.
 
 ---
 
-## Cross-Verification Patterns
+## Review escalation
 
-### Agreement Scoring
-
-```text
-Consensus Score = (Agreements / Total_Findings) * 100
-
->=80%: High confidence - proceed with unified recommendation
-50-79%: Medium confidence - highlight disagreements to user
-<50%: Low confidence - escalate for human review
-```
-
-### Synthesis
-
-When agents disagree, synthesize by:
-
-1. Identifying the core disagreement
-2. Evaluating each agent's reasoning
-3. Providing a unified recommendation with caveats
-4. Noting which agent's approach was preferred and why
+A second independent review is requested only for a confirmed risk condition,
+never for a count. The reviewer examines the same target independently; the
+parent resolves material disagreement from evidence and owns the disposition.
 
 ---
 
 ## Validation Criteria
 
-- **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
-  changes. **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
+- **Tier 1 (blocking)**: security, error handling, breaking changes.
+  **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
 - Authoritative weights: `~/.cursor/config/validation_criteria.yml` (symlink to
-  `~/.claude/config/`). Consensus thresholds and verdict rules
-  (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`): `~/.claude/references/orchestration.md`.
+  `~/.claude/config/`). Escalated runs add cross-verification per
+  `conditional_tier1_checks`.
 
 ## Proactive Coding Guardrails (always on)
 
@@ -206,18 +141,18 @@ enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.
 
 ### Before or After Making Changes
 
-Use one capable reviewer by default. Invoke multi-agent validation only when a
-trust-boundary change, destructive behavior, broad compatibility or deployment
-impact, unresolved uncertainty, or genuinely independent codebase-wide tracks
-are present. Record the reason and run the escalated command with `--command`
-and `--review-mode escalated`; otherwise do not invoke `parallel_agent.py`.
+Use one capable reviewer by default. Request a second independent review only
+when a trust-boundary change, destructive behavior, broad compatibility or
+deployment impact, unresolved uncertainty, or genuinely independent
+codebase-wide tracks are present. Record the reason and the escalated review
+mode in the report; counts alone never escalate.
 
 ---
 
 ## Available Rules
 
-| Rule | Description | Parallel Agents |
-|------|-------------|-----------------|
+| Rule | Description | Independent review |
+|------|-------------|--------------------|
 | @git-commit | Full commit pipeline | CONDITIONAL |
 | @python-refactor | Python security and quality analysis | CONDITIONAL (risk-based) |
 | @go-refactor | Go security and quality analysis | CONDITIONAL (risk-based) |
@@ -240,7 +175,6 @@ and `--review-mode escalated`; otherwise do not invoke `parallel_agent.py`.
 | @env-check | Verify CLI tools, auth, config, symlinks | NO |
 | @config-audit | Detect cross-platform config drift | NO |
 | @learning-capture | Capture structured lessons learned | NO |
-| @dashboard | Visualize agent efficiency metrics | NO |
 | @checkpoint | Save context checkpoint | NO |
 | @code-audit | Auto-triggered code quality checks | AUTO |
 
@@ -267,13 +201,11 @@ All configuration is symlinked from `.claude/`:
 
 | File | Purpose |
 |------|---------|
-| `config/command_config.yml` | Thresholds, tool policies, error recovery |
+| `config/command_config.yml` | Thresholds, tool policies, sub-agent dispositions |
 | `config/validation_criteria.yml` | Tier 1/Tier 2 validation rules |
 | `config/language_profiles.yml` | Per-language linter, test, security tool configs |
-| `config/parallel_agent.yml` | Canonical model tier definitions |
+| `config/model_policy.yml` | Canonical model tier definitions |
 | `prompts/preflight_analysis.md` | Pre-flight analysis template |
-| `prompts/synthesis.md` | Agent disagreement synthesis template |
-| `prompts/validation.md` | Validation criteria template |
 
 ---
 
