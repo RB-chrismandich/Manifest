@@ -9,7 +9,7 @@
     "candidates.json": "[{\"id\": \"C1\", \"claim\": \"SQL injection in counter.py line 2\"}]"
   },
   "output_contract": {
-    "findings": [{"id": "string", "file": "string", "line": "integer", "category": "string"}],
+    "findings": [{"id": "string", "file": "string", "line": "integer", "category": "off_by_one|out_of_bounds|sql_injection|missing_validation|other"}],
     "candidate_dispositions": [{"id": "string", "decision": "keep|refute", "reason": "string"}]
   }
 }

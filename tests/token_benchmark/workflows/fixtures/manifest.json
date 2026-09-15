@@ -14,7 +14,7 @@
     },
     "plugins/manifest-docs/skills/docs-improve-readme/SKILL.md": {
       "sha256": "a288f9412a83d5864bd7480de40ad8b5fcbb719bcb64cb548b4e4b5156a8a11d",
-      "captured_path": "documentation/full/SKILL.md"
+      "captured_path": "documentation/full/skills/docs-improve-readme/SKILL.md"
     },
     "plugins/manifest-docs/runtime/references/doc-concision.md": {
       "sha256": "0e24d49bf8bdb17235fecf467ad841a93928503d2f650ce1582922e673de133d",
@@ -22,23 +22,23 @@
     },
     "plugins/manifest-spec-planning/skills/spec-implement-loop/SKILL.md": {
       "sha256": "543069ad9b8594b42dbac551a19eb4353e1b3c5b90e8c04370b2a33d1f438cce",
-      "captured_path": "implementation/full/SKILL.md"
+      "captured_path": "implementation/full/skills/spec-implement-loop/SKILL.md"
     },
     "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/cli-dispatch.md": {
       "sha256": "07237d4d2feb3d87924abc8704127ded95e96b7c3f9da3b4bf998e1dae92083a",
-      "captured_path": "implementation/full/prompts/cli-dispatch.md"
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/cli-dispatch.md"
     },
     "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/developer-dispatch.md": {
       "sha256": "ea1fe3c41b063366c5513ff5b4cba1f25e2ed596189957f3a01a5985abd2702d",
-      "captured_path": "implementation/full/prompts/developer-dispatch.md"
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/developer-dispatch.md"
     },
     "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/reviewer-dispatch.md": {
       "sha256": "b281c3488a24f08cc804da7d96c28dcc8661c03c7545b6aa567d400924d9e9bd",
-      "captured_path": "implementation/full/prompts/reviewer-dispatch.md"
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/reviewer-dispatch.md"
     },
     "plugins/manifest-spec-planning/skills/spec-implement-loop/prompts/verdict-format.md": {
       "sha256": "d8dbfda428231d43d75a8c13520f03e5ae121f725a11832c6ed499d34662db64",
-      "captured_path": "implementation/full/prompts/verdict-format.md"
+      "captured_path": "implementation/full/skills/spec-implement-loop/prompts/verdict-format.md"
     },
     "plugins/manifest-spec-planning/runtime/prompts/cddl/arch-critic.md": {
       "sha256": "4f67d5598c98712fad95133e982f9631ed96ebfed780aa2022a87baed9480d28",
@@ -81,18 +81,18 @@
     "code-review/expected.json": "784b6d178c1538c4077035ca403fbbe9098e983f8dc4dffb5626f6300d66af4f",
     "code-review/full/SKILL.md": "be0a4180ea03d7d630b6e9212adb523aef4bd829584eec562dc0b73039802c3d",
     "code-review/slim.md": "b2f9274733a432f541cc1c11ce0521804cd878c0a1122c75cf4b1d52e6a8ba72",
-    "code-review/task.json": "b8b5485686169db65d06579b835d6c6ceb95b7f63ba2f0c57b7ebb0fc518f022",
+    "code-review/task.json": "dd2889bdbfbca1f799744ab41ab95111d9229ba755e5d460fa70ae55252e5243",
     "documentation/expected.json": "f7c9b6161a8c58a5a7a712d568e6ea819dcb2be132ba5a68b9618e1cbb834e85",
-    "documentation/full/SKILL.md": "a288f9412a83d5864bd7480de40ad8b5fcbb719bcb64cb548b4e4b5156a8a11d",
+    "documentation/full/skills/docs-improve-readme/SKILL.md": "a288f9412a83d5864bd7480de40ad8b5fcbb719bcb64cb548b4e4b5156a8a11d",
     "documentation/full/runtime/references/doc-concision.md": "0e24d49bf8bdb17235fecf467ad841a93928503d2f650ce1582922e673de133d",
     "documentation/slim.md": "c8318010ca201a8ed22798e51ce61406c75ed231aa3feabdcd1bfc1d9bda3f64",
     "documentation/task.json": "c02cd291b1e8c7eb367f7044add290d420bc9b185df8ab79c1a571b9995bf9c4",
     "implementation/expected.json": "e824ac4d99b35dee61932b9a2b9b66a584b7196174240cee46deedf4f5ca3de8",
-    "implementation/full/SKILL.md": "543069ad9b8594b42dbac551a19eb4353e1b3c5b90e8c04370b2a33d1f438cce",
-    "implementation/full/prompts/cli-dispatch.md": "07237d4d2feb3d87924abc8704127ded95e96b7c3f9da3b4bf998e1dae92083a",
-    "implementation/full/prompts/developer-dispatch.md": "ea1fe3c41b063366c5513ff5b4cba1f25e2ed596189957f3a01a5985abd2702d",
-    "implementation/full/prompts/reviewer-dispatch.md": "b281c3488a24f08cc804da7d96c28dcc8661c03c7545b6aa567d400924d9e9bd",
-    "implementation/full/prompts/verdict-format.md": "d8dbfda428231d43d75a8c13520f03e5ae121f725a11832c6ed499d34662db64",
+    "implementation/full/skills/spec-implement-loop/SKILL.md": "543069ad9b8594b42dbac551a19eb4353e1b3c5b90e8c04370b2a33d1f438cce",
+    "implementation/full/skills/spec-implement-loop/prompts/cli-dispatch.md": "07237d4d2feb3d87924abc8704127ded95e96b7c3f9da3b4bf998e1dae92083a",
+    "implementation/full/skills/spec-implement-loop/prompts/developer-dispatch.md": "ea1fe3c41b063366c5513ff5b4cba1f25e2ed596189957f3a01a5985abd2702d",
+    "implementation/full/skills/spec-implement-loop/prompts/reviewer-dispatch.md": "b281c3488a24f08cc804da7d96c28dcc8661c03c7545b6aa567d400924d9e9bd",
+    "implementation/full/skills/spec-implement-loop/prompts/verdict-format.md": "d8dbfda428231d43d75a8c13520f03e5ae121f725a11832c6ed499d34662db64",
     "implementation/full/runtime/config/review_models.json": "551bbb9971df82728fa139f2ffd30101093a9333a663c129f0ad208f3577b165",
     "implementation/full/runtime/prompts/cddl/arch-critic.md": "4f67d5598c98712fad95133e982f9631ed96ebfed780aa2022a87baed9480d28",
     "implementation/full/runtime/prompts/cddl/developer-reviewer.md": "017915e711e2218ef63e27dfa83a6c924d37b96e6248c7fa9e5b133c65ff15c8",
@@ -107,7 +107,7 @@
     "security-triage/expected.json": "fbbf9999c6f6e6dff17cbc7a53239e1e1693d65170605c882a16737c9542aa73",
     "security-triage/full/SKILL.md": "4af585b5597b9c035680f3b22ec92aab008a234f40f220a112ae9ed96b8652fa",
     "security-triage/slim.md": "6df635e94c02f42c973d6299bfe7706172be8aaf945a499a7d3f2c68366a5c13",
-    "security-triage/task.json": "54ac1e8944766ee198d75acf8b85da736be361406a76950cb532ac5e3b1ffc74"
+    "security-triage/task.json": "70960f0d6414f52035d8e50169a8d3b32d3900d4770eeb7eabd4314291355022"
   },
   "workflows": {
     "code-review": {
@@ -129,14 +129,14 @@
       "task": "implementation/task.json",
       "expected": "implementation/expected.json",
       "slim_context": "implementation/slim.md",
-      "full_context": "implementation/full/SKILL.md"
+      "full_context": "implementation/full/skills/spec-implement-loop/SKILL.md"
     },
     "documentation": {
       "kind": "documentation",
       "task": "documentation/task.json",
       "expected": "documentation/expected.json",
       "slim_context": "documentation/slim.md",
-      "full_context": "documentation/full/SKILL.md"
+      "full_context": "documentation/full/skills/docs-improve-readme/SKILL.md"
     }
   }
 }

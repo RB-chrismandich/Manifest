@@ -3,13 +3,13 @@
   "id": "security-triage",
   "kind": "security_triage",
   "conditions": ["none", "slim", "full"],
-  "instruction": "Triage the two supplied candidate findings. Return JSON with survived and refuted arrays.",
+  "instruction": "Triage the two supplied candidate findings. Return JSON with survived and refuted arrays; each entry is an object with idx and a one-line reason citing concrete evidence.",
   "artifacts": {
     "files.json": "{\"safe_path.py\": \"candidate = (ROOT / name).resolve()\\nif not candidate.is_relative_to(ROOT): raise ValueError('outside root')\\n\", \"admin.py\": \"@app.post('/admin/reload')\\ndef reload_config(): return service.reload()\\n\"}",
     "candidates.json": "[{\"idx\": 0, \"claim\": \"path traversal in safe_path.py\"}, {\"idx\": 1, \"claim\": \"admin reload endpoint lacks authorization\"}]"
   },
   "output_contract": {
-    "survived": ["integer"],
+    "survived": [{"idx": "integer", "reason": "string"}],
     "refuted": [{"idx": "integer", "reason": "string"}]
   }
 }
