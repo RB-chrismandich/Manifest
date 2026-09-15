@@ -17,7 +17,7 @@
 ## Global constraints
 
 - Limit input to 1 MiB; schema version 1; reject unknown fields, duplicate keys, non-finite numbers, and boolean integers.
-- No new mandatory MCP, model API package, hook, or service. Target Python 3.11 or newer, matching the current project floor; run isolated helper tests with that minimum interpreter in CI.
+- No new mandatory MCP, model API package, hook, or service. Target Python 3.11 or newer, matching the current project floor (`requires-python = ">=3.11"` in `pyproject.toml`). CI (`.github/workflows/ci.yml`) only provisions Python 3.14, so a passing CI run verifies 3.14 only; avoid 3.12+-only syntax so 3.11 compatibility holds by construction, and do not claim CI proves the 3.11 floor.
 - Draft and validate never execute proposed evidence commands or activate goals. Native activation requires current authorization and observable goal state.
 - JSON is authoritative; Markdown is derived. Use explicit destinations, private atomic writes, and no implicit overwrite or global goal store.
 - Preserve dirty-tree work. Do not publish, commit, start paid model trials, or implement this feature merely because this plan was requested. At execution time, commits follow the repository verification workflow and existing authorization.
@@ -121,7 +121,11 @@ READY; nonmaterial assumptions remain visible.
 Diagnostics have exactly `code`, `path`, and `message`; use structural field paths,
 not raw unknown keys or input values. `GoalInputError` carries `code` and exit code.
 CLI accepts `--input FILE|- --format json|text`; default input is stdin and format
-is JSON. Always emit `{status,diagnostics}`, with status VALID, INVALID, or ERROR.
+is JSON. Always emit `{status,diagnostics}` semantics; status is VALID, INVALID, or
+ERROR (matching the design's validator status vocabulary). `--format text` renders
+the same status/diagnostics as one `STATUS` line followed by one
+`<code> <path>: <message>` line per diagnostic (no lines beyond the status line
+when diagnostics is empty); exit codes are identical across both formats.
 Exit 0/2/3 means valid/invalid/operational error. `--help` exits 0 without reading.
 
 - [ ] Write the positive fixture above and parameterized negative cases. Include exact-limit and one-byte-over input, malformed UTF-8/JSON, duplicate keys, NaN/Infinity, booleans, deep nesting, missing keys, unknown keys, dangling and duplicate IDs, wrong evidence variant, and invalid reciprocal coverage.
@@ -176,9 +180,11 @@ def test_no_clobber(storage_module, tmp_path):
 
 ## T3: Composition, profiles, readiness and activation skill
 
-**Files:** Create `B/SKILL.md`, `B/agents/openai.yaml`,
-`B/references/codex-profile.md`, `B/references/claude-profile.md`,
-`B/references/examples.md`, and `B/evals/evals.json`.
+**Files:** Create `B/SKILL.md`, `B/references/codex-profile.md`,
+`B/references/claude-profile.md`, `B/references/examples.md`, and
+`B/evals/evals.json`. `B/agents/openai.yaml` is a T4-generated output of
+`tools/generate_plugin_views.py` (writes it per discovered skill); do not
+hand-author it here — verify it after T4's generator run.
 
 **Interfaces:** Skill verbs and target arguments are exactly those in the design.
 `validate` loads JSON, runs T1, then performs semantic review without executing
@@ -213,8 +219,13 @@ for downstream work. Host-only commentary stays outside the portable goal.
 **Files:** Modify
 `plugins/manifest-spec-planning/skills/plan-manage/SKILL.md`,
 `plugins/manifest-spec-planning/skills/spec-audit-tasks/SKILL.md`,
-`plugins/manifest-spec-planning/manifest-capabilities.yml`; create
-`tests/python/plugin_runtime/test_goal_integration.py`.
+`plugins/manifest-spec-planning/manifest-capabilities.yml`,
+`configs/claude/config/skill_policies.yml` (registry entry plus
+`domain_expected_total`/`policy_expected_total`/`expected_total` count bumps —
+required by `tests/bats/bundle_partition.bats`), and
+`configs/claude/config/command_config.yml` (`tool_policies` entry with a
+`subagents` disposition — required by `tests/bats/subagent_policy.bats`);
+create `tests/python/plugin_runtime/test_goal_integration.py`.
 Generated outputs are emitted by existing generators, not edited by hand.
 
 **Interfaces:** Consumers receive explicit contract path/revision and rendered text
@@ -230,15 +241,22 @@ alongside an accepted contract snapshot. Compute SHA-256 from exact accepted JSO
 bytes, not rendered Markdown. Before consuming a path, compare its bytes and
 revision to that baseline. Missing baseline means unverified, not accepted.
 A digest detects stale content; authorization comes from the actual user/session.
-The accepted snapshot allows comparison of deleted requirements and weakened
-criteria even when a revision increments. Keep it in the existing handoff, without
+The accepted snapshot allows comparison of deleted or weakened requirements,
+boundaries (exclusions, preserved behavior, approval-required actions), and
+output obligations even when a revision increments. Keep it in the existing handoff, without
 a new approval database. Consumers use standard-library hashing in their current
 execution context; no new public CLI is required.
 
 - [ ] Add isolated-copy tests using the existing `test_spec_planning_runtime.py` pattern: run helpers from a copied bundle with a temporary HOME/XDG environment, empty PYTHONPATH, `python -S -B`, no project imports and no installed sibling plugins. Verify nested assets ship.
-  Add five handoff fixtures: changed bytes at the same revision; lower revision than accepted; deleted mandatory requirement at a higher revision; weakened evidence at a higher revision; checkpoint pointing to an old digest. Byte/revision comparison detects cases one, two and five; semantic model traces must flag deletion and weakening against the accepted snapshot. None may silently inherit READY. A positive authorized-revision fixture recomputes readiness and replaces the accepted snapshot only after agreement.
+  Add five handoff fixtures: changed bytes at the same revision; lower revision than accepted; deleted mandatory requirement at a higher revision; weakened evidence, boundary, or output obligation at a higher revision; checkpoint pointing to an old digest. Byte/revision comparison detects cases one, two and five; semantic model traces must flag deletion and weakening of requirements, boundaries, and output obligations against the accepted snapshot. None may silently inherit READY. A positive authorized-revision fixture recomputes readiness and replaces the accepted snapshot only after agreement.
 - [ ] Run `uv run --project configs/claude pytest tests/python/plugin_runtime/test_goal_integration.py -q`; confirm intended missing-skill failure.
 - [ ] Add optional contract intake to Plan Management and Task Completion Audit. Absence preserves current behavior. Presence causes validation and revision checking before consumption. Goal drafting never calls plan execute, Delegate task, or checkpoint automatically. Explicit handoff keeps the user’s existing scope.
+- [ ] Bump `plugins/manifest-spec-planning/.claude-plugin/plugin.json` to the next
+  minor version (skill added, per `docs/PLUGIN_RELEASE.md`'s bump table) and bump
+  every other domain bundle's `plugin.json` to the same version in lockstep, since
+  `tools/build_manifest_release.py` (`_release_version`) requires all domain bundle
+  versions to be identical and fails the release build otherwise. Update the
+  matching marketplace entries and regenerate views after bumping.
 - [ ] Regenerate views with `uv run python tools/generate_plugin_views.py`, mirror with `bash configs/claude/scripts/generate_skill_mirror.sh`, and harness rules through the existing `generate_cursor_rules.sh`. Read `generate_commands_doc.py --help` before selecting its documented regeneration mode. Inventory generator diffs against the dirty-tree baseline and preserve unrelated edits. Refresh capability inspection using the existing release inspection path; do not hand-mark new capability rows READY.
 - [ ] Run the commands below and review installed output. Keep the existing exact runtime-asset-set test unchanged: nested skill scripts should ship with the skill, not become undeclared root runtimes. T4 covers FR-09 and handoff FR-10.
 

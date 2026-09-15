@@ -293,7 +293,11 @@ required_python_module_gate() {
         return 0
     fi
     if ! "$binary" -c \
-        'import importlib.util,sys; sys.exit(importlib.util.find_spec(sys.argv[1]) is None)' \
+        'import importlib,sys
+try:
+    importlib.import_module(sys.argv[1])
+except Exception:
+    sys.exit(1)' \
         "$module"; then
         printf '| %s | BLOCKED (missing Python module %s) |\n' "$name" "$module"
         BLOCKED=$((BLOCKED + 1))
