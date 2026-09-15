@@ -147,6 +147,57 @@ def test_apply_uses_saved_patch_in_clean_matching_repo(store):
     assert Path("a.txt").read_text() == "user edit\n"
 
 
+def test_apply_accepts_case_and_url_form_mismatch_against_recorded_repo(store):
+    """The recorded repository and the local `origin` remote must match up to
+    GitHub's case-insensitivity and accepted URL forms (ssh://, git@, https),
+    not by raw string equality."""
+    subprocess.run(["git", "init", "-q"], check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "ssh://git@github.com/Example/Repo.git"],
+        check=True,
+    )
+    Path("a.txt").write_text("old\n")
+    Path(".gitignore").write_text("jobs/\n")
+    subprocess.run(["git", "add", "a.txt", ".gitignore"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    record = store.create(
+        "jules",
+        {
+            "execution_kind": "remote_session",
+            "state": "completed",
+            "remote": {
+                "driver": "jules_cli",
+                "session_id": "123",
+                "repository": "example/repo",
+                "url": "https://jules.google.com/session/123",
+            },
+        },
+    )
+    path = Path(store.job_dir(record["job_id"])) / "changes.patch"
+    path.write_text(
+        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\n"
+    )
+    args = delegate.cli.build_parser().parse_args(["apply", record["job_id"]])
+    assert jobs.cmd_apply(args) == 0
+    assert Path("a.txt").read_text() == "new\n"
+
+
 def test_apply_from_subdirectory_applies_root_level_patch(store, monkeypatch):
     subprocess.run(["git", "init", "-q"], check=True)
     subprocess.run(
@@ -186,6 +237,54 @@ def test_apply_from_subdirectory_applies_root_level_patch(store, monkeypatch):
     args = delegate.cli.build_parser().parse_args(["apply", record["job_id"]])
     assert jobs.cmd_apply(args) == 0
     assert (root / "root.txt").read_text() == "new\n"
+
+
+def test_pull_resolves_remote_job_created_in_a_different_workspace(
+    tmp_path, monkeypatch
+):
+    """A job submitted from one directory must still be pull/apply/status-able
+    from another: remote sessions are not tied to the invoking cwd, unlike
+    local subprocess jobs."""
+    monkeypatch.setenv(delegate.constants.DELEGATIONS_DIR_ENV, str(tmp_path / "jobs"))
+    origin_dir = tmp_path / "origin"
+    origin_dir.mkdir()
+    monkeypatch.chdir(origin_dir)
+    origin_store = delegate.JobStore()
+    record = create(origin_store, "completed")
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setattr(
+        jules,
+        "run",
+        lambda *a, **k: jules.CommandResult(0, "diff --git a/x b/x\n", ""),
+    )
+    args = delegate.cli.build_parser().parse_args(["pull", record["job_id"]])
+    assert jobs.cmd_pull(args) == 0
+
+
+def test_status_resolves_remote_job_created_in_a_different_workspace(
+    tmp_path, monkeypatch
+):
+    jobs_cli = importlib.import_module("manifest_delegate.jobs_cli")
+    monkeypatch.setenv(delegate.constants.DELEGATIONS_DIR_ENV, str(tmp_path / "jobs"))
+    origin_dir = tmp_path / "origin"
+    origin_dir.mkdir()
+    monkeypatch.chdir(origin_dir)
+    origin_store = delegate.JobStore()
+    record = create(origin_store, "remote_pending")
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    table = (
+        "ID   Description   Repo   Last active   Status\n"
+        "123   Task   example/repo   1 day ago   Completed\n"
+    )
+    monkeypatch.setattr(jules, "run", lambda *a, **k: jules.CommandResult(0, table, ""))
+    args = delegate.cli.build_parser().parse_args(["status", record["job_id"]])
+    assert jobs_cli.cmd_status(args) == 0
 
 
 @pytest.mark.parametrize("command", ["pull", "apply"])

@@ -7,6 +7,7 @@ import sys
 import time
 
 from . import backend, constants, containment, jobstore, process, remote_jobs, task
+from .task_resolution import _resolve_job_id_anywhere
 
 
 def cmd_status(args):
@@ -32,7 +33,7 @@ def cmd_status(args):
                 )
         return 0
 
-    resolved, error = task._resolve_job_id(store, args.job_id)
+    store, resolved, error = _resolve_job_id_anywhere(store, args.job_id)
     if error:
         print(f"delegate: {error}", file=sys.stderr)
         return 2
@@ -70,7 +71,7 @@ def cmd_result(args):
     if not args.job_id:
         print("delegate: job id or prefix required", file=sys.stderr)
         return 2
-    resolved, error = task._resolve_job_id(store, args.job_id)
+    store, resolved, error = _resolve_job_id_anywhere(store, args.job_id)
     if error:
         print(f"delegate: {error}", file=sys.stderr)
         return 2

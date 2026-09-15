@@ -88,18 +88,18 @@ def status(store, args, record: dict) -> int:
     )
 
 
-def _resolve(args):
-    from .task_resolution import _resolve_job_id
+def _resolve(args, verb):
+    from .task_resolution import _resolve_job_id_anywhere
 
     store = jobstore.JobStore()
     if not isinstance(getattr(args, "job_id", None), str) or not args.job_id:
         raise ValueError("job id or prefix required")
-    resolved, error = _resolve_job_id(store, args.job_id)
+    store, resolved, error = _resolve_job_id_anywhere(store, args.job_id)
     if error:
         raise ValueError(error)
     record = store.read(resolved)
     if record.get("execution_kind") != "remote_session":
-        raise ValueError("pull requires a remote-session job")
+        raise ValueError(f"{verb} requires a remote-session job")
     remote = record.get("remote") or {}
     if remote.get("driver") != "jules_cli" or not jules_cli.SESSION.fullmatch(
         remote.get("session_id") or ""
@@ -111,7 +111,7 @@ def _resolve(args):
 def cmd_pull(args) -> int:
     """Fetch the completed diff into job storage; applying is a separate explicit action."""
     try:
-        store, record = _resolve(args)
+        store, record = _resolve(args, "pull")
         record = refresh(store, record)
         if record["state"] != "completed":
             raise ValueError(
@@ -141,7 +141,7 @@ def cmd_pull(args) -> int:
 def cmd_apply(args) -> int:
     """Apply only the previously fetched artifact to the exact recorded repository."""
     try:
-        store, record = _resolve(args)
+        store, record = _resolve(args, "apply")
         path = Path(store.job_dir(record["job_id"])) / "changes.patch"
         if record["state"] != "completed" or path.is_symlink() or not path.is_file():
             raise ValueError(
@@ -159,14 +159,13 @@ def cmd_apply(args) -> int:
             raise ValueError("could not resolve the current repository root")
         root_cwd = str(root.resolve())
         origin = jules_cli.run(["git", "remote", "get-url", "origin"], cwd=root_cwd)
-        repo = record["remote"]["repository"]
-        allowed = {
-            f"https://github.com/{repo}",
-            f"https://github.com/{repo}.git",
-            f"git@github.com:{repo}",
-            f"git@github.com:{repo}.git",
-        }
-        if origin.returncode or origin.stdout.strip() not in allowed:
+        recorded_repo = jules_cli.normalize_github_repo(record["remote"]["repository"])
+        origin_repo = (
+            jules_cli.normalize_github_repo(origin.stdout.strip())
+            if origin.returncode == 0
+            else None
+        )
+        if origin.returncode or recorded_repo is None or origin_repo != recorded_repo:
             raise ValueError("current repository does not match the remote job")
         clean = jules_cli.run(["git", "status", "--porcelain"], cwd=root_cwd)
         if clean.returncode or clean.stdout.strip():

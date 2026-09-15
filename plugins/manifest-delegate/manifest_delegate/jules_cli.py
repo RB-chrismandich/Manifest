@@ -81,9 +81,45 @@ def run(
     )
 
 
+_GITHUB_URL_PREFIXES = (
+    "https://github.com/",
+    "http://github.com/",
+    "ssh://git@github.com/",
+    "git@github.com:",
+)
+
+
+def normalize_github_repo(value: str) -> str | None:
+    """Canonicalize a GitHub owner/repo reference from any accepted form
+    (bare `owner/repo`, `https://github.com/owner/repo[.git]`,
+    `git@github.com:owner/repo[.git]`, `ssh://git@github.com/owner/repo[.git]`)
+    into a lowercase `owner/repo` string, since GitHub repository paths are
+    case-insensitive. Returns None when the value does not resolve to a
+    two-segment GitHub repository path."""
+    text = value.strip()
+    lowered = text.lower()
+    for prefix in _GITHUB_URL_PREFIXES:
+        if lowered.startswith(prefix):
+            text = text[len(prefix) :]
+            break
+    if text.endswith(".git"):
+        text = text[: -len(".git")]
+    if not REPOSITORY.fullmatch(text):
+        return None
+    return text.lower()
+
+
 def auth_error(output: str) -> bool:
-    """Detect the CLI's exit-zero authentication failures."""
-    return bool(_AUTH_ERROR.search(output))
+    """Detect the CLI's exit-zero authentication failures on diagnostic-shaped
+    lines only. A bare owner/repo row is data, never a diagnostic, even when
+    the repository name itself contains a word like "unauthorized"."""
+    for line in _ANSI.sub("", output).splitlines():
+        stripped = line.strip()
+        if not stripped or REPOSITORY.fullmatch(stripped):
+            continue
+        if _AUTH_ERROR.search(stripped):
+            return True
+    return False
 
 
 def parse_repositories(output: str) -> set[str]:

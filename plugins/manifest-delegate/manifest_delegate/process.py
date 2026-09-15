@@ -150,8 +150,11 @@ def _backend_preexec(job_dir):
     <job_dir>/backend.pgid before exec. The write happens in the forked child,
     so the pgid is recoverable even if the parent worker is SIGKILLed in the
     window between Popen() returning and the parent's on_pgid persist — closing
-    the pre-persist orphan race. Runs post-fork/pre-exec: uses only raw syscalls
-    (async-signal-safe-ish), reports nothing (no stdio) and never raises out."""
+    the pre-persist orphan race. Runs post-fork/pre-exec and is fail-closed: the
+    optional cgroup join (containment.join_hook()) deliberately propagates its
+    errors via ordinary Python file I/O, and os.setsid()/os.open()/os.write()
+    can raise too. Any exception here aborts the exec instead of silently
+    starting an uncontained backend."""
     pgid_path = os.path.join(job_dir, BACKEND_PGID_FILENAME)
     join = containment.join_hook(job_dir)
 

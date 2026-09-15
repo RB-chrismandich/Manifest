@@ -128,11 +128,14 @@ def cmd_task(
     if error:
         print(f"delegate: {error}", file=sys.stderr)
         return 2
+    canonical_repo = jules_cli.normalize_github_repo(args.repo)
     try:
         probe = jules_cli.run(["jules", "remote", "list", "--repo"])
-        if probe.returncode or args.repo not in jules_cli.parse_repositories(
-            probe.stdout + probe.stderr
-        ):
+        accessible = {
+            jules_cli.normalize_github_repo(row)
+            for row in jules_cli.parse_repositories(probe.stdout + probe.stderr)
+        }
+        if probe.returncode or canonical_repo not in accessible:
             raise ValueError(
                 "repository access unverified; run jules login and check GitHub App access"
             )
@@ -140,7 +143,7 @@ def cmd_task(
         print(f"delegate: {exc}", file=sys.stderr)
         return 1
     budget = min(backend.resolve_budget(entry, user_config, args.budget), 120)
-    record = submit(store, entry["id"], args.repo, payload, budget)
+    record = submit(store, entry["id"], canonical_repo, payload, budget)
     from .remote_jobs import render
 
     render(record, args.json)

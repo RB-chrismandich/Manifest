@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import sys
 
 from . import backend, config, jobstore, readiness, registry
@@ -25,6 +26,48 @@ def _resolve_job_id(store, prefix):
     if not matches:
         return None, f"no job matches {prefix!r}"
     return None, "ambiguous job id {!r} matches: {}".format(prefix, ", ".join(matches))
+
+
+def _resolve_job_id_anywhere(store, prefix):
+    """Resolve prefix in the given (cwd-scoped) workspace first; if absent,
+    search every other workspace for a matching remote-session job. Remote
+    jobs are not tied to the directory a later `status`/`pull`/`apply` call
+    happens to run from, unlike local subprocess jobs, which stay scoped to
+    their originating workspace."""
+    resolved, error = _resolve_job_id(store, prefix)
+    if not error:
+        return store, resolved, None
+    root = jobstore.delegations_root()
+    if not os.path.isdir(root):
+        return None, None, error
+    candidates = []
+    for name in os.listdir(root):
+        workspace_dir = os.path.join(root, name)
+        if workspace_dir == store.workspace_dir or not os.path.isdir(workspace_dir):
+            continue
+        other = jobstore.JobStore._for_workspace_dir(workspace_dir)
+        for job_id in other.list_job_ids():
+            if job_id != prefix and not job_id.startswith(prefix):
+                continue
+            try:
+                record = other.read(job_id)
+            except (OSError, ValueError):
+                continue
+            if record.get("execution_kind") == "remote_session":
+                candidates.append((other, job_id))
+    exact = [c for c in candidates if c[1] == prefix]
+    pool = exact or candidates
+    if len(pool) == 1:
+        return pool[0][0], pool[0][1], None
+    if not pool:
+        return None, None, error
+    return (
+        None,
+        None,
+        "ambiguous job id {!r} matches: {}".format(
+            prefix, ", ".join(sorted(c[1] for c in pool))
+        ),
+    )
 
 
 def _resolve_sole_active(store):

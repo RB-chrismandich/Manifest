@@ -44,8 +44,34 @@ def test_repository_probe_ignores_update_diagnostics(cli_adapter):
     ) == {"example/repository"}
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("Owner/Repo", "owner/repo"),
+        ("https://github.com/Owner/Repo", "owner/repo"),
+        ("https://github.com/Owner/Repo.git", "owner/repo"),
+        ("git@github.com:Owner/Repo.git", "owner/repo"),
+        ("ssh://git@github.com/Owner/Repo.git", "owner/repo"),
+        ("not a repo", None),
+    ],
+)
+def test_normalize_github_repo_covers_case_and_url_forms(cli_adapter, value, expected):
+    assert cli_adapter.normalize_github_repo(value) == expected
+
+
 def test_plain_auth_error_never_turns_arbitrary_log_path_into_repo(cli_adapter):
     assert cli_adapter.parse_repositories("Error: unavailable\ncache/file\n") == set()
+
+
+def test_repository_named_like_an_auth_diagnostic_is_not_rejected(cli_adapter):
+    """A real, positively-listed repository whose name happens to contain an
+    auth-diagnostic word (e.g. "unauthorized") must not zero out the whole
+    listing; only genuine diagnostic lines should trigger auth_error."""
+    assert cli_adapter.parse_repositories("owner/unauthorized-tools\n") == {
+        "owner/unauthorized-tools"
+    }
+    assert not cli_adapter.auth_error("owner/unauthorized-tools\n")
+    assert cli_adapter.auth_error("Error: unauthorized\n")
 
 
 @pytest.mark.parametrize(
