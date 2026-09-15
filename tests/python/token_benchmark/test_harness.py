@@ -424,7 +424,9 @@ class TestMainSdkGuard:
         monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
         monkeypatch.setattr(harness, "HAS_GENAI", False)
         with pytest.raises(SystemExit) as exc:
-            harness.main(["--api-only", "--providers", "claude,gemini"])
+            harness.main(
+                ["--api-only", "--providers", "claude,gemini", "--suite", "academic"]
+            )
         assert exc.value.code == 2
         err = capsys.readouterr().err
         assert "anthropic" in err
@@ -439,7 +441,7 @@ class TestMainSdkGuard:
         harness = self._patched_harness(monkeypatch, tmp_path)
         monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
         with pytest.raises(SystemExit) as exc:
-            harness.main(["--providers", "claude"])
+            harness.main(["--providers", "claude", "--suite", "academic"])
         assert exc.value.code == 2
         assert not (tmp_path / "results").exists()
 
@@ -450,9 +452,86 @@ class TestMainSdkGuard:
         monkeypatch.setattr(harness, "HAS_GENAI", False)
         fake = MagicMock(stdout="B\n", stderr="", returncode=0)
         with patch("tests.token_benchmark.harness.subprocess.run", return_value=fake):
-            harness.main(["--cli-only", "--providers", "claude"])
+            harness.main(["--cli-only", "--providers", "claude", "--suite", "academic"])
         assert len(list((tmp_path / "results").glob("*.jsonl"))) == 1
         assert (tmp_path / "docs" / "TOKEN_BENCHMARK.md").exists()
+
+
+class TestSuiteCliValidation:
+    """Task 5 #6: --suite/--conditions/--trials/--timeout-seconds validation.
+    Every case here is --report-only, so no model call is made."""
+
+    def _patched_harness(self, monkeypatch, tmp_path):
+        from tests.token_benchmark import harness
+
+        (tmp_path / "docs").mkdir()
+        monkeypatch.setattr(harness, "RESULTS_DIR", tmp_path / "results")
+        monkeypatch.setattr(harness, "REPO_ROOT", tmp_path)
+        return harness
+
+    def test_suite_all_with_explicit_conditions_is_rejected(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(
+                ["--suite", "all", "--conditions", "none,slim,full", "--report-only"]
+            )
+        assert exc.value.code == 2
+        assert "ambiguous" in capsys.readouterr().err
+
+    def test_suite_all_without_conditions_is_accepted(self, monkeypatch, tmp_path):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        harness.main(["--suite", "all", "--report-only"])  # must not raise
+
+    def test_nonpositive_trials_is_rejected(self, monkeypatch, tmp_path, capsys):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(["--trials", "0", "--report-only"])
+        assert exc.value.code == 2
+        assert "--trials" in capsys.readouterr().err
+
+    def test_nonpositive_timeout_is_rejected(self, monkeypatch, tmp_path, capsys):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(["--timeout-seconds", "-1", "--report-only"])
+        assert exc.value.code == 2
+        assert "--timeout-seconds" in capsys.readouterr().err
+
+    def test_unknown_workflow_condition_is_rejected(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(
+                ["--suite", "workflow", "--conditions", "bogus", "--report-only"]
+            )
+        assert exc.value.code == 2
+        assert "Unknown workflow conditions" in capsys.readouterr().err
+
+    def test_unknown_academic_condition_is_rejected(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(
+                ["--suite", "academic", "--conditions", "bogus", "--report-only"]
+            )
+        assert exc.value.code == 2
+        assert "Unknown academic conditions" in capsys.readouterr().err
+
+    def test_report_only_makes_no_model_calls_for_any_suite(
+        self, monkeypatch, tmp_path
+    ):
+        """--report-only must never call run_benchmark or run_workflow."""
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        with (
+            patch("tests.token_benchmark.harness.run_benchmark") as run_benchmark,
+            patch("tests.token_benchmark.harness.run_workflow") as run_workflow,
+        ):
+            harness.main(["--suite", "all", "--report-only"])
+        run_benchmark.assert_not_called()
+        run_workflow.assert_not_called()
 
 
 class TestWriteResult:
