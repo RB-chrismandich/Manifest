@@ -14,6 +14,13 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "description": "browser-use hard-pins click (==8.3.1 through 0.13.8, ==8.3.3 from 0.13.9), so the smoke-agent group makes any higher click unresolvable in configs/claude/uv.lock. Cap click until browser-use unpins (see PR #930).",
+      "matchPackageNames": [
+        "click"
+      ],
+      "allowedVersions": "<=8.3.3"
     }
   ],
   "ignoreDeps": [
