@@ -19,7 +19,9 @@ from manifest_agent.models import MarketplaceSource, MarketplaceSourceKind
 from manifest_agent.paths import xdg_paths
 from manifest_agent.process import CommandRunner
 
-REPOSITORY_URL = os.environ.get("MANIFEST_REPOSITORY_URL", "https://github.com/RB-chrismandich/Manifest")
+REPOSITORY_URL = os.environ.get(
+    "MANIFEST_REPOSITORY_URL", "https://github.com/RB-chrismandich/Manifest"
+)
 RELEASE_INDEX_URL = (
     REPOSITORY_URL + "/releases/download/{version}/manifest-release.json"
 )
