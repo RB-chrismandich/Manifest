@@ -115,3 +115,33 @@ def test_codex_verifies_addon_contract_components_and_executables(
 
     assert result.state is ResultState.BLOCKED
     assert "manifest-i-have-adhd:executable:python3" in " ".join(result.errors)
+
+
+def test_desired_target_identity(desired: DesiredState) -> None:
+    from dataclasses import replace
+    from pathlib import Path
+
+    from manifest_agent.adapters.codex_catalog import desired_target_identity
+    from manifest_agent.models import (
+        MarketplaceSourceKind,
+    )
+
+    # Create a completely stable fixture since the default 'desired' fixture uses tmp_path
+    # inside nested models like marketplace_source and release_root.
+    stable_desired = replace(
+        desired,
+        source="/stable/path",
+        release_root=Path("/stable/release_root"),
+        repository_url="https://github.com/example/repo",
+        marketplace_source=replace(
+            desired.marketplace_source,
+            source="/stable/marketplace",
+            kind=MarketplaceSourceKind.LOCAL,
+        ),
+    )
+
+    # Note: we need to print the hash to establish the known good baseline once
+    # print(f"NEW_HASH: {desired_target_identity(stable_desired)}")
+
+    expected_hash = "c232b13ddc13f0c60a315dd6f181fa46c0aa2758271cc1cb1faac7d9e7eb9198"
+    assert desired_target_identity(stable_desired) == expected_hash
