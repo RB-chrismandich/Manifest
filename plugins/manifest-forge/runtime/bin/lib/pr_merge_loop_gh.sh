@@ -12,8 +12,7 @@
 
 # --- platform seam (default drives native gh) ---
 gh_op() {
-    # A disposition the reviewing agent recorded via set-disposition wins over the live default
-    # (there is no platform API for "/pr-review said merge"; the state file IS that signal).
+    # A disposition the reviewing agent recorded via set-disposition wins over the live default.
     if [[ "$1" == "disposition" && -n "${2:-}" && -f "${STATE_DIR}/disp_${2}" ]]; then
         cat "${STATE_DIR}/disp_${2}"
         return 0
@@ -24,13 +23,13 @@ gh_op() {
     fi
     local op="$1" pr="${2:-}"
     local platform="${PR_MERGE_LOOP_PLATFORM:-$(bash "${SCRIPT_DIR}/git_platform.sh" 2> /dev/null || echo github)}"
-    # GitLab parity: monitoring works; the merge path FAILS CLOSED to a human (admin-check=false
-    # → cmd_merge exits 9 → ready-to-merge). Full GitLab auto-merge is design-only (glab not
-    # verified here — research.md R1); this stub never auto-merges on GitLab rather than risk a
-    # wrong merge.
     if [[ "$platform" == "gitlab" ]]; then
         case "$op" in
-            list) glab mr list -F json 2> /dev/null || echo '[]' ;;
+            fp-scope | fp-view | fp-checks | fp-threads)
+                err "state fingerprinting is unsupported for provider gitlab"
+                return 13
+                ;;
+            list) glab mr list -F json 2> /dev/null ;;
             checks) glab ci status 2> /dev/null ;;
             author) glab mr view "$pr" -F json 2> /dev/null | python3 -c 'import json,sys;print((json.load(sys.stdin).get("author") or {}).get("username",""))' 2> /dev/null ;;
             admin-check) echo false ;;
@@ -40,38 +39,103 @@ gh_op() {
                 ;;
             *) echo "" ;;
         esac
-        return 0
+        return $?
     fi
     case "$op" in
+        fp-scope) _repository_scope_json ;;
+        fp-view)
+            _net gh pr view "$pr" \
+                --json headRefOid,baseRefName,mergeable,mergeStateStatus,reviewDecision,latestReviews,labels,isDraft,state \
+                2> /dev/null
+            ;;
+        fp-checks) _github_fp_checks "$pr" ;;
+        fp-threads) gh_threads_raw "$pr" ;;
         list) gh pr list --json number,author 2> /dev/null ;;
-        checks) gh pr checks "$pr" --json bucket -q '.[].bucket' 2> /dev/null ;;
+        checks) _github_fp_checks "$pr" | python3 -c 'import json,sys;print("\n".join(str(item["bucket"]) for item in json.load(sys.stdin)))' ;;
         reviewdecision) gh pr view "$pr" --json reviewDecision -q '.reviewDecision' 2> /dev/null ;;
         unresolved-human) count_unresolved_human "$pr" ;;
         disposition) echo keep ;;
         mergeable) gh pr view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2> /dev/null ;;
-        hold) gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null | grep -qx hold && echo true || echo false ;;
+        hold) _github_hold "$pr" ;;
         author) gh pr view "$pr" --json author -q '.author.login' 2> /dev/null ;;
         admin-check) gh api "repos/$(_owner_repo_from_remote)" -q '.permissions.admin' 2> /dev/null || echo false ;;
         protection) gh api "repos/$(_owner_repo_from_remote)/branches/$(gh_op basebranch "$pr")/protection" -q '"enforce_admins="+(.enforce_admins.enabled|tostring)+" required_signatures="+(.required_signatures.enabled|tostring)+" merge_queue=false"' 2> /dev/null || echo "PROTECTION_LOOKUP_FAILED" ;;
         update-branch) gh pr update-branch "$pr" 2>&1 ;;
+        add-label) gh issue edit "$pr" --add-label "${3:?label required}" 2>&1 ;;
         do-merge) gh pr merge "$pr" --squash --admin --delete-branch 2>&1 ;;
         headsha) gh pr view "$pr" --json headRefOid -q '.headRefOid' 2> /dev/null ;;
         basebranch) gh pr view "$pr" --json baseRefName -q '.baseRefName' 2> /dev/null ;;
         mergecommit) gh pr view "$pr" --json mergeCommit -q '.mergeCommit.oid // empty' 2> /dev/null ;;
+        *)
+            err "unsupported GitHub operation: $op"
+            return 64
+            ;;
     esac
+}
+
+_repository_scope_json() {
+    local url
+    url="$(git remote get-url origin 2> /dev/null)" || return 1
+    python3 - "$url" <<'PY'
+import json
+import re
+import sys
+from urllib.parse import urlsplit
+
+url = sys.argv[1].strip()
+if "://" in url:
+    parsed = urlsplit(url)
+    host = parsed.hostname or ""
+    path = parsed.path
+else:
+    match = re.fullmatch(r"(?:[^@]+@)?([^:]+):(.+)", url)
+    if not match:
+        raise SystemExit(1)
+    host, path = match.groups()
+path = path.strip("/")
+if path.endswith(".git"):
+    path = path[:-4]
+parts = path.split("/")
+if not host or len(parts) != 2 or not all(parts):
+    raise SystemExit(1)
+print(json.dumps({"host": host, "owner_repo": "/".join(parts)}, separators=(",", ":")))
+PY
+}
+
+_github_fp_checks() {
+    local pr="${1:?pr required}" raw rc=0
+    raw="$(_net gh pr checks "$pr" \
+        --json name,bucket,state,link,startedAt,completedAt 2> /dev/null)" || rc=$?
+    case "$rc" in
+        0 | 1 | 8) ;;
+        *) return "$rc" ;;
+    esac
+    printf '%s' "$raw" | python3 -c '
+import json,sys
+value=json.load(sys.stdin)
+if not isinstance(value,list):
+    raise ValueError("checks")
+print(json.dumps(value,separators=(",",":")))' 2> /dev/null
+}
+
+_github_hold() {
+    local pr="${1:?pr required}" raw
+    raw="$(_net gh pr view "$pr" --json labels 2> /dev/null)" || return $?
+    printf '%s' "$raw" | python3 -c '
+import json,sys
+labels=json.load(sys.stdin).get("labels")
+if not isinstance(labels,list):
+    raise ValueError("labels")
+print("true" if any(isinstance(item,dict) and item.get("name")=="hold" for item in labels) else "false")' \
+        2> /dev/null
 }
 
 # Derive "owner/repo" from the origin remote via pure git (no API call) —
 # precedence: git > api. Handles both https and scp-like ssh remote forms.
 _owner_repo_from_remote() {
-    local url path
-    url="$(git remote get-url origin 2> /dev/null)" || return 1
-    url="${url%.git}"
-    url="${url#*://}" # strip scheme (https://, ssh://)
-    url="${url#*@}"   # strip user@ (scp-like ssh: git@host:owner/repo)
-    path="${url#*[:/]}"
-    [[ -n "$path" && "$path" == */* ]] || return 1
-    printf '%s' "$path"
+    _repository_scope_json | python3 -c '
+import json,sys
+print(json.load(sys.stdin)["owner_repo"],end="")' 2> /dev/null
 }
 
 # SECURITY (finding 3): a bot-started thread with a LATER human objection must
@@ -103,8 +167,9 @@ gh_threads_raw() {
             reviewThreads(first:100, after:$cursor){
               pageInfo{ hasNextPage endCursor }
               nodes{
-                isResolved isOutdated
-                comments(first:50){ pageInfo{ hasNextPage } nodes{ author{ login } } }
+                id isResolved isOutdated
+                comments(first:50){ pageInfo{ hasNextPage } nodes{ id createdAt author{ login } } }
+                latestComments:comments(last:1){ nodes{ id createdAt } }
               }}}}}'
     while :; do
         page=$((page + 1))

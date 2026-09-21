@@ -110,6 +110,17 @@ EOF
     assert_output --partial ".cursor/skills/my-skill/SKILL.md"
 }
 
+@test "generated skill rule carries both exact deployment ownership markers" {
+    make_skill alpha "Alpha"
+
+    run "$GEN"
+    assert_success
+
+    local rule="$RULES_DIR/alpha.mdc"
+    assert_equal "$(grep -Fxc '<!-- Auto-generated from .claude/skills/alpha/SKILL.md -->' "$rule")" "1"
+    assert_equal "$(grep -Fxc '<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->' "$rule")" "1"
+}
+
 @test "generated .mdc has valid frontmatter (delimiters, description, globs, alwaysApply)" {
     make_skill fm-check "Frontmatter check"
     run "$GEN"

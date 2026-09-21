@@ -41,6 +41,13 @@ err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "pr-merge-loop: $*" >
 # Injectable clock (tests fast-forward via PR_MERGE_LOOP_NOW_CMD) and a bounded
 # network wrapper so a single hung call can never bust the hard ceiling.
 _now() { if [[ -n "${PR_MERGE_LOOP_NOW_CMD:-}" ]]; then "${PR_MERGE_LOOP_NOW_CMD}"; else date +%s; fi; }
+_observed_at() {
+    if [[ -n "${PR_MERGE_LOOP_CLOCK_CMD:-}" ]]; then
+        "${PR_MERGE_LOOP_CLOCK_CMD}"
+    else
+        date -u +%Y-%m-%dT%H:%M:%SZ
+    fi
+}
 _net() {
     local t="${GH_NET_TIMEOUT:-60}"
     if command -v timeout > /dev/null 2>&1; then
@@ -109,18 +116,43 @@ revisions_used() {
 cmd_signals() {
     local pr="${1:?pr required}"
     local buckets rd uh disp mrg hold head
-    buckets="$(gh_op checks "$pr" | tr '\n' ' ')"
-    rd="$(gh_op reviewdecision "$pr")"
-    uh="$(gh_op unresolved-human "$pr")"
-    disp="$(gh_op disposition "$pr")"
-    mrg="$(gh_op mergeable "$pr")"
-    hold="$(gh_op hold "$pr")"
-    head="$(gh_op headsha "$pr")" # captured at decision time (finding 2 sink re-check)
+    buckets="$(gh_op checks "$pr" | tr '\n' ' ')" || {
+        err "#$pr: checks observation failed"
+        return 13
+    }
+    rd="$(gh_op reviewdecision "$pr")" || {
+        err "#$pr: review-decision observation failed"
+        return 13
+    }
+    uh="$(gh_op unresolved-human "$pr")" || {
+        err "#$pr: review-thread observation failed"
+        return 13
+    }
+    disp="$(gh_op disposition "$pr")" || {
+        err "#$pr: disposition observation failed"
+        return 13
+    }
+    mrg="$(gh_op mergeable "$pr")" || {
+        err "#$pr: mergeability observation failed"
+        return 13
+    }
     # main-ci health replaces the retired `verify` signal: with no sha arg
     # cmd_post_merge_check reads main HEAD and is fail-closed — unreadable or
     # pending main CI counts as red, which decide() maps to halt.
     local main_ci=green
     cmd_post_merge_check > /dev/null 2>&1 || main_ci=red
+    hold="$(gh_op hold "$pr")" || {
+        err "#$pr: hold observation failed"
+        return 13
+    }
+    head="$(gh_op headsha "$pr")" || {
+        err "#$pr: head-sha observation failed"
+        return 13
+    }
+    [[ -n "$mrg" && "$hold" =~ ^(true|false)$ && -n "$head" ]] || {
+        err "#$pr: signal observation was incomplete"
+        return 13
+    }
     python3 -c "${CLASSIFY_PY}" "$buckets" "$rd" "$uh" "$disp" "$mrg" "$main_ci" "$hold" \
         "$(revisions_used "$pr")" "${MAX_REVISIONS:-3}" "$head"
 }
@@ -270,6 +302,318 @@ print("" if v is None else v)
 '
 _jget() { python3 -c "${_JGET_PY}" "$1"; }
 
+# Canonicalize every material input in one place. Raw host responses live only
+# in a private temporary directory and are deleted before this function returns.
+# Output is sanitized digest metadata, never endpoint/check/review content.
+FINGERPRINT_PY='
+import hashlib
+import json
+import sys
+
+scope_path, view_path, checks_path, threads_path = sys.argv[1:5]
+apply_mode, revision, max_revision, disposition, main_ci, hold = sys.argv[5:11]
+
+def load_json(path):
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+def require_text(value, field, allow_empty=False):
+    if not isinstance(value, str) or (not allow_empty and not value):
+        raise ValueError(field)
+    return value
+
+def optional_text(value, field):
+    if value is None:
+        return None
+    return require_text(value, field, allow_empty=True)
+
+scope = load_json(scope_path)
+if not isinstance(scope, dict):
+    raise ValueError("scope")
+host = require_text(scope.get("host"), "scope.host").lower().rstrip(".")
+owner_repo = require_text(scope.get("owner_repo"), "scope.owner_repo")
+if owner_repo.count("/") != 1:
+    raise ValueError("scope.owner_repo")
+
+view = load_json(view_path)
+required_view = {
+    "headRefOid", "baseRefName", "mergeable", "mergeStateStatus",
+    "reviewDecision", "latestReviews", "labels", "isDraft", "state",
+}
+if not isinstance(view, dict) or not required_view.issubset(view):
+    raise ValueError("view")
+if not isinstance(view["isDraft"], bool):
+    raise ValueError("view.isDraft")
+
+reviews = []
+if not isinstance(view["latestReviews"], list):
+    raise ValueError("view.latestReviews")
+for review in view["latestReviews"]:
+    if not isinstance(review, dict):
+        raise ValueError("review")
+    reviews.append({
+        "id": require_text(review.get("id"), "review.id"),
+        "state": require_text(review.get("state"), "review.state"),
+        "submittedAt": require_text(review.get("submittedAt"), "review.submittedAt"),
+    })
+reviews.sort(key=lambda item: (item["id"], item["state"], item["submittedAt"]))
+
+if not isinstance(view["labels"], list):
+    raise ValueError("view.labels")
+audit_labels = {"loop-active", "needs-human", "ready-to-merge", "processed"}
+labels = []
+for label in view["labels"]:
+    if not isinstance(label, dict):
+        raise ValueError("label")
+    name = require_text(label.get("name"), "label.name")
+    folded = name.casefold()
+    if folded in audit_labels or folded.startswith("loop-active:"):
+        continue
+    labels.append(name)
+labels.sort(key=lambda item: (item.casefold(), item))
+
+checks_raw = load_json(checks_path)
+if not isinstance(checks_raw, list):
+    raise ValueError("checks")
+checks = []
+for check in checks_raw:
+    if not isinstance(check, dict):
+        raise ValueError("check")
+    checks.append({
+        "name": require_text(check.get("name"), "check.name"),
+        "bucket": require_text(check.get("bucket"), "check.bucket"),
+        "state": require_text(check.get("state"), "check.state"),
+        "link": optional_text(check.get("link"), "check.link"),
+        "startedAt": optional_text(check.get("startedAt"), "check.startedAt"),
+        "completedAt": optional_text(check.get("completedAt"), "check.completedAt"),
+    })
+checks.sort(key=lambda item: tuple("" if item[key] is None else item[key] for key in
+    ("name", "bucket", "state", "link", "startedAt", "completedAt")))
+
+with open(threads_path, encoding="utf-8") as handle:
+    pages = [json.loads(line) for line in handle if line.strip()]
+if not pages:
+    raise ValueError("threads")
+threads = []
+for page_index, page in enumerate(pages):
+    try:
+        connection = page["data"]["repository"]["pullRequest"]["reviewThreads"]
+        nodes = connection["nodes"]
+        page_info = connection["pageInfo"]
+    except (KeyError, TypeError):
+        raise ValueError("threads") from None
+    if not isinstance(nodes, list) or not isinstance(page_info, dict):
+        raise ValueError("threads")
+    if page_index == len(pages) - 1 and page_info.get("hasNextPage") is not False:
+        raise ValueError("threads.incomplete")
+    for thread in nodes:
+        if not isinstance(thread, dict):
+            raise ValueError("thread")
+        if not isinstance(thread.get("isResolved"), bool) or not isinstance(thread.get("isOutdated"), bool):
+            raise ValueError("thread.state")
+        latest = (thread.get("latestComments") or {}).get("nodes")
+        if not isinstance(latest, list) or len(latest) > 1:
+            raise ValueError("thread.latestComments")
+        latest_comment = latest[0] if latest else {}
+        if latest_comment and not isinstance(latest_comment, dict):
+            raise ValueError("thread.latestComment")
+        threads.append({
+            "id": require_text(thread.get("id"), "thread.id"),
+            "isResolved": thread["isResolved"],
+            "isOutdated": thread["isOutdated"],
+            "latestCommentId": optional_text(latest_comment.get("id"), "thread.latestComment.id"),
+            "latestCommentCreatedAt": optional_text(
+                latest_comment.get("createdAt"), "thread.latestComment.createdAt"
+            ),
+        })
+threads.sort(key=lambda item: (
+    item["id"], item["isResolved"], item["isOutdated"],
+    item["latestCommentId"] or "", item["latestCommentCreatedAt"] or "",
+))
+
+if apply_mode not in {"0", "1"}:
+    raise ValueError("apply")
+try:
+    revision_number = int(revision)
+    max_revision_number = int(max_revision)
+except ValueError:
+    raise ValueError("revision") from None
+if revision_number < 0 or max_revision_number < 1:
+    raise ValueError("revision")
+if disposition not in {"merge", "keep", "close"}:
+    raise ValueError("disposition")
+if hold not in {"true", "false"}:
+    raise ValueError("hold")
+if main_ci not in {"green", "red", "n/a"}:
+    raise ValueError("main_ci")
+
+external = {
+    "repository": {"host": host, "owner_repo": owner_repo},
+    "view": {
+        "headRefOid": require_text(view["headRefOid"], "view.headRefOid"),
+        "baseRefName": require_text(view["baseRefName"], "view.baseRefName"),
+        "mergeable": require_text(view["mergeable"], "view.mergeable"),
+        "mergeStateStatus": require_text(view["mergeStateStatus"], "view.mergeStateStatus"),
+        "reviewDecision": optional_text(view["reviewDecision"], "view.reviewDecision"),
+        "latestReviews": reviews,
+        "labels": labels,
+        "isDraft": view["isDraft"],
+        "state": require_text(view["state"], "view.state"),
+    },
+    "checks": checks,
+    "threads": threads,
+    "hold": hold == "true",
+    "main_ci": main_ci,
+}
+local = {
+    "apply": apply_mode == "1",
+    "revisions_used": revision_number,
+    "max_revisions": max_revision_number,
+    "disposition": disposition,
+}
+
+def digest(value):
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+scope_hash = hashlib.sha256((host + "\0" + owner_repo).encode()).hexdigest()
+print(json.dumps({
+    "schema_version": 1,
+    "scope_hash": scope_hash,
+    "fingerprint": digest({"external": external, "local": local}),
+    "external_fingerprint": digest(external),
+}, sort_keys=True, separators=(",", ":")))
+'
+
+collect_fingerprint_material() {
+    local pr="${1:?pr required}" tmp out disposition main_ci hold rc=0
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/manifest-pr-fp.XXXXXX")" || {
+        err "#$pr: cannot create private observation workspace"
+        return 13
+    }
+    chmod 700 "$tmp" 2> /dev/null || {
+        rm -rf "$tmp"
+        err "#$pr: cannot secure private observation workspace"
+        return 13
+    }
+    gh_op fp-scope "$pr" > "$tmp/scope" || rc=$?
+    [[ $rc -eq 0 ]] && gh_op fp-view "$pr" > "$tmp/view" || rc=$?
+    [[ $rc -eq 0 ]] && gh_op fp-checks "$pr" > "$tmp/checks" || rc=$?
+    [[ $rc -eq 0 ]] && gh_op fp-threads "$pr" > "$tmp/threads" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        rm -rf "$tmp"
+        err "#$pr: complete material observation unavailable (exit ${rc})"
+        return 13
+    fi
+    disposition="$(gh_op disposition "$pr")" || rc=$?
+    main_ci=green
+    cmd_post_merge_check > /dev/null 2>&1 || main_ci=red
+    [[ $rc -eq 0 ]] && hold="$(gh_op hold "$pr")" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        rm -rf "$tmp"
+        err "#$pr: actionable input observation unavailable (exit ${rc})"
+        return 13
+    fi
+    out="$(python3 -c "${FINGERPRINT_PY}" \
+        "$tmp/scope" "$tmp/view" "$tmp/checks" "$tmp/threads" \
+        "$APPLY" "$(revisions_used "$pr")" "${MAX_REVISIONS:-3}" \
+        "$disposition" "$main_ci" "$hold" 2> /dev/null)" || rc=$?
+    rm -rf "$tmp"
+    if [[ $rc -ne 0 || -z "$out" ]]; then
+        err "#$pr: material observation was incomplete or unparseable"
+        return 13
+    fi
+    printf '%s\n' "$out"
+}
+
+fingerprint_state_path() {
+    local pr="${1:?pr required}" material="${2:?material required}" scope_hash
+    scope_hash="$(printf '%s' "$material" | _jget scope_hash 2> /dev/null)" || return 1
+    [[ "$pr" =~ ^[0-9]+$ && "$scope_hash" =~ ^[0-9a-f]{64}$ ]] || return 1
+    printf '%s/fp_%s_%s.json\n' "$STATE_DIR" "$scope_hash" "$pr"
+}
+
+fingerprint_state_matches() {
+    local pr="${1:?pr required}" material="${2:?material required}" path fingerprint
+    path="$(fingerprint_state_path "$pr" "$material")" || return 1
+    [[ -f "$path" ]] || return 1
+    fingerprint="$(printf '%s' "$material" | _jget fingerprint 2> /dev/null)" || return 1
+    python3 - "$path" "$fingerprint" <<'PY' 2> /dev/null
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    state = json.load(handle)
+valid = (
+    isinstance(state, dict)
+    and set(state) == {"schema_version", "fingerprint", "action", "observed_at"}
+    and state.get("schema_version") == 1
+    and isinstance(state.get("fingerprint"), str)
+    and isinstance(state.get("action"), str)
+    and bool(state["action"])
+    and isinstance(state.get("observed_at"), str)
+    and bool(state["observed_at"])
+)
+sys.exit(0 if valid and state["fingerprint"] == sys.argv[2] else 1)
+PY
+}
+
+persist_fingerprint_state() {
+    local pr="${1:?pr required}" material="${2:?material required}" action="${3:?action required}"
+    local path fingerprint observed
+    path="$(fingerprint_state_path "$pr" "$material")" || return 1
+    fingerprint="$(printf '%s' "$material" | _jget fingerprint 2> /dev/null)" || return 1
+    observed="$(_observed_at)" || return 1
+    python3 - "$path" "$fingerprint" "$action" "$observed" <<'PY'
+import json
+import os
+import sys
+import tempfile
+
+path, fingerprint, action, observed = sys.argv[1:5]
+parent = os.path.dirname(path)
+os.makedirs(parent, mode=0o700, exist_ok=True)
+os.chmod(parent, 0o700)
+payload = {
+    "schema_version": 1,
+    "fingerprint": fingerprint,
+    "action": action,
+    "observed_at": observed,
+}
+descriptor, temporary = tempfile.mkstemp(
+    dir=parent, prefix="." + os.path.basename(path) + ".tmp."
+)
+try:
+    os.fchmod(descriptor, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        descriptor = -1
+        json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    os.chmod(path, 0o600)
+except Exception:
+    if descriptor >= 0:
+        os.close(descriptor)
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+    raise
+PY
+}
+
+fingerprint_external_matches() {
+    local before="${1:?before material required}" after="${2:?after material required}"
+    local before_scope after_scope before_external after_external
+    before_scope="$(printf '%s' "$before" | _jget scope_hash 2> /dev/null)" || return 1
+    after_scope="$(printf '%s' "$after" | _jget scope_hash 2> /dev/null)" || return 1
+    before_external="$(printf '%s' "$before" | _jget external_fingerprint 2> /dev/null)" || return 1
+    after_external="$(printf '%s' "$after" | _jget external_fingerprint 2> /dev/null)" || return 1
+    [[ "$before_scope" == "$after_scope" && "$before_external" == "$after_external" ]]
+}
+
 # apply_label <pr> <label> — no-op in dry-run; skips empty labels.
 apply_label() {
     [[ -n "${2:-}" && "$2" != "None" ]] || return 0
@@ -277,7 +621,10 @@ apply_label() {
         err "[dry-run] would label #$1 '$2'"
         return 0
     }
-    gh issue edit "$1" --add-label "$2" > /dev/null 2>&1 || err "could not label #$1 $2"
+    gh_op add-label "$1" "$2" > /dev/null 2>&1 || {
+        err "could not label #$1 $2"
+        return 1
+    }
 }
 
 # HARD GATE (this vendored copy only — CDDL QA-critic finding, 2026-08-19/20).
@@ -348,131 +695,251 @@ lifecycle_gate_ok() {
 }
 
 cmd_tick() {
-    local pr="${1:?pr required}" sig d act gate sig2 rc=0 head_sha lock_rc=0
-    # PROPORTIONALITY FIX (2026-08-20, CDDL QA-critic finding): merge is
-    # hard-gated elsewhere in this bundle (cmd_merge -> exit 78, unconditional,
-    # not an env toggle — see merge_capability_disabled above), so this lock no
-    # longer guards anything irreversible; its only remaining job is avoiding a
-    # duplicated (expensive) run-gate pass. loop_lock.sh's `acquire` now reports
-    # WHY it failed via distinct exit codes: 1 = genuinely CONTENDED (someone
-    # else holds a live lease, or we lost a race, or same-host flock
-    # contention) — that must still block. 2 = DEGRADED (the lease could not
-    # even be attempted, e.g. the backend rejects the unprovisioned dynamic
-    # `loop-active:<epoch>:<token>` label name — labels.yml:58-61) — that is
-    # NOT evidence of contention, so treat it as "proceed without the cross-host
-    # lock" rather than silently going dark on every tick forever. Any other
-    # non-zero (including 1) is treated conservatively as contention.
+    local pr="${1:?pr required}" sig d act gate sig2 head_sha
+    local material post_material rc=0 lock_rc=0 handling_failed=0 lock_degraded=0
+
+    # Observe before touching the mutation lease. An exact valid state match is
+    # the cheap path: no lease label, reviewer, action label, or audit append.
+    material="$(collect_fingerprint_material "$pr")" || return 13
+    if fingerprint_state_matches "$pr" "$material"; then
+        printf 'unchanged\n'
+        return 0
+    fi
+
+    # The bundle's structural merge gate makes a rejected lease safe to
+    # tolerate for read-only/reviewer work, but degraded work is never persisted
+    # as successfully handled. Genuine contention still skips this tick.
     "${SCRIPT_DIR}/loop_lock.sh" acquire "$pr" 2> /dev/null || lock_rc=$?
     case "$lock_rc" in
-        0) : ;; # acquired the cross-host lease normally
+        0) : ;;
+        1)
+            err "#$pr: locked — skipping (lease genuinely held by another run)"
+            printf 'skip\n'
+            return 0
+            ;;
         2)
             err "#$pr: cross-host lease unavailable (label backend rejected the add)" \
                 "— proceeding WITHOUT it (degraded, not contended; duplicate" \
                 "run-gate work is possible, but no irreversible action can" \
                 "result since merge is hard-gated in this bundle)"
+            lock_degraded=1
             ;;
         *)
-            err "#$pr locked — skipping"
-            printf 'skip\n'
-            return 0
+            err "#$pr: lease acquisition failed unexpectedly (exit=${lock_rc})"
+            return 12
             ;;
     esac
-    # Idempotent even when nothing was actually acquired (lock_rc==2): release
-    # on an unheld PR is a documented no-op (loop_lock.sh header).
     # shellcheck disable=SC2064
     trap "'${SCRIPT_DIR}/loop_lock.sh' release '$pr' >/dev/null 2>&1" RETURN
 
-    sig="$(cmd_signals "$pr")"
-    head_sha="$(printf '%s' "$sig" | _jget head_sha)" # pinned for the sink SHA re-check
-    d="$(printf '%s' "$sig" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
-    act="$(printf '%s' "$d" | _jget action)"
+    # Close the pre-lease race. Another worker may have processed this exact
+    # transition while we waited; only the state re-read under the lease decides.
+    material="$(collect_fingerprint_material "$pr")" || return 13
+    if fingerprint_state_matches "$pr" "$material"; then
+        printf 'unchanged\n'
+        return 0
+    fi
 
-    # Cheap signals clear → run the (expensive) verification gate, augment, re-decide.
+    sig="$(cmd_signals "$pr")" || {
+        err "#$pr: signal observation failed"
+        return 13
+    }
+    head_sha="$(printf '%s' "$sig" | _jget head_sha 2> /dev/null)" || {
+        err "#$pr: signal payload was invalid"
+        return 13
+    }
+    d="$(printf '%s' "$sig" | "${SCRIPT_DIR}/merge_decision.sh" decide)" || {
+        err "#$pr: merge decision failed"
+        return 13
+    }
+    act="$(printf '%s' "$d" | _jget action 2> /dev/null)" || {
+        err "#$pr: merge decision was invalid"
+        return 13
+    }
+    [[ -n "$act" ]] || {
+        err "#$pr: merge decision omitted action"
+        return 13
+    }
+
+    # Cheap signals clear → run the expensive verification gate once.
     if [[ "$act" == "run-gate" ]]; then
-        gate="$("${SCRIPT_DIR}/verification_gate.sh" review "$pr" 2> /dev/null)" || gate='{"reviewer_error":true}'
+        gate="$("${SCRIPT_DIR}/verification_gate.sh" review "$pr" 2> /dev/null)" || {
+            gate='{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0}'
+            handling_failed=1
+        }
         sig2="$(printf '%s' "$sig" | python3 -c '
 import json,sys
 s=json.load(sys.stdin)
-try: g=json.loads(sys.argv[1])
-except Exception: g={"reviewer_error":True}
+try:
+    g=json.loads(sys.argv[1])
+    if not isinstance(g,dict):
+        raise ValueError()
+except Exception:
+    g={"reviewer_error":True}
 ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
 s["gate_tier1"]="pass" if ok else "fail"
 s["reviewer_error"]=bool(g.get("reviewer_error"))
-print(json.dumps(s))' "$gate")"
-        d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
-        act="$(printf '%s' "$d" | _jget action)"
+print(json.dumps(s))' "$gate" 2> /dev/null)" || {
+            err "#$pr: review gate returned an invalid envelope"
+            return 13
+        }
+        [[ "$(printf '%s' "$sig2" | _jget reviewer_error 2> /dev/null)" != "True" ]] || handling_failed=1
+        d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)" || {
+            err "#$pr: post-review decision failed"
+            return 13
+        }
+        act="$(printf '%s' "$d" | _jget action 2> /dev/null)" || return 13
     fi
 
     case "$act" in
         merge)
             if ! lifecycle_gate_ok "$pr"; then
                 err "#$pr: lifecycle gate unsatisfied (audit drift) → needs-human (SC-011)"
-                apply_label "$pr" needs-human
+                apply_label "$pr" needs-human || handling_failed=1
                 act="hand-human"
             else
+                rc=0
                 cmd_merge "$pr" "$head_sha" || rc=$?
                 if [[ $rc -eq 9 ]]; then
-                    apply_label "$pr" ready-to-merge
+                    apply_label "$pr" ready-to-merge || handling_failed=1
+                elif [[ $rc -eq 78 ]]; then
+                    # The portable copy uses this structural hard gate. Keeping
+                    # it here lets both maintained implementations share the
+                    # transition machinery without weakening that gate.
+                    apply_label "$pr" needs-human || handling_failed=1
                 elif [[ $rc -eq 0 ]]; then
-                    cmd_post_merge_check "$LAST_MERGE_SHA" > /dev/null 2>&1 || {
-                        err "#$pr merged → main RED/pending — HALT"
-                        act="halt"
-                    }
-                else apply_label "$pr" needs-human; fi
+                    if [[ "$APPLY" == "1" ]]; then
+                        cmd_post_merge_check "$LAST_MERGE_SHA" > /dev/null 2>&1 || {
+                            err "#$pr merged → main RED/pending — HALT"
+                            act="halt"
+                            handling_failed=1
+                        }
+                    fi
+                else
+                    err "#$pr: merge action failed (exit ${rc})"
+                    apply_label "$pr" needs-human || true
+                    handling_failed=1
+                fi
             fi
             ;;
-        update-branch) gh_op update-branch "$pr" > /dev/null 2>&1 || apply_label "$pr" needs-human ;;
-        hand-human) apply_label "$pr" "$(printf '%s' "$d" | _jget label)" ;;
-        halt) err "#$pr: HALT (post-merge main breakage)" ;;
+        update-branch)
+            if ! gh_op update-branch "$pr" > /dev/null 2>&1; then
+                err "#$pr: update-branch action failed"
+                apply_label "$pr" needs-human || true
+                handling_failed=1
+            fi
+            ;;
+        hand-human)
+            apply_label "$pr" "$(printf '%s' "$d" | _jget label)" || handling_failed=1
+            ;;
+        halt)
+            err "#$pr: HALT (post-merge main breakage)"
+            handling_failed=1
+            ;;
         revise) err "#$pr: revise — the skill runs /pr-address-comments, /project-verify, /pr-review" ;;
         wait) err "#$pr: waiting on checks/mergeability" ;;
+        *)
+            err "#$pr: unsupported decision action '$act'"
+            return 13
+            ;;
     esac
-    # Audit (redacted, fail-open — FR-021/022).
+
+    # Audit remains fail-open, but only changed material reaches it.
     "${SCRIPT_DIR}/audit_log.sh" append \
         "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"pr\":${pr},\"action\":\"${act}\",\"apply\":${APPLY}}" \
         2> /dev/null || true
+
+    if ((handling_failed == 1)); then
+        err "#$pr: handling/review failure — transition state not recorded"
+        printf '%s\n' "$act"
+        [[ "$act" == "halt" ]] && return 0
+        return 13
+    fi
+    if ((lock_degraded == 1)); then
+        err "#$pr: degraded lease — transition state not recorded"
+        printf '%s\n' "$act"
+        return 0
+    fi
+
+    # Only certify the handled transition if head/check/review material stayed
+    # stable through dispatch. Local disposition/action-label effects are
+    # incorporated by persisting the fresh full fingerprint.
+    post_material="$(collect_fingerprint_material "$pr")" || return 13
+    if ! fingerprint_external_matches "$material" "$post_material"; then
+        err "#$pr: external transition occurred during dispatch — state not recorded"
+        printf '%s\n' "$act"
+        return 0
+    fi
+    persist_fingerprint_state "$pr" "$post_material" "$act" || {
+        err "#$pr: atomic fingerprint state write failed"
+        printf '%s\n' "$act"
+        return 13
+    }
     printf '%s\n' "$act"
 }
 
-# --- T026/T024: bounded self-paced loop driver. One merge in flight at a time
-# (loop_lock, inside cmd_tick). Hard wall-clock ceiling; stops after 5 empty passes.
-# Exit 0 = ceiling/5-empty (normal); exit 11 = halt (main red post-merge).
+# --- bounded state-driven loop. Every managed PR is observed each pass, while
+# expensive handling only runs for changed fingerprints. The first complete
+# pass with no changed/actionable PR stops immediately.
 cmd_run() {
     local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
-    local start deadline now managed pr act inflight n
+    local start deadline now managed_json managed pr act rc changed complete
+    gh_op fp-scope > /dev/null || {
+        err "material fingerprinting unsupported for this repository/provider"
+        return 13
+    }
     start="$(_now)"
     deadline=$((start + ceiling))
     while :; do
         now="$(_now)"
         ((now < deadline)) || break
-        managed="$(cmd_list_managed | python3 -c \
-            'import json,sys;print(" ".join(str(p["number"]) for p in json.load(sys.stdin)))' 2> /dev/null || echo "")"
-        inflight=0
-        # shellcheck disable=SC2086 # word-split the space-joined PR numbers (bash 3.2-safe)
+        managed_json="$(cmd_list_managed)" || return $?
+        managed="$(printf '%s' "$managed_json" | python3 -c '
+import json,sys
+items=json.load(sys.stdin)
+if not isinstance(items,list):
+    raise ValueError("managed list")
+numbers=[]
+for item in items:
+    number=item.get("number") if isinstance(item,dict) else None
+    if not isinstance(number,int) or number < 1:
+        raise ValueError("managed PR number")
+    numbers.append(str(number))
+print(" ".join(numbers))' 2> /dev/null)" || {
+            err "managed-PR observation was malformed"
+            return 13
+        }
+        changed=0
+        complete=1
+        # shellcheck disable=SC2086 # space-joined validated integer PR numbers
         for pr in $managed; do
             now="$(_now)"
-            ((now < deadline)) || break
-            act="$(cmd_tick "$pr")"
+            if ((now >= deadline)); then
+                complete=0
+                break
+            fi
+            rc=0
+            act="$(cmd_tick "$pr")" || rc=$?
+            [[ $rc -eq 0 ]] || return "$rc"
             case "$act" in
                 halt)
                     err "loop HALT — main breakage on #$pr"
                     return 11
                     ;;
-                merge | revise | update-branch | wait | skip) inflight=1 ;;
+                unchanged) : ;;
+                *) changed=1 ;;
             esac
         done
+        ((complete == 1)) || break
         now="$(_now)"
         ((now < deadline)) || break
-        if ((inflight == 1)); then
+        if ((changed == 0)); then
             cmd_empty_run reset > /dev/null
-        else
-            n="$(cmd_empty_run incr)"
-            # set -e-safe only as the LHS of && (non-tail); do not move to a tail position
-            ((n >= 5)) && {
-                err "5 consecutive empty runs — stopping"
-                break
-            }
+            cmd_empty_run incr > /dev/null
+            err "first unchanged pass — stopping"
+            break
         fi
+        cmd_empty_run reset > /dev/null
         now="$(_now)"
         ((now < deadline)) || break
         [[ "$poll" -gt 0 ]] && sleep "$poll"
@@ -518,7 +985,7 @@ main() {
             ;;
         tick)
             cmd_tick "$@"
-            exit 0
+            exit $?
             ;;
         run)
             cmd_run "$@"

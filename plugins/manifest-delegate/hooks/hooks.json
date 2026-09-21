@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/stop_gate_hook.py",
+            "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/stop_gate_hook.sh\"",
             "timeout": 900
           }
         ]

@@ -3,8 +3,8 @@
 
 Split out of the former test_delegate_dispatcher.py: TestGateCommand alone was
 531 lines across 22 methods, past both the file and the class ceiling. The seam
-is behavioural — this file covers every route to `allow`, the sibling covers blocking and
-fail-open.
+is behavioural — this file covers the explicit disabled, no-edit, and recursion
+guard allow paths.
 
 Run with: uv run --project configs/claude pytest tests/python/test_delegate_gate_allow.py -q
 """
@@ -108,7 +108,7 @@ class TestGateAllows:
                 "type": "assistant",
                 "message": {
                     "role": "assistant",
-                    "content": [{"type": "tool_use", "name": "Bash", "input": {}}],
+                    "content": [{"type": "tool_use", "name": "Read", "input": {}}],
                 },
             },
         ]
@@ -164,6 +164,33 @@ class TestGateAllows:
         )
         assert rc == 0
 
+    def test_stop_hook_active_approves_even_when_backend_resolution_is_broken(
+        self, monkeypatch, capsys
+    ):
+        monkeypatch.setattr(
+            delegate.gate,
+            "_gate_resolve_backend",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                AssertionError("recursion guard reached backend resolution")
+            ),
+        )
+        args = _GateArgs()
+        args.stop_hook_active = True
+        args.json = True
+
+        rc = delegate.cmd_gate(
+            args,
+            [],
+            {"review_gate": {"enabled": True, "backend": "missing"}},
+            set(),
+        )
+
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out) == {
+            "decision": "approve",
+            "reason": "stop-hook-active",
+        }
+
     def test_enabled_gate_with_edits_initializes_jobstore_before_execution(
         self, tmp_path, monkeypatch
     ):
@@ -210,6 +237,9 @@ class TestGateAllows:
 
     def test_bash_only_turn_allows(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
+        monkeypatch.setattr(
+            delegate.gate, "_working_tree_has_changes", lambda cwd=None: False
+        )
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,

@@ -38,10 +38,9 @@ def _edit_transcript(tmp_path):
 def test_gate_partial_outcome_empty_findings_is_not_a_clean_pass(
     tmp_path, monkeypatch, capsys
 ):
-    """A backend returning outcome=partial (it could not inspect the whole diff)
-    with empty findings must NOT be reported as a clean 'no findings' review.
-    The gate fails open (never traps the turn) but its message must flag the
-    incomplete coverage — otherwise incomplete review coverage is a false-green."""
+    """A partial review cannot certify completion, even when findings is empty.
+    The gate must block with an infrastructure reason because review coverage
+    was incomplete."""
     monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
@@ -78,7 +77,5 @@ def test_gate_partial_outcome_empty_findings_is_not_a_clean_pass(
     )
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
-    assert '"decision": "block"' not in json.dumps(out)
-    assert "incomplete" in out.get("systemMessage", "").lower(), (
-        "partial coverage must be surfaced as incomplete, not a silent clean pass"
-    )
+    assert out["decision"] == "block"
+    assert "review_incomplete" in out["reason"]
