@@ -114,7 +114,7 @@ engine() {
                         *) args+=("${arg}") ;;
                     esac
                 done
-                glab issue list "${args[@]}"
+                glab issue list "${args[@]+"${args[@]}"}"
             fi
             ;;
         issue-create)
@@ -203,7 +203,7 @@ case "${verb}" in
                             ;;
                     esac
                 done
-                engine issue-edit "${n}" "${args[@]}"
+                engine issue-edit "${n}" "${args[@]+"${args[@]}"}"
                 ;;
             linear)
                 err "issue-label not implemented for linear (registry documents the mapping; see spec §4.1)"
@@ -222,13 +222,13 @@ case "${verb}" in
                 args=("${n}")
                 for s in "${CANONICAL_STATUSES[@]}"; do [[ "${s}" != "${target}" ]] && args+=(--remove-label "${s}"); done
                 args+=(--add-label "$(status_name "${target}")")
-                engine issue-edit "${args[@]}"
+                engine issue-edit "${args[@]+"${args[@]}"}"
                 ;;
             gitlab)
                 args=("${n}")
                 for s in "${CANONICAL_STATUSES[@]}"; do [[ "${s}" != "${target}" ]] && args+=(--unlabel "${s}"); done
                 args+=(--label "$(status_name "${target}")")
-                engine issue-edit "${args[@]}"
+                engine issue-edit "${args[@]+"${args[@]}"}"
                 ;;
             linear)
                 engine transition-state --identifier "${n}" --state "$(status_name "${target}")"
