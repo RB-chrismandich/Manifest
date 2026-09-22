@@ -1,4 +1,4 @@
-# Claude Native-Orchestration Guide
+# Claude Orchestration Guide
 
 This document defines current-host native sub-agent dispatch, planning, and validation.
 
