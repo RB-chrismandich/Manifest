@@ -21,9 +21,8 @@ available. The full catalog is `configs/claude/config/mcp_servers.yml`.
 ## Repository Purpose
 
 This repository manages AI coding workflow configuration for deployment to
-`~/.claude/` on target machines. It contains OMP-native orchestration guides,
-skills, prompts, and retained single-provider scripts shared by supported
-harnesses.
+supported native-host surfaces. It contains current-host orchestration guides,
+skills, and retained single-provider scripts shared by supported harnesses.
 
 ## Repository Structure
 
@@ -117,13 +116,12 @@ Antigravity) and required CLI installs are in
 
 | File | Purpose |
 |------|---------|
-| `configs/claude/CLAUDE.md` | Main OMP-native orchestration guide |
-| `configs/cursor/rules/orchestration.mdc` | Main OMP-native guide for Cursor (always-on rule) |
-| `configs/gemini/GEMINI.md` | OMP-native guide for Gemini CLI |
-| `configs/codex/AGENTS.md` | OMP-native guide for Codex CLI |
+| `configs/claude/CLAUDE.md` | Main current-host native orchestration guide |
+| `configs/cursor/rules/orchestration.mdc` | Cursor always-on guidance |
+| `configs/gemini/GEMINI.md` | Gemini CLI guide |
+| `configs/codex/AGENTS.md` | Codex CLI guide |
 | `configs/claude/config/model_policy.yml` | Model tiers and CLI fallback for retained single-provider tools |
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
-| `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
 | `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
 | `configs/claude/config/tracker_providers.yml` | Issue-tracker provider registry — access precedence, phase-to-status mapping, per-provider config |
 | `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
@@ -142,9 +140,9 @@ Antigravity) and required CLI installs are in
 Skills (70+, invoked as `/skill-name`) live in `.apm/skills/` — each
 directory's `SKILL.md` frontmatter is the authoritative name and description,
 and Claude Code auto-loads every description at session start, so no table is
-duplicated here. Per-skill OMP dispatch policy lives in
+duplicated here. Per-skill native dispatch policy lives in
 `configs/claude/config/command_config.yml` under `tool_policies`. See
-[docs/COMMANDS.md](docs/COMMANDS.md) for the human-readable command reference.
+[`docs/COMMANDS.md`](docs/COMMANDS.md) for the human-readable command reference.
 
 **CLI tools** (installed to `~/.local/bin/`): `sync-skills` — sync
 `.apm/skills/` to all home targets. Skills ship as plugin bundles: refresh
@@ -176,7 +174,6 @@ Linear by `label_sync.sh`; the full registry table lives in
 ```bash
 configs/claude/scripts/label_sync.sh             # sync to current platform
 configs/claude/scripts/label_sync.sh --dry-run  # preview
-configs/claude/scripts/git_ops.sh label-sync    # via wrapper
 ```
 
 ## Adding New Skills
@@ -197,14 +194,16 @@ Implementation plans are tracked in `configs/claude/.plans/` as date-prefixed ma
 CREATE -> ACTIVE -> COMPLETED (`.archive/`) or ABANDONED (`.abandoned/`).
 See `configs/claude/.plans/README.md` for naming conventions and rules.
 Use `/plan-manage` to create plans, review stale plans, or archive/abandon
-completed work. Independent plan-review units use OMP task batches; the parent
-compares their evidence directly.
+completed work. Independent plan-review units use the current host's native
+mechanism; the parent compares their evidence directly.
 
 ## Configuration Reference
 
-**OMP dispatch**: `task` batches contain ready independent units (at most 32);
-`hub` coordinates children and waits. The parent validates and aggregates
-evidence. If `task` is unavailable, execute inline and report `DEGRADED`.
+**Native dispatch:** OMP uses `task` batches and `hub`; Claude Code uses
+discovered native Agents and background collection. The parent validates and
+aggregates evidence. The shared
+[`sub-agent-dispatch` contract](configs/claude/references/sub-agent-dispatch.md)
+defines child limits, the runner exception, and `DEGRADED` behavior.
 
 **Validation tiers** (in `validation_criteria.yml`):
 

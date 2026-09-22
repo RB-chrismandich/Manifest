@@ -12,19 +12,9 @@ the palette: [references/mermaid.md](references/mermaid.md).
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-Use native OMP sub-agents **conditionally** when analyzing 5+ unique
-imports/modules. Dispatch one read-only `scout` per independent module group in
-one OMP `task` call (waves of at most 32); children report their assigned
-structure and never re-dispatch. The parent reconciles that evidence directly
-with the code before publishing diagrams. If OMP `task` is unavailable, inspect
-the module groups inline and report `DEGRADED`.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+Apply this skill's configured decomposition trigger before assigning independent
+diagram units.
 
 ## Steps
 

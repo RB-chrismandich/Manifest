@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 # Optional CLI and support command functions sourced by install.sh.
-# Check for jq (required by git_ops.sh)
+# Check for jq (required for native Git platform JSON processing)
 check_jq() {
-    print_step "Checking for jq (required by git_ops.sh)..."
+    print_step "Checking for jq (required for native Git platform JSON processing)..."
 
     if command_exists jq; then
         print_success "jq is installed"
@@ -78,7 +78,7 @@ check_jq() {
                     ;;
             esac
         else
-            print_warning "jq not installed - git_ops.sh may have limited functionality"
+            print_warning "jq not installed - native Git platform JSON processing may have limited functionality"
         fi
     fi
 }

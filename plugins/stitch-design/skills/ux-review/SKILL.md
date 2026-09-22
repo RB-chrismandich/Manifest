@@ -147,17 +147,6 @@ Static analysis checks that indicate Core Web Vitals risk:
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-
-When ≥3 independent pages or flows need review, dispatch one review unit per
-page or flow in a single OMP `task` call (in waves of at most 32), using
-`reviewer`. Each child reviews only its assigned unit and never re-dispatches.
-The parent directly merges cited findings into this skill's report. Use `hub`
-only to coordinate or wait. If `task` is unavailable, review inline and report
-`DEGRADED`. Below the threshold, review inline.
+Follow the [shared dispatch contract](references/sub-agent-dispatch.md).
+When this skill's threshold selects independent audits, assign one bounded file
+or page per reviewer and combine only cited, attributed findings.

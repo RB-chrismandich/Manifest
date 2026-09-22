@@ -1693,7 +1693,6 @@ verify_installation() {
 
     local required_files=(
         "$TARGET_DIR/scripts/git_platform.sh"
-        "$TARGET_DIR/scripts/git_ops.sh"
         "$TARGET_DIR/config/command_config.yml"
         "$TARGET_DIR/config/mcp_servers.yml"
         "$TARGET_DIR/config/validation_criteria.yml"
@@ -1922,9 +1921,9 @@ verify_installation() {
 
     # Check jq
     if command_exists jq; then
-        print_success "jq is installed (required by git_ops.sh)"
+        print_success "jq is installed (required for native CLI JSON processing)"
     else
-        print_warning "jq is not installed - git_ops.sh will have limited functionality"
+        print_warning "jq is not installed - native Git platform JSON processing will be limited"
     fi
 
     # T4.4 (spec 674): verify the CLAUDE side, which nothing else does.

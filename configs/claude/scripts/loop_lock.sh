@@ -32,15 +32,14 @@
 #   is-held <pr>    Exit 0 if held (and not stale), 1 otherwise.
 #
 # Env: LOOP_LOCK_DIR (local lockfiles), LOOP_LOCK_STALE_MIN (default 15),
-#      LOOP_LOCK_LABEL_CMD  seam: "<cmd> has|add|remove <pr> [<owner>]"; `has` prints
-#                           "<age-minutes>\t<owner>" for the newest live lease, exit 0
-#                           if one exists. Default drives gh via git_ops.sh.
+#      LOOP_LOCK_LABEL_CMD seam: "<cmd> has|add|remove <pr> [<owner>]"; `has` prints
+#                          "<age-minutes>\t<owner>" for the newest live lease, exit 0
+#                          if one exists. Default drives native gh.
 
 set -euo pipefail
 
 err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "loop-lock: $*" >&2; else printf '%s\n' "loop-lock: $*" >&2; fi; }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_DIR="${LOOP_LOCK_DIR:-${TMPDIR:-/tmp}/prloop-locks}"
 STALE_MIN="${LOOP_LOCK_STALE_MIN:-15}"
 LABEL="loop-active"
@@ -69,7 +68,7 @@ lease_owner_token() {
     printf '%s' "$(printf '%s' "$h" | cut -c1-8)-$$-$RANDOM"
 }
 
-# Label seam — default implementation drives the platform via git_ops.sh / gh.
+# Label seam — default implementation drives GitHub through native gh.
 # Dynamic label name = "${LABEL}:<epoch>:<owner>" so multiple leases can coexist
 # (GitHub labels have no value field; this is how an owner token gets attached
 # to the cross-host-visible primitive at all).
@@ -80,7 +79,7 @@ lease_owner_token() {
 delete_lease_label() {
     local name="$1"
     [[ -n "$name" ]] || return 0
-    "${SCRIPT_DIR}/git_ops.sh" label-delete "$name" --yes > /dev/null 2>&1 || true
+    gh label delete "$name" --yes > /dev/null 2>&1 || true
     return 0
 }
 
@@ -98,7 +97,7 @@ label_op() {
             # lease" and acquisition proceeded -- two runners could then both
             # enter the operator copy's real admin-merge path. Distinguish
             # them: 2 = could not read (DEGRADED), 1 = read fine, no lease.
-            labels="$("${SCRIPT_DIR}/git_ops.sh" issue-view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 2
+            labels="$(gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 2
             while IFS= read -r line; do
                 [[ "$line" == "${LABEL}:"* ]] || continue
                 epoch="${line#"${LABEL}:"}"
@@ -137,19 +136,19 @@ label_op() {
             # sees a DEGRADED acquire (cmd_acquire), not a false success.
             local name
             name="${LABEL}:$(date +%s):${owner}"
-            "${SCRIPT_DIR}/git_ops.sh" label-create "$name" \
+            gh label create "$name" \
                 --color "FBCA04" \
                 --description "Transient per-PR lease for the auto-dev merge loop (auto-created; safe to delete)" \
                 --force > /dev/null 2>&1 || return 1
-            "${SCRIPT_DIR}/git_ops.sh" issue-edit "$pr" --add-label "$name" > /dev/null 2>&1
+            gh pr edit "$pr" --add-label "$name" > /dev/null 2>&1
             ;;
         remove)
             [[ -n "$owner" ]] || return 0
             local labels line
-            labels="$("${SCRIPT_DIR}/git_ops.sh" issue-view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 0
+            labels="$(gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 0
             while IFS= read -r line; do
                 [[ "$line" == "${LABEL}:"*":${owner}" ]] || continue
-                "${SCRIPT_DIR}/git_ops.sh" issue-edit "$pr" --remove-label "$line" > /dev/null 2>&1
+                gh pr edit "$pr" --remove-label "$line" > /dev/null 2>&1
                 # Detaching is not enough: the lease name is unique per
                 # acquisition (epoch+owner), so a repo that only ever detaches
                 # accumulates one dead label per poll until the label catalog
@@ -192,7 +191,7 @@ purge_stale_leases() {
     # rather than issue real backend calls from a test: this is a real-backend
     # -only cleanup path, and saying so beats pretending it is covered.
     [[ -z "${LOOP_LOCK_LABEL_CMD:-}" ]] || return 0
-    labels="$("${SCRIPT_DIR}/git_ops.sh" issue-view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 0
+    labels="$(gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null)" || return 0
     now="$(date +%s)"
     while IFS= read -r line; do
         [[ "$line" == "${LABEL}:"* ]] || continue
@@ -201,7 +200,7 @@ purge_stale_leases() {
         [[ "$epoch" =~ ^[0-9]+$ ]] || continue
         age=$(((now - epoch) / 60))
         ((age > STALE_MIN)) || continue
-        "${SCRIPT_DIR}/git_ops.sh" issue-edit "$pr" --remove-label "$line" > /dev/null 2>&1 || true
+        gh pr edit "$pr" --remove-label "$line" > /dev/null 2>&1 || true
         delete_lease_label "$line"
     done <<< "$labels"
     return 0

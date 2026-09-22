@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # issue_support.sh - Shared issue-support engine for the issue-linking hooks
 #
-# Platform-agnostic engine (sibling to git_ops.sh) that keeps the issue tracker
+# Platform-aware engine that keeps the issue tracker
 # in sync with development activity. Invoked by the issue-sync-pr and
 # issue-sync-commit skills (and their hooks). FAIL-OPEN: sync-pr/sync-commit
 # always exit 0 so a git action is never blocked.
@@ -10,9 +10,8 @@
 #   sync-pr <N> [--dry-run] [--no-create]      Sync linked issues for an opened PR/MR
 #   sync-commit <SHA|HEAD> [--dry-run] [--no-create]  Sync linked issues for a commit
 #   resolve <--pr N | --commit SHA | --branch NAME> [--json]  Resolve issue refs only
-#
 # Env overrides (testing seams):
-#   GIT_OPS_BIN, TRACKER_OPS_BIN, ISSUE_SUPPORT_CONFIG, ISSUE_SUPPORT_LABELS,
+#   TRACKER_OPS_BIN, ISSUE_SUPPORT_CONFIG, ISSUE_SUPPORT_LABELS,
 #   ISSUE_SUPPORT_TEMPLATE, ISSUE_SUPPORT_INTERACTIVE (0|1)
 
 set -euo pipefail
@@ -20,7 +19,6 @@ set -euo pipefail
 err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "issue-support: $*" >&2; else printf '%s\n' "issue-support: $*" >&2; fi; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
 TRACKER_OPS_BIN="${TRACKER_OPS_BIN:-${SCRIPT_DIR}/tracker_ops.sh}"
 CONFIG_FILE="${ISSUE_SUPPORT_CONFIG:-${SCRIPT_DIR}/../config/command_config.yml}"
 # T051/FR-034: user opt-in state lives in a file NO package owns, checked before
@@ -50,8 +48,6 @@ USAGE
 }
 
 # ---- helpers ---------------------------------------------------------------
-
-git_ops() { "${GIT_OPS_BIN}" "$@"; }
 
 # cfg_get <skill> <key> <default> — read tool_policies.<skill>.<key>
 # overlay_has <skill> <key> -- does the user-scope overlay define this key?
@@ -137,11 +133,11 @@ current_branch() { git rev-parse --abbrev-ref HEAD 2> /dev/null || printf ''; }
 # Current branch's open PR/MR number (best-effort; empty if none)
 current_pr_number() {
     local platform="$1" n=""
-    if [[ "${platform}" == "github" ]]; then
-        n=$(git_ops pr-view --json number --jq '.number' 2> /dev/null || true)
-    else
-        n=$(git_ops pr-view --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("iid",""))' 2> /dev/null || true)
-    fi
+    case "${platform}" in
+        github) n=$(gh pr view --json number --jq '.number' 2> /dev/null || true) ;;
+        gitlab) n=$(glab mr view --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("iid",""))' 2> /dev/null || true) ;;
+        *) return 0 ;;
+    esac
     printf '%s' "${n}" | grep -oE '^[0-9]+$' || true
 }
 
@@ -176,11 +172,11 @@ normalize_issue() { python3 -c "${NORMALIZE_PY}" 2> /dev/null || true; }
 # Fetch a normalized issue record for number N. Echo "number|state|labels|title" or "".
 issue_record() {
     local n="$1" platform="$2" raw=""
-    if [[ "${platform}" == "github" ]]; then
-        raw=$(git_ops issue-view "${n}" --json number,state,labels,title 2> /dev/null || true)
-    else
-        raw=$(git_ops issue-view "${n}" --output json 2> /dev/null || true)
-    fi
+    case "${platform}" in
+        github) raw=$(gh issue view "${n}" --json number,state,labels,title 2> /dev/null || true) ;;
+        gitlab) raw=$(glab issue view "${n}" --output json 2> /dev/null || true) ;;
+        *) return 0 ;;
+    esac
     [[ -z "${raw}" ]] && return 0
     printf '%s' "${raw}" | normalize_issue
 }
@@ -266,9 +262,9 @@ comment_backlink() {
     local marker="${MARKER_PREFIX} ${ctxkey} -->"
     local existing=""
     if [[ "${platform}" == "github" ]]; then
-        existing=$(git_ops issue-view "${n}" --json comments 2> /dev/null || true)
+        existing=$(gh issue view "${n}" --json comments 2> /dev/null || true)
     else
-        existing=$(git_ops issue-view "${n}" --comments 2> /dev/null || true)
+        existing=$(glab issue view "${n}" --comments 2> /dev/null || true)
     fi
     if printf '%s' "${existing}" | grep -qF "${marker}"; then
         record_action "#${n} comment back-link [skipped] (marker already present)"
@@ -295,22 +291,22 @@ comment_backlink() {
 
 # ensure_closing_keyword <pr> <issue-n> <platform>
 ensure_closing_keyword() {
-    local pr="$1" n="$2" platform="$3" body=""
-    if [[ "${platform}" == "github" ]]; then
-        body=$(git_ops pr-view "${pr}" --json body --jq '.body' 2> /dev/null || true)
+    local pr="$1" n="$2" platform="$3" body="" newbody
+    if [[ "${platform}" == github ]]; then
+        body=$(gh pr view "${pr}" --json body --jq '.body' 2> /dev/null || true)
     else
-        body=$(git_ops pr-view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
+        body=$(glab mr view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
     fi
     if printf '%s' "${body}" | grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#${n}([^0-9]|$)"; then
         record_action "PR #${pr} closing-keyword Closes #${n} [skipped] (already present)"
         return 0
     fi
-    if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${DRY_RUN:-0}" == 1 ]]; then
         record_action "PR #${pr} closing-keyword Closes #${n} [applied]"
         return 0
     fi
-    local newbody="${body}"$'\n\n'"Closes #${n}"
-    if git_ops pr-edit "${pr}" --body "${newbody}" > /dev/null 2>&1; then
+    newbody="${body}"$'\n\n'"Closes #${n}"
+    if { if [[ "${platform}" == github ]]; then gh pr edit "${pr}" --body "${newbody}" > /dev/null 2>&1; else glab mr update "${pr}" --description "${newbody}" > /dev/null 2>&1; fi; }; then
         record_action "PR #${pr} closing-keyword Closes #${n} [applied]"
     else
         record_action "PR #${pr} closing-keyword Closes #${n} [failed] (PR not editable — add 'Closes #${n}' manually)"
@@ -323,27 +319,15 @@ ensure_closing_keyword() {
 # Emits one "number|source" per resolved candidate (source: branch-prefix |
 # pr-body | commit-message), de-duplicated by number keeping the first source.
 resolve_candidates() {
-    local branch="$1" pr="$2" commit="$3" platform="$4"
+    local branch="$1" pr="$2" commit="$3" platform="$4" body="" msg
     local -a out=()
-    # 1) branch-number prefix (strip leading zeros: 017-foo → issue #17)
-    if [[ "${branch}" =~ ^([0-9]+)- ]]; then
-        out+=("$((10#${BASH_REMATCH[1]}))|branch-prefix|strong")
-    fi
-    # 2) PR/MR body references
+    [[ "${branch}" =~ ^([0-9]+)- ]] && out+=("$((10#${BASH_REMATCH[1]}))|branch-prefix|strong")
     if [[ -n "${pr}" ]]; then
-        local body=""
-        if [[ "${platform}" == "github" ]]; then
-            body=$(git_ops pr-view "${pr}" --json body --jq '.body' 2> /dev/null || true)
-        else
-            body=$(git_ops pr-view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
-        fi
-        # closing-verb refs first (strong wins the dedup), then bare mentions as weak
+        if [[ "${platform}" == github ]]; then body=$(gh pr view "${pr}" --json body --jq '.body' 2> /dev/null || true); else body=$(glab mr view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true); fi
         while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|pr-body|strong"); done < <(printf '%s' "${body}" | extract_closing_refs)
         while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|pr-body|weak"); done < <(printf '%s' "${body}" | extract_refs)
     fi
-    # 3) commit-message references + trailers
     if [[ -n "${commit}" ]]; then
-        local msg
         msg=$(git log -1 --format='%B' "${commit}" 2> /dev/null || true)
         while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|commit-message|strong"); done < <(printf '%s' "${msg}" | extract_closing_refs)
         while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|commit-message|weak"); done < <(printf '%s' "${msg}" | extract_refs)
@@ -377,15 +361,13 @@ render_template() {
 # so sync_core can run the normal sync lifecycle on it (FR-009c).
 NEW_ISSUE=""
 offer_create() {
-    local branch="$1" pr="$2" commit="$3" platform="$4"
+    local branch="$1" pr="$2" commit="$3" platform="$4" existing="" num="" title bodyfile out reply=""
     NEW_ISSUE=""
-    if [[ "${NO_CREATE:-0}" == "1" ]]; then
+    if [[ "${NO_CREATE:-0}" == 1 ]]; then
         record_action "create-issue [skipped] (--no-create)"
         return 0
     fi
-    # dedup: search for an existing open issue matching the branch
-    local existing num=""
-    existing=$(git_ops issue-list --search "${branch}" 2> /dev/null | head -1 || true)
+    if [[ "${platform}" == github ]]; then existing=$(gh issue list --search "${branch}" 2> /dev/null | head -1 || true); else existing=$(glab issue list --search "${branch}" 2> /dev/null | head -1 || true); fi
     if [[ -n "${existing}" ]]; then
         num=$(printf '%s' "${existing}" | grep -oE '[0-9]+' | head -1 || true)
         record_action "create-issue [skipped] (existing match reused: #${num:-?})"
@@ -397,27 +379,29 @@ offer_create() {
         return 0
     fi
     printf 'issue-support: no tracking issue found. Create one from branch %s? [y/N] ' "${branch}" >&2
-    local reply=""
     read -r reply || true
     if [[ ! "${reply}" =~ ^[Yy] ]]; then
         record_action "create-issue [skipped] (declined)"
         return 0
     fi
-    if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${DRY_RUN:-0}" == 1 ]]; then
         record_action "create-issue [applied] (dry-run, not created)"
         return 0
     fi
-    local title="${branch}" bodyfile out
+    title="${branch}"
     bodyfile=$(mktemp)
     render_template "${branch}" "${pr}" "${commit}" > "${bodyfile}"
-    if out=$(git_ops issue-create --title "${title}" --body-file "${bodyfile}" --label planned 2> /dev/null); then
-        # gh/glab print the new issue URL; the trailing number is the issue id.
-        num=$(printf '%s' "${out}" | grep -oE '[0-9]+' | tail -1 || true)
-        record_action "create-issue [applied] (#${num:-?}, labeled planned, from template)"
-        NEW_ISSUE="${num}"
+    if [[ "${platform}" == github ]]; then
+        out=$(gh issue create --title "${title}" --body-file "${bodyfile}" --label planned 2> /dev/null) || out=""
+        num=$(printf '%s' "${out}" | grep -oE '[0-9]+$' | head -1 || true)
     else
-        record_action "create-issue [failed] (issue-create error)"
+        out=$(glab api -X POST projects/:id/issues -f title="${title}" -F description=@"${bodyfile}" -f labels=planned 2> /dev/null) || out=""
+        num=$(printf '%s' "${out}" | jq -r '.iid // empty' 2> /dev/null || true)
     fi
+    if [[ -n "${num}" ]]; then
+        record_action "create-issue [applied] (#${num}, labeled planned, from template)"
+        NEW_ISSUE="${num}"
+    else record_action "create-issue [failed] (issue-create returned no issue id)"; fi
     rm -f "${bodyfile}"
 }
 

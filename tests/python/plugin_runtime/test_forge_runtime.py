@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -69,7 +70,6 @@ def _load_module(path: Path):
         "audit_log.sh",
         "auto_issue_dev.sh",
         "branch_clean.sh",
-        "git_ops.sh",
         "git_platform.sh",
         "install_issue_hooks.sh",
         "issue_support.sh",
@@ -175,8 +175,8 @@ def test_tracker_dispatch_propagates_engine_failure(
     gh = binary_dir / "gh"
     gh.write_text("#!/bin/sh\nexit 17\n", encoding="utf-8")
     gh.chmod(0o755)
-    hostile = tmp_path / "hostile-git-ops"
     marker = tmp_path / "hostile-called"
+    hostile = tmp_path / "hostile"
     hostile.write_text(f"#!/bin/sh\ntouch {marker}\nexit 0\n", encoding="utf-8")
     hostile.chmod(0o755)
     env = {
@@ -438,7 +438,7 @@ def test_forge_instructions_use_bundle_relative_runtime_contract(
         "import yaml",
         "yaml.safe_load",
     )
-    allowed_cross_domain = {"parallel-agent", "learning-capture"}
+    allowed_cross_domain = {"learning-capture"}
     documents = [
         *forge_bundle.glob("skills/**/*.md"),
         *forge_bundle.glob("runtime/references/*.md"),
@@ -494,6 +494,64 @@ def test_triage_workflow_uses_valid_stdlib_json_heredoc(forge_bundle: Path) -> N
     assert "python3 - \"$CONFIG_FILE\" << 'PY'" in text
     assert "json.load" in text
     assert "import yaml" not in text
+
+
+def _make_triage_test_payload() -> list[object]:
+    def _res(p: int, r: str) -> dict[str, object]:
+        return {
+            "impact_score": 5,
+            "urgency_score": 4,
+            "readiness_score": 3,
+            "risk_score": 1,
+            "recommended_priority": p,
+            "reasoning": r,
+        }
+
+    return [
+        "not-a-dict",
+        {"verdicts": []},
+        {
+            "identifier": "ISSUE-1",
+            "verdicts": [
+                "malformed-scalar-verdict",
+                {"reviewer": "rev-1", "result": "not-a-dict"},
+                {"reviewer": ["bad"], "result": _res(1, "bad id")},
+                {"reviewer": "rev-2", "result": _res(1, "valid")},
+                {"reviewer": "rev-2", "result": _res(1, "duplicate")},
+            ],
+        },
+    ]
+
+
+def test_triage_priority_validation_handles_malformed_verdicts_safely(
+    tmp_path: Path, forge_bundle: Path
+) -> None:
+    """Step 7 python block in workflow.md must attribute/exclude malformed verdicts without raising."""
+    workflow = forge_bundle / "skills/issue-triage/references/workflow.md"
+    match = re.search(
+        r'python3 - "\$TEMP_DIR/priority_verdicts\.json" "\$PRIORITY_FILE" "\$PRIORITY_AUDIT_FILE" "\$REVIEWERS_PER_ITEM" <<\'PY\'\n(.*?\n)PY',
+        workflow.read_text(encoding="utf-8"),
+        re.DOTALL,
+    )
+    assert match is not None
+    src, rec, audit = tmp_path / "v.json", tmp_path / "i.json", tmp_path / "a.json"
+    src.write_text(json.dumps(_make_triage_test_payload()), encoding="utf-8")
+
+    cmd = [sys.executable, "-c", match.group(1), str(src), str(rec), str(audit), "3"]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    assert res.returncode == 0, f"script failed: {res.stderr}"
+
+    data = json.loads(audit.read_text(encoding="utf-8"))
+    assert len(data) == 2
+    assert (
+        data[0]["identifier"] == "unknown-candidate" and data[0]["status"] == "DEGRADED"
+    )
+    assert data[1]["identifier"] == "ISSUE-1" and data[1]["status"] == "DEGRADED"
+    assert data[1]["valid_reviewer_count"] == 1
+    invalids = data[1]["invalid_or_missing_reviewers"]
+    assert {"malformed-verdict", "rev-1", "unknown-reviewer", "duplicate-rev-2"} <= set(
+        invalids
+    )
 
 
 def test_forge_contract_lists_all_runtime_directories(forge_bundle: Path) -> None:

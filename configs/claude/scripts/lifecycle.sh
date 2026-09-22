@@ -597,8 +597,8 @@ print(json.dumps(j))' "${j}" "${to}" "${reason}" "${now}")"
 LIFECYCLE_PROVIDERS_CONFIG="${LIFECYCLE_PROVIDERS_CONFIG:-${HOME}/.claude/config/tracker_providers.yml}"
 
 # Provider tool seam: create ONE remote node, echo its external id; non-zero = failure.
-# args: <provider> <construct> <title> <parent-external-id-or-empty>. Real backends route to
-# git_ops.sh (gh/glab), linear_ops.sh, or the Atlassian MCP (US4); tests inject a stub.
+# args: <provider> <construct> <title> <parent-external-id-or-empty>. Native gh/glab,
+# linear_ops.sh, or the Atlassian MCP are selected by provider; tests inject a stub.
 provision_remote() {
     if [ -n "${LIFECYCLE_PROVISION_CMD:-}" ]; then
         local arr
@@ -606,16 +606,16 @@ provision_remote() {
         "${arr[@]}" "$@"
         return $?
     fi
-    # T025: default concrete backends. args: <provider> <construct> <title> <parent-ext>.
-    # github/gitlab via git_ops.sh (gh/glab passthrough); linear via linear_ops.sh; jira is
-    # agent-layer (Atlassian MCP createJiraIssue) so the agent passes --external-id instead.
-    # NOTE: exercised against real trackers in integration (not offline bats); Tier-1/2
-    # constructs (Project V2 / Milestone / Epic) beyond Issue/Sub-Issue need provider-specific
-    # handling not yet in git_ops.sh — those fall back to FAILED_PROVISION for reconciliation.
+    # Default concrete backends. Tier-1/2 constructs beyond Issue/Sub-Issue
+    # remain reconciliation failures until their provider-specific support exists.
     local provider="$1" title="$3" parent="$4" out
     case "${provider}" in
-        github | gitlab)
-            out="$("${SCRIPT_DIR}/git_ops.sh" issue-create --title "${title}" 2> /dev/null)" || return 1
+        github)
+            out="$(gh issue create --title "${title}" 2> /dev/null)" || return 1
+            printf '%s' "${out}" | grep -oE '[0-9]+$' | head -1
+            ;;
+        gitlab)
+            out="$(glab issue create --title "${title}" 2> /dev/null)" || return 1
             printf '%s' "${out}" | grep -oE '[0-9]+$' | head -1
             ;;
         linear)

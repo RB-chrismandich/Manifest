@@ -259,16 +259,7 @@ Never claim a command passed that you did not run, and quote real output.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 independent files or articles exist, dispatch one `reviewer` per file
-to analyze it, then merge the returned evidence directly; below that, analyze
-inline. Put all independent analyses in one OMP `task` call (waves of at most
-32). Children execute their assigned analysis directly and never re-dispatch.
-The parent applies the Step 3 and Step 4 edits, so two agents never rewrite the
-same file. If OMP `task` is unavailable, analyze inline and report `DEGRADED`.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+When the configured policy selects independent file/article analysis, assign
+one `reviewer` per owned unit. The parent alone applies Step 3 and Step 4 edits,
+so no two workers rewrite the same file.

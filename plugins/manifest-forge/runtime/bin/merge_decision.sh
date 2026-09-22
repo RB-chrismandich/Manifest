@@ -44,8 +44,6 @@ verify   = g("verify", "pass")
 mstate   = g("merge_state", "UNKNOWN")
 mergeable= g("mergeable", "UNKNOWN")
 disp     = g("pr_review_disposition", "keep")
-try:    consensus = float(g("consensus", 0) or 0)
-except Exception: consensus = 0.0
 try:    rev = int(g("revisions_used", 0) or 0)
 except Exception: rev = 0
 try:    maxrev = int(g("max_revisions", 3) or 3)
@@ -86,12 +84,9 @@ if not clear:
         out("revise", "not yet clear (e.g. pr-review not merge) — another cycle", None)
     out("hand-human", "not clear and out of revisions", "needs-human")
 
-# All clear — consensus decides (Constitution III banding; merge gate blocks <0.80).
-if consensus >= 0.80:
-    out("merge", "all clear and consensus high", None)
-if consensus >= 0.50:
-    out("hand-human", "all clear but consensus mid — needs a human", "ready-to-merge")
-out("hand-human", "all clear but consensus low — block + synthesize", "needs-human")
+# All clear — every required signal and the Tier-1 gate passed. Evidence, not a
+# percentage agreement score, decides this transition.
+out("merge", "all required checks and Tier-1 evidence clear", None)
 '
 
 cmd_decide() { python3 -c "${DECIDE_PY}" "${1:-}"; }

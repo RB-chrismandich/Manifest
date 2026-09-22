@@ -89,7 +89,6 @@
   },
   "permissions": {
     "allow": [
-      "Bash(~/.claude/scripts/git_ops.sh:*)",
       "Bash(~/.claude/scripts/label_sync.sh:*)",
       "Bash(~/.claude/scripts/linear_ops.sh:*)",
       "Bash(~/.claude/scripts/pr_review.sh:*)",

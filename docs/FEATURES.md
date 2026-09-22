@@ -6,12 +6,12 @@
 
 ## Features
 
-- **OMP-native task batches**: Dispatch independent units through `task` in
-  waves of at most 32. Child workers execute one unit; the parent validates and
-  aggregates evidence with `hub` used only for coordination or waiting.
-- **Clear degraded mode**: If OMP task dispatch is unavailable, interactive
-  work proceeds inline and reports `DEGRADED`; it never falls back to provider
-  CLI fan-out.
+- **Native task batches**: OMP batches independent units through `task` and
+  `hub`; Claude Code uses discovered native Agents. The parent validates
+  attributed evidence and aggregates results.
+- **Clear degraded mode**: If the current host's native dispatch is unavailable,
+  ordinary interactive work proceeds inline and reports `DEGRADED`; explicitly
+  requested external backend work remains parent-owned dispatcher work.
 - **Native validation guidance**: Tier 1 covers security, error handling, and
   breaking changes; Tier 2 covers quality concerns.
 - **Single-provider model policy**: `model_policy.yml` gives retained

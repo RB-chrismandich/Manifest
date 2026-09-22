@@ -88,22 +88,5 @@ unrelated edits remain quiet.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-**Policy: conditional.** When reviewing changes to the version-pinning script
-itself, dispatch the independent security and quality assessments together in
-one OMP `task` call (waves of at most 32): use `security-reviewer` for the
-supply-chain review and `reviewer` for implementation quality. Each child
-reviews only its assigned unit and never redispatches. The parent uses `hub`
-only to coordinate or wait, validates and aggregates evidence directly, and
-does not use text-consensus or synthesis. If `task` is unavailable, perform the
-reviews inline and report `DEGRADED`; never fall back to a provider CLI.
-
-Before a run that rewrites dependency files, obtain a read-only `reviewer`
-assessment of the proposed replacements, then apply approved replacements
-sequentially.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+The parent validates proposed replacements before serializing rewrites.

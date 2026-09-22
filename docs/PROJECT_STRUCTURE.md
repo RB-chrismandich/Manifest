@@ -40,7 +40,6 @@ Manifest/
 │   │   │   ├── manifest_cli/        # `manifest` command router
 │   │   │   ├── manifest_model_policy/ # Policy and headless CLI helpers
 │   │   │   ├── git_platform.sh      # Git platform detection
-│   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
 │   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
 │   │   │   ├── issue_support.sh     # Issue-linking engine for pr-/issue-sync-commit hooks
 │   │   │   ├── issue_support_hook.sh # PostToolUse dispatcher routing PRs/commits to the engine

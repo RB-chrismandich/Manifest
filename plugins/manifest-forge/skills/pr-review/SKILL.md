@@ -6,8 +6,8 @@ description: Review all open pull/merge requests on the active platform (GitHub/
 # Open Pull Request Review
 
 Triage the entire open-PR queue in one pass so you can quickly see which PRs are
-ready, which are stale or superseded, and which need work. Reuses the repo's
-platform abstraction (`git_platform.sh` / `git_ops.sh`).
+ready, which are stale or superseded, and which need work. Detect GitHub or
+GitLab with `git_platform.sh`, then use that provider's native CLI.
 
 This skill is backed by `../../runtime/bin/pr_review.sh`.
 
@@ -39,10 +39,9 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
    - `close` — branch already merged, or superseded by an earlier open PR on the
      same branch.
    - `keep` — active work (draft, pending checks, or simply ongoing).
-
 3. **Act with confirmation.** This skill recommends; it does not change PRs. To
-   act on a recommendation, use `git_ops.sh pr-merge` / the platform CLI
-   explicitly, confirming each action with the user first.
+   act on a recommendation, use `gh pr merge` or `glab mr merge` explicitly and
+   confirm each action with the user first.
 
 ## Notes
 
@@ -56,17 +55,6 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 open PRs exist, dispatch one independent read-only `reviewer` unit per
-PR in one OMP `task` call (waves of at most 32); below that, review inline.
-Each child assesses only its assigned PR and never redispatches. The parent
-uses `hub` only to coordinate or wait, validates the returned evidence, and
-assigns the final disposition directly—there is no text-consensus or synthesis
-step. If `task` is unavailable, review inline and report `DEGRADED`; never fall
-back to a provider CLI.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+When the configured threshold selects per-PR review, assign each reviewer one
+read-only PR and make the final disposition directly from attributed evidence.

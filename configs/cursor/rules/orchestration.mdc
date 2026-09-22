@@ -22,7 +22,8 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
-- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
+- Default dispatched agents to Sonnet through the current host's native control;
+  OMP uses `task.agentModelOverrides`, never a task-item `model` field.
 
 `@token-conserve` re-asserts this mode if drift is noticed mid-session.
 
@@ -64,7 +65,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
   sub-agents: workload decomposition vs risk-gated review, and model choice.
 - `~/.claude/references/orchestration.md` — Read when auditing review routing,
   validation tiers, or escalation disposition.
-- `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
+- `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or native forge CLI failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* rule reads
   planning artifacts: speckit vs superpowers layout detection + precedence.

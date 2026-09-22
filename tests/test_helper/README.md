@@ -55,7 +55,6 @@ bats tests/bats/
 
 # Run a specific test file
 bats tests/bats/git_platform.bats
-bats tests/bats/git_ops.bats
 bats tests/bats/linear_ops.bats
 bats tests/bats/label_sync.bats
 bats tests/bats/deploy_skills.bats
@@ -76,7 +75,6 @@ tests/
 │       └── load.bash
 ├── bats/
 │   ├── git_platform.bats       # Tests for git_platform.sh
-│   ├── git_ops.bats            # Tests for git_ops.sh
 │   ├── linear_ops.bats         # Tests for linear_ops.sh
 │   ├── label_sync.bats         # Tests for label_sync.sh
 │   └── deploy_skills.bats      # Tests for bootstrap skills deploy

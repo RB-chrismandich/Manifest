@@ -24,39 +24,52 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
 }
 @test "decide: tier1 fail -> draft-needs-human" {
-    run "$SCRIPT" decide '{"tier1":{"passed":false},"consensus_score":0.9}'
+    run "$SCRIPT" decide '{"tier1":{"passed":false}}'
     [ "$(echo "$output" | action)" = "draft-needs-human" ]
 }
-@test "decide: tier1 pass + high consensus -> pr-open" {
-    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":{"score":0.7},"consensus_score":0.86}'
+@test "decide: tier1 evidence clear -> pr-open" {
+    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":{"concerns":[]}}'
     [ "$(echo "$output" | action)" = "pr-open" ]
-}
-@test "decide: tier1 pass + mid consensus -> pr-open with disagreement annotation" {
-    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":{"score":0.7},"consensus_score":0.62}'
-    [ "$(echo "$output" | action)" = "pr-open" ]
-    [[ "$output" == *"disagreement"* || "$output" == *"consensus"* ]]
 }
 @test "decide: malformed -> draft-needs-human (fail closed)" {
     run "$SCRIPT" decide 'nope{'
     [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
 }
+@test "decide: non-dict JSON root -> draft-needs-human (fail closed)" {
+    run "$SCRIPT" decide '[]'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
+}
+@test "decide: non-dict tier1 -> draft-needs-human (fail closed)" {
+    run "$SCRIPT" decide '{"tier1":"bad"}'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
+}
+@test "decide: non-dict tier2 with passing tier1 -> pr-open fallback" {
+    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":"bad"}'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "pr-open" ]
+}
+@test "decide: non-iterable tier1 issues -> draft-needs-human (no crash)" {
+    run "$SCRIPT" decide '{"tier1":{"passed":false,"issues":7}}'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
+}
+@test "decide: non-iterable tier2 concerns -> pr-open fallback (no crash)" {
+    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":{"concerns":7}}'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "pr-open" ]
+}
 
 # --- review (seam) ---
-@test "review: valid top-level 0.90 result supports the high band" {
+@test "review: valid Tier-1 and Tier-2 evidence opens the gate" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
-echo '{"tier1":{"passed":true},"tier2":{"concerns":[]},"consensus_score":0.90,"verdict":"APPROVED"}'
+echo '{"tier1":{"passed":true},"tier2":{"concerns":[]},"verdict":"APPROVED"}'
 EOF
     chmod +x "$TMP/seam.sh"
     VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
     [ "$status" -eq 0 ]
     gate="$output"
-    echo "$gate" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.9;assert not d.get("reviewer_error")'
+    echo "$gate" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert not d.get("reviewer_error")'
     run "$SCRIPT" decide "$gate"
     [ "$(echo "$output" | action)" = "pr-open" ]
-    [[ "$output" == *"consensus high"* ]]
 }
-
 @test "review: incomplete top-level result returns reviewer_error" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -110,7 +123,6 @@ EOF
 _isolated_gate() { # $1 = audit_log.sh body
     cp "$SCRIPT" "$TMP/verification_gate.sh"
     printf '%s\n' '#!/usr/bin/env bash' "$1" > "$TMP/audit_log.sh"
-    printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$TMP/git_ops.sh"
     printf '%s\n' '#!/usr/bin/env bash' "touch '$TMP/REVIEWER_RAN'" 'echo "{\"tier1\":{\"passed\":true},\"consensus_score\":0.9,\"verdict\":\"APPROVED\"}"' > "$TMP/seam.sh"
     chmod +x "$TMP"/*.sh
 }
