@@ -95,7 +95,7 @@ EOF
     # verification gate review seam (tunable via SEAM_GATE).
     cat > "$TMP/gateseam.sh" <<'EOF'
 #!/usr/bin/env bash
-_d='{"tier1":{"passed":true},"tier2":{"concerns":[]},"consensus_score":0.9,"verdict":"APPROVED"}'; echo "${SEAM_GATE:-$_d}"
+_d='{"tier1":{"passed":true},"tier2":{"concerns":[]},"verdict":"APPROVED"}'; echo "${SEAM_GATE:-$_d}"
 EOF
     chmod +x "$TMP/gateseam.sh"; export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
 }
@@ -176,16 +176,16 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
 }
 
 # --- integration: signals -> merge_decision ---
-@test "integration: a clean PR with gate+consensus injected -> merge" {
+@test "integration: a clean PR with gate pass injected -> merge" {
     sig="$("$SCRIPT" signals 5)"
-    # merge path injects gate_tier1=pass + consensus high before deciding
-    sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";d["consensus"]=0.9;print(json.dumps(d))')"
+    # merge path injects gate_tier1=pass before deciding
+    sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";print(json.dumps(d))')"
     run bash -c "echo '$sig' | '$DECIDE' decide"
     [ "$(echo "$output" | action)" = "merge" ]
 }
-@test "integration: NO_CHECKS never merges even with gate pass + high consensus" {
+@test "integration: NO_CHECKS never merges even with gate pass" {
     sig="$(SEAM_BUCKETS="" "$SCRIPT" signals 5)"
-    sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";d["consensus"]=0.99;print(json.dumps(d))')"
+    sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";print(json.dumps(d))')"
     run bash -c "echo '$sig' | '$DECIDE' decide"
     [ "$(echo "$output" | action)" != "merge" ]
 }
@@ -226,12 +226,12 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
 # DEGRADED is now a loud, distinct, nonzero exit (12) rather than being
 # collapsed into "locked — skipping" — see the REGRESSION tests below for
 # dedicated coverage of that path.
-@test "tick: clean PR + gate pass + high consensus -> merge (dry-run)" {
+@test "tick: clean PR + gate pass -> merge (dry-run)" {
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"merge"* ]] && [[ "$output" == *"dry-run"* ]]
 }
 @test "tick: gate Tier-1 fail -> hand-human (never merge)" {
-    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"consensus_score":0.9,"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
+    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"hand-human"* ]] && [[ "$output" != *"merged"* ]]
 }
 @test "tick: failing checks -> revise (no gate, no merge)" {
@@ -541,7 +541,7 @@ EOF
 }
 @test "vendored: read-only subset unaffected — decide still reaches a merge verdict (decision layer, not the gated sink)" {
     sig="$("$VENDORED" signals 5)"
-    sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";d["consensus"]=0.9;print(json.dumps(d))')"
+    sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";print(json.dumps(d))')"
     run bash -c "echo '$sig' | '$VENDORED_DECIDE' decide"
     [ "$(echo "$output" | action)" = "merge" ] # merge_decision.sh is unmodified/ungated; the sink (cmd_merge) is what refuses
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # issue_support.sh - Shared issue-support engine for the issue-linking hooks
 #
-# Platform-agnostic engine (sibling to git_ops.sh) that keeps the issue tracker
+# Platform-aware engine that keeps the issue tracker
 # in sync with development activity. Invoked by the issue-sync-pr and
 # issue-sync-commit skills (and their hooks). FAIL-OPEN: sync-pr/sync-commit
 # always exit 0 so a git action is never blocked.
@@ -24,7 +24,6 @@ FORGE_CONFIG_DIR="$FORGE_RUNTIME_DIR/config"
 FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
-GIT_OPS="${SCRIPT_DIR}/git_ops.sh"
 TRACKER_OPS="${SCRIPT_DIR}/tracker_ops.sh"
 export TRACKER_OPS
 CONFIG_FILE="${ISSUE_SUPPORT_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/manifest/forge/issue_support.json}"
@@ -49,8 +48,6 @@ USAGE
 }
 
 # ---- helpers ---------------------------------------------------------------
-
-git_ops() { "${GIT_OPS}" "$@"; }
 
 # cfg_get <skill> <key> <default> — read tool_policies.<skill>.<key>
 # overlay_has <skill> <key> -- does the user-scope overlay define this key?
@@ -139,9 +136,9 @@ current_branch() { git rev-parse --abbrev-ref HEAD 2> /dev/null || printf ''; }
 current_pr_number() {
     local platform="$1" n=""
     if [[ "${platform}" == "github" ]]; then
-        n=$(git_ops pr-view --json number --jq '.number' 2> /dev/null || true)
+        n=$(gh pr view --json number --jq '.number' 2> /dev/null || true)
     else
-        n=$(git_ops pr-view --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("iid",""))' 2> /dev/null || true)
+        n=$(glab mr view --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("iid",""))' 2> /dev/null || true)
     fi
     printf '%s' "${n}" | grep -oE '^[0-9]+$' || true
 }
@@ -178,9 +175,9 @@ normalize_issue() { python3 -c "${NORMALIZE_PY}" 2> /dev/null || true; }
 issue_record() {
     local n="$1" platform="$2" raw=""
     if [[ "${platform}" == "github" ]]; then
-        raw=$(git_ops issue-view "${n}" --json number,state,labels,title 2> /dev/null || true)
+        raw=$(gh issue view "${n}" --json number,state,labels,title 2> /dev/null || true)
     else
-        raw=$(git_ops issue-view "${n}" --output json 2> /dev/null || true)
+        raw=$(glab issue view "${n}" --output json 2> /dev/null || true)
     fi
     [[ -z "${raw}" ]] && return 0
     printf '%s' "${raw}" | normalize_issue

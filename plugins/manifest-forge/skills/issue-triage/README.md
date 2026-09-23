@@ -19,9 +19,8 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 
 1. **Duplicate Detection**
    - Fuzzy title and description-overlap matching
-   - Five independent OMP reviewer verdicts for every MEDIUM-confidence pair
-   - Promotion to HIGH only with at least three valid verdicts and ≥80% duplicate votes
-
+   - Bounded independent reviewer evidence for ambiguous MEDIUM-confidence pairs
+   - Parent promotion decisions validated against cited evidence, not vote percentages
 2. **Staleness Detection**
    - Identifies inactive issues (90+ days, no priority, no labels)
    - Detects deleted file references (>50% files missing)
@@ -53,8 +52,8 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 ## Safety Rules
 
 1. **Never auto-close issues with "planned" label**
-2. **Promote duplicates only with at least three valid OMP verdicts and ≥80% duplicate votes**
-3. **Change priority recommendations only with at least three valid verdicts and ≥70% modal agreement**
+2. **Promote duplicates only after parent validation of cited reviewer evidence**
+3. **Change priority recommendations only after parent validation of cited reviewer evidence**
 4. **Verify file deletion before marking stale**
 5. **Require explicit --close-stale flag**
 6. **Log all actions to audit trail**
@@ -102,18 +101,14 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 /issue-triage --close-stale
 ```
 
-## OMP Reviewer Integration
+## Reviewer Integration
 
-The parent dispatches five independent read-only OMP `reviewer` tasks for each
-MEDIUM duplicate pair and each priority candidate. It submits independent work
-in `task` waves of at most 32 items, validates structured verdicts, names and
-excludes invalid results, and aggregates the required quorum:
-
-- **Duplicate promotion**: at least three valid verdicts and ≥80% `true` votes.
-- **Priority recommendation**: at least three valid verdicts and ≥70% modal
-  agreement; ties do not recommend a change.
-- **Missing quorum or unavailable OMP**: record `DEGRADED`, do not perform an
-  automatic disposition change, and never fall back to a provider CLI.
+When configured for independent review, the parent assigns bounded, read-only
+duplicate-pair or priority-candidate units through the shared native dispatch
+contract. It validates structured verdicts, attributes invalid results, and
+changes no disposition merely because results overlap or reach a vote
+percentage. Missing evidence or unavailable native dispatch is `DEGRADED`; do
+not fall back to a provider CLI.
 
 ## Configuration
 
@@ -123,7 +118,7 @@ without modifying the immutable bundle:
 - Duplicate detection thresholds
 - Staleness criteria (inactivity days, file deletion ratio)
 - Priority scoring formula weights
-- OMP reviewer counts, quorum, and agreement thresholds
+- OMP reviewer count and evidence-validation requirements
 - Action safety rules
 
 ## Troubleshooting

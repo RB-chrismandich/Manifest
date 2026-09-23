@@ -12,19 +12,9 @@ find. Concision is measured, not judged: read
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-Use native OMP sub-agents **conditionally** when total documentation lines
-exceed 500. Above ~10 docs, dispatch one `reviewer` per independent topic
-directory in one OMP `task` call (waves of at most 32). Children execute their
-assigned review directly and never re-dispatch; the parent aggregates the
-returned evidence directly before making documentation edits. If OMP `task` is
-unavailable, review inline and report `DEGRADED`.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+Apply this skill's configured topic decomposition trigger before assigning
+independent documentation units.
 
 ## Steps
 

@@ -52,17 +52,10 @@ independently escalate review.
 ## Sub-agent dispatch
 
 Follow the [bundle-local dispatch selection rules](references/code-audit-dispatch.md)
-and the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`. Use the pinned `sonnet`
-model. Start with one capable reviewer; add independent review only when one
-of the five risk conditions is present. Do not use file, package, module,
-language, keyword, or unit counts as a dispatch trigger.
-
-Dispatch independent review units in one OMP `task` call (in waves of at most
-32), using `security-reviewer`; use `hub` only for coordination or waiting. If
-`task` is unavailable, perform the independent review inline and report
-`DEGRADED`. Dispatched reviewers execute their assigned review directly and do
-not re-dispatch.
+and the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+Start with one capable reviewer and add independent review only for the five
+risk conditions; file, package, module, language, keyword, and unit counts are
+not review triggers.
 
 ## Verification safety
 

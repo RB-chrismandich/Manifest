@@ -58,7 +58,7 @@ fabricate_verified_install() {
     mkdir -p "$TARGET_DIR/scripts" "$TARGET_DIR/config" "$CURSOR_TARGET_DIR/rules" \
         "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR"
     touch "$TARGET_DIR/scripts/git_platform.sh" \
-        "$TARGET_DIR/scripts/git_ops.sh" "$TARGET_DIR/config/command_config.yml" \
+        "$TARGET_DIR/config/command_config.yml" \
         "$TARGET_DIR/config/mcp_servers.yml" "$TARGET_DIR/config/validation_criteria.yml" \
         "$TARGET_DIR/config/services.yml" "$TARGET_DIR/CLAUDE.md" \
         "$CURSOR_TARGET_DIR/rules/orchestration.mdc" "$CURSOR_TARGET_DIR/mcp.json" \

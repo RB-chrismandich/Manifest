@@ -78,7 +78,7 @@ parts=(mrg or "UNKNOWN UNKNOWN").split()
 mergeable=parts[0] if parts else "UNKNOWN"
 mstate=parts[1] if len(parts)>1 else "UNKNOWN"
 print(json.dumps({"checks":checks,"review_block":review_block,"pr_review_disposition":disp or "keep",
-  "verify":verify or "pass","gate_tier1":None,"consensus":None,"mergeable":mergeable,
+  "verify":verify or "pass","gate_tier1":None,"mergeable":mergeable,
   "merge_state":mstate,"hold":(hold=="true"),"revisions_used":int(rev or 0),
   "max_revisions":int(maxrev or 3),"reviewer_error":False,"main_ci":"n/a",
   "head_sha":head or None}))
@@ -207,7 +207,7 @@ cmd_post_merge_check() {
         # vs gitlab pipeline statuses (failed/canceled/...) use slightly different
         # vocabulary; the grep below matches github's. This path only runs on github
         # today (gitlab auto-merge fails closed before reaching post-merge-check).
-        state="$(_net "${SCRIPT_DIR}/git_ops.sh" commit-checks "${sha}" 2> /dev/null)" || rc=$?
+        state="$(_net gh api "repos/$(_owner_repo_from_remote)/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' 2> /dev/null)" || rc=$?
     fi
     # Explicit rc check (not `||`) — this function is invoked on the left of `||` by
     # callers, which suspends errexit for everything inside it; a failed status
@@ -253,7 +253,7 @@ apply_label() { # apply_label <pr> <label> — no-op in dry-run; skips empty lab
         err "[dry-run] would label #$1 '$2'"
         return 0
     }
-    "${SCRIPT_DIR}/git_ops.sh" issue-edit "$1" --add-label "$2" > /dev/null 2>&1 || err "could not label #$1 $2"
+    gh issue edit "$1" --add-label "$2" > /dev/null 2>&1 || err "could not label #$1 $2"
 }
 
 # SECURITY (finding 2): re-check a single login against the allowlist at the
@@ -467,7 +467,6 @@ try: g=json.loads(sys.argv[1])
 except Exception: g={"reviewer_error":True}
 ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
 s["gate_tier1"]="pass" if ok else "fail"
-s["consensus"]=g.get("consensus_score",0)
 s["reviewer_error"]=bool(g.get("reviewer_error"))
 print(json.dumps(s))' "$gate")"
         d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"

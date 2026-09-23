@@ -5,90 +5,146 @@ description: "Use when your open PR receives review feedback (inline comments, C
 
 # Address PR Review Comments
 
-Resolve *every* piece of review feedback on your own PR truthfully: fix real
-issues, decline wrong ones with evidence, and never mark a thread resolved
-without a verified fix. Ignore non-actionable service notices
-(usage-limit/bot-connector messages).
+Resolve every piece of feedback truthfully. Ignore non-actionable service notices.
+Never call a thread resolved because a comment says “Resolved”.
 
-1. **Fetch all three feedback channels** — no single view is complete:
-   - Inline code comments: `../../runtime/bin/git_ops.sh pr-comments N` —
-     returns JSON `[{id, author, path, line, body}]` on both github and
-     gitlab (github: PR review comments; gitlab: MR discussion notes with a
-     diff `position`, i.e. genuinely inline comments only — general
-     MR-level discussion notes and system notes are excluded).
-   - Review bodies: `gh pr view <N> --json reviews,reviewThreads`
-     (github-only — GitLab has no separate review-body concept, but its
-     top-level (non-inline) discussion notes are NOT covered by
-     `pr-comments` above; see "Issue-level discussion" below for how to
-     fetch those on gitlab).
-   - Issue-level discussion: `gh pr view <N> --comments`
-2. **Verify each claim against current code before acting**: open the exact
-   file and lines cited and confirm the assertion (counts, staleness, logic)
-   is actually true. Reviewers — especially bots — are sometimes wrong, and
-   comment line numbers may have drifted since the review.
-3. **Triage per item**: real bug or valid nit (SHOULD FIX) vs optional style
-   (CONSIDER) vs wrong/not-applicable. Correct → plan a minimal, scoped fix.
-   Wrong → gather counter-evidence (e.g. `ls -ld` proving a double-count, a
-   grep count, a docs link). Present the triage table to the user before
-   mass-editing if the count is high or any items are debatable.
-4. **Look for related issues the review missed**: while fixing a flagged item,
-   check whether your change introduced adjacent staleness (index dates,
-   counts, cross-links). Bot-found classes worth checking carefully:
-   falsy-vs-None checks (`if x` treating `0`/`0.0` as missing), float dedup
-   keys missing `:.2f`, wall-clock vs domain-date staleness, denominator scope
-   (all rows vs filtered subset), missing input `.strip()`/validation, and
-   middleware that buffers streaming responses.
-5. **Apply fixes, grouping related edits**: watch for fixes that invalidate
-   existing tests and update those in the same pass; add or update a test for
-   any behavioral fix so the comment can't regress.
-6. **Re-run the full suite + lint (the same checks CI runs, e.g. markdownlint
-   with CI's globs) before
-   committing** — never push a review fix on the strength of "it looks right."
-7. **Commit with a message that enumerates each fix and references the
-   review**, push, and confirm CI green on the new run.
-8. **Reply to every item — never leave one silent**: "Fixed in {commit}" for
-   accepted items; "Declining: {rationale + evidence}" for rejected ones,
-   posted via `../../runtime/bin/git_ops.sh pr-comment N "..."`. Then post one
-   summary disposition table (comment → verdict → action/fix at file:line) on
-   the PR so a reviewer can verify at a glance.
+## Procedure
 
-## Inline comment threads
+1. **Identify the provider and immutable target.** Use the configured override or
+   the selected remote as documented in `runtime/references/git-platform.md`.
+   Record the provider, PR/MR number, repository/project target, and host. Do
+   not default API calls back to the current checkout after a target is known.
+2. **Build a session disposition table.** For every item, record provider,
+   PR/MR, thread/discussion ID, comment/note ID, URL, resolvability and current
+   resolution state, actionable claim, disposition, fix SHA, verification
+   evidence, and final resolution status. This is a working table, not a new
+   persisted schema.
+3. **Fetch all feedback, including every page.** Deduplicate by comment/note
+   identity, never text. Preserve general discussion notes; only ignore GitLab
+   system notices.
+4. **Verify, triage, fix, and test.** Confirm each claim against current code;
+   outdated line positions do not prove the claim fixed. Every actionable item
+   in a resolvable thread must be fixed and verified before that thread can be
+   resolved. If tests fail, a fix is unpublished, feedback is deferred, or a
+   human disputes a rejection, reply truthfully and leave it unresolved.
+5. **Publish exact replies.** Reply in the eligible thread/discussion with the
+   fix SHA and verification evidence, or a rejection rationale and evidence.
+   A disputed rejection remains open until accepted. Top-level review bodies
+   and standalone comments get a linked reply and a summary disposition, but
+   are `not applicable` for formal resolution.
+6. **Resolve only verified eligible threads.** Re-read immediately before the
+   resolution mutation. New actionable feedback must be addressed first.
+   Already-resolved threads receive neither duplicate replies nor mutations on
+   rerun when the same disposition/fix is recorded.
+7. **Independently read back state.** A CLI nonzero, GraphQL `errors`, null or
+   missing mutation data, permission error, or false/missing readback is
+   `unresolved—resolution failed`; report its exact link and error. Re-enumerate
+   all feedback once at completion. Newly arrived/unaddressed feedback remains
+   outstanding; never report “all addressed” merely because the first list was
+   exhausted.
 
-- `../../runtime/bin/git_ops.sh pr-comments N` already returns exact targets
-  as `{id, author, path, line, body}` — no manual `--jq` parsing needed.
-- Reply per item as a top-level comment (per-comment threaded replies often
-  404 on both hosts): `../../runtime/bin/git_ops.sh pr-comment N "Fixed in
-  <commit>: ..."` / `"Declining: <rationale>"`. The step-8 summary disposition
-  table is the reliable fallback channel regardless — post it either way.
-- **github-only: thread resolution** — GitHub supports formally resolving a
-  review thread; GitLab (via `glab`) has no equivalent, so this block is
-  provider-conditional:
-  - github: `gh api graphql -f query='mutation { resolveReviewThread(input:
-    {threadId: "<thread_id>"}) { thread { isResolved } } }'`
-    (thread IDs come from `gh pr view <N> --json reviewThreads`, *not* from
-    `pr-comments`' `id` field — those are comment IDs, not thread IDs).
-  - gitlab: no thread-resolve verb exists, so instead post
-    `../../runtime/bin/git_ops.sh pr-comment N "Resolved: <summary>"` to close
-    the loop (routes to `glab mr note` under git_ops.sh).
+## GitHub: complete feedback inventory and resolution
 
-## Review bodies
+`gh pr view --json reviewThreads` is invalid: that JSON field is unsupported.
+Use literal GraphQL queries and variables; never interpolate comment content
+into a GraphQL document.
 
-- **github-only**: review summaries arrive separately from inline threads
-  (`gh pr view <N> --json reviews,reviewThreads`); extract each actionable
-  point as its own triage item — they often restate or extend the inline
-  comments.
-- gitlab: no separate review-body concept, but note that `pr-comments` above
-  is now inline-only (matching github) — general, non-inline MR discussion
-  notes are NOT returned by it; fetch those separately in the step below.
+Enumerate threads, with `--paginate`:
 
-## Issue-level discussion
+```bash
+gh api graphql --paginate -f query='query($owner:String!,$repo:String!,$pr:Int!,$endCursor:String) {
+  repository(owner:$owner,name:$repo) {
+    pullRequest(number:$pr) {
+      reviewThreads(first:100,after:$endCursor) {
+        nodes { id isResolved isOutdated viewerCanReply viewerCanResolve path line }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' -f owner="$OWNER" -f repo="$REPO" -F pr="$PR"
+```
 
-- Top-level PR comments (`gh pr view <N> --comments`) can contain feedback
-  too; triage them like any other item, and this thread is where the summary
-  disposition table belongs.
-- gitlab has no equivalent git_ops.sh verb for general MR discussion notes;
-  fetch them directly: `glab api projects/:id/merge_requests/N/notes --jq
-  '[.[] | select(.system == false)]'` (the Notes API — separate from
-  `pr-comments`' Discussions-API-backed inline results).
+For **each** thread, enumerate all nested comments separately:
+
+```bash
+gh api graphql --paginate -f query='query($thread:ID!,$endCursor:String) {
+  node(id:$thread) {
+    ... on PullRequestReviewThread {
+      id isResolved viewerCanReply viewerCanResolve
+      comments(first:100,after:$endCursor) {
+        nodes { id databaseId url body author { login } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' -f thread="$THREAD_ID"
+```
+
+Fetch review bodies and standalone issue comments independently, with all
+pages, then deduplicate by their IDs:
+
+```bash
+gh api --paginate "repos/$OWNER/$REPO/pulls/$PR/reviews"
+gh api --paginate "repos/$OWNER/$REPO/issues/$PR/comments"
+```
+
+After a verified fix, reply in the **thread** (not an individual numeric
+comment ID). Pass body text as a CLI variable or `-F body=@FILE`:
+
+```bash
+gh api graphql -f query='mutation($thread:ID!,$body:String!) {
+  addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$thread,body:$body}) {
+    comment { id url }
+  }
+}' -f thread="$THREAD_ID" -f body="$BODY"
+```
+
+Re-read the thread, then resolve it only after the reply succeeds:
+
+```bash
+gh api graphql -f query='mutation($thread:ID!) {
+  resolveReviewThread(input:{threadId:$thread}) { thread { id isResolved } }
+}' -f thread="$THREAD_ID"
+gh api graphql -f query='query($thread:ID!) {
+  node(id:$thread) { ... on PullRequestReviewThread { id isResolved } }
+}' -f thread="$THREAD_ID"
+```
+
+Only the second query proves resolution. `isOutdated` does not bypass claim
+verification. Lack of `viewerCanReply`/`viewerCanResolve` is an explicit
+unresolved permission outcome.
+
+## GitLab: complete feedback inventory and resolution
+
+Use a known numeric project ID or URL-encoded full path; use `:id` only after
+verifying that the checkout is the target. Fetch both discussion and standalone
+note channels, preserving discussion and note IDs:
+
+```bash
+glab api --paginate "projects/$PROJECT/merge_requests/$MR/discussions"
+glab api --paginate "projects/$PROJECT/merge_requests/$MR/notes"
+```
+
+Ignore system notices, retain non-diff general discussion notes, and inspect
+`resolvable` and `resolved` on notes. Reply to the exact eligible discussion,
+then resolve it and read it back:
+
+```bash
+glab api -X POST "projects/$PROJECT/merge_requests/$MR/discussions/$DISCUSSION_ID/notes" -f body="$BODY"
+glab api -X PUT "projects/$PROJECT/merge_requests/$MR/discussions/$DISCUSSION_ID" -F resolved=true
+glab api "projects/$PROJECT/merge_requests/$MR/discussions/$DISCUSSION_ID"
+```
+
+Count the discussion resolved only when the readback confirms every resolvable
+note is resolved. Absence of resolvable notes is not success. A Developer,
+Maintainer, Owner, or author-of-change permission failure is reported and is
+never bypassed.
+
+## Completion publication
+
+Post one summary disposition table with links, claim, action or rejection,
+fix SHA, verification evidence, and formal resolution state. A top-level
+review body or standalone comment is marked `addressed — not applicable` for
+formal resolution; a failed resolve is marked `unresolved—resolution failed`.
 
 > Absorbed: address-pr-review-comments, address-review-comments (2026-06)

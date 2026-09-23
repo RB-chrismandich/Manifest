@@ -78,7 +78,7 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     [ ! -s "$REC" ]
 }
 
-@test "fail-open: engine binary exits non-zero (simulated git_ops/network failure) — hook still exits 0" {
+@test "fail-open: engine binary exits non-zero (simulated native network failure) — hook still exits 0" {
     export ENGINE_RC=1
     printf '{"tool_input":{"command":"gh pr create -t x"},"tool_response":{}}' > "$TMP/p.json"
     run bash "$DISPATCH" < "$TMP/p.json"
@@ -157,15 +157,9 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     grep -q 'sync-commit HEAD' "$REC"
 }
 
-@test "glab mr-create is classified as pr and git_ops.sh mr-create is also recognized" {
+@test "glab mr-create is classified as pr" {
     printf '{"tool_input":{"command":"glab mr create --title x"},"tool_response":{}}' > "$TMP/p.json"
     run bash "$DISPATCH" < "$TMP/p.json"
-    [ "$status" -eq 0 ]
-    grep -q 'sync-pr' "$REC" || return 1
-
-    : >"$REC"
-    printf '{"tool_input":{"command":"scripts/git_ops.sh mr-create"},"tool_response":{}}' > "$TMP/p2.json"
-    run bash "$DISPATCH" < "$TMP/p2.json"
     [ "$status" -eq 0 ]
     grep -q 'sync-pr' "$REC"
 }

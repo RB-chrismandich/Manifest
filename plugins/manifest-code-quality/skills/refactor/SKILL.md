@@ -31,14 +31,13 @@ and aggregating their results unless a risk condition is present.
 
 ## Sub-agent dispatch
 
-Follow the [dispatch mechanics](references/refactor-dispatch.md) and the
-[review escalation contract](references/review-escalation.md). When any one
-of the five conditions warrants escalation, obtain an independent review using
-the pinned `sonnet` model. Partition work among multiple reviewers only when
-the investigation has genuinely independent analysis tracks; otherwise the
-second review examines the same target independently.
-
-Submit independent review units in one OMP `task` call (waves of at most 32),
-using the `reviewer` agent type; children execute directly and never
-redispatch; use `hub` only to coordinate or wait. If `task` is unavailable,
-review inline and report `DEGRADED`.
+Follow the [dispatch mechanics](references/refactor-dispatch.md), the
+[shared dispatch contract](../../runtime/references/sub-agent-dispatch.md), and
+the [review escalation contract](references/review-escalation.md). When a risk
+condition warrants escalation, obtain an independent review through the current
+host's native mechanism; partition reviewers only when the investigation has
+genuinely independent analysis tracks; otherwise the second review examines the
+same target independently.
+Submit independent review units in one native call, using the `reviewer`
+specialist where available; children execute directly and never redispatch. If
+sub-agent dispatch is unavailable, review inline and report `DEGRADED`.

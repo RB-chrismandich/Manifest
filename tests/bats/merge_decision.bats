@@ -84,17 +84,10 @@ label()  { python3 -c 'import json,sys;print(json.load(sys.stdin).get("label") o
     run "$SCRIPT" decide "$(mk '{"gate_tier1":null,"consensus":null}')"
     [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "run-gate" ]
 }
-@test "all clear + consensus 0.86 -> merge" {
-    run "$SCRIPT" decide "$(mk '{"consensus":0.86}')"
+
+@test "all clear + Tier-1 pass -> merge without consensus score" {
+    run "$SCRIPT" decide "$(mk '{}')"
     [ "$(echo "$output" | action)" = "merge" ]
-}
-@test "all clear + consensus 0.65 -> hand-human/ready-to-merge" {
-    run "$SCRIPT" decide "$(mk '{"consensus":0.65}')"
-    [ "$(echo "$output" | action)" = "hand-human" ]; [ "$(echo "$output" | label)" = "ready-to-merge" ]
-}
-@test "all clear + consensus 0.40 -> hand-human/needs-human" {
-    run "$SCRIPT" decide "$(mk '{"consensus":0.40}')"
-    [ "$(echo "$output" | action)" = "hand-human" ]; [ "$(echo "$output" | label)" = "needs-human" ]
 }
 
 # --- invariants ---

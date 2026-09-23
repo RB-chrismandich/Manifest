@@ -70,9 +70,6 @@ print(f"DUP_TITLE_MEDIUM={dup['title_similarity_medium']}")
 print(f"STALENESS_DAYS={config['staleness']['inactivity_days']}")
 print(f"FILE_MISSING_THRESHOLD={config['staleness']['file_missing_threshold']}")
 print(f"REVIEWERS_PER_ITEM={review['reviewers_per_item']}")
-print(f"MINIMUM_VALID_VERDICTS={review['minimum_valid_verdicts']}")
-print(f"DUPLICATE_AGREEMENT_THRESHOLD={review['duplicate_agreement_threshold']}")
-print(f"PRIORITY_AGREEMENT_THRESHOLD={review['priority_agreement_threshold']}")
 PY
 }
 
@@ -88,14 +85,9 @@ while IFS= read -r line; do
             val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; STALENESS_DAYS="$val" ;;
         FILE_MISSING_THRESHOLD=*)
             val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; FILE_MISSING_THRESHOLD="$val" ;;
-        REVIEWERS_PER_ITEM=*|MINIMUM_VALID_VERDICTS=*|DUPLICATE_AGREEMENT_THRESHOLD=*|PRIORITY_AGREEMENT_THRESHOLD=*)
+        REVIEWERS_PER_ITEM=*)
             val="${line#*=}"; val="${val%\"}"; val="${val#\"}"
-            case "$line" in
-                REVIEWERS_PER_ITEM=*) REVIEWERS_PER_ITEM="$val" ;;
-                MINIMUM_VALID_VERDICTS=*) MINIMUM_VALID_VERDICTS="$val" ;;
-                DUPLICATE_AGREEMENT_THRESHOLD=*) DUPLICATE_AGREEMENT_THRESHOLD="$val" ;;
-                PRIORITY_AGREEMENT_THRESHOLD=*) PRIORITY_AGREEMENT_THRESHOLD="$val" ;;
-            esac ;;
+            REVIEWERS_PER_ITEM="$val" ;;
     esac
 done <<< "$config_string"
 
@@ -474,31 +466,23 @@ detect_duplicates "$TEMP_DIR/issues_with_components.json" > "$DUPLICATES_FILE"
 
 ```
 
-#### OMP duplicate-review wave
+#### Native duplicate review
 
-For every MEDIUM pair, the parent dispatches **five independent read-only
-`reviewer` tasks** in one OMP `task` call (or multiple waves of at most 32
-tasks). A task receives exactly one pair and must return this JSON object:
+For every MEDIUM pair selected for independent review, assign **three** bounded,
+read-only reviewer units through the shared native dispatch contract. Each unit
+receives exactly one pair and returns this JSON object:
 
 ```json
 {"is_duplicate": true, "confidence": 0, "reasoning": "..."}
 ```
 
 `is_duplicate` must be a JSON boolean, `confidence` an integer from 0 through
-100, and `reasoning` a string. Each malformed, missing, or wrong-typed result
-is recorded by its reviewer task identity as invalid and excluded. The parent
-must not reinterpret prose or infer a verdict.
-
-After collecting the five results for a pair, the parent requires at least
-`MINIMUM_VALID_VERDICTS` valid results (3), calculates
-`true_votes / valid_votes`, and promotes the pair to HIGH only when that ratio
-is at least `DUPLICATE_AGREEMENT_THRESHOLD` (0.8). Otherwise it leaves the
-pair MEDIUM.
-
-If fewer than three valid verdicts arrive, record `DEGRADED` with the invalid
-or missing reviewer identities and leave the pair MEDIUM. A DEGRADED review
-never changes a duplicate disposition. If OMP `task` is unavailable, review
-the pair inline, record `DEGRADED`, and do not promote it automatically.
+100, and `reasoning` a string. Attribute malformed, missing, or wrong-typed
+results to their reviewer identity and exclude them. The parent directly
+adjudicates the three attributed evidence objects and decides whether the pair
+remains MEDIUM or is promoted; it must not infer a verdict, use a vote
+percentage, or promote a pair with missing or conflicting evidence. Those
+cases record `DEGRADED`.
 
 Only after applying those outcomes:
 
@@ -629,9 +613,9 @@ echo "Found $STALE_COUNT closable stale issues"
 
 ### Step 7: Priority Validation
 
-For each candidate with a priority, the parent dispatches **five independent
-read-only `reviewer` tasks** in one OMP `task` call (or waves of at most 32
-tasks). A task receives exactly one candidate and must return this JSON object:
+For each candidate selected for independent priority review, assign **three**
+bounded, read-only reviewer units through the shared native dispatch contract.
+Each unit receives exactly one candidate and returns this JSON object:
 
 ```json
 {
@@ -644,55 +628,35 @@ tasks). A task receives exactly one candidate and must return this JSON object:
 }
 ```
 
-Each reviewer prompt must include the scoring rule and mapping retained by the
-priority policy:
-
-- Calculate total score as `(impact_score × 3) + (urgency_score × 2) +
-  (readiness_score × 2) - risk_score`.
-- Map total score to `recommended_priority` as: 28 or greater → 1; 22–27 → 2;
-  16–21 → 3; 10–15 → 4; below 10 → 0.
+Calculate total score as `(impact_score × 3) + (urgency_score × 2) +
+  (readiness_score × 2) - risk_score`. Map it to `recommended_priority`:
+28 or greater → 1; 22–27 → 2; 16–21 → 3; 10–15 → 4; below 10 → 0.
 
 All four dimension scores must be integers from 1 through 5;
 `recommended_priority` must be an integer from 0 through 4; and `reasoning`
 must be a string. Record every invalid, malformed, or missing result by its
-reviewer task identity and exclude it from the vote.
-
-For each candidate, require at least `MINIMUM_VALID_VERDICTS` valid results
-(3). Find the modal `recommended_priority`; a recommendation changes the
-candidate only if its modal votes divided by valid votes is at least
-`PRIORITY_AGREEMENT_THRESHOLD` (0.7) **and** differs from the current
-priority. Include the modal vote ratio and valid reviewer count in the
-recommendation report. Ties have no modal recommendation and leave the
-priority unchanged.
-
-If a candidate has fewer than three valid results, record `DEGRADED` naming
-the invalid or missing reviewers and make no priority recommendation or
-mutation for that candidate. If OMP `task` is unavailable, perform the review
-inline, record `DEGRADED`, and make no automatic priority change.
+reviewer identity and exclude it. The parent validates the cited rationale and
+scoring rule before changing a priority; it does not use a modal vote,
+percentage threshold, or an unavailable review as correctness evidence.
 
 The parent serializes the returned verdicts in task submission order to
 `$TEMP_DIR/priority_verdicts.json`. Each entry has `identifier`, `title`,
 `current_priority`, and ordered `verdicts`; every verdict has a `reviewer`
-identity and a `result` object (or `null` when missing). Materialize the
-recommendations and named invalid/degraded audit before Step 8:
+identity and a `result` object (or `null` when missing). Materialize named
+invalid/degraded audit records before parent adjudication:
 
 ```bash
 PRIORITY_FILE="$TEMP_DIR/priority_issues.json"
 PRIORITY_AUDIT_FILE="$TEMP_DIR/priority_review_audit.json"
 
-python3 - "$TEMP_DIR/priority_verdicts.json" "$PRIORITY_FILE" "$PRIORITY_AUDIT_FILE" \
-    "$MINIMUM_VALID_VERDICTS" "$PRIORITY_AGREEMENT_THRESHOLD" <<'PY'
+python3 - "$TEMP_DIR/priority_verdicts.json" "$PRIORITY_FILE" "$PRIORITY_AUDIT_FILE" "$REVIEWERS_PER_ITEM" <<'PY'
 import json
 import sys
-from collections import Counter
 
-source, recommendation_path, audit_path, minimum, threshold = sys.argv[1:]
-minimum = int(minimum)
-threshold = float(threshold)
-
+source, recommendation_path, audit_path, reviewers_count = sys.argv[1:]
+expected_reviewers = int(reviewers_count)
 with open(source, encoding="utf-8") as stream:
     candidates = json.load(stream)
-
 recommendations = []
 audit = []
 
@@ -708,56 +672,42 @@ def valid_result(result):
     )
 
 for candidate in candidates:
+    if not isinstance(candidate, dict):
+        continue
+    identifier = candidate.get("identifier")
+    if not isinstance(identifier, str) or not identifier.strip():
+        identifier = "unknown-candidate"
+    raw_verdicts = candidate.get("verdicts", [])
+    if not isinstance(raw_verdicts, list):
+        raw_verdicts = []
     valid = []
-    invalid_reviewers = []
-    for verdict in candidate.get("verdicts", []):
-        reviewer = verdict.get("reviewer", "unknown-reviewer")
-        result = verdict.get("result")
-        if valid_result(result):
-            valid.append((reviewer, result))
+    invalid = []
+    seen_reviewers = set()
+    for item in raw_verdicts:
+        if isinstance(item, dict):
+            raw_reviewer = item.get("reviewer")
+            is_valid_identity = isinstance(raw_reviewer, str) and bool(raw_reviewer.strip())
+            reviewer = raw_reviewer.strip() if is_valid_identity else "unknown-reviewer"
+            result = item.get("result")
+            if not is_valid_identity:
+                invalid.append("unknown-reviewer")
+            elif reviewer in seen_reviewers:
+                invalid.append(f"duplicate-{reviewer}")
+            elif valid_result(result):
+                seen_reviewers.add(reviewer)
+                valid.append({"reviewer": reviewer, "result": result})
+            else:
+                seen_reviewers.add(reviewer)
+                invalid.append(reviewer)
         else:
-            invalid_reviewers.append(reviewer)
-
-    record = {
-        "identifier": candidate["identifier"],
+            invalid.append("malformed-verdict")
+    audit.append({
+        "identifier": identifier,
+        "status": "READY_FOR_PARENT_ADJUDICATION" if len(valid) == expected_reviewers and identifier != "unknown-candidate" else "DEGRADED",
         "valid_reviewer_count": len(valid),
-        "invalid_or_missing_reviewers": invalid_reviewers,
-    }
-    if len(valid) < minimum:
-        record["status"] = "DEGRADED"
-        audit.append(record)
-        continue
-
-    votes = Counter(result["recommended_priority"] for _, result in valid)
-    modal_priority, modal_votes = votes.most_common(1)[0]
-    if sum(count == modal_votes for count in votes.values()) != 1:
-        record["status"] = "NO_MODAL_RECOMMENDATION"
-        audit.append(record)
-        continue
-
-    agreement_ratio = modal_votes / len(valid)
-    modal_reasoning = next(
-        result["reasoning"]
-        for _, result in valid
-        if result["recommended_priority"] == modal_priority
-    )
-    record.update(
-        status="RECOMMENDED" if agreement_ratio >= threshold else "INSUFFICIENT_AGREEMENT",
-        modal_priority=modal_priority,
-        modal_votes=modal_votes,
-        agreement_ratio=agreement_ratio,
-    )
-    audit.append(record)
-    if agreement_ratio >= threshold and modal_priority != candidate["current_priority"]:
-        recommendations.append({
-            "identifier": candidate["identifier"],
-            "title": candidate["title"],
-            "current_priority": candidate["current_priority"],
-            "recommended_priority": modal_priority,
-            "agreement_ratio": agreement_ratio,
-            "valid_reviewer_count": len(valid),
-            "reasoning": modal_reasoning,
-        })
+        "invalid_or_missing_reviewers": invalid,
+        "evidence": valid,
+    })
 
 with open(recommendation_path, "w", encoding="utf-8") as stream:
     json.dump(recommendations, stream, indent=2)
@@ -765,6 +715,20 @@ with open(audit_path, "w", encoding="utf-8") as stream:
     json.dump(audit, stream, indent=2)
 PY
 
+```
+
+The parent then adjudicates each `READY_FOR_PARENT_ADJUDICATION` record from
+its three attributed evidence objects. It recomputes each score using the
+published formula, rejects a reviewer whose declared priority does not match
+that score, and writes a recommendation to `$PRIORITY_FILE` only when the
+remaining evidence supports the parent’s documented rationale. Conflicting
+evidence remains `DEGRADED`; it never becomes a recommendation automatically.
+
+Each parent-written recommendation has `identifier`, `title`, `current_priority`,
+`recommended_priority`, `reasoning`, `evidence_reviewers`, and
+`valid_reviewer_count`. After adjudication:
+
+```bash
 PRIORITY_COUNT=$(jq 'length' "$PRIORITY_FILE")
 echo "Found $PRIORITY_COUNT priority misalignments"
 ```
@@ -839,7 +803,7 @@ $(jq -r '.[] | select(.safe_to_close == false) |
 These issues have priority misalignments based on impact/urgency scoring:
 
 $(jq -r '.[] |
-"- **\(.identifier)**: Current P\(.current_priority) → Recommended P\(.recommended_priority) (Agreement: \(.agreement_ratio * 100)% across \(.valid_reviewer_count) valid verdicts)
+"- **\(.identifier)**: Current P\(.current_priority) → Recommended P\(.recommended_priority) (Evidence: \(.valid_reviewer_count) validated reviewers: \(.evidence_reviewers | join(", ")))
   - Title: \(.title)
   - Reasoning: \(.reasoning)"' "$PRIORITY_FILE")
 

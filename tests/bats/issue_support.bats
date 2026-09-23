@@ -26,41 +26,39 @@ echo "${STUB_PLATFORM:-github}"
 EOF
     chmod +x "$TMP/git_platform.sh"
 
-    # Stub git_ops.sh: log calls, emit fixtures, honor *_RC env for exit codes
-    cat >"$TMP/git_ops.sh" <<'EOF'
+    # Native CLI fakes emit fixtures and record direct provider commands.
+    mkdir -p "$TMP/bin"
+    cat >"$TMP/bin/forge-cli" <<'EOF'
 #!/usr/bin/env bash
-sub="$1"; shift
-echo "$sub $*" >> "${CALL_LOG:-/dev/null}"
+set -euo pipefail
+case "$1 ${2:-}" in
+  "issue view") sub=issue-view; n="${3:-}" ;;
+  "issue list") sub=issue-list ;;
+  "issue edit"|"issue update") sub=issue-edit; n="${3:-}" ;;
+  "issue comment"|"issue note") sub=issue-comment; n="${3:-}" ;;
+  "issue create") sub=issue-create ;;
+  "pr view"|"mr view") sub=pr-view ;;
+  "pr edit"|"mr update") sub=pr-edit ;;
+  *) sub="$1-${2:-}" ;;
+esac
+printf '%s %s\n' "$sub" "$*" >> "${CALL_LOG:-/dev/null}"
 case "$sub" in
-  issue-view)
-    n="$1"
-    if [[ -f "${FIXTURE_DIR}/issue-${n}.json" ]]; then cat "${FIXTURE_DIR}/issue-${n}.json"; fi
-    ;;
-  pr-view)   [[ -f "${FIXTURE_DIR}/pr.json" ]] && cat "${FIXTURE_DIR}/pr.json" || true ;;
+  issue-view) if [[ -f "${FIXTURE_DIR}/issue-${n}.json" ]]; then cat "${FIXTURE_DIR}/issue-${n}.json"; fi ;;
+  pr-view) [[ -f "${FIXTURE_DIR}/pr.json" ]] && cat "${FIXTURE_DIR}/pr.json" || true ;;
   issue-list) printf '%s' "${ISSUE_LIST_OUT:-}" ;;
   issue-edit) exit "${EDIT_RC:-0}" ;;
   issue-comment) exit "${COMMENT_RC:-0}" ;;
   issue-create) exit "${CREATE_RC:-0}" ;;
   pr-edit) exit "${PREDIT_RC:-0}" ;;
-  *) exit "${GITOPS_RC:-0}" ;;
+  *) exit "${NATIVE_CLI_RC:-0}" ;;
 esac
-exit "${GITOPS_RC:-0}"
 EOF
-    chmod +x "$TMP/git_ops.sh"
+    chmod +x "$TMP/bin/forge-cli"
+    ln -s forge-cli "$TMP/bin/gh"
+    ln -s forge-cli "$TMP/bin/glab"
+    export PATH="$TMP/bin:$PATH"
 
-    # Stub tracker_ops.sh: records calls to CALL_LOG (same log as git_ops.sh,
-    # matching the file's shared stubbing convention). resolve-provider honors
-    # STUB_PLATFORM (same knob the git_platform.sh stub used pre-Task-7).
-    # issue-transition/issue-comment honor EDIT_RC/COMMENT_RC for ordinary
-    # failures, and TRACKER_RC to simulate the tracker_ops provider-limitation
-    # exit codes (3 = MCP-only provider, 4 = verb not implemented) — mirroring
-    # tracker_ops.sh's own "unsupported-in-context" / "not implemented" wording
-    # on stderr so callers can assert the fail-open reason was logged.
-    # NOTE: on success, issue-transition/issue-comment echo a fake gh/glab-style
-    # issue URL to stdout — mirroring real `gh issue edit`/`gh issue comment`,
-    # which print the issue URL on SUCCESS too (Task 7 finding: this must never
-    # leak into issue_support.sh's own output). On a genuine (non-3/4) failure
-    # they emit a diagnostic on stderr, which the caller IS expected to surface.
+    # Stub tracker_ops.sh: records its retained workflow calls.
     cat >"$TMP/tracker_ops.sh" <<'EOF'
 #!/usr/bin/env bash
 sub="$1"; shift
@@ -97,7 +95,6 @@ EOF
     chmod +x "$TMP/tracker_ops.sh"
 
     export GIT_PLATFORM_BIN="$TMP/git_platform.sh"
-    export GIT_OPS_BIN="$TMP/git_ops.sh"
     export TRACKER_OPS_BIN="$TMP/tracker_ops.sh"
     export CALL_LOG="$TMP/calls.log"
 
@@ -164,7 +161,7 @@ EOF
 
 @test "sync-pr exits 0 even when tracker calls fail (fail-open)" {
     mk_issue 17 open planned
-    GITOPS_RC=1 EDIT_RC=1 COMMENT_RC=1 run "$SCRIPT" sync-pr 42
+    NATIVE_CLI_RC=1 EDIT_RC=1 COMMENT_RC=1 run "$SCRIPT" sync-pr 42
     [ "$status" -eq 0 ]
 }
 

@@ -57,12 +57,25 @@ EOS
     chmod +x "$1"
 }
 
-@test "issue-list on github delegates to git_ops" {
-    make_stub "${STUBS}/git_ops.sh"
-    GIT_OPS_BIN="${STUBS}/git_ops.sh" MANIFEST_TRACKER=github \
+make_native_stub() { # $1=native command assertion log path
+    export NATIVE_CALL_LOG="$1"
+    cat > "${STUBS}/gh" <<'EOS'
+#!/usr/bin/env bash
+printf 'argc=%d' "$#" >> "$NATIVE_CALL_LOG"
+printf ' %q' "$@" >> "$NATIVE_CALL_LOG"
+printf '\n' >> "$NATIVE_CALL_LOG"
+exit "${NATIVE_CLI_RC:-0}"
+EOS
+    chmod +x "${STUBS}/gh"
+    ln -sf gh "${STUBS}/glab"
+}
+
+@test "issue-list on github calls gh issue list" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    MANIFEST_TRACKER=github \
         run bash "${SCRIPT}" issue-list --limit 5
     [ "$status" -eq 0 ]
-    grep -q "issue-list --limit 5" "${STUBS}/git_ops.sh.calls"
+    grep -q "issue list --limit 5" "${STUBS}/native-cli.calls"
 }
 
 @test "issue-close on linear delegates to linear_ops" {
@@ -99,21 +112,21 @@ EOS
     grep -q -- "issue-comment ENG-42 -not-a-flag" "${STUBS}/linear_ops.sh.calls"
 }
 
-@test "issue-comment on github passes through unchanged (git_ops.sh translates internally)" {
-    make_stub "${STUBS}/git_ops.sh"
-    GIT_OPS_BIN="${STUBS}/git_ops.sh" MANIFEST_TRACKER=github \
+@test "issue-comment on github calls gh issue comment with --body" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    MANIFEST_TRACKER=github \
         run bash "${SCRIPT}" issue-comment 42 "some text"
     [ "$status" -eq 0 ]
-    grep -q -- "issue-comment 42 some text" "${STUBS}/git_ops.sh.calls"
+    grep -Fq -- 'argc=5 issue comment 42 --body some\ text' "${STUBS}/native-cli.calls"
 }
 
-@test "issue-transition github swaps canonical labels" {
-    make_stub "${STUBS}/git_ops.sh"
-    GIT_OPS_BIN="${STUBS}/git_ops.sh" MANIFEST_TRACKER=github \
+@test "issue-transition github calls gh issue edit with canonical labels" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    MANIFEST_TRACKER=github \
         run bash "${SCRIPT}" issue-transition 7 needs-review
     [ "$status" -eq 0 ]
-    grep -q -- "--add-label needs-review" "${STUBS}/git_ops.sh.calls"
-    grep -q -- "--remove-label planned" "${STUBS}/git_ops.sh.calls"
+    grep -q -- "--add-label needs-review" "${STUBS}/native-cli.calls"
+    grep -q -- "--remove-label planned" "${STUBS}/native-cli.calls"
 }
 
 @test "issue-transition linear uses workflow state name" {
@@ -153,14 +166,52 @@ EOS
     [[ "$output" == *"not implemented"* ]]
 }
 
-@test "duplicate-mark github closes with comment and label" {
-    make_stub "${STUBS}/git_ops.sh"
-    GIT_OPS_BIN="${STUBS}/git_ops.sh" MANIFEST_TRACKER=github \
+@test "duplicate-mark github comments labels and closes natively" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    MANIFEST_TRACKER=github \
         run bash "${SCRIPT}" duplicate-mark 9 --duplicate-of 4
-    grep -q "issue-comment 9 Duplicate of #4" "${STUBS}/git_ops.sh.calls"
-    grep -q -- "issue-edit 9 --add-label duplicate" "${STUBS}/git_ops.sh.calls"
-    grep -q "issue-close 9" "${STUBS}/git_ops.sh.calls"
+    grep -Fq 'argc=5 issue comment 9 --body Duplicate\ of\ #4' "${STUBS}/native-cli.calls"
+    grep -q -- "issue edit 9 --add-label duplicate" "${STUBS}/native-cli.calls"
+    grep -q "issue close 9" "${STUBS}/native-cli.calls"
 }
+
+@test "issue-transition gitlab uses native label flags" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    MANIFEST_TRACKER=gitlab run bash "${SCRIPT}" issue-transition 7 needs-review
+    [ "$status" -eq 0 ]
+    grep -q -- "issue update 7 .*--unlabel planned.*--label needs-review" "${STUBS}/native-cli.calls"
+}
+
+@test "duplicate-mark gitlab uses native label flags" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    MANIFEST_TRACKER=gitlab run bash "${SCRIPT}" duplicate-mark 9 --duplicate-of 4
+    [ "$status" -eq 0 ]
+    grep -q -- "issue update 9 --label duplicate" "${STUBS}/native-cli.calls"
+}
+
+@test "issue-comment preserves multiline shell text as one GitHub argv value" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    body=$'line one\n"quoted"; $(not-run)'
+    expected=$(printf '%q' "$body")
+    MANIFEST_TRACKER=github run bash "${SCRIPT}" issue-comment 42 "$body"
+    [ "$status" -eq 0 ]
+    grep -Fq -- "argc=5 issue comment 42 --body ${expected}" "${STUBS}/native-cli.calls"
+}
+
+@test "issue-comment preserves multiline shell text as one GitLab argv value" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    body=$'line one\n"quoted"; $(not-run)'
+    expected=$(printf '%q' "$body")
+    MANIFEST_TRACKER=gitlab run bash "${SCRIPT}" issue-comment 42 "$body"
+    [ "$status" -eq 0 ]
+    grep -Fq -- "argc=5 issue note 42 --message ${expected}" "${STUBS}/native-cli.calls"
+}
+@test "native CLI failure propagates from tracker operation" {
+    make_native_stub "${STUBS}/native-cli.calls"
+    NATIVE_CLI_RC=17 MANIFEST_TRACKER=github run bash "${SCRIPT}" issue-list
+    [ "$status" -eq 17 ]
+}
+
 
 @test "jira from shell context exits 3 with distinct message" {
     MANIFEST_TRACKER=jira run bash "${SCRIPT}" issue-list

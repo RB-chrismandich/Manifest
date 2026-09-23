@@ -93,10 +93,6 @@
     "configs/claude/scripts/generate_cursor_agents.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/git_ops.sh": {
-      "C-DUPE": 2,
-      "C-SIZE": 1
-    },
     "configs/claude/scripts/guidance_hint.py": {
       "C-ERR": 5
     },
@@ -212,10 +208,6 @@
       "C-SIZE": 1
     },
     "plugins/manifest-docs/runtime/docs_lint.py": {
-      "C-SIZE": 1
-    },
-    "plugins/manifest-forge/runtime/bin/git_ops.sh": {
-      "C-DUPE": 2,
       "C-SIZE": 1
     },
     "plugins/manifest-forge/runtime/bin/lib/lifecycle_tracker.sh": {

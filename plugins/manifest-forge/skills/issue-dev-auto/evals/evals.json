@@ -22,7 +22,7 @@
     {
       "id": 3,
       "prompt": "after the PR is open, keep an eye on it — fix any review comments and failing checks, then merge it once everything's green",
-      "expected_output": "Runs the PR monitoring loop: pr_merge_loop.sh signals | merge_decision.sh decide; on `revise` runs /pr-address-comments,/project-verify,/pr-review (≤3 cycles); only merges on `merge` (CI green, no actionable human comment, /pr-review=merge, /project-verify pass, #360 gate Tier-1 pass, consensus≥0.80) via admin bypass; anything short → ready-to-merge/needs-human. Honors PR_MERGE_LOOP_APPLY (dry-run by default).",
+      "expected_output": "Runs the PR monitoring loop: pr_merge_loop.sh signals | merge_decision.sh decide; on `revise` runs /pr-address-comments,/project-verify,/pr-review (≤3 cycles); only merges on `merge` after CI is green, no actionable human comment remains, /pr-review=merge, /project-verify passes, and #360 gate Tier-1 passes via admin bypass; anything short → ready-to-merge/needs-human. Honors PR_MERGE_LOOP_APPLY (dry-run by default).",
       "files": []
     },
     {
@@ -34,7 +34,7 @@
     {
       "id": 5,
       "prompt": "is it safe to let this thing merge to main on its own?",
-      "expected_output": "Explains the fail-closed safety model: merge is opt-in (PR_MERGE_LOOP_APPLY=1), gated by a unit-tested decision (merge_decision.sh, SC-002 invariant) plus the #360 verification gate with BLOCKING consensus; no admin / conflict / red-main / infra failure ever produces a merge — those route to a human.",
+      "expected_output": "Explains the fail-closed safety model: merge is opt-in (PR_MERGE_LOOP_APPLY=1), gated by a unit-tested decision (merge_decision.sh, SC-002 invariant) plus the #360 verification gate's blocking Tier-1 evidence; no admin / conflict / red-main / infra failure ever produces a merge — those route to a human.",
       "files": []
     }
   ]

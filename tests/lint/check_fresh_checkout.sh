@@ -47,7 +47,7 @@ cd "$REPO_ROOT"
 # gate proved nothing about isolation, only about the script's own syntax.
 # Narrow the extraction to the bundle directory under test: every dependency
 # `pr_merge_loop.sh` and everything it calls actually needs (loop_lock.sh,
-# merge_decision.sh, verification_gate.sh, pr_merge_loop_gh.sh, git_ops.sh,
+# merge_decision.sh, verification_gate.sh, pr_merge_loop_gh.sh,
 # git_platform.sh, audit_log.sh, lifecycle.sh, runtime/config/*.json) is
 # declared, machine-readably, in manifest-capabilities.yml's
 # `components.runtime` list (forge-bin/forge-python/forge-config/
@@ -107,18 +107,11 @@ fail=0
 # still prove the present files are genuinely REACHED, not merely present);
 # it closes the gap they cannot cover.
 #
-# List derived from docs/superpowers/specs/2026-08-19-marketplace-restructure-
-# design.md §4 Phase 1 item 1.3 ("It is now five files" — pr_merge_loop.sh,
-# merge_decision.sh, loop_lock.sh, verification_gate.sh, pr_merge_loop_gh.sh —
-# "their remaining dependencies, git_ops.sh/git_platform.sh/audit_log.sh, are
-# already present in runtime/bin") and confirmed by grepping every
-# `${SCRIPT_DIR}/*.sh` reference in each of those files. lifecycle.sh is
-# deliberately EXCLUDED: pr_merge_loop.sh references it, but only inside
-# lifecycle_gate_ok's fail-open short-circuit (LIFECYCLE_TRACK_FOR_PR_CMD is
-# unset in this test), so it is never actually invoked on the path this gate
-# exercises — listing it here would assert a dependency this run does not
-# genuinely require, the same over-claiming this fix exists to eliminate.
-#
+# List derived from the marketplace-restructure design and confirmed by
+# examining direct executable and sourced dependencies of the merge-loop path.
+# lifecycle.sh is deliberately EXCLUDED: pr_merge_loop.sh references it only
+# inside lifecycle_gate_ok's fail-open short-circuit (LIFECYCLE_TRACK_FOR_PR_CMD
+# is unset in this test), so it is never invoked on the path this gate exercises.
 # Two lists, not one: every entry below is directly EXECUTED (invoked as
 # `"${SCRIPT_DIR}/x.sh" args`, or `bash "${SCRIPT_DIR}/x.sh"` for
 # git_platform.sh) and so must carry the executable bit `git archive`
@@ -134,7 +127,6 @@ REQUIRED_EXEC_DEPS=(
     merge_decision.sh
     verification_gate.sh
     loop_lock.sh
-    git_ops.sh
     git_platform.sh
     audit_log.sh
 )

@@ -102,7 +102,7 @@ flowchart TB
     end
 
     HOOK["issue_support_hook.sh<br/>classify command + success"]:::process
-    CLASS{"Command class?<br/>(gh/glab/git_ops pr-create<br/>· git commit · none)"}:::decision
+    CLASS{"Command class?<br/>(gh/glab PR/MR create<br/>· git commit · none)"}:::decision
     OK{"Tool succeeded?<br/>(is_error / error)"}:::decision
 
     ENGINE["issue_support.sh<br/>sync-pr N / sync-commit HEAD<br/>(run_with_timeout, fail-open exit 0)"]:::process
@@ -117,7 +117,7 @@ flowchart TB
         CLOSEKW["ensure_closing_keyword<br/>Closes #N (PR only)"]:::process
     end
 
-    GIT_OPS["git_ops.sh → gh / glab"]:::platform
+    NATIVE_CLI["Native gh / glab"]:::platform
     NOOP["exit 0 (no-op)"]:::skip
 
     INSTALL -.->|registers| TOOLUSE
@@ -137,17 +137,17 @@ flowchart TB
     RESOLVE -->|none| OFFER
     OFFER --> TRANSITION
     TRANSITION --> BACKLINK --> CLOSEKW
-    TRANSITION --> GIT_OPS
-    BACKLINK --> GIT_OPS
-    CLOSEKW --> GIT_OPS
+    TRANSITION --> NATIVE_CLI
+    BACKLINK --> NATIVE_CLI
+    CLOSEKW --> NATIVE_CLI
 ```
 
 **Trigger → target mapping**:
 
 | Trigger | Hook class | Engine call | Status target | Extra action |
 |---------|-----------|-------------|---------------|--------------|
-| PR/MR created (`gh`/`glab`/`git_ops.sh pr-create`) | `pr` | `sync-pr N` | `needs-review` | back-link comment + ensure `Closes #N` |
-| `git commit` / `git_ops.sh commit` | `commit` | `sync-commit HEAD` | `in-progress` | back-link comment (only advances issues already `planned`) |
+| PR/MR created (`gh pr create` / `glab mr create`) | `pr` | `sync-pr N` | `needs-review` | back-link comment + ensure `Closes #N` |
+| `git commit` | `commit` | `sync-commit HEAD` | `in-progress` | back-link comment (only advances issues already `planned`) |
 | any other Bash command | `none` | — | — | no-op (exit 0) |
 
 **Key properties**:
@@ -201,7 +201,7 @@ flowchart TD
     TDD["test-driven-development:<br/>failing test → implement → green"]:::process
     VERIFY{"/project-verify<br/>tests + security pass?"}:::decision
 
-    PR["git_ops.sh pr-create<br/>→ PR hook injects Closes #N,<br/>moves #N to needs-review"]:::success
+    PR["gh pr create / glab mr create<br/>→ PR hook injects Closes #N,<br/>moves #N to needs-review"]:::success
     DRAFT["pr-create --draft [WIP]<br/>+ mark-blocked (needs-human label)"]:::warning
     SUMMARY["Print one-line summary;<br/>STOP (one issue per run)"]:::stop
 
@@ -219,7 +219,7 @@ flowchart TD
     DRAFT --> SUMMARY
 ```
 
-**Engine subcommands** (`auto_issue_dev.sh`, wraps `git_ops.sh`):
+**Engine subcommands** (`auto_issue_dev.sh`, uses native provider CLIs):
 
 | Subcommand | Behavior | Exit |
 |------------|----------|------|

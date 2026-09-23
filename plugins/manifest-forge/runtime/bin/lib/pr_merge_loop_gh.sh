@@ -10,7 +10,7 @@
 #
 # shellcheck shell=bash
 
-# --- platform seam (default drives gh via git_ops.sh) ---
+# --- platform seam (default drives native gh) ---
 gh_op() {
     # A disposition the reviewing agent recorded via set-disposition wins over the live default
     # (there is no platform API for "/pr-review said merge"; the state file IS that signal).
@@ -43,26 +43,22 @@ gh_op() {
         return 0
     fi
     case "$op" in
-        list) "${SCRIPT_DIR}/git_ops.sh" pr-list --json number,author 2> /dev/null ;;
-        checks) "${SCRIPT_DIR}/git_ops.sh" pr-checks "$pr" --json bucket -q '.[].bucket' 2> /dev/null ;;
-        reviewdecision) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json reviewDecision -q '.reviewDecision' 2> /dev/null ;;
+        list) gh pr list --json number,author 2> /dev/null ;;
+        checks) gh pr checks "$pr" --json bucket -q '.[].bucket' 2> /dev/null ;;
+        reviewdecision) gh pr view "$pr" --json reviewDecision -q '.reviewDecision' 2> /dev/null ;;
         unresolved-human) count_unresolved_human "$pr" ;;
         disposition) echo keep ;;
-        mergeable) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2> /dev/null ;;
+        mergeable) gh pr view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2> /dev/null ;;
         verify) echo pass ;;
-        hold) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json labels -q '.labels[].name' 2> /dev/null | grep -qx hold && echo true || echo false ;;
-        author) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json author -q '.author.login' 2> /dev/null ;;
-        admin-check) "${SCRIPT_DIR}/git_ops.sh" repo-admin-check 2> /dev/null || echo false ;;
-        # SECURITY (finding 2): a protection LOOKUP failure must never read as
-        # "no protection" (the opposite of fail-closed) — surface a sentinel that
-        # cmd_merge's own check below treats as blocking, instead of silently
-        # defaulting to all-flags-false.
-        protection) "${SCRIPT_DIR}/git_ops.sh" branch-protection 2> /dev/null || echo "PROTECTION_LOOKUP_FAILED" ;;
-        update-branch) "${SCRIPT_DIR}/git_ops.sh" pr-update-branch "$pr" 2>&1 ;;
-        do-merge) "${SCRIPT_DIR}/git_ops.sh" pr-merge "$pr" --squash --admin --delete-branch 2>&1 ;;
-        headsha) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json headRefOid -q '.headRefOid' 2> /dev/null ;;
-        basebranch) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json baseRefName -q '.baseRefName' 2> /dev/null ;;
-        mergecommit) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json mergeCommit -q '.mergeCommit.oid // empty' 2> /dev/null ;;
+        hold) gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null | grep -qx hold && echo true || echo false ;;
+        author) gh pr view "$pr" --json author -q '.author.login' 2> /dev/null ;;
+        admin-check) gh api "repos/$(_owner_repo_from_remote)" -q '.permissions.admin' 2> /dev/null || echo false ;;
+        protection) gh api "repos/$(_owner_repo_from_remote)/branches/$(gh_op basebranch "$pr")/protection" -q '"enforce_admins="+(.enforce_admins.enabled|tostring)+" required_signatures="+(.required_signatures.enabled|tostring)+" merge_queue=false"' 2> /dev/null || echo "PROTECTION_LOOKUP_FAILED" ;;
+        update-branch) gh pr update-branch "$pr" 2>&1 ;;
+        do-merge) gh pr merge "$pr" --squash --admin --delete-branch 2>&1 ;;
+        headsha) gh pr view "$pr" --json headRefOid -q '.headRefOid' 2> /dev/null ;;
+        basebranch) gh pr view "$pr" --json baseRefName -q '.baseRefName' 2> /dev/null ;;
+        mergecommit) gh pr view "$pr" --json mergeCommit -q '.mergeCommit.oid // empty' 2> /dev/null ;;
     esac
 }
 

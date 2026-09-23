@@ -14,8 +14,6 @@ An absent or unreadable receipt yields `status: degraded` with a warning.
 Unavailable optional harnesses remain informational. Do not inspect another
 harness's home or use one tool's settings to verify another tool.
 
-When independent readiness dimensions require review, dispatch them in one OMP
-`task` call (in waves of at most 32), using `scout` for read-only checks. Each
-child checks only its assigned dimension and never re-dispatches; the parent
-directly aggregates the evidence. Use `hub` only to coordinate or wait. If
-`task` is unavailable, perform the checks inline and report `DEGRADED`.
+When independent readiness dimensions require review, assign bounded read-only
+`scout` units through the deployed host's shared native dispatch contract. The
+parent directly aggregates attributed evidence.

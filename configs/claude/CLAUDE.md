@@ -1,6 +1,6 @@
 # Claude Orchestration Guide
 
-This document defines OMP-native sub-agent dispatch, planning, and validation.
+This document defines current-host native sub-agent dispatch, planning, and validation.
 
 ## Risk-based review routing
 
@@ -21,29 +21,26 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
-- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
+- Default dispatched agents to Sonnet through the current host's native control;
+  OMP uses `task.agentModelOverrides`, never a task-item `model` field.
 
 `/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
-## OMP Sub-Agent Dispatch
+## Native Sub-Agent Dispatch
 
-OMP `task` and `hub` are the only interactive sub-agent contract. When work has
-independent units, submit all ready units in one `task` call, in waves of at
-most 32. Choose `scout` for read-only exploration, `reviewer` for quality
-review, `security-reviewer` for security review, `sonic` only for mechanical
-work, and omit `agent` for default implementation work.
-
-Children execute their assigned unit directly and never redispatch. Use `hub`
-only to coordinate or wait. The parent validates evidence, resolves material
-disagreement, and aggregates results. If `task` is unavailable, execute inline
-and report `DEGRADED`; never fall back to a provider CLI.
+Use the current host's supported native mechanism: OMP uses `task` and `hub`;
+Claude Code uses its discovered native Agent/background collection. Preserve
+OMP specialist selection and use only actually discovered Claude agent types.
+The parent validates evidence and aggregates results. The authoritative
+[shared dispatch contract](references/sub-agent-dispatch.md) defines child
+limits, the narrow delegate-runner exception, and `DEGRADED` behavior.
 
 ## Reference Index
 
 Read on demand (NOT auto-loaded). You MUST read the reference before related tasks:
 
 - `~/.claude/references/orchestration.md` — Read when coordinating OMP task batches or validating independent review.
-- `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
+- `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or native forge CLI failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
   OMP task batches, selection rules, and inline `DEGRADED` behavior.

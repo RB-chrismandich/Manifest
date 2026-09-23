@@ -35,5 +35,5 @@ CREATE → ACTIVE → COMPLETED (.archive/) or ABANDONED (.abandoned/)
 - **Review existing plans** before creating a new one — avoid duplicates
 - **Check off deliverables** as you implement them
 - Plans untouched for **7+ days** should be reviewed for staleness
-- Use `/plan-manage create` to generate cross-verified plans via parallel agents
+- Use `/plan-manage create` to generate cross-verified plans via native independent reviewers
 - Use `/plan-manage` for review, archiving, and abandoning plans

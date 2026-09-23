@@ -8,37 +8,44 @@ setup() {
     TMP=$(mktemp -d "$BATS_TMPDIR/auto_issue_dev.XXXXXX")
     export FIXTURE_DIR="$TMP/fixtures"; mkdir -p "$FIXTURE_DIR"
 
-    # Stub git_ops.sh: emit fixtures, log calls (with full flags), honor *_RC.
-    # issue-view emits the fixture JSON regardless of format flags but the call
-    # (incl. --json/--output/--comments) is logged so tests can assert flags.
-    cat >"$TMP/git_ops.sh" <<'EOF'
+    # Native CLI fakes emit fixtures and retain a normalized command log.
+    mkdir -p "$TMP/bin"
+    cat >"$TMP/bin/forge-cli" <<'EOF'
 #!/usr/bin/env bash
-sub="$1"; shift
-echo "$sub $*" >> "${CALL_LOG:-/dev/null}"
+set -euo pipefail
+case "$1 ${2:-}" in
+  "issue view") sub=issue-view; n="${3:-}" ;;
+  "issue list") sub=issue-list ;;
+  "issue edit"|"issue update") sub=issue-edit; n="${3:-}" ;;
+  "issue comment"|"issue note") sub=issue-comment; n="${3:-}" ;;
+  "pr view") sub=pr-view; n="${3:-}" ;;
+  *) sub="$1-${2:-}" ;;
+esac
+echo "$sub ${n:-} $*" >> "${CALL_LOG:-/dev/null}"
 case "$sub" in
   issue-view)
-    n="$1"
-    # `--comments` (gitlab notes text) → emit the comment-text fixture if present
     if [[ " $* " == *" --comments "* ]]; then
       [[ -f "${FIXTURE_DIR}/comments-${n}.txt" ]] && cat "${FIXTURE_DIR}/comments-${n}.txt" || true
     else
       [[ -f "${FIXTURE_DIR}/issue-${n}.json" ]] && cat "${FIXTURE_DIR}/issue-${n}.json" || true
     fi
     ;;
-  pr-view)     n="$1"; [[ -f "${FIXTURE_DIR}/pr-${n}.json" ]] && cat "${FIXTURE_DIR}/pr-${n}.json" || true ;;
-  issue-list)  printf '%s' "${ISSUE_LIST_OUT:-[]}" ;;
-  issue-edit)    exit "${EDIT_RC:-0}" ;;
+  pr-view) [[ -f "${FIXTURE_DIR}/pr-${n}.json" ]] && cat "${FIXTURE_DIR}/pr-${n}.json" || true ;;
+  issue-list) printf '%s' "${ISSUE_LIST_OUT:-[]}" ;;
+  issue-edit) exit "${EDIT_RC:-0}" ;;
   issue-comment) exit "${COMMENT_RC:-0}" ;;
-  *) exit "${GITOPS_RC:-0}" ;;
+  *) exit "${NATIVE_CLI_RC:-0}" ;;
 esac
 EOF
-    chmod +x "$TMP/git_ops.sh"
+    chmod +x "$TMP/bin/forge-cli"
+    ln -s forge-cli "$TMP/bin/gh"
+    ln -s forge-cli "$TMP/bin/glab"
+    export PATH="$TMP/bin:$PATH"
     cat >"$TMP/git_platform.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "${STUB_PLATFORM:-github}"
 EOF
     chmod +x "$TMP/git_platform.sh"
-    export GIT_OPS_BIN="$TMP/git_ops.sh"
     export GIT_PLATFORM_BIN="$TMP/git_platform.sh"
     export CALL_LOG="$TMP/calls.log"
 }
@@ -211,7 +218,7 @@ EOF
     run "$SCRIPT" check-deps 40
     [ "$status" -eq 2 ]
     [[ "$output" == *"#41"* ]] || return 1
-    grep -q "issue-view 40 --output json" "$CALL_LOG"
+    grep -q "issue-view 40 .*--output json" "$CALL_LOG"
 }
 
 @test "next-issue (gitlab): uses --output json for issue-list" {
@@ -258,7 +265,7 @@ EOF
 EOF
     run "$SCRIPT" check-deps 10
     [ "$status" -eq 0 ]
-    grep -q "pr-view 99 --json" "$CALL_LOG"
+    grep -q "pr-view 99 .*--json" "$CALL_LOG"
 }
 
 @test "check-deps (github): dependency PR still open -> unmet exit 2" {
@@ -301,7 +308,7 @@ EOF
     printf '%s\n' '<!-- issue-dev-auto:dependency -->' 'prior' >"$FIXTURE_DIR/comments-60.txt"
     run "$SCRIPT" mark-dependency 60 "#61"
     [ "$status" -eq 0 ]
-    grep -q "issue-view 60 --comments" "$CALL_LOG"
+    grep -q "issue-view 60 .*--comments" "$CALL_LOG"
     ! grep -q "issue-comment 60" "$CALL_LOG"
 }
 

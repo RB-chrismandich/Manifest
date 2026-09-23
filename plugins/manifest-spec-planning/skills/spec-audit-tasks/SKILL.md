@@ -97,17 +97,6 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 independent task groups need auditing, dispatch one read-only
-verification unit per group in a single OMP `task` call (in waves of at most
-32), using `reviewer`. Each child verifies only its assigned group and never
-re-dispatches. The parent directly merges the evidence into the required task
-statuses; it does not use text-overlap consensus. Use `hub` only to coordinate
-or wait. If `task` is unavailable, audit inline and report `DEGRADED`. Below
-the threshold, audit inline.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+Each assigned unit verifies its bounded task group; the parent records statuses
+from directly validated evidence.
