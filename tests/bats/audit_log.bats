@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/audit_log.sh
+# Tests for plugins/manifest-forge/runtime/bin/audit_log.sh
 
-SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/audit_log.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/audit_log.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"

@@ -20,8 +20,8 @@ load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
-INSTALLER="$REPO_ROOT/configs/claude/scripts/install_issue_hooks.sh"
-SUPPORT="$REPO_ROOT/configs/claude/scripts/issue_support.sh"
+INSTALLER="$REPO_ROOT/plugins/manifest-forge/runtime/bin/install_issue_hooks.sh"
+SUPPORT="$REPO_ROOT/plugins/manifest-forge/runtime/bin/issue_support.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
@@ -29,21 +29,22 @@ setup() {
 
     export HOME="$SANDBOX/home"
     mkdir -p "$HOME/.claude"
-    export ISSUE_HOOKS_STATE="$HOME/.manifest/issue_hooks.yml"
+    # Forge installer writes a JSON user-scope overlay under XDG config home;
+    # the env seam still wins so the sandbox stays isolated either way.
+    export ISSUE_HOOKS_STATE="$HOME/.config/manifest/forge/issue_hooks.json"
     export ISSUE_HOOKS_SETTINGS="$HOME/.claude/settings.json"
     echo '{}' > "$ISSUE_HOOKS_SETTINGS"
 
     # A package config with both hooks disabled — the shipped default.
-    PKG_CONFIG="$SANDBOX/command_config.yml"
-    cat > "$PKG_CONFIG" << 'YML'
-tool_policies:
-  issue-sync-pr:
-    enabled: false
-    hook_timeout_seconds: 5
-  issue-sync-commit:
-    enabled: false
-YML
-    cp "$PKG_CONFIG" "$SANDBOX/command_config.yml.orig"
+    # Forge reads tool_policies from a JSON document (issue_support.json).
+    PKG_CONFIG="$SANDBOX/issue_support.json"
+    cat > "$PKG_CONFIG" << 'JSON'
+{"tool_policies": {
+  "issue-sync-pr": {"enabled": false, "hook_timeout_seconds": 5},
+  "issue-sync-commit": {"enabled": false}
+}}
+JSON
+    cp "$PKG_CONFIG" "$SANDBOX/issue_support.json.orig"
     export ISSUE_HOOKS_CONFIG="$PKG_CONFIG"
     export ISSUE_SUPPORT_CONFIG="$PKG_CONFIG"
 }
@@ -84,17 +85,18 @@ read_cfg() {
     # The property that retires preserve_issue_sync_gates().
     run "$INSTALLER" --enable
     assert_success
-    run diff "$PKG_CONFIG" "$SANDBOX/command_config.yml.orig"
+    run diff "$PKG_CONFIG" "$SANDBOX/issue_support.json.orig"
     assert_success
 }
 
 @test "the overlay is created outside any package-owned directory" {
+    # Unset the env seam so the installer's DEFAULT XDG path is exercised:
+    # it must land under $HOME/.config/manifest/forge/, not in the repo or a
+    # harness-owned directory.
+    unset ISSUE_HOOKS_STATE
     run "$INSTALLER" --enable
     assert_success
-    # `|| return 1` is required: a bare non-final [[ ]] silently passes on
-    # macOS Bash 3.2, so this assertion would never have been able to fail.
-    [[ "$ISSUE_HOOKS_STATE" == "$HOME/.manifest/"* ]] || return 1
-    [ ! -e "$HOME/.claude/config/issue_hooks.yml" ]
+    [ -f "$HOME/.config/manifest/forge/issue_hooks.json" ] || return 1
 }
 
 # --- the reader resolves overlay-first, package-second ------------------------
@@ -123,17 +125,13 @@ read_cfg() {
 @test "an overlay 'false' beats a package 'true' — absent is not the same as false" {
     # If the reader treated a falsy overlay value as "absent", a hook enabled in
     # the package config could never be turned off by the user.
-    cat > "$PKG_CONFIG" << 'YML'
-tool_policies:
-  issue-sync-pr:
-    enabled: true
-YML
+    cat > "$PKG_CONFIG" << 'JSON'
+{"tool_policies": {"issue-sync-pr": {"enabled": true}}}
+JSON
     mkdir -p "$(dirname "$ISSUE_HOOKS_STATE")"
-    cat > "$ISSUE_HOOKS_STATE" << 'YML'
-tool_policies:
-  issue-sync-pr:
-    enabled: false
-YML
+    cat > "$ISSUE_HOOKS_STATE" << 'JSON'
+{"tool_policies": {"issue-sync-pr": {"enabled": false}}}
+JSON
     run read_cfg issue-sync-pr enabled true
     assert_output "false"
 }

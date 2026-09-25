@@ -49,7 +49,6 @@ gh_op() {
         unresolved-human) count_unresolved_human "$pr" ;;
         disposition) echo keep ;;
         mergeable) gh pr view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2> /dev/null ;;
-        verify) echo pass ;;
         hold) gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null | grep -qx hold && echo true || echo false ;;
         author) gh pr view "$pr" --json author -q '.author.login' 2> /dev/null ;;
         admin-check) gh api "repos/$(_owner_repo_from_remote)" -q '.permissions.admin' 2> /dev/null || echo false ;;

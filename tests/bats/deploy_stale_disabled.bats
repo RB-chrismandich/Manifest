@@ -299,3 +299,43 @@ setup_verify_installation() {
     assert_output --partial "Missing:"
     assert_output --partial "$CODEX_TARGET_DIR"
 }
+
+# ---- warn_retired_issue_hooks(): retired ~/.claude hook registration ----
+#
+# Users who enabled issue hooks from the retired configs installer keep a
+# PostToolUse entry in ~/.claude/settings.json that points at the now-deleted
+# ~/.claude/scripts/issue_support_hook.sh. The function is detect-and-warn
+# only; it must never edit settings.json.
+
+@test "warn_retired_issue_hooks warns when settings.json registers the retired hook" {
+    export HOME="$SANDBOX/home"
+    mkdir -p "$HOME/.claude"
+    cat > "$HOME/.claude/settings.json" <<'JSON'
+{"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":"~/.claude/scripts/issue_support_hook.sh"}]}]}}
+JSON
+
+    run warn_retired_issue_hooks
+    assert_success
+    assert_output --partial "Retired issue hook still registered"
+    assert_output --partial "install_issue_hooks.sh --remove --settings ~/.claude/settings.json"
+    # Warning-only: the settings file is left byte-for-byte untouched.
+    grep -q 'issue_support_hook.sh' "$HOME/.claude/settings.json"
+}
+
+@test "warn_retired_issue_hooks is silent when no retired hook is registered" {
+    export HOME="$SANDBOX/home"
+    mkdir -p "$HOME/.claude"
+    cat > "$HOME/.claude/settings.json" <<'JSON'
+{"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":"manifest-forge/runtime/bin/issue_support_hook.sh"}]}]}}
+JSON
+
+    run warn_retired_issue_hooks
+    assert_success
+    assert_output ""
+
+    # No settings.json at all must also stay silent (fresh machine).
+    rm "$HOME/.claude/settings.json"
+    run warn_retired_issue_hooks
+    assert_success
+    assert_output ""
+}

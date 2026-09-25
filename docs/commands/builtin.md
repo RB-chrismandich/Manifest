@@ -113,9 +113,9 @@ across GitHub, GitLab, and Linear.
 
 ```bash
 # Validate the label manifest, then preview or apply native CLI changes.
-~/.claude/scripts/label_sync.sh --validate
-~/.claude/scripts/label_sync.sh --dry-run
-~/.claude/scripts/label_sync.sh
+plugins/manifest-forge/runtime/bin/label_sync.sh --validate
+plugins/manifest-forge/runtime/bin/label_sync.sh --dry-run
+plugins/manifest-forge/runtime/bin/label_sync.sh
 ```
 
 ### Managing Labels
@@ -130,10 +130,10 @@ gh label create "my-label" --color "FF0000" --description "My label" --force
 glab label create --name "my-label" --color "#FF0000" --description "My label"
 
 # Create a label in Linear
-~/.claude/scripts/linear_ops.sh label-create --name "my-label" --color "FF0000" --team ENG
+plugins/manifest-forge/runtime/bin/linear_ops.sh label-create --name "my-label" --color "FF0000" --team ENG
 
 # List labels in Linear
-~/.claude/scripts/linear_ops.sh label-list --team ENG
+plugins/manifest-forge/runtime/bin/linear_ops.sh label-list --team ENG
 ```
 
 ---
@@ -146,14 +146,14 @@ development activity (skills `issue-sync-pr` and `issue-sync-commit`, over the s
 
 ```bash
 # Enable (unified PostToolUse hook); add --native for a guarded git post-commit hook
-configs/claude/scripts/install_issue_hooks.sh --enable [--native]
+plugins/manifest-forge/runtime/bin/install_issue_hooks.sh --enable [--native]
 
 # Preview / debug without mutating the tracker
-configs/claude/scripts/issue_support.sh sync-pr --dry-run
-configs/claude/scripts/issue_support.sh resolve --branch 005-my-feature --json
+plugins/manifest-forge/runtime/bin/issue_support.sh sync-pr --dry-run
+plugins/manifest-forge/runtime/bin/issue_support.sh resolve --branch 005-my-feature --json
 
 # Disable (keeps the skills; flips the runtime gate off and removes the hooks)
-configs/claude/scripts/install_issue_hooks.sh --remove
+plugins/manifest-forge/runtime/bin/install_issue_hooks.sh --remove
 ```
 
 Behavior: PR opened → linked issue advances to `needs-review` + back-link + `Closes #N`;
