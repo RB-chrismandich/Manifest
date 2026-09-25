@@ -95,3 +95,12 @@ run_drift() { run "$SCRIPT" --repo "$SANDBOX/repo"; }
     run_drift
     assert_success
 }
+
+@test "drift report never writes through a pre-planted /tmp symlink" {
+    echo "tampered" > "$INST/skills/alpha/SKILL.md"
+    echo "KEEP-ME" > "$SANDBOX/victim"
+    run bash -c 'ln -s "'"$SANDBOX"'/victim" "/tmp/.plugin_drift.$$"; exec "'"$SCRIPT"'" --repo "'"$SANDBOX"'/repo"'
+    rm -f /tmp/.plugin_drift.*
+    assert_failure
+    [ "$(cat "$SANDBOX/victim")" = "KEEP-ME" ]
+}
