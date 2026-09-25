@@ -7,7 +7,6 @@ UV_INSTALLER_PINNED_VERSION=0.12.6
 invalidate_verified_uv() {
     MANIFEST_VERIFIED_UV_BIN=""
     MANIFEST_VERIFIED_UV_TOKEN=""
-    rm -f "$HOME/.local/bin/uv" "$HOME/.local/bin/uvx"
 }
 
 _uv_release_target() {
