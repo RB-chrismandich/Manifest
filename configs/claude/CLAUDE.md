@@ -62,7 +62,7 @@ boundaries; secrets from env only; await/route every async op; pair
 setup/teardown; serialize shared writes; refactor before accreting; no
 speculative guards, single-use abstractions, or dead code; verify new deps
 exist. When refining, NEVER silently remove security controls or validation.
-Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
+Registry: `manifest-workspace:learning-capture` (bundled seed + XDG store); `/ai-code-audit` = full audit.
 
 ## Proactive Decision Framework
 

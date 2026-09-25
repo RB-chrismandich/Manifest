@@ -21,7 +21,7 @@ Adjacent machine copy: `../config/code_constitution.json`. Language annexes:
 | Registry | Direction | Answers |
 |---|---|---|
 | `code_constitution.json` | Proactive, pre-write | What must be true of this change? |
-| `knowledge_base.yml` (`ANTI-*`) | Reactive, post-failure | What went wrong here before? |
+| learning-capture registry (`ANTI-*`) | Reactive, post-failure | What went wrong here before? |
 | `validation_criteria.yml` | Verdict, at review | Does this pass Tier 1/Tier 2? |
 
 An article never restates an antipattern; it cites the `ANTI-*` entries it

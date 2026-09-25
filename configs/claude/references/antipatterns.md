@@ -1,11 +1,13 @@
 # Proactive Coding Anti-Patterns (Guardrail Registry Reference)
 
 > Read on demand BEFORE writing or refactoring code (spec 457). The live source
-> of truth is `native-harness/config/knowledge_base.yml` (guardrail-tagged entries,
-> including `provenance: session-capture` additions made after this file was
-> written) — consult it when checking programmatically; this reference renders
-> the seeded set for reading. Human-readable summary: `docs/KNOWLEDGE_BASE.md`
-> (regenerate via `learning_capture.sh sync-docs`).
+> of truth is the `manifest-workspace:learning-capture` registry (bundled
+> `seed.jsonl` plus the XDG-owned `entries.jsonl` store — guardrail-tagged
+> entries, including `provenance: session-capture` additions made after this
+> file was written) — invoke `manifest-workspace:learning-capture query` when
+> checking programmatically; this reference renders the seeded set for reading.
+> Human-readable summary: `docs/KNOWLEDGE_BASE.md` (regenerate via
+> `manifest-workspace:learning-capture sync-docs`).
 
 ## Iron Rules (apply while writing, always)
 
@@ -540,5 +542,5 @@ each fix is local and the pattern is never recorded.
 repeated hotfixes with identical shape in different files.
 
 **Do this instead**: On the second occurrence of any mistake class, capture it into this registry
-(learning_capture.sh) with a prevention rule so future sessions are warned proactively; consult the
-registry before related work.
+(`manifest-workspace:learning-capture add`) with a prevention rule so future sessions are warned
+proactively; consult the registry before related work.
