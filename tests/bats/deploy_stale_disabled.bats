@@ -260,3 +260,42 @@ setup_verify_installation() {
     assert_output --partial "Missing:"
     assert_output --partial "$TARGET_DIR/CLAUDE.md"
 }
+
+@test "verify_installation does not report cursor files as missing when ENABLE_CURSOR is false" {
+    export ENABLE_CURSOR=false
+    setup_verify_installation
+    run verify_installation
+    refute_output --partial "$CURSOR_TARGET_DIR"
+
+    export ENABLE_CURSOR=true
+    setup_verify_installation
+    run verify_installation
+    assert_output --partial "Missing:"
+    assert_output --partial "$CURSOR_TARGET_DIR"
+}
+
+@test "verify_installation does not report gemini files as missing when ENABLE_GEMINI is false" {
+    export ENABLE_GEMINI=false
+    setup_verify_installation
+    run verify_installation
+    refute_output --partial "$GEMINI_TARGET_DIR"
+
+    export ENABLE_GEMINI=true
+    setup_verify_installation
+    run verify_installation
+    assert_output --partial "Missing:"
+    assert_output --partial "$GEMINI_TARGET_DIR"
+}
+
+@test "verify_installation does not report codex files as missing when ENABLE_CODEX is false" {
+    export ENABLE_CODEX=false
+    setup_verify_installation
+    run verify_installation
+    refute_output --partial "$CODEX_TARGET_DIR"
+
+    export ENABLE_CODEX=true
+    setup_verify_installation
+    run verify_installation
+    assert_output --partial "Missing:"
+    assert_output --partial "$CODEX_TARGET_DIR"
+}

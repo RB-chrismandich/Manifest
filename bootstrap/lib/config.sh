@@ -318,6 +318,7 @@ parse_services_config() {
     FILE_DEVIN=""
     FILE_JULES=""
     FILE_SKILLCLAW=""
+    FILE_APM=""
     FILE_PILOTFISH=""
     FILE_DEVPANEL=""
     FILE_BROWSER_USE=""
@@ -393,7 +394,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_DEVIN | FILE_JULES | FILE_SKILLCLAW | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
+                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_DEVIN | FILE_JULES | FILE_SKILLCLAW | FILE_APM | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac
