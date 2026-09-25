@@ -16,7 +16,7 @@ that consumes it, without requiring another plugin or a shared home config.
 | Registry | Direction | Answers |
 |---|---|---|
 | `code_constitution.yml` | Proactive, pre-write | What must be true of this change? |
-| `knowledge_base.yml` (`ANTI-*`) | Reactive, post-failure | What went wrong here before? |
+| learning-capture registry (`ANTI-*`) | Reactive, post-failure | What went wrong here before? |
 | `validation_criteria.yml` | Verdict, at review | Does this pass Tier 1/Tier 2? |
 
 An article never restates an antipattern; it cites the `ANTI-*` entries it

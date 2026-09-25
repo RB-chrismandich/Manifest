@@ -30,7 +30,7 @@
 #   run                     Bounded self-paced loop (ceiling + 5-empty stop).
 #
 # Seams (tests/the loop inject these): PR_MERGE_LOOP_GH_CMD "<op> <pr>" (checks|reviewdecision|
-#   unresolved-human|disposition|mergeable|verify|hold|author|list), PR_MERGE_LOOP_STATE_DIR,
+#   unresolved-human|disposition|mergeable|hold|author|list), PR_MERGE_LOOP_STATE_DIR,
 #   AUTOMATION_AUTHORS_FILE, PR_MERGE_LOOP_NOW_CMD, PR_MERGE_LOOP_CEILING_SEC,
 #   PR_MERGE_LOOP_POLL_SEC, GH_NET_TIMEOUT, PR_MERGE_LOOP_POSTMERGE_CMD.
 
@@ -82,7 +82,7 @@ source "${SCRIPT_DIR}/lib/pr_merge_loop_gh.sh"
 # --- pure classifier: raw gh values -> normalized signals JSON ---
 CLASSIFY_PY='
 import json, sys
-buckets, rd, uh, disp, mrg, verify, hold, rev, maxrev, head = sys.argv[1:11]
+buckets, rd, uh, disp, mrg, main_ci, hold, rev, maxrev, head = sys.argv[1:11]
 bl = buckets.split() if buckets.strip() else []
 if   "fail" in bl or "cancel" in bl: checks="FAIL"
 elif "pending" in bl:                checks="PENDING"
@@ -95,9 +95,9 @@ parts=(mrg or "UNKNOWN UNKNOWN").split()
 mergeable=parts[0] if parts else "UNKNOWN"
 mstate=parts[1] if len(parts)>1 else "UNKNOWN"
 print(json.dumps({"checks":checks,"review_block":review_block,"pr_review_disposition":disp or "keep",
-  "verify":verify or "pass","gate_tier1":None,"mergeable":mergeable,
+  "gate_tier1":None,"mergeable":mergeable,
   "merge_state":mstate,"hold":(hold=="true"),"revisions_used":int(rev or 0),
-  "max_revisions":int(maxrev or 3),"reviewer_error":False,"main_ci":"n/a",
+  "max_revisions":int(maxrev or 3),"reviewer_error":False,"main_ci":main_ci,
   "head_sha":head or None}))
 '
 
@@ -108,16 +108,20 @@ revisions_used() {
 
 cmd_signals() {
     local pr="${1:?pr required}"
-    local buckets rd uh disp mrg verify hold head
+    local buckets rd uh disp mrg hold head
     buckets="$(gh_op checks "$pr" | tr '\n' ' ')"
     rd="$(gh_op reviewdecision "$pr")"
     uh="$(gh_op unresolved-human "$pr")"
     disp="$(gh_op disposition "$pr")"
     mrg="$(gh_op mergeable "$pr")"
-    verify="$(gh_op verify "$pr")"
     hold="$(gh_op hold "$pr")"
     head="$(gh_op headsha "$pr")" # captured at decision time (finding 2 sink re-check)
-    python3 -c "${CLASSIFY_PY}" "$buckets" "$rd" "$uh" "$disp" "$mrg" "$verify" "$hold" \
+    # main-ci health replaces the retired `verify` signal: with no sha arg
+    # cmd_post_merge_check reads main HEAD and is fail-closed — unreadable or
+    # pending main CI counts as red, which decide() maps to halt.
+    local main_ci=green
+    cmd_post_merge_check > /dev/null 2>&1 || main_ci=red
+    python3 -c "${CLASSIFY_PY}" "$buckets" "$rd" "$uh" "$disp" "$mrg" "$main_ci" "$hold" \
         "$(revisions_used "$pr")" "${MAX_REVISIONS:-3}" "$head"
 }
 

@@ -667,7 +667,7 @@ tool_policies:
     subagent_trigger: critical_or_high_findings >= 1  # one adversarial refuter per critical/high finding
   antipattern-detect:
     subagents: never
-    subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.
+    subagent_rationale: Auto-triggered analyzer writing one shared entries.jsonl knowledge store; parallel writes unsafe.
   api-optimize-bulk:
     subagents: never
     subagent_rationale: Single sequential optimization investigation of one API loop.
@@ -733,7 +733,7 @@ tool_policies:
     subagent_rationale: Single design decision for one table; sequential reasoning.
   learning-capture:
     subagents: never
-    subagent_rationale: Interactive capture/query of one knowledge-base entry; mutates shared YAML.
+    subagent_rationale: Interactive capture/query of one knowledge-base entry; mutates a shared JSONL store.
   data-validate-live:
     subagents: never
     subagent_rationale: Single end-to-end validation pass over one pipeline; sequential.

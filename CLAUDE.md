@@ -122,17 +122,17 @@ Antigravity) and required CLI installs are in
 | `configs/codex/AGENTS.md` | Codex CLI guide |
 | `configs/claude/config/model_policy.yml` | Model tiers and CLI fallback for retained single-provider tools |
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
-| `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
+| `plugins/manifest-forge/runtime/bin/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
 | `configs/claude/config/tracker_providers.yml` | Issue-tracker provider registry — access precedence, phase-to-status mapping, per-provider config |
-| `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
-| `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear; jira exit 3) — resolve-provider, issue-list/view/create/comment/transition/label/close, duplicate-mark |
+| `plugins/manifest-forge/runtime/python/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
+| `plugins/manifest-forge/runtime/bin/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear; jira exit 3) — resolve-provider, issue-list/view/create/comment/transition/label/close, duplicate-mark |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `configs/claude/config/code_constitution.yml` | Code Constitution: 12 pre-write articles + per-language ceilings |
 | `configs/claude/scripts/constitution_check.py` | Constitution checker (ratcheted); hook `constitution_hook.py` |
 | `configs/claude/config/tracker_triage.yml` | Provider-neutral triage scoring, duplicate detection, staleness thresholds (replaced `linear_triage.yml`, deleted 2026-07-29) |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
-| `configs/claude/scripts/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
+| `plugins/manifest-forge/runtime/bin/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
 | `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
 
 ## Available Commands
@@ -172,8 +172,8 @@ Linear by `label_sync.sh`; the full registry table lives in
 [docs/commands/builtin.md](docs/commands/builtin.md#label-management).
 
 ```bash
-configs/claude/scripts/label_sync.sh             # sync to current platform
-configs/claude/scripts/label_sync.sh --dry-run  # preview
+plugins/manifest-forge/runtime/bin/label_sync.sh             # sync to current platform
+plugins/manifest-forge/runtime/bin/label_sync.sh --dry-run  # preview
 ```
 
 ## Adding New Skills

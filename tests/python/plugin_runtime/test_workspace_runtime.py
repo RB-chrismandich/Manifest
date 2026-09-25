@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -79,6 +82,68 @@ def test_learning_capture_defaults_to_xdg_data(
     record = json.loads(entries.read_text(encoding="utf-8"))
     assert record["category"] == "pattern"
     assert record["text"] == "bundle local storage"
+
+
+def test_learning_capture_add_reads_the_store_inside_the_lock(
+    workspace_bundle: Path, tmp_path: Path
+) -> None:
+    """`add` must take the store lock before loading, so a concurrent writer's
+    record is visible and the generated KB id does not collide."""
+    env = _isolated_env(tmp_path)
+    script = workspace_bundle / "skills/learning-capture/scripts/learning_capture.py"
+    store = Path(env["XDG_DATA_HOME"]) / "manifest/knowledge/entries.jsonl"
+    store.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = store.with_name(store.name + ".lock")
+    lock_path.touch()
+
+    descriptor = os.open(lock_path, os.O_RDWR)
+    process = None
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-B",
+                str(script),
+                "add",
+                "--category",
+                "pattern",
+                "--language",
+                "general",
+                "--text",
+                "second entry",
+            ],
+            cwd=tmp_path,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        time.sleep(0.5)
+        assert process.poll() is None, "add returned without waiting on the lock"
+        store.write_text(
+            '{"id":"KB-001","category":"pattern","description":"x"}\n',
+            encoding="utf-8",
+        )
+    finally:
+        with contextlib.suppress(OSError):
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+    try:
+        _, stderr = process.communicate(timeout=15)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+        pytest.fail("add deadlocked on the store lock")
+
+    assert process.returncode == 0, stderr
+    ids = [
+        json.loads(line)["id"]
+        for line in store.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert ids == ["KB-001", "KB-002"]
 
 
 def test_workspace_contract_lists_every_runtime_asset(

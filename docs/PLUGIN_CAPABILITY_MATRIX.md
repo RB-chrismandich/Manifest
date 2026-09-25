@@ -193,6 +193,7 @@ matching installed plugin, component, and capability evidence.
 | `manifest-workspace:runtime:help-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:hook-integration-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:learning-capture-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
+| `manifest-workspace:runtime:learning-capture-seed` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:pr-smoke-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:session-checkpoint-references` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:runtime:session-continuity-scripts` | contract runtime | READY | READY | READY | READY | READY | READY |

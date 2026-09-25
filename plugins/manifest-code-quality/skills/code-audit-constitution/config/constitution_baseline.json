@@ -98,10 +98,6 @@
     "bundle-runtime/scripts/issue_support.sh": {
       "C-SIZE": 1
     },
-    "bundle-runtime/scripts/learning_capture.sh": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
     "bundle-runtime/scripts/lifecycle.sh": {
       "C-SIZE": 1
     },

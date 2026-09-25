@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/auto_issue_dev.sh
+# Tests for plugins/manifest-forge/runtime/bin/auto_issue_dev.sh
 
-SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/auto_issue_dev.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/auto_issue_dev.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
@@ -41,12 +41,9 @@ EOF
     ln -s forge-cli "$TMP/bin/gh"
     ln -s forge-cli "$TMP/bin/glab"
     export PATH="$TMP/bin:$PATH"
-    cat >"$TMP/git_platform.sh" <<'EOF'
-#!/usr/bin/env bash
-echo "${STUB_PLATFORM:-github}"
-EOF
-    chmod +x "$TMP/git_platform.sh"
-    export GIT_PLATFORM_BIN="$TMP/git_platform.sh"
+    # Forge auto_issue_dev.sh resolves git_platform.sh from its own bundle and
+    # honors MANIFEST_GIT_PLATFORM to force the platform — no stub binary needed.
+    export MANIFEST_GIT_PLATFORM="${STUB_PLATFORM:-github}"
     export CALL_LOG="$TMP/calls.log"
 }
 teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
@@ -206,7 +203,7 @@ EOF
 # --- GitLab platform variant -------------------------------------------------
 
 @test "check-deps (gitlab): uses --output json and parses iid/description/opened" {
-    export STUB_PLATFORM=gitlab
+    export MANIFEST_GIT_PLATFORM=gitlab
     # gitlab-shaped issue: iid (not number), description (not body), opened state
     cat >"$FIXTURE_DIR/issue-40.json" <<'EOF'
 {"iid":40,"state":"opened","labels":["auto-dev"],"title":"gl issue","description":"blocked by #41"}
@@ -222,7 +219,7 @@ EOF
 }
 
 @test "next-issue (gitlab): uses --output json for issue-list" {
-    export STUB_PLATFORM=gitlab
+    export MANIFEST_GIT_PLATFORM=gitlab
     export ISSUE_LIST_OUT='[{"iid":50,"title":"gl","web_url":"w50","labels":["auto-dev"]}]'
     cat >"$FIXTURE_DIR/issue-50.json" <<'EOF'
 {"iid":50,"state":"opened","labels":["auto-dev"],"title":"gl","description":"ready"}
@@ -301,7 +298,7 @@ EOF
 # --- gitlab dedup via --comments notes text ---------------------------------
 
 @test "mark-dependency (gitlab): dedup via --comments notes text" {
-    export STUB_PLATFORM=gitlab
+    export MANIFEST_GIT_PLATFORM=gitlab
     cat >"$FIXTURE_DIR/issue-60.json" <<'EOF'
 {"iid":60,"state":"opened","labels":["auto-dev"],"title":"t","description":"x"}
 EOF

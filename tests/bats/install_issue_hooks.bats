@@ -3,8 +3,8 @@
 # Installer safety invariants H1 (idempotent), H2 (no-clobber), H3 (opt-in gate),
 # H4 (fire only on success), H5 (remove cleanup).
 
-INSTALL="$BATS_TEST_DIRNAME/../../configs/claude/scripts/install_issue_hooks.sh"
-DISPATCH="$BATS_TEST_DIRNAME/../../configs/claude/scripts/issue_support_hook.sh"
+INSTALL="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/install_issue_hooks.sh"
+DISPATCH="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/issue_support_hook.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
@@ -12,21 +12,38 @@ setup() {
     export ISSUE_HOOKS_SETTINGS="$TMP/settings.json"
     # Isolate the user-scope opt-in overlay (T051). This suite RUNS the real
     # installer, so without this it writes into the developer's actual
-    # ~/.manifest/ — observed, not hypothetical.
-    export ISSUE_HOOKS_STATE="$TMP/issue_hooks.yml"
-    export ISSUE_HOOKS_CONFIG="$TMP/config.yml"
-    cat >"$ISSUE_HOOKS_CONFIG" <<'EOF'
-tool_policies:
-  issue-sync-pr:
-    enabled: false              # comment kept
-    hook_timeout_seconds: 5
-  issue-sync-commit:
-    enabled: false
-    hook_timeout_seconds: 5
-    commit_hook_mode: sync
-  other-skill:
-    enabled: false
-EOF
+    # ~/.config/manifest/forge/ — observed, not hypothetical.
+    export ISSUE_HOOKS_STATE="$TMP/issue_hooks.json"
+    # The forge reader's package-layer config is a JSON document; nothing writes
+    # to it — it is the fixture the fall-through test diffs for byte-identity.
+    export ISSUE_HOOKS_CONFIG="$TMP/issue_support.json"
+    export ISSUE_SUPPORT_CONFIG="$ISSUE_HOOKS_CONFIG"
+    cat >"$ISSUE_HOOKS_CONFIG" <<'CFGJSON'
+{"tool_policies": {
+  "issue-sync-pr": {"enabled": false, "hook_timeout_seconds": 5},
+  "issue-sync-commit": {"enabled": false, "hook_timeout_seconds": 5, "commit_hook_mode": "sync"},
+  "other-skill": {"enabled": false}
+}}
+CFGJSON
+    # Native CLI stub so the real dispatcher->engine chain can be observed
+    # without touching a tracker (the ISSUE_SUPPORT_ENGINE seam is gone).
+    mkdir -p "$TMP/bin"
+    cat >"$TMP/bin/forge-cli" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "forge-cli $*" >> "${CALL_LOG:-/dev/null}"
+case "${1:-} ${2:-}" in
+  "issue list") printf '%s' "${ISSUE_LIST_OUT:-}" ;;
+  "issue view") [[ -f "${FIXTURE_DIR:-/nonexistent}/issue-${3:-}.json" ]] && cat "${FIXTURE_DIR}/issue-${3:-}.json" || true ;;
+  "pr view") [[ -f "${FIXTURE_DIR:-/nonexistent}/pr.json" ]] && cat "${FIXTURE_DIR}/pr.json" || true ;;
+esac
+exit "${NATIVE_CLI_RC:-0}"
+STUB
+    chmod +x "$TMP/bin/forge-cli"
+    ln -sf forge-cli "$TMP/bin/gh"
+    ln -sf forge-cli "$TMP/bin/glab"
+    export PATH="$TMP/bin:$PATH"
+    export CALL_LOG="$TMP/calls.log"
     REPO="$TMP/repo"; git init -q "$REPO"
     cd "$REPO" || return 1
     git config user.email t@t.t; git config user.name t
@@ -44,9 +61,12 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     # package owns, and the assertion moved with it.
     run bash "$INSTALL" --enable
     [ "$status" -eq 0 ]
-    grep -q 'issue-sync-pr' "$ISSUE_HOOKS_STATE"
-    grep -q 'issue-sync-commit' "$ISSUE_HOOKS_STATE"
-    grep -q 'enabled: true' "$ISSUE_HOOKS_STATE"
+    python3 - "$ISSUE_HOOKS_STATE" <<'STATEPY'
+import json, sys
+pol = json.load(open(sys.argv[1]))["tool_policies"]
+assert pol["issue-sync-pr"]["enabled"] is True
+assert pol["issue-sync-commit"]["enabled"] is True
+STATEPY
 }
 
 @test "enable leaves the package-owned config untouched, comments and all" {
@@ -58,8 +78,11 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     run bash "$INSTALL" --enable
     [ "$status" -eq 0 ]
     diff "$ISSUE_HOOKS_CONFIG" "$TMP/config.before"
-    grep -q '# comment kept' "$ISSUE_HOOKS_CONFIG"
-    grep -A1 '^  other-skill:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: false'
+    python3 - "$ISSUE_HOOKS_CONFIG" <<'CFGPY'
+import json, sys
+pol = json.load(open(sys.argv[1]))["tool_policies"]
+assert pol["other-skill"]["enabled"] is False
+CFGPY
 }
 
 # --- H1: idempotent settings install ----------------------------------------
@@ -81,7 +104,7 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 {
   "hooks": {
     "PostToolUse": [
-      {"matcher": "Bash", "hooks": [{"type": "command", "command": "/some/other/clone/configs/claude/scripts/issue_support_hook.sh", "timeout": 30}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "/some/other/clone/plugins/manifest-forge/runtime/bin/issue_support_hook.sh", "timeout": 30}]},
       {"matcher": "Write", "hooks": [{"type": "command", "command": "/unrelated/other_hook.sh"}]}
     ]
   }
@@ -133,7 +156,11 @@ EOF
     bash "$INSTALL" --enable
     run bash "$INSTALL" --remove
     [ "$status" -eq 0 ]
-    grep -A1 '^  issue-sync-pr:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: false'
+    python3 - "$ISSUE_HOOKS_STATE" <<'RMPY'
+import json, sys
+pol = json.load(open(sys.argv[1]))["tool_policies"]
+assert pol["issue-sync-pr"]["enabled"] is False
+RMPY
     count=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for e in d["hooks"].get("PostToolUse",[]) for h in e["hooks"] if "issue_support_hook.sh" in h["command"]))' "$ISSUE_HOOKS_SETTINGS")
     [ "$count" -eq 0 ]
 }
@@ -187,58 +214,41 @@ EOF
 # --- H4: dispatcher fires only on success -----------------------------------
 
 @test "dispatcher invokes engine sync-pr on a successful PR-create command" {
-    REC="$TMP/engine_calls.log"
-    cat >"$TMP/engine.sh" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >> "$REC"
-EOF
-    chmod +x "$TMP/engine.sh"
-    export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
+    # Enabled in the state file so the real engine proceeds past its gate.
+    bash "$INSTALL" --enable
     printf '{"tool_input":{"command":"gh pr create --title x"},"tool_response":{}}' > "$TMP/payload.json"
     run bash "$DISPATCH" < "$TMP/payload.json"
     [ "$status" -eq 0 ]
-    grep -q 'sync-pr' "$REC"
+    # The real engine ran: sync-pr resolves the current branch's PR via gh pr view.
+    grep -q 'forge-cli pr view' "$CALL_LOG"
 }
 
 @test "dispatcher does NOT invoke engine when the command failed" {
-    REC="$TMP/engine_calls.log"; : >"$REC"
-    cat >"$TMP/engine.sh" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >> "$REC"
-EOF
-    chmod +x "$TMP/engine.sh"
-    export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
+    bash "$INSTALL" --enable
+    : >"$CALL_LOG"
     printf '{"tool_input":{"command":"git commit -m x"},"tool_response":{"is_error":true}}' | bash "$DISPATCH"
-    [ ! -s "$REC" ]
+    [ ! -s "$CALL_LOG" ]
 }
 
 # --- bug_005: classifier must not fire on unrelated commands ----------------
 
 @test "dispatcher ignores commands that merely contain pr-create/commit substrings" {
-    REC="$TMP/engine_calls.log"; : >"$REC"
-    cat >"$TMP/engine.sh" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >> "$REC"
-EOF
-    chmod +x "$TMP/engine.sh"
-    export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
+    bash "$INSTALL" --enable
+    : >"$CALL_LOG"
     for c in "cat tests/fixtures/pr-create.json" "npm run pr-create-helper" \
              "git config commit.gpgsign true" "git log --grep=commit"; do
         printf '{"tool_input":{"command":"%s"},"tool_response":{}}' "$c" > "$TMP/p.json"
         bash "$DISPATCH" < "$TMP/p.json"
     done
-    [ ! -s "$REC" ]   # none of the false-positive commands invoked the engine
+    [ ! -s "$CALL_LOG" ]   # none of the false-positive commands invoked the engine
 }
 
 @test "dispatcher still fires on a real git commit invocation" {
-    REC="$TMP/engine_calls.log"; : >"$REC"
-    cat >"$TMP/engine.sh" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >> "$REC"
-EOF
-    chmod +x "$TMP/engine.sh"
-    export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
+    # Enabled in the state file so the real engine proceeds past its gate.
+    bash "$INSTALL" --enable
     printf '{"tool_input":{"command":"git commit -m work"},"tool_response":{}}' > "$TMP/p.json"
     bash "$DISPATCH" < "$TMP/p.json"
-    grep -q 'sync-commit' "$REC"
+    # No linked issue on this branch -> sync-commit reaches the create-flow,
+    # which searches for an existing issue via gh issue list --search.
+    grep -q 'forge-cli issue list --search' "$CALL_LOG"
 }

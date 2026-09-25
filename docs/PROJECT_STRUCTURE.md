@@ -40,16 +40,15 @@ Manifest/
 │   │   │   ├── manifest_cli/        # `manifest` command router
 │   │   │   ├── manifest_model_policy/ # Policy and headless CLI helpers
 │   │   │   ├── git_platform.sh      # Git platform detection
-│   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
-│   │   │   ├── issue_support.sh     # Issue-linking engine for pr-/issue-sync-commit hooks
-│   │   │   ├── issue_support_hook.sh # PostToolUse dispatcher routing PRs/commits to the engine
-│   │   │   ├── install_issue_hooks.sh # Enable/remove issue-linking hooks (PostToolUse or native)
-│   │   │   ├── auto_issue_dev.sh    # Selection/dependency engine for /issue-dev-auto
 │   │   │   ├── sync-skills.sh       # Skill deployment to home targets
-│   │   │   ├── label_sync.sh        # Label provisioning across platforms
 │   │   │   ├── skillclaw_scrub.py   # Redact API keys/auth headers from captured sessions
 │   │   │   ├── skillclaw_promote.py # Evolve captured sessions into candidate SKILL.md files
 │   │   │   └── skillclaw_promote.sh # CLI wrapper: dry-run preview or --apply to open a PR
+│   │   │                            # Issue/PR/tracker scripts (issue_support.sh,
+│   │   │                            # install_issue_hooks.sh, auto_issue_dev.sh,
+│   │   │                            # label_sync.sh, linear_ops.sh, pr_review.sh, …)
+│   │   │                            # ship in the manifest-forge bundle:
+│   │   │                            # plugins/manifest-forge/runtime/bin/
 │   │   └── settings.local.json      # Default permissions + MCP servers
 │   ├── cursor/                      # → ~/.cursor/ (Cursor IDE)
 │   │   ├── rules/                   # Cursor rules (.mdc) adapted from skills

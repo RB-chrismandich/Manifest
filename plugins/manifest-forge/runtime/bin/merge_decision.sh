@@ -40,7 +40,6 @@ except Exception:
 
 g = lambda k, d=None: s.get(k, d)
 checks   = g("checks", "PENDING")
-verify   = g("verify", "pass")
 mstate   = g("merge_state", "UNKNOWN")
 mergeable= g("mergeable", "UNKNOWN")
 disp     = g("pr_review_disposition", "keep")
@@ -61,10 +60,10 @@ if mergeable == "CONFLICTING" or mstate == "DIRTY":
 if mstate == "BEHIND":
     out("update-branch", "head behind base — update once", None)
 
-revisable = (checks == "FAIL") or (verify == "fail-blocking")
+revisable = (checks == "FAIL")
 if revisable:
     if rev < maxrev:
-        out("revise", "failing checks/verify with revision budget remaining", None)
+        out("revise", "failing checks with revision budget remaining", None)
     out("hand-human", "revision budget exhausted, still not clear", "needs-human")
 
 if checks == "PENDING" or mergeable == "UNKNOWN" or mstate in ("UNSTABLE", "UNKNOWN"):
@@ -73,7 +72,7 @@ if checks == "NO_CHECKS":
     out("hand-human", "no CI configured — refusing to auto-merge un-verified code", "needs-human")
 
 cheap_clear = (checks == "PASS" and g("review_block") is not True and disp == "merge"
-         and verify == "pass" and mstate in ("CLEAN", "HAS_HOOKS") and g("hold") is not True
+         and mstate in ("CLEAN", "HAS_HOOKS") and g("hold") is not True
          and mergeable == "MERGEABLE")
 gate = g("gate_tier1")  # "pass" | "fail"(handled above) | None(not yet run)
 if cheap_clear and gate is None:

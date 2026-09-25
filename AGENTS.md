@@ -313,8 +313,9 @@ Apply while writing or refactoring code, in every session:
   controls or validation without stating it in the change description.
 
 Registry of anti-patterns (detection cues + prevention rules):
-`configs/claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
-error-handling, security, dependency, iteration). Full reference:
+`plugins/manifest-workspace/skills/learning-capture/data/seed.jsonl` bundled seed
+plus the XDG-owned `manifest/knowledge/entries.jsonl` store (guardrail tags: arch,
+async-state, error-handling, security, dependency, iteration). Full reference:
 `configs/claude/references/antipatterns.md`. Pre-write doctrine (13 articles, size
 ceilings, per-language annexes): `configs/claude/references/code-constitution.md`,
 enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit:
@@ -325,8 +326,8 @@ enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit
 ## Coding Standards
 
 **Script language: Bash (`.sh`) and Python (`.py`) are both Active — primary.**
-Neither is legacy. `configs/claude/scripts/` holds 41 `.sh` files beside 36
-`.py`, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
+Neither is legacy. `configs/claude/scripts/` holds 23 `.sh` files beside the
+`.py` helpers, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
 is Bash by design. **Do not propose blanket `.sh`→`.py` migrations, or the
 reverse.** Match the convention of the code you are changing; when adding a new
 script, follow the directory it lives in. `docs/CODING_STANDARDS.md` sections
