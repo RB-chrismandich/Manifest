@@ -3,7 +3,7 @@
 
 # enabled gates every controller action for this repository. false means the
 # repository is discovered but excluded from admission, provisioning, and cleanup.
-enabled: false
+enabled: true
 # profile selects the runner shape: "standard" or "dind". dind additionally requires
 # this repository's ID in the fleet's central dind_repository_ids allow-list.
 profile: standard
