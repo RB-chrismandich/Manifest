@@ -2,6 +2,9 @@
 
 title = "Manifest Gitleaks Config"
 
+[extend]
+useDefault = true
+
 [[rules]]
 id = "anthropic-api-key"
 description = "Anthropic API Key"
@@ -40,6 +43,14 @@ paths = [
   '''templates/patterns/''',
   '''docs/SHELL_ANALYSIS_REPORT\.md''',
   '''docs/VALIDATION_REPORT\.md''',
+  '''\.apm/skills/smoke-manage/vendor/VENDOR\.json''',
+  '''plugins/manifest-code-quality/skills/smoke-manage/vendor/VENDOR\.json''',
+  '''plugins/stitch-design/runtime/model-qualification/qualify-models\.test\.mjs''',
+  '''tests/bats/audit_log\.bats''',
+  '''tests/python/manifest_agent/test_gitleaks_check\.py''',
+  '''tests/fixtures/equivalence/gitleaks/invalid\.txt''',
+  '''tests/python/test_parallel_agent\.py''',
+  '''\.claude/scripts/E2E_TESTING_GUIDE\.md''',
 ]
 regexes = [
   '''sk-ant-example-[a-zA-Z0-9\-_]{95}''',
