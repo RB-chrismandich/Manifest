@@ -96,10 +96,6 @@
     "configs/claude/scripts/guidance_hint.py": {
       "C-ERR": 5
     },
-    "configs/claude/scripts/learning_capture.sh": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
     "configs/claude/scripts/manifest_cli/doctor.py": {
       "C-ERR": 1
     },

@@ -7,8 +7,9 @@
 #   - the per-language annexes under references/constitution/
 #
 # Relationship to the other two registries (deliberate, non-overlapping):
-#   knowledge_base.yml  — REACTIVE. Antipatterns captured from observed failures
-#                         (ANTI-*). Answers "what went wrong before?".
+#   learning-capture — REACTIVE. Antipatterns captured from observed failures
+#                         (ANTI-*) in the bundled seed + XDG store. Answers
+#                         "what went wrong before?".
 #   validation_criteria.yml — VERDICT. Tier 1/2 weights for review gates.
 #   code_constitution.yml   — PROACTIVE. Positive doctrine applied BEFORE code is
 #                         written. Answers "what must be true of this change?".
@@ -33,7 +34,7 @@ ratified: '2026-07-29'
 #   severity    critical | high | medium — drives the check exit contract.
 #   checks      IDs of the automated checks that partially enforce this article.
 #               Empty list = judgement-only (no automation can prove it).
-#   see_also    knowledge_base.yml entries this article subsumes.
+#   see_also    learning-capture registry (ANTI-*) entries this article subsumes.
 # ---------------------------------------------------------------------------
 articles:
   - id: CON-001

@@ -313,8 +313,9 @@ Apply while writing or refactoring code, in every session:
   controls or validation without stating it in the change description.
 
 Registry of anti-patterns (detection cues + prevention rules):
-`configs/claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
-error-handling, security, dependency, iteration). Full reference:
+`plugins/manifest-workspace/skills/learning-capture/data/seed.jsonl` bundled seed
+plus the XDG-owned `manifest/knowledge/entries.jsonl` store (guardrail tags: arch,
+async-state, error-handling, security, dependency, iteration). Full reference:
 `configs/claude/references/antipatterns.md`. Pre-write doctrine (13 articles, size
 ceilings, per-language annexes): `configs/claude/references/code-constitution.md`,
 enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit:

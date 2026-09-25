@@ -105,6 +105,13 @@
           "reason": "claude native manifest cannot encode runtime component 'learning-capture-scripts' at 'skills/learning-capture/scripts'"
         },
         {
+          "component_id": "learning-capture-seed",
+          "component_type": "runtime",
+          "mode": "degraded",
+          "path": "skills/learning-capture/data",
+          "reason": "claude native manifest cannot encode runtime component 'learning-capture-seed' at 'skills/learning-capture/data'"
+        },
+        {
           "component_id": "pr-smoke-scripts",
           "component_type": "runtime",
           "mode": "degraded",
