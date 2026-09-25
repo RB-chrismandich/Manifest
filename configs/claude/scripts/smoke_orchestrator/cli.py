@@ -41,7 +41,10 @@ def _cmd_append(args: argparse.Namespace) -> int:
 
     try:
         workflow = _load_workflow(args)
-    except (OSError, json.JSONDecodeError) as exc:
+    except json.JSONDecodeError as exc:
+        _err(f"invalid workflow description JSON: {exc}")
+        return 2
+    except OSError as exc:
         _err(f"could not read workflow description: {exc}")
         return 1
     appender = SmokeTestAppender(catalog_dir=args.catalog_dir)

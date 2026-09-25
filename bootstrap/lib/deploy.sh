@@ -1697,30 +1697,28 @@ verify_installation() {
         "$TARGET_DIR/config/mcp_servers.yml"
         "$TARGET_DIR/config/validation_criteria.yml"
         "$TARGET_DIR/config/services.yml"
-        "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
-        "$CURSOR_TARGET_DIR/mcp.json"
-        "$CURSOR_TARGET_DIR/hooks.json"
-        "$GEMINI_TARGET_DIR/GEMINI.md"
-        "$CODEX_TARGET_DIR/AGENTS.md"
     )
 
-    # Skill files are verified SEPARATELY from required_files because bootstrap
-    # is no longer necessarily their writer: SC-006 handed the `skills` domain to
-    # apm (configs/claude/config/apm_domains.yml), so deploy_home_skills stands
-    # down and these paths are populated by apm instead. Counting them as
-    # bootstrap errors made a correctly-standing-down deploy exit 1 with three
-    # "Missing: .cursor/skills/code-audit/SKILL.md" lines and no hint of who
-    # should fix it — observed on a machine where apm had not yet run.
-    #
-    # The check is NOT skipped when apm owns the domain: a home with no skills is
-    # genuinely broken for the user, and a check that quietly stops looking is how
-    # this would go unnoticed next time. It degrades to a warning that names the
-    # populate command, which is visible without blaming the wrong pipeline.
-    local -a skill_files=(
-        "$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md"
-        "$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md"
-        "$CODEX_TARGET_DIR/skills/code-audit/SKILL.md"
-    )
+    local -a skill_files=()
+
+    if [[ "${ENABLE_CURSOR:-true}" == true ]]; then
+        required_files+=(
+            "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+            "$CURSOR_TARGET_DIR/mcp.json"
+            "$CURSOR_TARGET_DIR/hooks.json"
+        )
+        skill_files+=("$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
+
+    if [[ "${ENABLE_GEMINI:-true}" == true ]]; then
+        required_files+=("$GEMINI_TARGET_DIR/GEMINI.md")
+        skill_files+=("$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
+
+    if [[ "${ENABLE_CODEX:-true}" == true ]]; then
+        required_files+=("$CODEX_TARGET_DIR/AGENTS.md")
+        skill_files+=("$CODEX_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
 
     # Guarded (unlike the sibling entries above): deploy_configs skips copying
     # CLAUDE.md when Claude is disabled (see claude_md_exclude above), so
@@ -1769,7 +1767,7 @@ verify_installation() {
         skills_retired=true
     fi
     local skills_missing=0
-    for file in "${skill_files[@]}"; do
+    for file in "${skill_files[@]+"${skill_files[@]}"}"; do
         if [[ -f "$file" ]]; then
             print_success "Found: ${file#"$HOME"/}"
         elif [[ "$skills_retired" == true ]]; then
