@@ -115,8 +115,13 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
           "project_sha256": "58e4cb0eb44c82e1f424c9b39f0542edfe4d0b3d7eb2ac44b4e15f2fc2506875",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "a89f16559c12372856e9dc7c2ff46c3a531f863b7a2dd4de093ab2c1cb110b05",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",
@@ -267,7 +272,7 @@
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "0172bdc8c04d0d227f8565264ece613bcefd20dfbd91f5bcbda7910ef7b04022",
           "package_json_sha256": "41dece63615ea0bb2deeb13809c21240c69a94deca4fa7d3d3911b3767f623e8",
-          "exe_sha256": null,
+          "exe_sha256": "a5a593e767034f68d3bade0be01d8a72c6b222e299e2653e49e87000f9beef87",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -315,8 +320,13 @@
           "url": "file://uv.lock",
           "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
           "project_sha256": "8a39c8b222447b0555144b26de63566923e7465608b2728c7e91875ad1084257",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "bb0cd00dd224e88a3bcc4baf0c93ab00385d857f52dc3c5354b2d5d587cf191b",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python"
@@ -358,8 +368,13 @@
           "url": "file://configs/claude/uv.lock",
           "sha256": "4d85923fc0bad3f008cd4d064d3774540cbd6efd184e7ba7fc4dd0a0b256c94c",
           "project_sha256": "ec2e95819bcd35721c64892efe56c2d272669f8b17d8db847ae44c53311541b8",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "c2f58f18b7f376d7f05dfc3ce2fa38e096b6ebfbc0200e63c8d88ba2060c04e0",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/manifest"
@@ -389,7 +404,7 @@
           "digest": "9467f460119e186536146c893db9951ad6a4a37944cae83a073bfde36b65207a"
         },
         "linux-arm64": {
-          "digest": null
+          "digest": "43c67ef22f243b0ccaf239e51a3891018654f7eb47ad7f3c1c0cd7c3b6d27010"
         }
       }
     }
