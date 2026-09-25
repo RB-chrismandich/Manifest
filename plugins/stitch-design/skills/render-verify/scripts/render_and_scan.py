@@ -163,19 +163,30 @@ def scan(args: argparse.Namespace) -> int:
 
     rows = [(c, s) for c, s in stats.items() if s[0] >= args.min_pixels]
     rows.sort(key=lambda item: -item[1][0])
+    return _report(rows, args.radius_limit)
+
+
+def _format_row(row: tuple, flag: str) -> str:
+    """One table line for an ink: hex, pixel count, radius and axis extents."""
+    color, (n, r_max, x_max, y_max) = row
+    hex_color = "#{:02X}{:02X}{:02X}".format(*color)
+    return f"{hex_color:>8} {int(n):>8} {r_max:7.1f} {x_max:7.1f} {y_max:7.1f}{flag}"
+
+
+def _report(rows: list, radius_limit: float | None) -> int:
+    """Print the top-20 table and fail if ANY ink, ranked or not, exceeds the limit."""
+    exceeding = [
+        row for row in rows if radius_limit is not None and row[1][1] > radius_limit
+    ]
+    top = rows[:20]
     print(f"{'hex':>8} {'n':>8} {'r_max':>7} {'x_max':>7} {'y_max':>7}")
-    failed = False
-    for color, (n, r_max, x_max, y_max) in rows[:20]:
-        hex_color = "#{:02X}{:02X}{:02X}".format(*color)
-        flag = ""
-        if args.radius_limit is not None and r_max > args.radius_limit:
-            flag = "  EXCEEDS LIMIT"
-            failed = True
-        print(
-            f"{hex_color:>8} {int(n):>8} {r_max:7.1f} {x_max:7.1f} {y_max:7.1f}{flag}"
-        )
-    if failed:
-        print(f"FAIL: ink(s) exceed radius limit {args.radius_limit}")
+    for row in top:
+        print(_format_row(row, "  EXCEEDS LIMIT" if row in exceeding else ""))
+    for row in exceeding:
+        if row not in top:
+            print(_format_row(row, "  EXCEEDS LIMIT (outside top 20)"))
+    if exceeding:
+        print(f"FAIL: ink(s) exceed radius limit {radius_limit}")
         return 1
     return 0
 
