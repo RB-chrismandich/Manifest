@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/verification_gate.sh (#360 verification gate).
+# Tests for plugins/manifest-forge/runtime/bin/verification_gate.sh (#360 verification gate).
 # Design: docs/superpowers/specs/2026-06-18-auto-issue-dev-verification-gate-design.md
 
-SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/verification_gate.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/verification_gate.sh"
 
 setup() {
     TMP=$(mktemp -d "${BATS_TMPDIR:-/tmp}/vgate.XXXXXX")

@@ -1188,7 +1188,7 @@ PYEOF2
     case $rc in
         0) print_success "Preserved issue-sync opt-in gates in command_config.yml" ;;
         3) print_info "No issue-sync opt-in gates to preserve in command_config.yml" ;;
-        *) print_warning "Could not preserve issue-sync gates in command_config.yml (re-run install_issue_hooks.sh --enable if needed)" ;;
+        *) print_warning "Could not preserve issue-sync gates in command_config.yml (re-run the manifest-forge bundle's runtime/bin/install_issue_hooks.sh --enable if needed)" ;;
     esac
     return 0
 }
@@ -1984,6 +1984,21 @@ warn_stale_disabled_configs() {
     done
 }
 
+# Warn when ~/.claude/settings.json still carries a PostToolUse hook pointing at
+# the retired ~/.claude/scripts/issue_support_hook.sh. The engine and installer
+# moved to the manifest-forge bundle (runtime/bin/install_issue_hooks.sh); the
+# old entry would fire a deleted script on every matching tool call. Detection
+# is a plain fixed-string grep; this function is warning-only and never edits
+# settings.json.
+warn_retired_issue_hooks() {
+    local settings="$HOME/.claude/settings.json"
+    [[ -f "$settings" ]] || return 0
+    grep -qF '.claude/scripts/issue_support_hook.sh' "$settings" 2> /dev/null || return 0
+    local forge_dir
+    forge_dir="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/plugins/manifest-forge"
+    print_warning "Retired issue hook still registered in ~/.claude/settings.json. Re-register from the manifest-forge bundle: $forge_dir/runtime/bin/install_issue_hooks.sh --remove --settings ~/.claude/settings.json && $forge_dir/runtime/bin/install_issue_hooks.sh --enable --settings ~/.claude/settings.json (its --remove matches the hook by script name, so it also removes the retired entry). Repos set up with --native: delete the '# >>> issue-support >>>' block from .git/hooks/post-commit and re-run --native from the forge copy."
+}
+
 # Print final summary
 print_summary() {
     print_header "Setup Complete"
@@ -2091,6 +2106,9 @@ print_summary() {
 
     # Flag any disabled service whose deployed config is still present (#549).
     warn_stale_disabled_configs
+    # Flag a PostToolUse hook still pointing at the retired configs copy of
+    # issue_support_hook.sh (the engine now ships in the manifest-forge bundle).
+    warn_retired_issue_hooks
 
     echo -e "${BOLD}Authentication Commands:${NC}"
     echo ""

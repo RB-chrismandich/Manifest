@@ -325,8 +325,8 @@ enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit
 ## Coding Standards
 
 **Script language: Bash (`.sh`) and Python (`.py`) are both Active — primary.**
-Neither is legacy. `configs/claude/scripts/` holds 41 `.sh` files beside 36
-`.py`, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
+Neither is legacy. `configs/claude/scripts/` holds 23 `.sh` files beside the
+`.py` helpers, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
 is Bash by design. **Do not propose blanket `.sh`→`.py` migrations, or the
 reverse.** Match the convention of the code you are changing; when adding a new
 script, follow the directory it lives in. `docs/CODING_STANDARDS.md` sections

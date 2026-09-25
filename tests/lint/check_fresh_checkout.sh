@@ -165,7 +165,6 @@ case "$1" in
     unresolved-human) echo "${SEAM_UH:-0}" ;;
     disposition) echo "${SEAM_DISP:-merge}" ;;
     mergeable) echo "${SEAM_MRG:-MERGEABLE CLEAN}" ;;
-    verify) echo "${SEAM_VERIFY:-pass}" ;;
     hold) echo "${SEAM_HOLD:-false}" ;;
     author) echo "${SEAM_AUTHOR:-Copilot}" ;;
     admin-check) echo "${SEAM_ADMIN:-true}" ;;
@@ -214,6 +213,15 @@ esac
 EOF
 chmod +x "$SEAMS/lock_seam.sh"
 
+# Main-CI seam: `signals` derives main_ci from cmd_post_merge_check, which is
+# fail-closed (unreadable main CI -> red -> halt). Offline there is no main CI
+# to read, so report it green to reach the run-gate path asserted below.
+cat > "$SEAMS/postmerge_seam.sh" << 'EOF'
+#!/usr/bin/env bash
+echo '["success"]'
+EOF
+chmod +x "$SEAMS/postmerge_seam.sh"
+
 # FINDING 3(b) FIX (2026-08-20): no gate_seam.sh here, and VERIFICATION_GATE_
 # REVIEW_CMD is deliberately left UNSET. verification_gate.sh's own header
 # documents why: "this portable bundle ships no default reviewer command...
@@ -233,6 +241,7 @@ export LOOP_LOCK_SETTLE_SEC=0.01
 export SEAM_LOCK_STATE="$SEAMS/labels"
 export LOOP_LOCK_LABEL_CMD="$SEAMS/lock_seam.sh"
 export PR_MERGE_LOOP_APPLY=0
+export PR_MERGE_LOOP_POSTMERGE_CMD="$SEAMS/postmerge_seam.sh"
 
 # NOTE: `fail` is intentionally NOT reset here — it was declared (0) before
 # the dependency pre-flight check above and must carry that check's result

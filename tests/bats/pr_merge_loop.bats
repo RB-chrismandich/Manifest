@@ -1,18 +1,23 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/pr_merge_loop.sh — offline-seamed orchestration paths.
-# (The VENDORED copy — plugins/manifest-forge/runtime/bin/pr_merge_loop.sh — has its
-# own dedicated block near the end of this file: the CDDL QA-critic finding hard-gates
-# `merge` there ONLY, so its tests are separate rather than parameterizing the suite
-# above over both scripts.)
+# Tests for plugins/manifest-forge/runtime/bin/pr_merge_loop.sh — offline-seamed
+# orchestration paths. This bundle copy hard-gates `merge` (always refuses,
+# exit 78 — see merge_capability_disabled), so the retired operator copy's
+# live-merge tests are gone; the gate itself is covered by the dedicated block
+# at the end of this file. Every read-only path (signals/decide/tick-to-gate/
+# run) is exercised against the seams below.
 
-SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/pr_merge_loop.sh"
-DECIDE="$BATS_TEST_DIRNAME/../../configs/claude/scripts/merge_decision.sh"
-VENDORED="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/pr_merge_loop.sh"
-VENDORED_DECIDE="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/merge_decision.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/pr_merge_loop.sh"
+DECIDE="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/merge_decision.sh"
 
 setup() {
     TMP=$(mktemp -d "${BATS_TMPDIR:-/tmp}/prloop.XXXXXX")
     export PR_MERGE_LOOP_STATE_DIR="$TMP/state"
+    # Keep forge XDG state (audit_log.jsonl etc.) inside the sandbox too.
+    export XDG_STATE_HOME="$TMP/xdg-state"
+    # cmd_signals calls cmd_post_merge_check, which first resolves main HEAD via
+    # `git ls-remote origin` — run from a non-repo dir so that lookup fails fast
+    # and deterministically offline before the POSTMERGE seam is consulted.
+    cd "$TMP" || return 1
     # Seam: <op> <pr>. Values come from per-op env so each test tunes them.
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -23,7 +28,6 @@ case "$1" in
   unresolved-human) echo "${SEAM_UH:-0}" ;;
   disposition)      echo "${SEAM_DISP:-merge}" ;;
   mergeable)        echo "${SEAM_MRG:-MERGEABLE CLEAN}" ;;
-  verify)           echo "${SEAM_VERIFY:-pass}" ;;
   hold)             echo "${SEAM_HOLD:-false}" ;;
   author)           echo "${SEAM_AUTHOR:-Copilot}" ;;
   admin-check)      echo "${SEAM_ADMIN:-true}" ;;
@@ -41,6 +45,14 @@ EOF
     # loop_lock seam (file-backed) so cmd_tick can acquire/release offline.
     export LOOP_LOCK_DIR="$TMP/locks"
     export LOOP_LOCK_SETTLE_SEC=0.01 # this suite doesn't exercise the race window itself
+    # post-merge-check seam: main CI green by default so cmd_signals reports
+    # main_ci=green (a red seam is exported per-test to exercise halt).
+    cat > "$TMP/pmc-green.sh" <<'EOF'
+#!/usr/bin/env bash
+echo '["success"]'
+EOF
+    chmod +x "$TMP/pmc-green.sh"
+    export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc-green.sh"
     export SEAM_STATE="$TMP/labels"
     # Protocol (matches loop_lock.sh's owner-token lease): <cmd> has|add|remove <pr>
     # [<owner>]; `has` prints "<age>\t<owner>" for the newest lease, exit 0 if any.
@@ -174,6 +186,18 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     SEAM_DISP=keep run "$SCRIPT" signals 8
     [ "$(echo "$output" | field pr_review_disposition)" = "keep" ]
 }
+@test "signals: red main CI -> main_ci red and decide halts" {
+    cat > "$TMP/pmc-red.sh" <<'EOF'
+#!/usr/bin/env bash
+echo '["failure"]'
+EOF
+    chmod +x "$TMP/pmc-red.sh"
+    export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc-red.sh"
+    sig="$("$SCRIPT" signals 5)"
+    [ "$(echo "$sig" | field main_ci)" = "red" ]
+    run bash -c "echo '$sig' | '$DECIDE' decide"
+    [ "$(echo "$output" | action)" = "halt" ]
+}
 
 # --- integration: signals -> merge_decision ---
 @test "integration: a clean PR with gate pass injected -> merge" {
@@ -190,46 +214,12 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     [ "$(echo "$output" | action)" != "merge" ]
 }
 
-# --- cmd_merge pre-flight (T017) — fail-closed; no real merges (seamed) ---
-@test "merge: non-admin -> exit 9 (fail closed)" {
-    SEAM_ADMIN=false run "$SCRIPT" merge 5; [ "$status" -eq 9 ]
-}
-@test "merge: enforce_admins=true -> exit 9" {
-    SEAM_PROT="enforce_admins=true required_signatures=false merge_queue=false" run "$SCRIPT" merge 5
-    [ "$status" -eq 9 ]
-}
-@test "merge: required_signatures=true -> exit 9" {
-    SEAM_PROT="enforce_admins=false required_signatures=true merge_queue=false" run "$SCRIPT" merge 5
-    [ "$status" -eq 9 ]
-}
-@test "merge: admin + clean protection, dry-run -> exit 0, no actual merge" {
-    PR_MERGE_LOOP_APPLY=0 run "$SCRIPT" merge 5
-    [ "$status" -eq 0 ]; [[ "$output" == *"dry-run"* ]]
-}
-@test "merge: admin + clean, apply -> exit 0" {
-    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" merge 5; [ "$status" -eq 0 ]
-}
-@test "merge: apply + do-merge fails -> exit 2" {
-    PR_MERGE_LOOP_APPLY=1 SEAM_MERGE_FAIL=1 run "$SCRIPT" merge 5; [ "$status" -eq 2 ]
-}
-
 # --- cmd_tick dispatch (T021) ---
-# FIXED (2026-08-20, Finding 1): these three tests target the operator/
-# bootstrap copy (configs/claude/scripts/{loop_lock,pr_merge_loop}.sh).
-# Finding 1(a) fixed loop_lock.sh's `label_op add` to self-provision the
-# dynamic lease label (`gh label create --force`) before attaching it, so a
-# healthy backend's add now succeeds — the fixed-backend seam in setup()
-# models that, and these three tests reach real signals/decide/dispatch again.
-# Finding 1(b) additionally gave cmd_acquire a DEGRADED(2)/CONTENDED(1)
-# distinction the operator's cmd_tick now consumes: CONTENDED still yields a
-# benign "skip" (exit 0, see "a held lock makes the run skip" below);
-# DEGRADED is now a loud, distinct, nonzero exit (12) rather than being
-# collapsed into "locked — skipping" — see the REGRESSION tests below for
-# dedicated coverage of that path.
-@test "tick: clean PR + gate pass -> merge (dry-run)" {
-    run "$SCRIPT" tick 5
-    [ "$status" -eq 0 ] && [[ "$output" == *"merge"* ]] && [[ "$output" == *"dry-run"* ]]
-}
+# Note: this bundle's cmd_merge is hard-gated (always refuses, exit 78), so a
+# "merge" tick decision resolves to needs-human/hand-human rather than a real
+# merge — the merge-gate block below covers that path. CONTENDED still yields
+# a benign "skip" (exit 0, see "a held lock makes the run skip" below).
+
 @test "tick: gate Tier-1 fail -> hand-human (never merge)" {
     SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"hand-human"* ]] && [[ "$output" != *"merged"* ]]
@@ -238,18 +228,10 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     SEAM_BUCKETS="pass fail" run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"revise"* ]]
 }
-# --- REGRESSION (Finding 1(b)): DEGRADED must be loud, CONTENDED stays benign ---
-@test "REGRESSION: DEGRADED lease (label backend rejects add) -> tick fails loudly (exit 12), not a silent skip" {
-    # Unlike the vendored copy (merge hard-gated -> safe to proceed without the
-    # cross-host lock), this copy performs a REAL admin merge, so a lease that
-    # could not even be attempted must not read as success to exit-code-based
-    # monitoring, nor as ordinary contention.
-    LOOP_LOCK_LABEL_CMD="$TMP/lockseam_degraded.sh" run "$SCRIPT" tick 5
-    [ "$status" -eq 12 ] && \
-        [[ "$output" == *"DEGRADED"* ]] && \
-        [[ "$output" != *$'\nskip'* ]] && \
-        [[ "$output" != *"dry-run"* ]] # cmd_merge's preview never printed -> dispatch never reached
-}
+# --- REGRESSION (Finding 1(b)): CONTENDED stays a benign skip. The DEGRADED
+# variant lives in the merge-gate block below — this bundle's cmd_tick treats
+# an unattemptable lease as "proceed without the lock", not the retired
+# operator copy's loud exit 12. ---
 @test "tick: a held lock makes the run skip (CONTENDED -> benign, exit 0)" {
     # FIX: seed a genuine lease the way the lockseam's `has` op actually reads
     # it — a directory named for the PR containing a file named for the owner
@@ -263,17 +245,11 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     # correctly and blocks via the real "already locked" path (held_active),
     # independent of whether `add` is faithful or permissive.
     #
-    # Finding 1(b): also confirms CONTENDED is distinct from DEGRADED — this
-    # must still be a benign skip (exit 0), never the loud exit-12 failure the
-    # REGRESSION test above expects for an unattemptable lease.
+    # Finding 1(b): CONTENDED is still a benign skip, distinct from the DEGRADED
+    # proceed-without-lock path covered in the merge-gate block below.
     mkdir -p "$SEAM_STATE/5"; : > "$SEAM_STATE/5/other-owner" # genuinely held
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *$'\nskip'* ]]
-}
-@test "gitlab: merge fails closed (no auto-merge parity → ready-to-merge + human)" {
-    unset PR_MERGE_LOOP_GH_CMD                # exercise the real platform branch
-    PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" merge 5
-    [ "$status" -eq 9 ]
 }
 
 # --- T026: run loop driver + hard ceiling ---
@@ -322,20 +298,17 @@ EOF
 }
 
 @test "run: halt action propagates exit 11" {
-    # FIXED (2026-08-20, Finding 1(a)): the fixed-backend seam's `add` now
-    # succeeds (label self-provisioned before attach), so cmd_acquire returns
-    # 0 and tick reaches the merge branch on the first pass — `halt` is
-    # produced immediately, no need to spin toward the 600s ceiling.
-    # gate passes + clean signals -> merge; force post-merge main RED so tick returns halt
+    # main_ci=red makes decide() halt the PR (tick prints "halt"), and cmd_run
+    # maps halt -> exit 11 on the first pass — no live merge needed now that
+    # signals derive main_ci from cmd_post_merge_check directly.
     export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
-    export PR_MERGE_LOOP_APPLY=1 SEAM_MERGE_FAIL=0 PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
-    # post-merge-check reads gh api directly; seam it to red via a check-runs override
-    cat > "$TMP/pmc.sh" <<'EOF'
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    cat > "$TMP/pmc-red.sh" <<'EOF'
 #!/usr/bin/env bash
 echo '["failure"]'
 EOF
-    chmod +x "$TMP/pmc.sh"
-    export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc.sh"
+    chmod +x "$TMP/pmc-red.sh"
+    export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc-red.sh"
     run "$SCRIPT" run
     [ "$status" -eq 11 ]
 }
@@ -461,15 +434,13 @@ EOF
 }
 
 # =====================================================================
-# VENDORED COPY (plugins/manifest-forge/runtime/bin/pr_merge_loop.sh) —
-# CDDL QA-critic finding: `merge` is hard-gated here ONLY (not in the
-# operator/bootstrap copy above). Reuses this file's seams (they're
-# script-agnostic env vars); every other subcommand behaves identically
-# to the operator copy, so only the gate itself is re-tested here.
+# MERGE HARD GATE (CDDL QA-critic finding): `merge` in this bundle copy always
+# refuses (exit 78) — the retired operator copy's live-merge tests are deleted
+# above; this block covers the gate itself and the read-only subset.
 # =====================================================================
 
 @test "vendored: merge is hard-gated regardless of PR_MERGE_LOOP_APPLY (dry-run)" {
-    PR_MERGE_LOOP_APPLY=0 run "$VENDORED" merge 5
+    PR_MERGE_LOOP_APPLY=0 run "$SCRIPT" merge 5
     [ "$status" -eq 78 ]
     [[ "$output" == *"automated merge is disabled"* ]] || return 1
     [[ "$output" == *"marketplace-restructure-design.md"* ]] || return 1
@@ -478,16 +449,15 @@ EOF
 @test "vendored: merge is hard-gated regardless of PR_MERGE_LOOP_APPLY (apply=1)" {
     # The exact scenario from the task's direct-attempt check: APPLY=1 must NOT
     # re-enable it — the gate is not an env toggle.
-    PR_MERGE_LOOP_APPLY=1 run "$VENDORED" merge 5
+    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" merge 5
     [ "$status" -eq 78 ]
     [[ "$output" == *"automated merge is disabled"* ]]
 }
 @test "vendored: an admin-eligible, checks-green PR still cannot merge" {
-    # Would have cleared every pre-flight check on the operator copy (see
-    # "merge: admin + clean, apply -> exit 0" above) — confirms the gate does
-    # not depend on any signal, it is unconditional.
+    # Would have cleared every pre-flight check on the retired operator copy —
+    # confirms the gate does not depend on any signal, it is unconditional.
     SEAM_ADMIN=true SEAM_PROT="enforce_admins=false required_signatures=false merge_queue=false" \
-        PR_MERGE_LOOP_APPLY=1 run "$VENDORED" merge 5
+        PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" merge 5
     [ "$status" -eq 78 ]
 }
 @test "vendored: cmd_tick's merge branch also refuses (never calls gh do-merge)" {
@@ -498,7 +468,7 @@ EOF
     # assertion would have stayed green even if tick died at the lock instead of
     # reaching the merge gate — the trailing "!= *merged*" clause alone (true
     # for a bare "skip" too) would have carried the whole test either way.
-    run "$VENDORED" tick 5
+    run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && \
         [[ "$output" == *"automated merge is disabled"* ]] && \
         [[ "$output" != *"merged"* ]]
@@ -510,7 +480,7 @@ EOF
 # cmd_tick still does useful work in that DEGRADED case, and still declines
 # when the lease is GENUINELY held. ---
 @test "vendored REGRESSION: degraded lease (backend rejects add) — tick still dispatches real work, not skip" {
-    LOOP_LOCK_LABEL_CMD="$TMP/lockseam_degraded.sh" run "$VENDORED" tick 5
+    LOOP_LOCK_LABEL_CMD="$TMP/lockseam_degraded.sh" run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && \
         [[ "$output" == *"cross-host lease unavailable"* ]] && \
         [[ "$output" == *"proceeding WITHOUT it"* ]] && \
@@ -523,7 +493,7 @@ EOF
     # independent of `add`'s behaviour, since held_active() is checked BEFORE
     # any add is attempted (loop_lock.sh:133-136).
     mkdir -p "$SEAM_STATE/5"; : > "$SEAM_STATE/5/other-owner"
-    run "$VENDORED" tick 5
+    run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && \
         [[ "$output" == *"locked — skipping"* ]] && \
         [[ "$output" == *$'\nskip'* ]] && \
@@ -531,22 +501,22 @@ EOF
 }
 @test "vendored: read-only subset unaffected — list-managed still works" {
     export SEAM_LIST='[{"number":1,"author":{"login":"Copilot","__typename":"Bot"}}]'
-    run "$VENDORED" list-managed
+    run "$SCRIPT" list-managed
     [ "$status" -eq 0 ]
     echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert [p["number"] for p in d]==[1], d'
 }
 @test "vendored: read-only subset unaffected — signals still works" {
-    SEAM_BUCKETS="pass pass" run "$VENDORED" signals 5
+    SEAM_BUCKETS="pass pass" run "$SCRIPT" signals 5
     [ "$(echo "$output" | field checks)" = "PASS" ]
 }
 @test "vendored: read-only subset unaffected — decide still reaches a merge verdict (decision layer, not the gated sink)" {
-    sig="$("$VENDORED" signals 5)"
+    sig="$("$SCRIPT" signals 5)"
     sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";print(json.dumps(d))')"
-    run bash -c "echo '$sig' | '$VENDORED_DECIDE' decide"
+    run bash -c "echo '$sig' | '$DECIDE' decide"
     [ "$(echo "$output" | action)" = "merge" ] # merge_decision.sh is unmodified/ungated; the sink (cmd_merge) is what refuses
 }
 @test "vendored: --help exits 0 and documents the gate" {
-    run "$VENDORED" --help
+    run "$SCRIPT" --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"HARD-GATED"* ]]
 }

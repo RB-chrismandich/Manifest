@@ -96,18 +96,8 @@
     "configs/claude/scripts/guidance_hint.py": {
       "C-ERR": 5
     },
-    "configs/claude/scripts/issue_support.sh": {
-      "C-SIZE": 1
-    },
     "configs/claude/scripts/learning_capture.sh": {
       "C-DUPE": 1,
-      "C-SIZE": 1
-    },
-    "configs/claude/scripts/lifecycle.sh": {
-      "C-SIZE": 1
-    },
-    "configs/claude/scripts/linear_ops.sh": {
-      "C-DUPE": 6,
       "C-SIZE": 1
     },
     "configs/claude/scripts/manifest_cli/doctor.py": {
@@ -118,9 +108,6 @@
       "C-DUPE": 1
     },
     "configs/claude/scripts/opus_attribution_report.py": {
-      "C-SIZE": 1
-    },
-    "configs/claude/scripts/pr_merge_loop.sh": {
       "C-SIZE": 1
     },
     "configs/claude/scripts/reconcile_core.py": {

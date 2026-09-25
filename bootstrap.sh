@@ -203,6 +203,9 @@ run_reconfigure() {
         # so a disable-via-reconfigure (README's own documented workflow:
         # `--reconfigure --enable-gemini --disable-claude`) would never warn.
         warn_stale_disabled_configs
+        # Same reason: a retired ~/.claude/scripts/issue_support_hook.sh entry in
+        # ~/.claude/settings.json survives reconfigure unless we flag it here.
+        warn_retired_issue_hooks
 
         print_success "Services reconfigured"
         echo ""

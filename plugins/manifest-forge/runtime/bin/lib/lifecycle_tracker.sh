@@ -116,7 +116,7 @@ except Exception:
 p = (cfg.get("providers") or {}).get(sys.argv[2])
 if not p:
     print("ERR:unknown-provider"); sys.exit(0)
-c = (p.get("tier_map") or {}).get(int(sys.argv[3]))
+c = (p.get("tier_map") or {}).get(str(sys.argv[3]))
 print(str(c) if c is not None else "MISSING:%s" % p.get("missing_tier_behavior", "error"))
 ' "${registry}" "${provider}" "${tier}"
 }

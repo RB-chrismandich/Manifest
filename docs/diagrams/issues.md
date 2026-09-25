@@ -77,7 +77,8 @@ flowchart TB
 ## Issue-Linking Hooks (issue-sync-commit / issue-sync-pr)
 
 How the issue-linking hooks keep the GitHub/GitLab issue tracker in sync as commits
-land and PRs/MRs open. A single PostToolUse dispatcher (`issue_support_hook.sh`)
+land and PRs/MRs open. A single PostToolUse dispatcher (`issue_support_hook.sh`,
+shipped in the manifest-forge bundle at `plugins/manifest-forge/runtime/bin/`)
 classifies the Bash command that just ran and, only on success, routes to the shared
 engine (`issue_support.sh`). The engine is **fail-open**: `sync-pr`/`sync-commit`
 always exit 0 (bounded by a per-hook `run_with_timeout`), so a git action is never
