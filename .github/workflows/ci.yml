@@ -152,6 +152,7 @@ jobs:
           set -euo pipefail
           uv run python tools/generate_plugin_views.py --check
           uv run python tools/vendor_bundle_dependencies.py --check
+          uv run python tools/sync_bundle_mirrors.py --check
           uv run python tools/check_plugin_runtime_paths.py --json
           # Agent-frontmatter gate: a bare `agent: name` silently resolves to
           # general-purpose once skills are plugin-scoped, so it must be
