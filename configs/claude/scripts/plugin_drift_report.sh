@@ -74,12 +74,10 @@ while IFS= read -r installed; do
     checked=$((checked + 1))
     # -r compares recursively; -q reports only that files differ. Excludes are
     # build litter the install legitimately creates.
-    if ! diff -qr -x '__pycache__' -x '*.pyc' -x '.DS_Store' \
-        "$src" "$installed" > /tmp/.plugin_drift.$$ 2>&1; then
+    if ! diff_out="$(diff -qr -x '__pycache__' -x '*.pyc' -x '.DS_Store' "$src" "$installed" 2>&1)"; then
         drift=1
-        [[ "$QUIET" -eq 1 ]] || sed "s|^|DRIFT     $bundle: |" /tmp/.plugin_drift.$$
+        [[ "$QUIET" -eq 1 ]] || printf '%s\n' "$diff_out" | sed "s|^|DRIFT     $bundle: |"
     fi
-    rm -f /tmp/.plugin_drift.$$
 done < <(find "$CACHE" -mindepth 2 -maxdepth 2 -type d 2> /dev/null | sort)
 
 if [[ "$checked" -eq 0 ]]; then
