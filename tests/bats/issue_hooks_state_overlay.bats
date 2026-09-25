@@ -29,6 +29,9 @@ setup() {
 
     export HOME="$SANDBOX/home"
     mkdir -p "$HOME/.claude"
+    # Ambient XDG_CONFIG_HOME (CI runners export one) must not move the
+    # installer's default overlay path out of the sandbox.
+    export XDG_CONFIG_HOME="$HOME/.config"
     # Forge installer writes a JSON user-scope overlay under XDG config home;
     # the env seam still wins so the sandbox stays isolated either way.
     export ISSUE_HOOKS_STATE="$HOME/.config/manifest/forge/issue_hooks.json"
