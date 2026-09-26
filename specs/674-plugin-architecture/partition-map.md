@@ -68,7 +68,7 @@ Everything that talks to a code forge: commits, branches, PR/MR state and review
 
 ## `manifest-spec-planning` — 7 skills
 
-Planning artifacts: spec.md / plan.md / tasks.md (speckit or superpowers layout) and ~/.claude/.plans entries — consistency review, task-completion audit, trade-off records, design validation, critic-gated implementation.
+Planning artifacts: spec.md / plan.md / tasks.md (speckit or design-doc layout) and ~/.claude/.plans entries — consistency review, task-completion audit, trade-off records, design validation, critic-gated implementation.
 
 **Cross-lens support**: Subject and journey agree on the cluster (journey folds it into feature-lifecycle alongside issue grooming); coupling names it separately on exclusive ownership of spec_review.sh + cddl_invoke.py + prompts/cddl/. 6 of 7 unanimous.
 

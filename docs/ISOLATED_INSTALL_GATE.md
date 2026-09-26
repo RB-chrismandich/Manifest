@@ -2,7 +2,7 @@
 
 Pre-release check that a bundle installs **alone** and brings nothing with it.
 Implements §4 1.4 "Isolated single-bundle install gate" of
-`docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`.
+`docs/design/specs/2026-08-19-marketplace-restructure-design.md`.
 
 ## Run it
 

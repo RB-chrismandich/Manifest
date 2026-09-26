@@ -2,13 +2,6 @@
   "version": 1,
   "_comment": "Recorded violation counts at the time the Code Constitution was adopted. The gate blocks when a file's count for a check RISES above its entry. Lower these by fixing; regenerate with constitution_check.py --update-baseline. An entry may never be raised without the reason in the commit message.",
   "files": {
-    ".specify/scripts/bash/check-prerequisites.sh": {
-      "C-DATA": 1
-    },
-    ".specify/scripts/bash/common.sh": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
     "bootstrap/lib/common.sh": {
       "C-SIZE": 1
     },

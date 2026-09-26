@@ -17,7 +17,7 @@
 # the coordinator's own bootstrap-only home tree) is unaffected — this task
 # deliberately does not touch it. Everything read-only
 # (list-managed, signals, decide, address-cycle, tick-up-to-merge, post-merge-check)
-# keeps working. See docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md
+# keeps working. See docs/design/specs/2026-08-19-marketplace-restructure-design.md
 # §4 Phase 1 item 1.3.
 #
 # Subcommands:
@@ -317,7 +317,7 @@ merge_capability_disabled() {
         "requires before an automated admin-squash-merge is trusted — an" \
         "atomic re-read of all signals immediately before merge, idempotent" \
         "retries, and crash/concurrency mutation tests, among others. See" \
-        "docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md §4" \
+        "docs/design/specs/2026-08-19-marketplace-restructure-design.md §4" \
         "Phase 1 item 1.3. (The concurrency-lock defect once cited here is" \
         "fixed — see loop_lock.sh's label_op — but this gate is independent" \
         "of that and does not lift because of it.)"

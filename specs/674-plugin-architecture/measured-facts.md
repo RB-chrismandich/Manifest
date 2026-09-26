@@ -64,7 +64,7 @@ Grep for `dependencies|depends|requires|peerPlugins` across all plugin.json and
 marketplace.json: **zero hits**.
 
 Every plugin needing a helper ships its own copy under `scripts/`
-(observed: chrome-devtools-mcp, ralph-loop, remember, superpowers, vercel).
+(observed: chrome-devtools-mcp, ralph-loop, remember, vercel).
 
 **Consequence**: `specs/522-apm-deploy-migration/plugin-partition.md` recorded this
 as an `apm pack` limitation and left open "reopen if apm gains plugin

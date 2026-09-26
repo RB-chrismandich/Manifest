@@ -241,7 +241,7 @@ Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
 | `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
-| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
+| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and design-doc layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |

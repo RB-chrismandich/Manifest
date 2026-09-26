@@ -7,8 +7,8 @@ identified after corrections. Implementation and model/runtime E2E tests are NOT
 ## Artifacts
 
 - [Research ledger](2026-09-08-goal-creation-research.md)
-- [Revised design](../superpowers/specs/2026-09-08-goal-compose-design.md)
-- [Implementation plan](../superpowers/plans/2026-09-08-goal-compose.md)
+- [Revised design](../design/specs/2026-09-08-goal-compose-design.md)
+- [Implementation plan](../design/plans/2026-09-08-goal-compose.md)
 
 ## Scope and evidence
 

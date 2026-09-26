@@ -359,7 +359,7 @@ empty runs.
 
 ## Dependencies
 
-- **#360 verification gate** (`docs/superpowers/specs/2026-06-18-auto-issue-dev-verification-gate-design.md`):
+- **#360 verification gate** (`docs/design/specs/2026-06-18-auto-issue-dev-verification-gate-design.md`):
   the Tier-1 verdict is a precondition for the verified merge.
 - Existing skills: `/address-pr-comments`, `/pr-review`, `/verify`.
 - Existing scripts: `auto_issue_dev.sh`, `git_ops.sh`, `audit_log.sh`, `git_platform.sh`.

@@ -62,7 +62,7 @@ bots:
       (title-prefixed "🎨 Palette:") all show author.login = RB-chrismandich
       (is_bot: false) via `gh pr list --json author`, and their commits[].authors
       are the same account (`gh pr view <N> --json commits`). Palette is a Jules
-      persona (docs/superpowers/specs/2026-06-14-jules-trigger-workflow-design.md;
+      persona (docs/design/specs/2026-06-14-jules-trigger-workflow-design.md;
       .jules/palette.md is its learning journal) — it opens PRs under whichever
       account's credentials invoked the Jules session, not a separate bot
       account. There is no "palette[bot]" GitHub login to verify or refute;

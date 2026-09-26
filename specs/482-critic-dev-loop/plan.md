@@ -8,7 +8,7 @@
 
 CDDL adds a critic-gated implementation path: a re-entrant Python state machine
 (`cddl_loop.py` + `configs/claude/scripts/cddl/` package) resolves a speckit or
-superpowers feature via the existing `spec_review.sh` discovery seam, runs a bounded
+design-doc feature via the existing `spec_review.sh` discovery seam, runs a bounded
 clarification gate (both critics must emit structured completion signals), then a
 bounded implement→verify→critique loop where an implementer role produces file-block
 candidates, project gates run first, and two critics must each return a strict fenced

@@ -80,7 +80,7 @@
         "linux-x64": {
           "url": "file://config/toolchain/uv.lock",
           "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
-          "project_sha256": "58e4cb0eb44c82e1f424c9b39f0542edfe4d0b3d7eb2ac44b4e15f2fc2506875",
+          "project_sha256": "f79e347ee97284494f5b63fe7853914ca8e73b025ddb70324d507e3527a6e02f",
           "exe_sha256": "9c1d1393e4de5c55556e30784a879cfba551cb5013469f729530d19d6f50bdae",
           "python_provider": {
             "implementation": "cpython",
@@ -114,7 +114,7 @@
         "linux-arm64": {
           "url": "file://config/toolchain/uv.lock",
           "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
-          "project_sha256": "58e4cb0eb44c82e1f424c9b39f0542edfe4d0b3d7eb2ac44b4e15f2fc2506875",
+          "project_sha256": "f79e347ee97284494f5b63fe7853914ca8e73b025ddb70324d507e3527a6e02f",
           "exe_sha256": "a89f16559c12372856e9dc7c2ff46c3a531f863b7a2dd4de093ab2c1cb110b05",
           "python_provider": {
             "implementation": "cpython",
@@ -148,7 +148,7 @@
         "darwin-arm64": {
           "url": "file://config/toolchain/uv.lock",
           "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
-          "project_sha256": "58e4cb0eb44c82e1f424c9b39f0542edfe4d0b3d7eb2ac44b4e15f2fc2506875",
+          "project_sha256": "f79e347ee97284494f5b63fe7853914ca8e73b025ddb70324d507e3527a6e02f",
           "exe_sha256": null,
           "python_provider": null,
           "path_in_archive": ".",

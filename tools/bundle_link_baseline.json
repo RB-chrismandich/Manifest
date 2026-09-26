@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "_comment": "Recorded bundle-local-reference violations as of Phase 0 (docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md). The gate blocks on any violation NOT in this list -- fixing one lowers the ceiling automatically; it is never edited to hide a fix. Regenerate with: uv run python tools/check_bundle_link_references.py --update-baseline. An entry may be added by hand only with the reason in the commit message.",
+  "_comment": "Recorded bundle-local-reference violations as of Phase 0 (docs/design/specs/2026-08-19-marketplace-restructure-design.md). The gate blocks on any violation NOT in this list -- fixing one lowers the ceiling automatically; it is never edited to hide a fix. Regenerate with: uv run python tools/check_bundle_link_references.py --update-baseline. An entry may be added by hand only with the reason in the commit message.",
   "violations": [
     {
       "path": "plugins/manifest-code-quality/skills/antipattern-detect/SKILL.md",

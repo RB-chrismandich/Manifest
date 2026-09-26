@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install one bundle ALONE and prove its cross-skill calls still resolve.
 
-Spec: `docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`
+Spec: `docs/design/specs/2026-08-19-marketplace-restructure-design.md`
 §4 1.4 "Isolated single-bundle install gate" (Phase 0 item 5).
 
 Two constraints from the spec shape this tool, and both are load-bearing:

@@ -98,7 +98,7 @@ exempt:
     # Records, not documentation.
     - "**/specs/**"
     - "**/plans/**"
-    - "**/superpowers/**"
+    - "**/design/**"
     - "**/baselines/**"
     - "**/decisions/**"
     - "**/*_REPORT.md"
