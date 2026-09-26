@@ -269,14 +269,14 @@ regardless of `--until`, so quoting it would make a fixed baseline look stale.)
 | issue-prep-auto | 43 |
 | issue-dev-auto | 16 |
 | pr-address-comments | 16 |
-| brainstorming | 13 |
-| writing-plans | 13 |
+| brainstorming | 14 |
+| writing-plans | 14 |
 | subagent-driven-development | 12 |
 | commit-commands:commit-push-pr | 12 |
 | spec-review | 11 |
 | test-driven-development | 10 |
 
-346 Skill-tool invocations across 64 distinct skills; 521 user-typed slash
+346 Skill-tool invocations across 61 distinct skills; 521 user-typed slash
 commands across 41 distinct commands.
 
 ### Deployed catalog size

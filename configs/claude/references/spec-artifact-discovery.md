@@ -5,7 +5,7 @@ artifacts (`spec-review`, `spec-audit-tasks`, `spec-decide-tradeoffs`) link here
 instead of each hardcoding one workflow's paths. Indexed from
 this bundle reference index. The executable implementation of
 this contract is `discover_artifacts()` / `resolve_artifacts()` in
-`../spec_review.sh`.
+`../scripts/spec_review.sh`.
 
 ## The two supported layouts
 
@@ -62,7 +62,7 @@ never hijacks an explicitly-targeted design doc (or vice versa).
 
 ## Reusing the shell seam
 
-`../spec_review.sh` exposes the discovery as composable functions that
+`../scripts/spec_review.sh` exposes the discovery as composable functions that
 emit `role<TAB>path` lines — `resolve_artifacts [ROOT]` (honors `$SPEC`/`$PLAN`/`$TASKS`,
 else `discover_artifacts`). A skill that needs the same resolution in shell should source or
 shell out to these rather than re-deriving the globs, so the layout rules live in exactly one

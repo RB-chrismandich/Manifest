@@ -287,6 +287,32 @@ STUB
     run grep -E 'spec_review\.sh' "$skill"; assert_success
 }
 
+@test "spec-artifact-discovery.md's relative script refs resolve in the deployed layout" {
+    # Deploy rsyncs configs/claude/ -> ~/.claude/ preserving layout, so a
+    # `../x` reference inside references/ resolves to ~/.claude/x. The PR-980
+    # review caught `../spec_review.sh` resolving to ~/.claude/spec_review.sh
+    # where the script actually lands in scripts/. Resolve every `../` token
+    # in the deployed copy the same way a reader would.
+    local ref="$REPO_ROOT/configs/claude/references/spec-artifact-discovery.md"
+    run python3 -c "
+import re, os
+ref = '$ref'
+base = os.path.dirname(ref)
+bad = []
+for m in re.finditer(r'\`(\.\./[^\\\`\s]+)\`', open(ref).read()):
+    if not os.path.exists(os.path.normpath(os.path.join(base, m.group(1)))):
+        bad.append(m.group(1))
+assert not bad, bad
+print('all relative refs resolve')"
+    assert_success
+    # The bundle copy lives one level deeper (runtime/references/) and its
+    # `../spec_review.sh` resolves to runtime/spec_review.sh — pin that it was
+    # intentionally NOT changed to match the configs copy.
+    local bundle="$REPO_ROOT/plugins/manifest-spec-planning/runtime/references/spec-artifact-discovery.md"
+    run grep -cF '../scripts/spec_review.sh' "$bundle"
+    assert_output "0"
+}
+
 @test ".gitignore ignores the .spec-review runtime dir" {
     run grep -E '^\.spec-review/?$' "$REPO_ROOT/.gitignore"
     assert_success
