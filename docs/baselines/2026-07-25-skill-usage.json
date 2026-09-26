@@ -18,11 +18,11 @@
     ],
     [
       "brainstorming",
-      13
+      14
     ],
     [
       "writing-plans",
-      13
+      14
     ],
     [
       "subagent-driven-development",
@@ -65,11 +65,11 @@
       5
     ],
     [
-      "ai-code-audit",
-      4
+      "systematic-debugging",
+      5
     ],
     [
-      "systematic-debugging",
+      "ai-code-audit",
       4
     ],
     [
@@ -149,10 +149,6 @@
       1
     ],
     [
-      "systematic-debugging",
-      1
-    ],
-    [
       "locate-missing-artifact-across-git",
       1
     ],
@@ -166,14 +162,6 @@
     ],
     [
       "pr-merge-stacked",
-      1
-    ],
-    [
-      "brainstorming",
-      1
-    ],
-    [
-      "writing-plans",
       1
     ],
     [
