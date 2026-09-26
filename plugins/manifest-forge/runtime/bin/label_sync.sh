@@ -2,7 +2,7 @@
 # label_sync.sh - Sync labels from labels.json registry to GitHub, GitLab, and Linear
 #
 # Reads the canonical label registry and ensures all labels exist in each platform.
-# Uses git_ops.sh for GitHub/GitLab and linear_ops.sh for Linear.
+# Uses native gh/glab commands for GitHub/GitLab and linear_ops.sh for Linear.
 #
 # Usage: label_sync.sh [options]
 #
@@ -153,7 +153,11 @@ sync_git_label() {
     # reported as failures instead of masquerading as "[exists]" (issue #314)
     local errfile
     errfile=$(mktemp)
-    if bash "${SCRIPT_DIR}/git_ops.sh" label-create "$name" --color "$color" --description "$description" --force 2> "$errfile"; then
+    if { if [[ "$(detect_git_platform)" == "gitlab" ]]; then
+        glab label create --name "$name" --color "#${color}" --description "$description" 2> "$errfile"
+    else
+        gh label create "$name" --color "$color" --description "$description" --force 2> "$errfile"
+    fi; }; then
         echo -e "  ${GREEN}[created]${NC} ${name} (${color})"
         CREATED=$((CREATED + 1))
     elif grep -qi "already exists" "$errfile"; then

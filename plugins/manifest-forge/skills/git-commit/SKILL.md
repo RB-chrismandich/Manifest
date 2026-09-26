@@ -39,11 +39,9 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      - Add state/decision/data/config diagrams when relevant
    - Use traffic-light classes (`active`, `pending`, `error`, `external`) and keep Mermaid compatible:
      no class assignment on subgraphs, avoid unstable diagram types, avoid syntax-breaking labels.
-   - If analyzing 5+ unique imports/modules, dispatch those independent module
-     reviews in one OMP `task` call (waves of at most 32), using `scout` for
-     read-only exploration. The parent aggregates the evidence directly. If
-     `task` is unavailable, analyze inline and report `DEGRADED`; never fall
-     back to a provider CLI.
+   - If analyzing 5+ unique imports/modules, assign independent module review
+     units through the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md),
+     using `scout` on OMP. The parent aggregates attributed evidence directly.
 
 2. **Improve documentation**
    - Audit docs using the Diataxis framework.
@@ -60,11 +58,9 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      `CHANGELOG.md` entry under `[Unreleased]` and add one when missing
      before proceeding to commit.
    - Compute/update a documentation health score summary.
-   - If total documentation lines exceed 500, dispatch independent document
-     sections in one OMP `task` call (waves of at most 32), using `scout` for
-     read-only analysis. The parent aggregates the evidence directly. If
-     `task` is unavailable, analyze inline and report `DEGRADED`; never fall
-     back to a provider CLI.
+   - If total documentation lines exceed 500, assign independent document-section
+     review units through the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md),
+     using `scout` on OMP. The parent aggregates attributed evidence directly.
 
 3. **Improve README**
    - Analyze `README.md`, `AGENTS.md`, `CLAUDE.md`, dependency files, and key source/test directories.
@@ -180,8 +176,10 @@ After all four complete, run `git status` to confirm documentation files were mo
    - Scan the commit message for issue number references (#123, issue #123, etc.)
    - Check git branch name for issue numbers (e.g., `fix/issue-296-backtest`)
    - Search staged files for comments mentioning issues (e.g., "// Fix for #288", "# Resolves issue #296")
-   - For each detected issue number, verify it's open using
-     `../../runtime/bin/git_ops.sh issue-view <number> --json state --jq '.state'`
+   - For each detected issue number, detect the provider from the selected remote and
+     verify it is open using `gh issue view <number> --json state --jq '.state'`
+     (GitHub) or `glab issue view <number> --output json | jq -r '.state'`
+     (GitLab).
    - If open issues are found, append to the commit message:
 
      ```text

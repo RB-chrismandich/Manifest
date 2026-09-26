@@ -114,11 +114,11 @@ review_escalation:
 #   subagent_trigger: "<expr>"       # REQUIRED when conditional
 #   subagent_rationale: "<one line>" # REQUIRED when never
 # Every skill directory with a SKILL.md carries a `subagents` value. Skill prose
-# links the shared OMP dispatch rules; this file is the canonical policy store.
+# links the shared current-host dispatch rules; this file is the canonical policy store.
 tool_policies:
   issue-dev-auto:
     allowed:
-      - Bash       # auto_issue_dev.sh, git_ops.sh, pr_merge_loop.sh, merge_decision.sh, verification_gate.sh, loop_lock.sh, gh/glab
+      - Bash       # auto_issue_dev.sh, pr_merge_loop.sh, merge_decision.sh, verification_gate.sh, loop_lock.sh, gh/glab
       - Read
       - Edit       # writes code for the selected issue
       - Write
@@ -352,7 +352,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash   # git_ops.sh, mv, date
+      - Bash   # gh, glab, mv, date
       - Write  # Creating new plans from template
       - Edit   # Checking off deliverables during execute
       - Task   # Native review of incompatible load-bearing proposals
@@ -413,7 +413,7 @@ tool_policies:
       - Glob
       - Grep
       - Bash      # gh, glab, linear_ops.sh, jq, python3
-      - Task      # Parallel agent scoring for top candidates
+      - Task      # Native independent reviewer scoring for top candidates
       - AskUserQuestion  # Clarify platform or project context
     forbidden:
       - Write
@@ -430,12 +430,12 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash      # git_ops.sh (issue-view/edit/comment), auto_issue_dev.sh, audit_log.sh, jq
+      - Bash      # gh/glab issue operations, auto_issue_dev.sh, audit_log.sh, jq
       - Task      # Optional parallel review for ambiguous/large issues
       - AskUserQuestion  # Confirm label/description/comment mutations
     forbidden:
       - Write
-      - Edit      # No filesystem mutations; issue mutations go through git_ops.sh
+      - Edit      # No filesystem mutations; issue mutations use native platform CLIs
     validation_tier: 2
 
     subagents: never
@@ -544,7 +544,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash   # Wraps git_ops.sh / gh / glab (read-only enumeration)
+      - Bash   # gh / glab read-only enumeration
     forbidden:
       - Write
       - Edit   # Analysis-only by default (FR-014)
@@ -667,7 +667,7 @@ tool_policies:
     subagent_trigger: critical_or_high_findings >= 1  # one adversarial refuter per critical/high finding
   antipattern-detect:
     subagents: never
-    subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.
+    subagent_rationale: Auto-triggered analyzer writing one shared entries.jsonl knowledge store; parallel writes unsafe.
   api-optimize-bulk:
     subagents: never
     subagent_rationale: Single sequential optimization investigation of one API loop.
@@ -733,7 +733,7 @@ tool_policies:
     subagent_rationale: Single design decision for one table; sequential reasoning.
   learning-capture:
     subagents: never
-    subagent_rationale: Interactive capture/query of one knowledge-base entry; mutates shared YAML.
+    subagent_rationale: Interactive capture/query of one knowledge-base entry; mutates a shared JSONL store.
   data-validate-live:
     subagents: never
     subagent_rationale: Single end-to-end validation pass over one pipeline; sequential.

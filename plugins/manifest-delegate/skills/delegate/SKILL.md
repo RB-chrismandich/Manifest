@@ -135,3 +135,68 @@ failure, never fabricating a `changes` entry, and so on), not extraction.
 Pass `--model TIER` using a **tier name** from
 `configs/claude/references/harness-routing.md`, never a raw model ID —
 the registry resolves tier names to each backend's current model.
+
+## Native host orchestration
+
+`delegate.py` is the external-job runtime, not a native fan-out scheduler. The
+current host's parent decomposes work, selects the backend and model tier,
+defines input revision/diff, read/write scope, acceptance criteria, and whether
+the submission is fresh or resumed. It also owns result validation and final
+synthesis.
+
+- **OMP:** after `delegate-runner` appears in the available-agent roster, submit
+  independent, ready relay units through native `task` batching and coordinate
+  them with `hub`. Do not put a `model` field on an OMP task item; an OMP user
+  may override the runner through `task.agentModelOverrides`. OMP specialist
+  work remains native.
+- **Claude Code:** invoke the discovered plugin-qualified
+  `manifest-delegate:delegate-runner` agent for each independent relay unit and
+  collect its native background agents. Keep its `model: sonnet` plugin default
+  separate from dispatcher `--model TIER`.
+- **Both:** resolve the installed plugin root from the loaded skill location,
+  compose one quoted absolute command such as
+  `python3 "/installed/manifest-delegate/scripts/delegate.py" task --wait --json --backend codex --task-file "/session/task.txt"`
+  with an explicit working directory, then give that command to the runner.
+  Use stdin instead of `--task-file` when appropriate. Never assume a source
+  checkout path or that `CLAUDE_PLUGIN_ROOT` exists in OMP.
+
+Runner discovery, a usable native runner model, and backend readiness are
+separate prerequisites. `delegate.py setup` proving a backend `ready` does not
+prove either host can discover or run the relay agent. Report an unavailable
+native capability as `DEGRADED`. For an explicitly requested external backend,
+the parent may run the same dispatcher command itself sequentially and must say
+native fan-out was unavailable; it must not substitute its own answer or silently
+change backend.
+
+### Lifecycle and concurrency
+
+Native child completion, an external job's terminal state, and parent acceptance
+are distinct. Use `task --wait --json` or `review --json` for a relay expected
+to finish with its native child. Use `--background` only for a deliberately
+detached external job: record its returned `job_id`, backend, unit, and input
+scope in the parent session, then explicitly choose `status`, `result`,
+`cancel`, resume, or recovery later. A vanished runner does not cancel its job;
+never relaunch an uncertain dispatch without inspecting its known job.
+
+Read-only comparison jobs may run concurrently only while their input revision
+or diff remains stable. Serialize mutation in one workspace. Parallel writes
+require pre-existing, separately owned workspaces/worktrees and a
+parent-owned integration step; this skill does not create them. Preserve
+per-invocation `--write`, always-read-only reviews and second opinions, and
+Jules' separate `--remote-write`, repository, and provider-selected-base
+authorization.
+
+External task prompts must prohibit recursive delegation and tool installation.
+Ordinary native children cannot orchestrate descendants; only
+`delegate-runner` may perform its one parent-composed dispatcher call.
+
+### Multi-result presentation
+
+Collect every underlying envelope before drawing a conclusion. The parent may
+add a separate **Parent aggregation** section that deduplicates verified
+findings and attributes every item to its job ID and backend. It must retain
+each raw relay unchanged, surface failures and follow-ups, label changed
+revision/diff scopes as non-comparable, and leave disagreement unresolved where
+evidence does not decide it. Text overlap and vote percentages are not
+correctness; partial, malformed, absent, unavailable, or failed results never
+become a clean review.

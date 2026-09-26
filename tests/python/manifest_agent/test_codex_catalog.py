@@ -117,6 +117,11 @@ def test_codex_verifies_addon_contract_components_and_executables(
     assert "manifest-i-have-adhd:executable:python3" in " ".join(result.errors)
 
 
+from manifest_agent.adapters.codex_catalog import authenticated_catalog
+from manifest_agent.models import HarnessReceipt, OwnedEntry
+from manifest_agent.ownership import owned_codex_catalog_entry
+
+
 def test_desired_target_identity(desired: DesiredState) -> None:
     from dataclasses import replace
     from pathlib import Path
@@ -145,3 +150,61 @@ def test_desired_target_identity(desired: DesiredState) -> None:
 
     expected_hash = "c232b13ddc13f0c60a315dd6f181fa46c0aa2758271cc1cb1faac7d9e7eb9198"
     assert desired_target_identity(stable_desired) == expected_hash
+
+
+def test_authenticated_catalog_success() -> None:
+    snapshot = [{"name": "plugin", "version": "1.0", "source": "url"}]
+    entry = owned_codex_catalog_entry(snapshot)
+
+    receipt = HarnessReceipt(
+        harness="test",
+        adapter_version="1",
+        native_version="1",
+        plugin_ids=("test",),
+        owned_entries=(entry,),
+        capabilities={},
+        verified=True,
+    )
+    result = authenticated_catalog(receipt, None)
+    assert result == snapshot
+
+
+def test_authenticated_catalog_invalid_ownership() -> None:
+    snapshot = [{"name": "plugin", "version": "1.0", "source": "url"}]
+    entry = owned_codex_catalog_entry(snapshot)
+
+    invalid_entry = OwnedEntry(
+        kind=entry.kind,
+        identifier=entry.identifier,
+        ownership_marker=entry.ownership_marker,
+        previous_checksum="invalid",
+    )
+
+    receipt = HarnessReceipt(
+        harness="test",
+        adapter_version="1",
+        native_version="1",
+        plugin_ids=("test",),
+        owned_entries=(invalid_entry,),
+        capabilities={},
+        verified=True,
+    )
+    result = authenticated_catalog(receipt, None)
+    assert result is None
+
+
+def test_authenticated_catalog_multiple_entries() -> None:
+    snapshot = [{"name": "plugin", "version": "1.0", "source": "url"}]
+    entry = owned_codex_catalog_entry(snapshot)
+
+    receipt = HarnessReceipt(
+        harness="test",
+        adapter_version="1",
+        native_version="1",
+        plugin_ids=("test",),
+        owned_entries=(entry, entry),
+        capabilities={},
+        verified=True,
+    )
+    result = authenticated_catalog(receipt, None)
+    assert result is None

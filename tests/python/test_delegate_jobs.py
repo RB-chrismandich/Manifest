@@ -13,12 +13,18 @@ import stat
 import time
 from pathlib import Path
 
-from _delegate_harness import (
-    _new_job_id,
-    _registry,
-    _run,
-    _stub_entry,
-)
+from _delegate_harness import _new_job_id, _registry, _run, _stub_entry
+
+_ENV = {
+    "backend": "stub",
+    "model": "default",
+    "outcome": "success",
+    "attempted": "x",
+    "changes": [],
+    "succeeded": [],
+    "failed": [],
+    "follow_ups": [],
+}
 
 
 class TestForegroundTask:
@@ -383,8 +389,34 @@ class TestTimeoutAndReaping:
 
 class TestConcurrencyAndRetention:
     def test_concurrent_jobs_get_disjoint_dirs(self, env_factory):
+        env = env_factory(control={"envelope": _ENV})
+        job_ids = set()
+        for _ in range(3):
+            result = _run(env, "task", "--json", "hi")
+            assert result.returncode == 0, result.stderr
+            job_ids.add(_new_job_id(env_factory, known_ids=job_ids))
+        assert len(job_ids) == 3
+
+    def test_overlapping_jobs_keep_their_own_result_envelopes(self, env_factory):
+        """Concurrent jobs must not swap backend output between task records."""
+        env = env_factory(control={"attempted_from_stdin": True, "envelope": _ENV})
+        j1 = json.loads(_run(env, "task", "--background", "--json", "t1").stdout)[
+            "job_id"
+        ]
+        j2 = json.loads(_run(env, "task", "--background", "--json", "t2").stdout)[
+            "job_id"
+        ]
+        assert _await_terminal_state(env, j1) == "completed"
+        assert _await_terminal_state(env, j2) == "completed"
+        r1 = json.loads(_run(env, "result", j1, "--json").stdout)
+        r2 = json.loads(_run(env, "result", j2, "--json").stdout)
+        assert r1["attempted"] == "t1" and r2["attempted"] == "t2"
+
+    def test_cancelling_one_overlapping_job_preserves_the_other(self, env_factory):
+        """Concurrent external jobs retain independent lifecycle ownership."""
         env = env_factory(
             control={
+                "sleep": 3,
                 "envelope": {
                     "backend": "stub",
                     "model": "default",
@@ -394,15 +426,25 @@ class TestConcurrencyAndRetention:
                     "succeeded": [],
                     "failed": [],
                     "follow_ups": [],
-                }
+                },
             }
         )
-        job_ids = set()
-        for _ in range(3):
-            result = _run(env, "task", "--json", "hi")
-            assert result.returncode == 0, result.stderr
-            job_ids.add(_new_job_id(env_factory, known_ids=job_ids))
-        assert len(job_ids) == 3
+        first = _run(env, "task", "--background", "--json", "first")
+        second = _run(env, "task", "--background", "--json", "second")
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        first_job = json.loads(first.stdout)["job_id"]
+        second_job = json.loads(second.stdout)["job_id"]
+        assert first_job != second_job
+
+        cancelled = _run(env, "cancel", first_job, "--json")
+        assert cancelled.returncode == 0, cancelled.stderr
+        assert _await_terminal_state(env, first_job) == "cancelled"
+        assert _await_terminal_state(env, second_job) == "completed"
+
+        result = _run(env, "result", second_job, "--json")
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["outcome"] == "success"
 
 
 def test_cancel_marks_terminal_before_killing_anything(monkeypatch, tmp_path):

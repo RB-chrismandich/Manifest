@@ -36,7 +36,7 @@ Extracted from the main skill to keep SKILL.md under the line cap.
 | Script | Lines | Functions | Issues | Score |
 |--------|-------|-----------|--------|-------|
 | bootstrap.sh | 1000 | 15 | 12 | 75/100 |
-| git_ops.sh | 1038 | 20 | 8 | 85/100 |
+| tracker_ops.sh | 1038 | 20 | 8 | 85/100 |
 
 ---
 

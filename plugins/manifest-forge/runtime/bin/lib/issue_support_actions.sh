@@ -34,9 +34,9 @@ comment_backlink() {
     local marker="${MARKER_PREFIX} ${ctxkey} -->"
     local existing=""
     if [[ "${platform}" == "github" ]]; then
-        existing=$(git_ops issue-view "${n}" --json comments 2> /dev/null || true)
+        existing=$(gh issue view "${n}" --json comments 2> /dev/null || true)
     else
-        existing=$(git_ops issue-view "${n}" --comments 2> /dev/null || true)
+        existing=$(glab issue view "${n}" --comments 2> /dev/null || true)
     fi
     if printf '%s' "${existing}" | grep -qF "${marker}"; then
         record_action "#${n} comment back-link [skipped] (marker already present)"
@@ -65,9 +65,9 @@ comment_backlink() {
 ensure_closing_keyword() {
     local pr="$1" n="$2" platform="$3" body=""
     if [[ "${platform}" == "github" ]]; then
-        body=$(git_ops pr-view "${pr}" --json body --jq '.body' 2> /dev/null || true)
+        body=$(gh pr view "${pr}" --json body --jq '.body' 2> /dev/null || true)
     else
-        body=$(git_ops pr-view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
+        body=$(glab mr view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
     fi
     if printf '%s' "${body}" | grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#${n}([^0-9]|$)"; then
         record_action "PR #${pr} closing-keyword Closes #${n} [skipped] (already present)"
@@ -78,7 +78,11 @@ ensure_closing_keyword() {
         return 0
     fi
     local newbody="${body}"$'\n\n'"Closes #${n}"
-    if git_ops pr-edit "${pr}" --body "${newbody}" > /dev/null 2>&1; then
+    if { if [[ "${platform}" == github ]]; then
+        gh pr edit "${pr}" --body "${newbody}" > /dev/null 2>&1
+    else
+        glab mr update "${pr}" --description "${newbody}" > /dev/null 2>&1
+    fi; }; then
         record_action "PR #${pr} closing-keyword Closes #${n} [applied]"
     else
         record_action "PR #${pr} closing-keyword Closes #${n} [failed] (PR not editable — add 'Closes #${n}' manually)"
@@ -93,23 +97,19 @@ ensure_closing_keyword() {
 resolve_candidates() {
     local branch="$1" pr="$2" commit="$3" platform="$4"
     local -a out=()
-    # 1) branch-number prefix (strip leading zeros: 017-foo → issue #17)
     if [[ "${branch}" =~ ^([0-9]+)- ]]; then
         out+=("$((10#${BASH_REMATCH[1]}))|branch-prefix|strong")
     fi
-    # 2) PR/MR body references
     if [[ -n "${pr}" ]]; then
         local body=""
         if [[ "${platform}" == "github" ]]; then
-            body=$(git_ops pr-view "${pr}" --json body --jq '.body' 2> /dev/null || true)
+            body=$(gh pr view "${pr}" --json body --jq '.body' 2> /dev/null || true)
         else
-            body=$(git_ops pr-view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
+            body=$(glab mr view "${pr}" --output json 2> /dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2> /dev/null || true)
         fi
-        # closing-verb refs first (strong wins the dedup), then bare mentions as weak
         while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|pr-body|strong"); done < <(printf '%s' "${body}" | extract_closing_refs)
         while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|pr-body|weak"); done < <(printf '%s' "${body}" | extract_refs)
     fi
-    # 3) commit-message references + trailers
     if [[ -n "${commit}" ]]; then
         local msg
         msg=$(git log -1 --format='%B' "${commit}" 2> /dev/null || true)
@@ -146,14 +146,17 @@ render_template() {
 NEW_ISSUE=""
 offer_create() {
     local branch="$1" pr="$2" commit="$3" platform="$4"
+    local existing="" num="" title bodyfile out
     NEW_ISSUE=""
     if [[ "${NO_CREATE:-0}" == "1" ]]; then
         record_action "create-issue [skipped] (--no-create)"
         return 0
     fi
-    # dedup: search for an existing open issue matching the branch
-    local existing num=""
-    existing=$(git_ops issue-list --search "${branch}" 2> /dev/null | head -1 || true)
+    if [[ "${platform}" == github ]]; then
+        existing=$(gh issue list --search "${branch}" 2> /dev/null | head -1 || true)
+    else
+        existing=$(glab issue list --search "${branch}" 2> /dev/null | head -1 || true)
+    fi
     if [[ -n "${existing}" ]]; then
         num=$(printf '%s' "${existing}" | grep -oE '[0-9]+' | head -1 || true)
         record_action "create-issue [skipped] (existing match reused: #${num:-?})"
@@ -175,16 +178,24 @@ offer_create() {
         record_action "create-issue [applied] (dry-run, not created)"
         return 0
     fi
-    local title="${branch}" bodyfile out
+    title="${branch}"
     bodyfile=$(mktemp)
     render_template "${branch}" "${pr}" "${commit}" > "${bodyfile}"
-    if out=$(git_ops issue-create --title "${title}" --body-file "${bodyfile}" --label planned 2> /dev/null); then
-        # gh/glab print the new issue URL; the trailing number is the issue id.
-        num=$(printf '%s' "${out}" | grep -oE '[0-9]+' | tail -1 || true)
-        record_action "create-issue [applied] (#${num:-?}, labeled planned, from template)"
+    if [[ "${platform}" == github ]]; then
+        out=$(gh issue create --title "${title}" --body-file "${bodyfile}" --label planned 2> /dev/null) || out=""
+    else
+        out=$(glab api -X POST projects/:id/issues -f title="${title}" -F description=@"${bodyfile}" -f labels=planned 2> /dev/null) || out=""
+    fi
+    if [[ "${platform}" == github ]]; then
+        num=$(printf '%s' "${out}" | grep -oE '[0-9]+$' | head -1 || true)
+    else
+        num=$(printf '%s' "${out}" | jq -r '.iid // empty' 2> /dev/null || true)
+    fi
+    if [[ -n "${num}" ]]; then
+        record_action "create-issue [applied] (#${num}, labeled planned, from template)"
         NEW_ISSUE="${num}"
     else
-        record_action "create-issue [failed] (issue-create error)"
+        record_action "create-issue [failed] (issue-create returned no issue id)"
     fi
     rm -f "${bodyfile}"
 }

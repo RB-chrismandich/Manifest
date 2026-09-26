@@ -78,23 +78,12 @@ scope that simply ran late):
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-
-Every review round dispatches one `design-lens-reviewer` unit per lens in one
-OMP `task` call (in waves of at most 32), using `reviewer`; then dispatch one
-`skeptic-verifier` unit per BLOCKING finding in a subsequent OMP `task` call.
-Each child executes only its assigned lens or finding and never re-dispatches.
-The parent directly records the verdicts and re-derived numbers under the
-round rules above; unanimous approval with zero upheld blockers is a decision
-rule, not text-overlap consensus. Use `hub` only to coordinate or wait. If
-`task` is unavailable, perform the required independent re-reads inline and
-report `DEGRADED`.
+Follow the [shared dispatch contract](references/sub-agent-dispatch.md).
+Each round assigns one `design-lens-reviewer` unit per lens; after collection,
+assign one `skeptic-verifier` unit per blocking finding. Each child owns only
+its lens or finding. The parent records verdicts and re-derived numbers under
+the round rules; unanimous approval with zero upheld blockers is a decision
+rule, not text-overlap consensus.
 
 ## Additional resources
 

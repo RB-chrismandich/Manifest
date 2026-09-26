@@ -9,6 +9,7 @@ _delegate_inproc.py.
 Run with: uv run --project configs/claude pytest tests/python/test_delegate_jobstore.py -q
 """
 
+import os
 import time
 
 import pytest
@@ -294,6 +295,29 @@ class TestJobStoreRetention:
 
         assert pending["job_id"] in store.list_job_ids()
         assert store.read(pending["job_id"])["state"] == "fallback_pending"
+
+    def test_prune_skips_non_object_record_json(self, tmp_path, monkeypatch):
+        root = tmp_path / "delegations"
+        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(root))
+        store = delegate.JobStore(cwd=str(tmp_path))
+        corrupt = store.create("codex")
+        corrupt_dir = store.job_dir(corrupt["job_id"])
+        with open(
+            os.path.join(corrupt_dir, "record.json"), "w", encoding="utf-8"
+        ) as fh:
+            fh.write("null")
+        time.sleep(0.001)
+
+        def _complete(record):
+            record["state"] = "completed"
+            return record
+
+        for _ in range(delegate.KEEP_LAST_N + 5):
+            record = store.create("codex")
+            store.mutate(record["job_id"], _complete)
+            time.sleep(0.001)
+
+        assert os.path.isdir(corrupt_dir)
 
 
 # ---------------------------------------------------------------------------

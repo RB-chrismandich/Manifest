@@ -76,12 +76,15 @@ def _simulate_process_behavior(control):
         time.sleep(sleep_s)
 
     if control.get("drain_stdin", True) and not sys.stdin.isatty():
-        # A read error here is irrelevant to the behavior being impersonated.
+        # The dispatcher appends its fenced result contract to each task. A stub
+        # echoing the entire prompt would nest that fence inside its own envelope;
+        # retain only the submitted task for per-job attribution.
         with contextlib.suppress(Exception):
-            sys.stdin.read()
+            return sys.stdin.read().split("\n\nEnd your final message", 1)[0]
+    return ""
 
 
-def _emit_output(control):
+def _emit_output(control, task_text):
     """Write the session id, side files, and result envelope a backend would."""
     session_ref = control.get("session_ref", "sess-stub")
     session_format = control.get("session_format")
@@ -101,23 +104,23 @@ def _emit_output(control):
 
     prefix_bytes = control.get("prefix_bytes")
     if prefix_bytes:
-        # Emit a large filler prefix before the envelope to exercise the
-        # dispatcher's bounded (tail-retaining) output capture.
-        sys.stdout.write("A" * int(prefix_bytes) + "\n")
+        sys.stdout.write("x" * int(prefix_bytes))
 
-    envelope = control.get("envelope")
-    if envelope is not None:
+    if control.get("envelope") is not None:
+        envelope = control["envelope"]
+        if control.get("attempted_from_stdin"):
+            envelope = {**envelope, "attempted": task_text}
         print("```json")
         print(json.dumps(envelope))
         print("```")
-    elif "raw_text" in control:
+    elif control.get("raw_text") is not None:
         print(control["raw_text"])
 
 
 def main():
     control = _load_control()
-    _simulate_process_behavior(control)
-    _emit_output(control)
+    task_text = _simulate_process_behavior(control)
+    _emit_output(control, task_text)
     sys.exit(int(control.get("exit_code", 0)))
 
 

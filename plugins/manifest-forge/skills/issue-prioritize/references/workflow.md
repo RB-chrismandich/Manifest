@@ -351,11 +351,9 @@ Save scored and sorted issues to `$TEMP_DIR/scored_issues.json`.
 
 ### Step 5: Agent-Refined Scoring for Top Candidates
 
-Extract the top N+2 candidates (default: top 7). For every candidate, create
-three independent, read-only OMP `reviewer` tasks. Dispatch all of these task
-items in one `task` call, splitting only into waves of at most 32 tasks. Each
-task receives one candidate, the optional project context, and this required
-JSON result contract:
+Extract the top N+2 candidates (default: top 7). Assign independent, read-only
+reviewer units through the shared native dispatch contract. Each unit receives
+one candidate, optional project context, and this required JSON result contract:
 
 ```json
 {

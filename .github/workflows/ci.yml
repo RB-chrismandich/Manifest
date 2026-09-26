@@ -152,6 +152,7 @@ jobs:
           set -euo pipefail
           uv run python tools/generate_plugin_views.py --check
           uv run python tools/vendor_bundle_dependencies.py --check
+          uv run python tools/sync_bundle_mirrors.py --check
           uv run python tools/check_plugin_runtime_paths.py --json
           # Agent-frontmatter gate: a bare `agent: name` silently resolves to
           # general-purpose once skills are plugin-scoped, so it must be
@@ -589,10 +590,10 @@ jobs:
           fi
           echo "Cursor rules, mcp.json, and agents are up-to-date"
   toolchain-attest-linux:
-    name: Toolchain Attestation (Linux x64)
+    name: Toolchain Attestation (Linux arm64)
     if: github.event_name == 'workflow_dispatch'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, grf]
     steps:
       - name: Checkout dispatched head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -634,19 +635,19 @@ jobs:
 
       - name: Provision and validate attestation evidence
         env:
-          ATTESTATION_PLATFORM: linux-x64
+          ATTESTATION_PLATFORM: linux-arm64
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/toolchain-attestation-report.json"
           metadata="$RUNNER_TEMP/toolchain-attestation-metadata.json"
           set +e
-          "$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision --lock config/toolchain.lock.json --platform linux-x64 --store "$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "$report"
+          "$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision --lock config/toolchain.lock.json --platform linux-arm64 --store "$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "$report"
           provision_exit=$?
           set -e
           export PROVISION_EXIT="$provision_exit"
           export ATTESTATION_REPORT="$report"
           export ATTESTATION_METADATA="$metadata"
-          python3 - <<'PY'
+          .venv/bin/python3 - <<'PY'
           import hashlib
           import json
           import os
@@ -765,7 +766,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: linux-x64-toolchain-attestations-${{ github.run_id }}
+          name: linux-arm64-toolchain-attestations-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/toolchain-attestation-report.json
             ${{ runner.temp }}/toolchain-attestation-metadata.json
@@ -781,7 +782,7 @@ jobs:
   shadow-checks-structure:
     name: Shadow Checks (structure)
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, grf]
     permissions:
       contents: read
     outputs:
@@ -798,7 +799,7 @@ jobs:
       - name: Install pinned uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
-          version: "0.12.15"
+          version: "0.12.6"  # = config/toolchain.lock.json uv; see tests/python/test_uv_pin_coherence.py
           enable-cache: false
 
       - name: Resolve base revision
@@ -876,7 +877,7 @@ jobs:
   shadow-checks-lint:
     name: Shadow Checks (lint)
     timeout-minutes: 20
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, grf]
     permissions:
       contents: read
     outputs:
@@ -893,7 +894,7 @@ jobs:
       - name: Install pinned uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
-          version: "0.12.15"
+          version: "0.12.6"  # = config/toolchain.lock.json uv; see tests/python/test_uv_pin_coherence.py
           enable-cache: false
 
       - name: Resolve base revision
@@ -921,12 +922,12 @@ jobs:
         run: |
           uv run --frozen manifest provision \
             --lock config/toolchain.lock.json \
-            --platform linux-x64 \
+            --platform linux-arm64 \
             --store "${RUNNER_TEMP}/manifest-toolchain" \
             --only uv
           uv run --frozen manifest provision \
             --lock config/toolchain.lock.json \
-            --platform linux-x64 \
+            --platform linux-arm64 \
             --store "${RUNNER_TEMP}/manifest-toolchain" \
             --only python-env
 
@@ -971,7 +972,7 @@ jobs:
     # (Correction 8 rule 3, C7j) -- re-derive if any test.* budget_evidence
     # changes.
     timeout-minutes: 37
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, grf]
     permissions:
       contents: read
     outputs:
@@ -988,7 +989,7 @@ jobs:
       - name: Install pinned uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
-          version: "0.12.15"
+          version: "0.12.6"  # = config/toolchain.lock.json uv; see tests/python/test_uv_pin_coherence.py
           enable-cache: false
 
       - name: Resolve base revision
@@ -1016,12 +1017,12 @@ jobs:
         run: |
           uv run --frozen manifest provision \
             --lock config/toolchain.lock.json \
-            --platform linux-x64 \
+            --platform linux-arm64 \
             --store "${RUNNER_TEMP}/manifest-toolchain" \
             --only uv
           uv run --frozen manifest provision \
             --lock config/toolchain.lock.json \
-            --platform linux-x64 \
+            --platform linux-arm64 \
             --store "${RUNNER_TEMP}/manifest-toolchain" \
             --only python-env
 
@@ -1063,7 +1064,7 @@ jobs:
   shadow-checks-security:
     name: Shadow Checks (security)
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, grf]
     permissions:
       contents: read
     outputs:
@@ -1080,7 +1081,7 @@ jobs:
       - name: Install pinned uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
-          version: "0.12.15"
+          version: "0.12.6"  # = config/toolchain.lock.json uv; see tests/python/test_uv_pin_coherence.py
           enable-cache: false
 
       - name: Resolve base revision
@@ -1108,7 +1109,7 @@ jobs:
         run: |
           uv run --frozen manifest provision \
             --lock config/toolchain.lock.json \
-            --platform linux-x64 \
+            --platform linux-arm64 \
             --store "${RUNNER_TEMP}/manifest-toolchain" \
             --only gitleaks
 
@@ -1150,7 +1151,7 @@ jobs:
   shadow-checks-package:
     name: Shadow Checks (package)
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, grf]
     permissions:
       contents: read
     outputs:
@@ -1167,7 +1168,7 @@ jobs:
       - name: Install pinned uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
-          version: "0.12.15"
+          version: "0.12.6"  # = config/toolchain.lock.json uv; see tests/python/test_uv_pin_coherence.py
           enable-cache: false
 
       - name: Resolve base revision
