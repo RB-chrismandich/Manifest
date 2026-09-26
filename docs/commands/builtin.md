@@ -42,7 +42,7 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/repo-clean` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches (GitHub/GitLab/local) | CONDITIONAL (close/prune path) |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
 | `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
-| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md`. `--mode product\|technical` distinguishes the two lifecycle spec-review passes | NO |
+| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and design-doc layouts; silent-mode findings land in `.spec-review/feedback.md`. `--mode product\|technical` distinguishes the two lifecycle spec-review passes | NO |
 | `/lifecycle-run` | Drive a unit of work through the codified nine-phase state-gated lifecycle (Specify→…→Verify) with hard gating; entry is a ticket URL/issue key (GitHub/GitLab/Linear/Jira); the smoke-test suite is the Verify gate. Backed by `lifecycle.sh` (constitution Principle VI) | NO |
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |

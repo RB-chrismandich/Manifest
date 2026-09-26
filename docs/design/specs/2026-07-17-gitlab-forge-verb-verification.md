@@ -8,7 +8,7 @@
 > linear/jira; this doc covers `git_ops.sh` PR/MR-forge verbs across
 > github/gitlab only — different script, different abstraction, kept
 > separate rather than merged into the tracker matrix). Plan:
-> `docs/superpowers/plans/2026-07-16-agent-app-agnostic-skills.md`, Task 16.
+> `docs/design/plans/2026-07-16-agent-app-agnostic-skills.md`, Task 16.
 
 ## Scope note (deviation from the original plan text)
 

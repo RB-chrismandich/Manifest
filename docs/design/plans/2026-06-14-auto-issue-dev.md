@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bash (set -euo pipefail), Python 3 heredocs for JSON/YAML parsing, `bats` tests with `git_ops.sh` stubs, `gh`/`glab` via `git_ops.sh`, markdown skill + Cursor `.mdc` rule.
 
-**Spec:** `docs/superpowers/specs/2026-06-14-auto-issue-dev-design.md`
+**Spec:** `docs/design/specs/2026-06-14-auto-issue-dev-design.md`
 
 **Decision (carried from spec, override if desired):** dependency-blocked issues get the `blocked-dependency` label *alone* (not stacked with `needs-human`). `needs-human` is reserved for dev failures.
 
@@ -851,7 +851,7 @@ In a sandbox or with disposable issues:
 
 ```bash
 git_ops.sh pr-create --title "feat: autonomous issue developer (/auto-issue-dev)" \
-  --body "Implements docs/superpowers/specs/2026-06-14-auto-issue-dev-design.md"
+  --body "Implements docs/design/specs/2026-06-14-auto-issue-dev-design.md"
 ```
 
 ---

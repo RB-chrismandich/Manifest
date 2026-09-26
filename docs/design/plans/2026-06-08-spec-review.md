@@ -196,14 +196,14 @@ git commit -m "feat(spec-review): scaffold engine — arg parsing, seams, sourci
 }
 
 @test "discover_artifacts finds superpowers design+plan (tasks embedded in plan)" {
-    mkdir -p "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
-    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    mkdir -p "$SANDBOX/docs/design/specs" "$SANDBOX/docs/design/plans"
+    : > "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     source "$SCRIPT"
     run discover_artifacts "$SANDBOX"
     assert_success
-    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    assert_output --partial "spec	$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     refute_output --partial "tasks	"
 }
 
@@ -240,8 +240,8 @@ discover_artifacts() {
         return 0
     fi
     # superpowers: newest design + newest plan (tasks embedded in plan)
-    sp=$(ls -1 "$root"/docs/superpowers/specs/*-design.md 2>/dev/null | sort | tail -1 || true)
-    pl=$(ls -1 "$root"/docs/superpowers/plans/*.md 2>/dev/null | sort | tail -1 || true)
+    sp=$(ls -1 "$root"/docs/design/specs/*-design.md 2>/dev/null | sort | tail -1 || true)
+    pl=$(ls -1 "$root"/docs/design/plans/*.md 2>/dev/null | sort | tail -1 || true)
     [[ -n "$sp" ]] && printf 'spec\t%s\n' "$sp"
     [[ -n "$pl" ]] && printf 'plan\t%s\n' "$pl"
     return 0
@@ -859,7 +859,7 @@ Expected: all green; shellcheck clean; JSON valid.
 
 - [ ] **Step 3: Markdownlint the new docs**
 
-Run: `markdownlint .retired skill supply/skills/spec-review/SKILL.md configs/claude/prompts/spec_review.md docs/superpowers/specs/2026-06-08-spec-review-design.md docs/superpowers/plans/2026-06-08-spec-review.md` (or the repo's configured linter; honor `.markdownlint.jsonc`). Fix violations.
+Run: `markdownlint .retired skill supply/skills/spec-review/SKILL.md configs/claude/prompts/spec_review.md docs/design/specs/2026-06-08-spec-review-design.md docs/design/plans/2026-06-08-spec-review.md` (or the repo's configured linter; honor `.markdownlint.jsonc`). Fix violations.
 
 - [ ] **Step 4: Commit**
 

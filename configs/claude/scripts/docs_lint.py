@@ -86,7 +86,7 @@ BUILTIN_LIMITS: dict = {
             "**/.remember/**",
             "**/specs/**",
             "**/plans/**",
-            "**/superpowers/**",
+            "**/design/**",
             "**/baselines/**",
             "**/decisions/**",
             "**/*_REPORT.md",

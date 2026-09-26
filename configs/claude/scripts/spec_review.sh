@@ -96,17 +96,17 @@ parse_args() {
 }
 
 # Print "role\tpath" lines for discovered artifacts. speckit: spec/plan/tasks.md
-# (cwd or specs/<n>/). superpowers: newest *-design.md + newest plans/*.md (tasks
-# are embedded in the plan, so no tasks line). Newest = name sort (date-prefixed).
-# A FILE root is an explicit spec (FR-001 precedence for "point at the design
-# doc" targets) paired within its OWN layout tree — a co-existing speckit
-# layout must not hijack a superpowers design doc's plan (feature 482 US3).
+# (cwd or specs/<n>/). design-doc layout: newest *-design.md + newest plans/*.md
+# (tasks are embedded in the plan, so no tasks line). Newest = name sort
+# (date-prefixed). A FILE root is an explicit spec (FR-001 precedence for "point
+# at the design doc" targets) paired within its OWN layout tree — a co-existing
+# speckit layout must not hijack a design doc's plan (feature 482 US3).
 discover_artifacts() {
     local root="${1:-.}" sp pl
     if [[ -f "$root" ]]; then
         printf 'spec\t%s\n' "$root"
         case "$root" in
-            */docs/superpowers/specs/*.md)
+            */docs/design/specs/*.md)
                 local sp_base="${root%/specs/*}"
                 # shellcheck disable=SC2012  # ls intentional; date-prefixed names
                 pl=$(ls -1 "$sp_base"/plans/*.md 2> /dev/null | sort | tail -1 || true)
@@ -133,11 +133,11 @@ discover_artifacts() {
         [[ -f "$d/tasks.md" ]] && printf 'tasks\t%s\n' "$d/tasks.md"
         return 0
     fi
-    # superpowers: newest design + newest plan (tasks embedded in plan)
+    # design-doc layout: newest design + newest plan (tasks embedded in plan)
     # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
-    sp=$(ls -1 "$root"/docs/superpowers/specs/*-design.md 2> /dev/null | sort | tail -1 || true)
+    sp=$(ls -1 "$root"/docs/design/specs/*-design.md 2> /dev/null | sort | tail -1 || true)
     # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
-    pl=$(ls -1 "$root"/docs/superpowers/plans/*.md 2> /dev/null | sort | tail -1 || true)
+    pl=$(ls -1 "$root"/docs/design/plans/*.md 2> /dev/null | sort | tail -1 || true)
     [[ -n "$sp" ]] && printf 'spec\t%s\n' "$sp"
     [[ -n "$pl" ]] && printf 'plan\t%s\n' "$pl"
     return 0

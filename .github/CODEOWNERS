@@ -36,4 +36,4 @@
 /plugins/stitch-design/runtime/node/package.json   @RB-chrismandich
 /plugins/stitch-design/runtime/node/package-lock.json @RB-chrismandich
 /.github/                                          @RB-chrismandich
-/docs/superpowers/specs/                           @RB-chrismandich
+/docs/design/specs/                           @RB-chrismandich

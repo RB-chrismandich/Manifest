@@ -73,7 +73,7 @@ Modified sections:
   Source: `lifecycle_providers.yml` was deleted (commit a0070d0) and its content
   absorbed byte-identically into `tracker_providers.yml`, part of the broader
   tracker-provider abstraction work
-  (docs/superpowers/plans/2026-07-16-agent-app-agnostic-skills.md).
+  (docs/design/plans/2026-07-16-agent-app-agnostic-skills.md).
 Removed sections: N/A
 Templates / docs requiring updates: N/A (path-only correction; no template impact)
 Follow-up TODOs: N/A

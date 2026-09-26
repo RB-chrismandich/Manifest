@@ -1,4 +1,4 @@
-# Spec Artifact Discovery (speckit ⇄ superpowers)
+# Spec Artifact Discovery (speckit ⇄ design-doc)
 
 Read-on-demand reference (NOT auto-loaded). The spec-* skills that read planning
 artifacts (`spec-review`, `spec-audit-tasks`, `spec-decide-tradeoffs`) link here
@@ -11,16 +11,17 @@ this contract is `discover_artifacts()` / `resolve_artifacts()` in
 
 A project uses **one** of these. Discovery must detect which, not assume speckit.
 
-| Role | speckit | superpowers |
+| Role | speckit | design-doc |
 |---|---|---|
-| **spec** | `specs/<NNN-slug>/spec.md` (newest by name sort), else `./spec.md` | newest `docs/superpowers/specs/*-design.md` (date-prefixed) |
-| **plan** | `plan.md` beside the spec | newest `docs/superpowers/plans/*.md` |
+| **spec** | `specs/<NNN-slug>/spec.md` (newest by name sort), else `./spec.md` | newest `docs/design/specs/*-design.md` (date-prefixed) |
+| **plan** | `plan.md` beside the spec | newest `docs/design/plans/*.md` |
 | **tasks** | `tasks.md` beside the spec | **none** — tasks are embedded in the plan |
 | prereqs | none — `specs/<NNN-slug>/` directories are self-contained | no tooling; artifacts are plain dated markdown |
 
 **Consequence for the cross-reference:** speckit is three-way **spec ↔ plan ↔ tasks**;
-superpowers is two-way **spec ↔ plan (+ embedded tasks)**. A skill MUST NOT report a
-"missing tasks.md" finding in a superpowers project — parse the plan's task list instead.
+the design-doc layout is two-way **spec ↔ plan (+ embedded tasks)**. A skill MUST NOT
+report a "missing tasks.md" finding in a design-doc project — parse the plan's task
+list instead.
 
 ## Discovery precedence
 
@@ -30,8 +31,8 @@ superpowers is two-way **spec ↔ plan (+ embedded tasks)**. A skill MUST NOT re
    speckit: emit `spec`/`plan`/`tasks` from the spec's directory. Discovery is plain
    globbing — there is no scaffolding or resolver script; the `specs/` directories
    are self-contained.
-3. **superpowers fallback.** Else emit the newest `docs/superpowers/specs/*-design.md` as
-   `spec` and the newest `docs/superpowers/plans/*.md` as `plan`. Emit **no** `tasks` role.
+3. **design-doc fallback.** Else emit the newest `docs/design/specs/*-design.md` as
+   `spec` and the newest `docs/design/plans/*.md` as `plan`. Emit **no** `tasks` role.
 4. **Nothing found.** Report that no planning artifacts were discovered and stop — never
    fabricate paths.
 
@@ -39,24 +40,24 @@ superpowers is two-way **spec ↔ plan (+ embedded tasks)**. A skill MUST NOT re
 
 **File targets.** A ROOT that is a *file* (e.g. "point the command at the design doc",
 feature 482 US3) is itself the `spec`, paired within its **own** layout tree: a path under
-`docs/superpowers/specs/` pairs the newest `docs/superpowers/plans/*.md` from the same tree;
+`docs/design/specs/` pairs the newest `docs/design/plans/*.md` from the same tree;
 any other markdown file pairs sibling `plan.md`/`tasks.md`. A co-existing speckit layout
-never hijacks an explicitly-targeted superpowers doc (or vice versa).
+never hijacks an explicitly-targeted design doc (or vice versa).
 
 ## What each consumer does with the roles
 
 - **spec-review** — cross-references the discovered roles for internal consistency
-  (spec↔plan↔tasks, or spec↔plan for superpowers). Delegates discovery to
+  (spec↔plan↔tasks, or spec↔plan for the design-doc layout). Delegates discovery to
   `spec_review.sh` (`resolve_artifacts` → `discover_artifacts`), a lightweight resolver that
   implements the **path-resolution subset** of this contract: explicit paths, else the newest
-  `specs/*/spec.md` (speckit) or the newest `docs/superpowers/*` (superpowers).
+  `specs/*/spec.md` (speckit) or the newest `docs/design/*` (design-doc).
 - **spec-audit-tasks** — audits that each task was genuinely completed. The task list comes
-  from `tasks.md` (speckit) **or** the plan's embedded task list (superpowers). In speckit,
-  the task list is `tasks.md` inside the spec's feature directory; in superpowers, parse
-  checkbox/numbered tasks out of the newest plan.
+  from `tasks.md` (speckit) **or** the plan's embedded task list (design-doc). In speckit,
+  the task list is `tasks.md` inside the spec's feature directory; in the design-doc layout,
+  parse checkbox/numbered tasks out of the newest plan.
 - **spec-decide-tradeoffs** — records the chosen option in the spec's Clarifications/Decisions
   section or `research.md` (speckit), **or** the design doc's Decisions section
-  (`docs/superpowers/specs/*-design.md`) for superpowers, keeping entity/field names
+  (`docs/design/specs/*-design.md`) for the design-doc layout, keeping entity/field names
   consistent with the surrounding artifact set.
 
 ## Reusing the shell seam

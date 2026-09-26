@@ -79,4 +79,4 @@ yamllint configs/claude/config/*.yml
 
 Paths are mapped in the root [CLAUDE.md](../CLAUDE.md) structure tree. One not
 listed there: `docs/SPEC-SYSTEMS.md` — spec/plan systems map (`specs/` artifacts vs
-superpowers vs `.plans` vs `.Jules`).
+design-doc vs `.plans` vs `.Jules`).

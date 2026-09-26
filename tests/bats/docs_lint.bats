@@ -114,7 +114,7 @@ run_lint() {
 }
 
 @test "records (specs, plans) are exempt: rewriting one to fit would falsify it" {
-    make_doc "$WORK/docs/superpowers/plans/2026-01-01-thing.md" 900
+    make_doc "$WORK/docs/design/plans/2026-01-01-thing.md" 900
     make_doc "$WORK/docs/OK.md" 10
     run_lint docs
     assert_success

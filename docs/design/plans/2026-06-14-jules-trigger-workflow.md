@@ -8,7 +8,7 @@
 
 **Tech Stack:** GitHub Actions; `actions/github-script` (v9.0.0) for the GitHub API calls; `google-labs-code/jules-action` (v1.0.0) for the invocation. Static validation via `actionlint`.
 
-**Design doc:** `docs/superpowers/specs/2026-06-14-jules-trigger-workflow-design.md`
+**Design doc:** `docs/design/specs/2026-06-14-jules-trigger-workflow-design.md`
 **Branch:** `feat/jules-trigger-workflow`
 
 ---

@@ -33,7 +33,7 @@
 
 **Tech Stack:** Python 3 (asyncio, pytest, pytest-asyncio), Bash (bats-core), YAML.
 
-**Spec:** `docs/superpowers/specs/2026-06-11-cli-agent-refactor-design.md`
+**Spec:** `docs/design/specs/2026-06-11-cli-agent-refactor-design.md`
 
 **Working directory:** repo root (the worktree). All paths below are repo-relative.
 
@@ -1492,7 +1492,7 @@ git commit -m "feat(bootstrap): report agy CLI availability in antigravity summa
 
 ```bash
 grep -rn "claude-opus-4-6\|claude-sonnet-4-5\|gemini-3-flash-preview\|gemini-3-pro-preview\|o4-mini\|gpt-5.1" \
-  --include="*.md" . | grep -v ".git/" | grep -v "docs/superpowers/"
+  --include="*.md" . | grep -v ".git/" | grep -v "docs/design/"
 grep -rln "Gemini, Cursor, Claude CLI" --include="*.md" .
 ```
 
@@ -1514,7 +1514,7 @@ For every file found:
 - [ ] **Step 3: Verify no stale IDs remain**
 
 Run the Step 1 greps again.
-Expected: no hits outside `docs/superpowers/` (specs/plans are historical records) and `CHANGELOG`-style files.
+Expected: no hits outside `docs/design/` (specs/plans are historical records) and `CHANGELOG`-style files.
 
 - [ ] **Step 4: Commit**
 
@@ -1560,8 +1560,8 @@ Expected: JSON result with up to 5 agent entries (missing CLIs report `status: m
 
 ```bash
 ~/.claude/scripts/spec_review.sh \
-  --spec docs/superpowers/specs/2026-06-11-cli-agent-refactor-design.md \
-  --plan docs/superpowers/plans/2026-06-11-cli-agent-refactor.md
+  --spec docs/design/specs/2026-06-11-cli-agent-refactor-design.md \
+  --plan docs/design/plans/2026-06-11-cli-agent-refactor.md
 ```
 
 Expected: `✓ No inconsistencies found` (or address findings)

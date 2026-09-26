@@ -2135,8 +2135,8 @@ uv run python tools/render_capability_inventory.py --check
 uv run python tools/render_plugin_capability_matrix.py --check
 rg -n 'bootstrap\.sh|~/.claude/scripts|~/.claude/config|configs/claude|manifest parallel-agent|manifest smoke' \
   --glob '!docs/legacy/**' --glob '!docs/PLUGIN_CAPABILITY_INVENTORY.md' \
-  --glob '!docs/MIGRATION_RECOVERY.md' --glob '!docs/superpowers/specs/**' \
-  --glob '!docs/superpowers/plans/**' \
+  --glob '!docs/MIGRATION_RECOVERY.md' --glob '!docs/design/specs/**' \
+  --glob '!docs/design/plans/**' \
   --glob '!src/manifest_agent/data/legacy_inventory.yml' \
   --glob '!tests/fixtures/legacy_homes/**' --glob '!tests/python/manifest_agent/test_migration.py'
 uv run pytest tests/python -v

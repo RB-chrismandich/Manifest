@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 (asyncio, pytest), YAML.
 
-**Spec:** `docs/superpowers/specs/2026-07-13-synthesis-cli-auth-design.md`
+**Spec:** `docs/design/specs/2026-07-13-synthesis-cli-auth-design.md`
 
 **Working directory:** repo root. Paths below are repo-relative.
 

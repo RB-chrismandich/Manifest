@@ -32,7 +32,7 @@ draft for a human. **Tier 2** (bugs, perf, maintainability, coverage) and the
 | 1 | Gate placement vs `/verify` | **Wrap** — gate runs as a new step *after* `/verify`, only if `/verify` did not already block. Both the deterministic (lint/test/security) and semantic (consensus) signals are preserved. |
 | 2 | Gate policy | **Tier-1-only blocks; consensus advisory.** A Tier 1 failure forces a draft + `needs-human`. The consensus score is always annotated, never blocks. |
 | 3 | Infrastructure failure (reviewer cannot run at all) | **Fail-closed → draft + `needs-human`.** A reviewer outage must never let un-reviewed code reach a real (mergeable) PR. |
-| 4 | Spec home | Superpowers design doc (this file) + implementation plan in `docs/superpowers/plans/`. |
+| 4 | Spec home | Superpowers design doc (this file) + implementation plan in `docs/design/plans/`. |
 
 > **Consensus is advisory, by construction.** The shared `ValidationEngine` treats
 > `cross_verification` (consensus ≥ 0.80) as a *Tier 1* check, so reused verbatim it

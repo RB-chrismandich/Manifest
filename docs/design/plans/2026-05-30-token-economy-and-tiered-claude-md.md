@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown (skills + CLAUDE.md), YAML (`command_config.yml`), bash (`bootstrap.sh`/`deploy.sh`), `retired skill supply`, `markdownlint-cli2`, `bats`.
 
-**Spec:** `docs/superpowers/specs/2026-05-30-token-economy-and-tiered-claude-md-design.md`
+**Spec:** `docs/design/specs/2026-05-30-token-economy-and-tiered-claude-md-design.md`
 
 ---
 

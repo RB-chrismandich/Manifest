@@ -19,7 +19,7 @@ runtime, `smoke_test.py`, agents), bats, pytest, ruff, shellcheck, yamllint, mar
 - **Worktree (run everything here):** `/Users/chrismandich/Documents/GitHub/Manifest/.claude/worktrees/test-end-2-end`
 - **Branch:** `worktree-test-end-2-end` (currently at `0722b88`, == `main`). All fix-forward commits land here.
 - **Diff range under test:** `4643b72..0722b88` (10 commits, features 363–367 + bot opts).
-- **Source-of-truth exercise matrix:** `docs/superpowers/specs/exercise-matrix-2026-06-29.json` (41 features). The
+- **Source-of-truth exercise matrix:** `docs/design/specs/exercise-matrix-2026-06-29.json` (41 features). The
   design doc owns phase routing.
 
 - **Do-it-right bias:** correctness/reversibility over speed. Never push a known-red state into live config. Fixes are

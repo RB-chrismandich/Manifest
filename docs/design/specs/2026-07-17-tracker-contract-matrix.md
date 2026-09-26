@@ -2,7 +2,7 @@
 
 > Acceptance gate for the tracker abstraction (Phase 1). Spec:
 > [2026-07-16-agent-app-agnostic-skills-design.md](2026-07-16-agent-app-agnostic-skills-design.md).
-> Plan task: `docs/superpowers/plans/2026-07-16-agent-app-agnostic-skills.md`, Task 12.
+> Plan task: `docs/design/plans/2026-07-16-agent-app-agnostic-skills.md`, Task 12.
 
 ## Scope note (deviation from the original plan text)
 

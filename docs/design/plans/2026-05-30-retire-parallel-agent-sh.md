@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bash, Python (`parallel_agent.py`), `perl` (portable in-place edit), `bats`, `pytest`, `shellcheck`, `markdownlint-cli2`.
 
-**Spec:** `docs/superpowers/specs/2026-05-30-retire-parallel-agent-sh-design.md`
+**Spec:** `docs/design/specs/2026-05-30-retire-parallel-agent-sh-design.md`
 
 ---
 
@@ -28,7 +28,7 @@
   "Bash version" line), `configs/claude/scripts/parallel_agent.py` (docstring).
 - **Delete:** `configs/claude/scripts/parallel_agent.sh`, `tests/bats/parallel_agent.bats`.
 - **DO NOT touch (historical):** `.Jules/sentinel.md`, `docs/SHELL_ANALYSIS_REPORT.md`,
-  `docs/VALIDATION_REPORT.md`, `docs/superpowers/**`.
+  `docs/VALIDATION_REPORT.md`, `docs/design/**`.
 
 ---
 
@@ -137,7 +137,7 @@ cd /Users/chrismandich/Documents/GitHub/Manifest
 grep -rlZ 'parallel_agent\.sh' . \
   | tr '\0' '\n' \
   | grep -v '/\.git/' \
-  | grep -vE '\.Jules/sentinel\.md|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|docs/superpowers/' \
+  | grep -vE '\.Jules/sentinel\.md|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|docs/design/' \
   | grep -vE '\.github/workflows/ci\.yml|\.pre-commit-config\.yaml|bootstrap/lib/install\.sh|configs/claude/scripts/parallel_agent\.py' \
   | while IFS= read -r f; do
       perl -pi -e 's{parallel_agent\.sh}{parallel_agent.py}g' "$f"
@@ -163,7 +163,7 @@ required-file now `.py`.
 
 ```bash
 cd /Users/chrismandich/Documents/GitHub/Manifest
-git diff --name-only | grep -E '\.Jules/sentinel\.md|SHELL_ANALYSIS_REPORT|VALIDATION_REPORT|docs/superpowers/' && echo "ERROR: historical file modified" || echo "historical records untouched (good)"
+git diff --name-only | grep -E '\.Jules/sentinel\.md|SHELL_ANALYSIS_REPORT|VALIDATION_REPORT|docs/design/' && echo "ERROR: historical file modified" || echo "historical records untouched (good)"
 ```
 Expected: `historical records untouched (good)`.
 
@@ -250,11 +250,11 @@ cd /Users/chrismandich/Documents/GitHub/Manifest
 echo "=== remaining parallel_agent.sh hits (should be ONLY historical) ==="
 grep -rn "parallel_agent\.sh" . 2>/dev/null | grep -v '/\.git/'
 echo "=== loose/typo sweep ==="
-grep -rniE "parallel.agent\.sh" . 2>/dev/null | grep -v '/\.git/' | grep -viE '\.Jules/sentinel|SHELL_ANALYSIS|VALIDATION_REPORT|docs/superpowers' || echo "no live/typo hits"
+grep -rniE "parallel.agent\.sh" . 2>/dev/null | grep -v '/\.git/' | grep -viE '\.Jules/sentinel|SHELL_ANALYSIS|VALIDATION_REPORT|docs/design' || echo "no live/typo hits"
 ```
 Expected: every remaining hit is in `.Jules/sentinel.md`,
 `docs/SHELL_ANALYSIS_REPORT.md`, `docs/VALIDATION_REPORT.md`, or
-`docs/superpowers/**`. Zero in live/instructional files.
+`docs/design/**`. Zero in live/instructional files.
 
 - [ ] **Step 2: Test suites + lint green**
 
@@ -302,7 +302,7 @@ Expected: clean tree; Task 1-4 commits present.
   run BEFORE Task 3's bulk `perl` so those landmine files are never blind-swapped.
 - **Do NOT touch historical records** (`.Jules/sentinel.md`,
   `docs/SHELL_ANALYSIS_REPORT.md`, `docs/VALIDATION_REPORT.md`,
-  `docs/superpowers/**`) — the bulk command excludes them; Task 3 Step 3 asserts it.
+  `docs/design/**`) — the bulk command excludes them; Task 3 Step 3 asserts it.
 - **`shellcheck -S warning` stays** — do not revert to strict (spec decision).
 - The `command_config.yml` `script_path:` (live) and the permission JSON entries
   (`Bash(...:*)`) are real consumers — confirm they became `.py` (Task 3 Step 2).

@@ -45,7 +45,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
   OMP task batches, selection rules, and inline `DEGRADED` behavior.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
-  planning artifacts: `specs/` (speckit) vs superpowers layout detection + precedence.
+  planning artifacts: `specs/` (speckit) vs design-doc layout detection + precedence.
 - `~/.claude/references/code-constitution.md` — Read BEFORE creating or modifying
   source: 13 articles, ceilings, per-language annexes (`constitution/<lang>.md`).
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:

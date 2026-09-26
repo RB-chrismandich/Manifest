@@ -41,6 +41,6 @@ Stage 1 (this change):
 - No code path may rely on `.specify/` existing; artifact discovery is plain
   `specs/<n>/` globbing per `configs/claude/references/spec-artifact-discovery.md`.
 - `constitution_baseline.json` no longer carries entries for deleted files.
-- Historical records (`specs/`, `docs/superpowers/`, `CHANGELOG.md`,
+- Historical records (`specs/`, `docs/design/`, `CHANGELOG.md`,
   `docs/baselines/`) intentionally retain their spec-kit mentions — they are
   dated history, not live guidance.

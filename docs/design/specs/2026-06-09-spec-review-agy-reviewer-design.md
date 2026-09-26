@@ -7,7 +7,7 @@
 
 **Date**: 2026-06-09
 **Status**: Approved — implementation plan and change landed (see
-`docs/superpowers/plans/2026-06-09-spec-review-agy-reviewer.md`)
+`docs/design/plans/2026-06-09-spec-review-agy-reviewer.md`)
 **Audience**: Manifest maintainers
 
 ---

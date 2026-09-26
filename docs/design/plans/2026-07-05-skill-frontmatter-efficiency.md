@@ -388,7 +388,7 @@ Edit the two `22800` occurrences (the `-gt` comparison and the echoed budget) to
 # Lowered 22800 -> <NEW> (2026-07-05): set-wide front-matter efficiency pass
 # (inline-normalize + eval-guarded trims) cut the total to <T>; new cap leaves
 # ~800 bytes (~3 skills) headroom. See
-# docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
+# docs/design/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
 ```
 
 - [ ] **Step 3: Verify the gate still passes at the new cap**
@@ -519,8 +519,8 @@ context_budget.bats cap (D1) and documents the house style (D2).
 - Lever B trims accepted only on no eval regression; evidence in commit bodies.
 - ai-hooks-integration (externally managed) untouched.
 
-Spec: docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md
-Plan: docs/superpowers/plans/2026-07-05-skill-frontmatter-efficiency.md
+Spec: docs/design/specs/2026-07-05-skill-frontmatter-efficiency-design.md
+Plan: docs/design/plans/2026-07-05-skill-frontmatter-efficiency.md
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 BODY

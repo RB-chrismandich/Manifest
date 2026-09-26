@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 (asyncio, subprocess, tempfile), `anthropic` v0.105.2, `google-genai` v2.7.0, pytest + pytest-asyncio, YAML.
 
-**Spec:** `docs/superpowers/specs/2026-06-12-token-benchmark-design.md`
+**Spec:** `docs/design/specs/2026-06-12-token-benchmark-design.md`
 
 **Working directory:** repo root (worktree). All paths are repo-relative.
 

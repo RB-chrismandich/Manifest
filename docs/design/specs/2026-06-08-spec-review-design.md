@@ -86,8 +86,8 @@ One core engine script, two thin entry points:
     - *speckit:* `specs/<NNN>-*/{spec,plan,tasks}.md` (or `spec.md` in cwd). Note:
       speckit's `.specify/` dir holds templates/memory/scripts, NOT the artifacts —
       the spec/plan/tasks live under `specs/<NNN>/`, which is what we discover.
-    - *superpowers:* `docs/superpowers/specs/*-design.md` (spec) +
-      `docs/superpowers/plans/*.md` (plan, **with tasks embedded** — there is no
+    - *superpowers:* `docs/design/specs/*-design.md` (spec) +
+      `docs/design/plans/*.md` (plan, **with tasks embedded** — there is no
       separate `tasks.md`). The cross-reference for superpowers is therefore
       **spec ↔ plan(+embedded tasks)**; for speckit it is the three-way
       **spec ↔ plan ↔ tasks**. The assembled prompt states which shape it sees.

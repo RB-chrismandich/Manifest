@@ -1309,7 +1309,7 @@ Expected: all green; shellcheck and yamllint clean.
 
 - [ ] **Step 3: Markdownlint the docs**
 
-Run: `markdownlint docs/SKILLCLAW.md docs/superpowers/specs/2026-06-08-skillclaw-proxy-free-evolve-design.md docs/superpowers/plans/2026-06-08-skillclaw-proxy-free-evolve.md` (or the repo's configured linter)
+Run: `markdownlint docs/SKILLCLAW.md docs/design/specs/2026-06-08-skillclaw-proxy-free-evolve-design.md docs/design/plans/2026-06-08-skillclaw-proxy-free-evolve.md` (or the repo's configured linter)
 Expected: clean (fix MD013 line-length / list issues as the repo convention requires).
 
 - [ ] **Step 4: Commit**

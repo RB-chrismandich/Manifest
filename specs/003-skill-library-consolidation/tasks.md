@@ -70,7 +70,7 @@
 - [x] T017 [US2] Unify the three mirror tables to match T016 exactly: root CLAUDE.md, AGENTS.md, configs/claude/CLAUDE.md; refresh their "Last Updated" stamps to change date; fix skill counts in AGENTS.md:207 and README.md (use `find .retired skill supply/skills -name SKILL.md | wc -l` result)
 - [x] T018 [P] [US2] CHANGELOG.md: move shipped Unreleased items (promote audit log etc.) into a dated `[2026-06]` section; add entries for this feature's PRs as they land
 - [x] T019 [P] [US2] Prepend archive banner to docs/SHELL_ANALYSIS_REPORT.md: `> [ARCHIVED 2026-06-10] Analyzes the retired parallel_agent.sh; superseded — see configs/claude/scripts/ for current tooling`
-- [x] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/superpowers/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md
+- [x] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/design/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md
 - [x] T021 [US2] Run quickstart.md §US2 + full gate; markdownlint clean; if the diff exceeds 200 lines (likely), run parallel-agent cross-verification (`~/.claude/scripts/the retired cross-harness coordinator --json --timeout 600 --review` on changed files) per Constitution II before opening PR-2
 
 **Checkpoint**: docs match reality; drift map published.

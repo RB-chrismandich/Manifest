@@ -612,7 +612,7 @@ git commit -m "docs(spec-review): describe parallel-agent panel engine"
 ## Manual end-to-end verification (after all tasks)
 
 1. **On-demand, live panel** (needs ≥1 non-Claude agent authenticated):
-   `configs/claude/scripts/spec_review.sh --spec docs/superpowers/specs/2026-06-28-spec-review-parallel-agents-design.md`
+   `configs/claude/scripts/spec_review.sh --spec docs/design/specs/2026-06-28-spec-review-parallel-agents-design.md`
    → status line says "parallel agent panel"; output is one deduped block list or `NO_ISSUES`.
 2. **Fallback (no panel)**: `SPEC_REVIEW_PANEL_CMD=/bin/false SPEC_REVIEW_CLI=agy configs/claude/scripts/spec_review.sh --spec … --plan …` → single `agy` review still works.
 3. **Hook**: edit two artifacts under a `specs/<n>/` dir, run `spec_review.sh --silent .`, confirm `.spec-review/feedback.md` is written; a second unchanged run is a no-op (hash-gated).

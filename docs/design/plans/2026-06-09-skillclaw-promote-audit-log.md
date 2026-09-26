@@ -12,7 +12,7 @@
 
 ## Source Spec
 
-`docs/superpowers/specs/2026-06-09-skillclaw-promote-audit-log-design.md` (Approved; reviewed by `agy` — 7 findings incorporated).
+`docs/design/specs/2026-06-09-skillclaw-promote-audit-log-design.md` (Approved; reviewed by `agy` — 7 findings incorporated).
 
 ## File Structure
 

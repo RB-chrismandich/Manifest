@@ -11,7 +11,7 @@
 > section grafted onto that doc, since the two verification efforts don't
 > share a matrix shape: forge verbs are single API calls, CI skills are
 > multi-step audit/reproduction methods). Plan:
-> `docs/superpowers/plans/2026-07-16-agent-app-agnostic-skills.md`, Task 22.
+> `docs/design/plans/2026-07-16-agent-app-agnostic-skills.md`, Task 22.
 
 ## Scope note (deviation from the original plan text)
 

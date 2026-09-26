@@ -36,7 +36,7 @@ testing conventions).
   Sourcing is safe: `main` is gated by a `BASH_SOURCE` check (spec_review.sh:467).
 - **Alternatives considered**: Reimplementing discovery in Python (rejected: FR-001
   violation, guaranteed drift); `check-prerequisites.sh --json --paths-only` (rejected
-  as the primary path: speckit-only, no superpowers fallback; spec-review's resolver
+  as the primary path: speckit-only, no design-doc fallback; spec-review's resolver
   subset is the established dual-workflow precedent).
 
 ## D3 — Role definition placement and deployment (FR-013, FR-014)

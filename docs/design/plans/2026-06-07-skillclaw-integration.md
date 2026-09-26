@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bash (3.2-compatible, `set -euo pipefail`), Python 3.10+ (stdlib + PyYAML), bats (bats-support/bats-assert) for shell tests, pytest for Python tests, `git_ops.sh` for platform-agnostic PR creation, SkillClaw (Python, OpenAI/Anthropic-compatible proxy).
 
-**Reference spec:** `docs/superpowers/specs/2026-06-07-skillclaw-integration-design.md`
+**Reference spec:** `docs/design/specs/2026-06-07-skillclaw-integration-design.md`
 
 **Conventions to follow (verified in-repo):**
 - Scripts: `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`, `set -euo pipefail`, dry-run default + `--apply` (mirror `branch_clean.sh`), python3 heredoc for YAML reads.

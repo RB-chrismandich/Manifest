@@ -28,7 +28,7 @@
 
 **Tech Stack:** uv, Hatchling, Click, Bash (`set -euo pipefail`), BATS, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-07-13-manifest-uv-cli-design.md`
+**Spec:** `docs/design/specs/2026-07-13-manifest-uv-cli-design.md`
 
 **Working directory:** repo root. Paths below are repo-relative unless noted.
 
@@ -869,7 +869,7 @@ table, add the row here in the same change.
 
 ## Execution Handoff
 
-Plan saved to `docs/superpowers/plans/2026-07-13-manifest-uv-cli.md`.
+Plan saved to `docs/design/plans/2026-07-13-manifest-uv-cli.md`.
 
 **Two execution options:**
 

@@ -1,7 +1,7 @@
 """The ratchet for check_bundle_link_references.py: known violations are
 recorded as data, new ones block.
 
-Phase 0 of docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md
+Phase 0 of docs/design/specs/2026-08-19-marketplace-restructure-design.md
 deliberately defers fixing the checker's 77 pre-existing findings -- fixing
 them means either vendoring shared references into every bundle that cites
 them or rewriting the citations, both Phase 1 work. Wiring the checker into
@@ -101,7 +101,7 @@ class Baseline:
             "version": SCHEMA_VERSION,
             "_comment": (
                 "Recorded bundle-local-reference violations as of Phase 0 "
-                "(docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md). "
+                "(docs/design/specs/2026-08-19-marketplace-restructure-design.md). "
                 "The gate blocks on any violation NOT in this list -- fixing one "
                 "lowers the ceiling automatically; it is never edited to hide a fix. "
                 "Regenerate with: uv run python tools/check_bundle_link_references.py "

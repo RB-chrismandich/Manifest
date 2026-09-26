@@ -11,7 +11,7 @@ are not competing — each owns a distinct lifecycle stage and audience.
 | System | Location | Owns | Use when |
 |--------|----------|------|----------|
 | **Speckit (artifacts)** | `specs/` | Feature lifecycle artifacts (`spec.md`, `plan.md`, `tasks.md`) governed by the constitution's nine-phase **state-gated lifecycle**: Specify → Clarify → Spec-Review (product) → Plan → Task Creation → Analyze → Spec-Review (technical) → Implement → Verify task-by-task, with hard phase-gating, the smoke-test Verify gate, and the project constitution (Principle VI). Note: the spec-kit tooling (`.specify/`, `/speckit-*` commands) was removed — see `docs/decisions/0002-remove-speckit.md` | Building a new feature of any real size. Entry point: `/lifecycle-run` to drive the full gated flow |
-| **Superpowers design docs** | `docs/superpowers/specs/` (designs) + `docs/superpowers/plans/` (implementation plans) | Dated design-decision history from the superpowers brainstorm→plan workflow | Recording a reviewed design for a focused change (e.g. a subsystem swap); historical reference |
+| **Design docs** | `docs/design/specs/` (designs) + `docs/design/plans/` (implementation plans) | Dated design-doc history (design + implementation plan pairs); the plugin workflow that produced them has been removed | Recording a reviewed design for a focused change (e.g. a subsystem swap); historical reference |
 | **Plan-manage lifecycle** | `configs/claude/.plans/` (deployed to `~/.claude/.plans/`) | Lightweight operational plans on target machines: CREATE → ACTIVE → COMPLETED (`.archive/`) / ABANDONED (`.abandoned/`) | Day-to-day orchestrated work tracking via `/plan-manage`; not tied to this repo's features |
 | **Lesson journal** | `.Jules/` (`bolt.md`, `forge.md`, `palette.md`, `sentinel.md`) | Dated lessons learned (performance, security, UI, tooling) captured by agents during sessions | Append-only knowledge capture; consult when a task touches a previously-burned area |
 
@@ -20,7 +20,7 @@ are not competing — each owns a distinct lifecycle stage and audience.
 - **New feature?** The constitution (`docs/constitution.md`)
   is non-negotiable and its gates (risk-gated independent review, quality
   tiers) apply to the resulting PRs.
-- **Design review for a focused swap/refactor?** A superpowers design doc is
+- **Design review for a focused swap/refactor?** a design doc under `docs/design/` is
   enough; link it from the implementing PR.
 - **Tracking multi-step operational work on a deployed machine?** `/plan-manage`
   with `configs/claude/.plans/`.

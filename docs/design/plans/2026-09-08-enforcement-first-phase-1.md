@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bash 3.2+, Python standard-library unittest fixtures, existing Bash and Git binaries; no new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-08-enforcement-first-workflow-design.md`
+**Spec:** `docs/design/specs/2026-09-08-enforcement-first-workflow-design.md`
 
 ## Global constraints
 

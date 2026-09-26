@@ -1,5 +1,5 @@
 """Release gate: a SKILL.md (or a file it ships) must not cite a path absent
-from its own bundle (spec docs/superpowers/specs/2026-08-19-marketplace-
+from its own bundle (spec docs/design/specs/2026-08-19-marketplace-
 restructure-design.md, Phase 1 item 1.4).
 
 Synthetic-fixture cases only -- real-repo regression lives in

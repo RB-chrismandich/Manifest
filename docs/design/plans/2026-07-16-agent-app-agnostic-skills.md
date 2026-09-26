@@ -4,7 +4,7 @@
 
 **Goal:** Make Manifest skills capability-driven instead of vendor-coupled: one tracker abstraction (GitHub/GitLab/Linear/Jira), a gap-free forge dispatcher, CI-platform-aware ci-* skills, and a single agent-fleet roster.
 
-**Architecture:** Registry as source of truth (`tracker_providers.yml`), thin dispatchers as accelerators (`tracker_ops.sh` fronting `git_ops.sh`/`linear_ops.sh`), MCP for agent-context-only providers (Jira). Spec: `docs/superpowers/specs/2026-07-16-agent-app-agnostic-skills-design.md`.
+**Architecture:** Registry as source of truth (`tracker_providers.yml`), thin dispatchers as accelerators (`tracker_ops.sh` fronting `git_ops.sh`/`linear_ops.sh`), MCP for agent-context-only providers (Jira). Spec: `docs/design/specs/2026-07-16-agent-app-agnostic-skills-design.md`.
 
 **Tech Stack:** Bash (shellcheck-clean), Python 3 + PyYAML (registry resolver), bats-core, pytest, yamllint.
 
@@ -89,7 +89,7 @@ Copy `configs/claude/config/lifecycle_providers.yml` content as the base (keep `
 
 ```yaml
 # tracker_providers.yml — issue-tracker provider registry (evolves lifecycle_providers.yml;
-# spec: docs/superpowers/specs/2026-07-16-agent-app-agnostic-skills-design.md).
+# spec: docs/design/specs/2026-07-16-agent-app-agnostic-skills-design.md).
 # Access precedence per provider is an ORDERED list: mcp > cli > git > api.
 # Agent-context skills use the first available method; hooks/scripts start at cli.
 
@@ -708,7 +708,7 @@ Keep `issue_record`/`ensure_closing_keyword` (PR-side, forge-specific) on `git_o
 ### Task 12: Live contract matrix (all four providers)
 
 **Files:**
-- Create: `docs/superpowers/specs/2026-07-16-tracker-contract-matrix.md` (results record)
+- Create: `docs/design/specs/2026-07-16-tracker-contract-matrix.md` (results record)
 - Modify: `configs/claude/config/tracker_providers.yml` (`verified:` flips)
 
 - [ ] **Step 1:** For each provider × canonical operation, run the real thing against a scratch issue: GitHub (this repo or a scratch repo), GitLab (scratch project), Linear (scratch team, `LINEAR_API_KEY`), Jira (Cloud sandbox via Atlassian MCP tools from agent context, using `tracker_registry.py mcp-tool jira <op>` names). Record each cell PASS/FAIL/N-A (N/A only for documented gaps: `sub-issue-*` on github/gitlab = exit 4; all jira rows exercised via MCP, with the shell path asserted to exit 3).
