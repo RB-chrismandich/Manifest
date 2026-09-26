@@ -81,6 +81,51 @@ if "$JQ" -e -s 'length == 1 and (.[0].stop_hook_active == true)' \
     exit 0
 fi
 
+# A disabled review gate approves without the managed runtime, so plugin-only
+# installs (no bootstrap-created ~/.claude/.venv) never hit a spurious block.
+# Config precedence mirrors manifest_delegate/config.py: MANIFEST_CONFIG_DIR,
+# then $XDG_CONFIG_HOME/manifest, then the legacy ~/.claude/config. Only a JSON
+# delegation file can be evaluated here; a winning delegation.yml or an
+# unparseable file falls through to the managed runtime, which fails closed.
+find_delegation_file() {
+    for _dir in "$@"; do
+        [ -n "$_dir" ] || continue
+        if [ -f "$_dir/delegation.json" ]; then
+            printf '%s\n' "$_dir/delegation.json"
+            return 0
+        fi
+        if [ -f "$_dir/delegation.yml" ]; then
+            printf '%s\n' "$_dir/delegation.yml"
+            return 0
+        fi
+    done
+    return 1
+}
+
+DELEGATION_FILE=$(find_delegation_file \
+    "${MANIFEST_CONFIG_DIR:-}" \
+    "${XDG_CONFIG_HOME:-${HOME:-}/.config}/manifest" \
+    "${HOME:-}/.claude/config" || true)
+
+case "$DELEGATION_FILE" in
+    "")
+        printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+        exit 0
+        ;;
+    *.json)
+        if ! "$JQ" -e 'type == "object"' "$DELEGATION_FILE" > /dev/null 2>&1; then
+            block "config_unparseable"
+            exit 0
+        fi
+        if ! "$JQ" -e '.review_gate.enabled == true' "$DELEGATION_FILE" \
+            > /dev/null 2>&1; then
+            printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+            exit 0
+        fi
+        ;;
+esac
+
+
 RUNTIME_PYTHON="${HOME:-}/.claude/.venv/bin/python"
 if [ ! -x "$RUNTIME_PYTHON" ]; then
     block "interpreter_unavailable"

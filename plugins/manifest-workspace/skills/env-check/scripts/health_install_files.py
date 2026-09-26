@@ -67,7 +67,9 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
     runtime_root = data_home / "manifest" / "health"
     state_root = state_home / "manifest" / "health"
     agent_root = _resolved_path(
-        environment.get("OMP_AGENT_DIR") or home / ".omp" / "agent"
+        environment.get("PI_CODING_AGENT_DIR")
+        or environment.get("OMP_AGENT_DIR")
+        or home / ".omp" / "agent"
     )
     return InstallPaths(
         home=home,
