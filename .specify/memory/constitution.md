@@ -299,7 +299,7 @@ agent review:
 ## Development Lifecycle
 
 Feature work is governed by the nine-phase state machine (Principle VI), tracked per unit of
-work and anchored at the Task tier. The implementation is `configs/claude/scripts/lifecycle.sh`
+work and anchored at the Task tier. The implementation is `plugins/manifest-forge/runtime/bin/lifecycle.sh`
 (the shared, bats-tested decide/gate core) fronted by the `/lifecycle-run` skill and enforced by
 the autonomous-development loop — humans and agents share one tested gate.
 

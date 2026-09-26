@@ -1,23 +1,20 @@
 # Runtime Harness Handling
 
 Read before writing or modifying skills or agents that run under more than one
-harness. Interactive sub-agent dispatch is centralized on OMP; do not hardcode
-provider commands or model identifiers in skill guidance.
+harness. Interactive dispatch is current-host native; do not hardcode provider
+commands or model identifiers in portable skill guidance.
 
 ## Interactive dispatch contract
 
-Every supported interactive harness uses the same OMP contract:
+The [shared dispatch contract](sub-agent-dispatch.md) is authoritative.
 
-- The parent dispatches independent ready units in one `task` call, in waves of
-  at most 32.
-- Use `scout` for read-only exploration, `reviewer` for quality review,
-  `security-reviewer` for security review, `sonic` only for mechanical work,
-  and omit `agent` for default implementation work.
-- Children execute directly and never redispatch. `hub` is only for
-  coordination and waiting.
-- The parent validates and aggregates results.
-- If `task` is unavailable, work inline and report `DEGRADED`; never use a
-  provider CLI fallback.
+- OMP parents batch ready independent units with `task` and coordinate with
+  `hub`; select its documented specialist roles.
+- Claude Code parents use only discovered native Agent types and native
+  background-agent collection.
+- Portable skills link the shared contract instead of restating host branches.
+- Cursor, Gemini, Codex, Antigravity, Devin, and other hosts gain no native API
+  from this contract. Their existing guidance remains authoritative.
 
 ## Rules
 

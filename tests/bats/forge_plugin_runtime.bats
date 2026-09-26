@@ -48,17 +48,18 @@ teardown() {
     assert_output --partial "decide"
 }
 
-@test "forge runtime invokes fake external commands with argv and propagates failures" {
+@test "forge runtime invokes native commands and propagates failures" {
     mkdir -p "$SANDBOX/repo"
     cd "$SANDBOX/repo"
     export MANIFEST_GIT_PLATFORM=github
+    export MANIFEST_TRACKER=github
 
-    run "$BUNDLE/runtime/bin/git_ops.sh" issue-view 42 --comments
+    run "$BUNDLE/runtime/bin/tracker_ops.sh" issue-view 42 --comments
     assert_success
     grep -q 'gh issue view 42 --comments' "$FORGE_CALLS"
 
     export FORGE_STUB_EXIT=23
-    run "$BUNDLE/runtime/bin/git_ops.sh" issue-list
+    run "$BUNDLE/runtime/bin/tracker_ops.sh" issue-list
     assert_equal "$status" 23
 }
 

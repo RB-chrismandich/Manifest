@@ -28,8 +28,8 @@ this skill with fresh context for the next issue.
    logic (`../../runtime/bin/merge_decision.sh`), and PR-tracking/reporting all work
    normally and still require every clear condition (CI green, no actionable
    human comment, `/manifest-forge:pr-review`=merge, `/manifest-code-quality:project-verify`
-   pass, #360 gate Tier-1 pass, consensus ≥ 0.80) before a PR is even
-   *reported* as merge-ready — a human performs the actual merge. See
+   pass, and #360 gate Tier-1 pass) before a PR is even *reported* as
+   merge-ready — a human performs the actual merge. See
    the Manifest marketplace-restructure design spec (§4, in the Manifest source repository — not shipped in this bundle)
    Phase 1 item 1.3 for the full finding and the separate safety spec this is
    pending on.
@@ -65,12 +65,16 @@ retired 2026-08-17 (rationale in `docs/MODEL-POLICY.md`).
    Keep scope to the issue.
 5. **Verify.** Run `/manifest-code-quality:project-verify`. Lint warnings are non-blocking; test or security
    failures are blocking.
-6. **Outcome:**
-   - **Success** → `../../runtime/bin/git_ops.sh pr-create --title "<...>" --body "<...>"`.
-     The PR hook injects `Closes #N` and moves `#N` to `needs-review`. **Stop.**
-   - **Failure/stuck** → push WIP and open a **draft**:
-     `git_ops.sh pr-create --draft --title "[WIP] <...>" --body "Partial; needs human."`
-     then `auto_issue_dev.sh mark-blocked <N> "<one-line reason>"`.
+6. **Outcome:** detect the provider from the selected remote, then create with
+   its native CLI:
+   - **Success** → GitHub: `gh pr create --title "<...>" --body "<...>" --base
+     "<base>" --head "<branch>"`; GitLab: `glab mr create --title "<...>"
+     --description "<...>" --target-branch "<base>" --source-branch "<branch>"
+     --yes`. The PR hook injects `Closes #N` and moves `#N` to `needs-review`.
+     **Stop.**
+   - **Failure/stuck** → push WIP and open a **draft** with the same explicit
+     base/head or target/source branch arguments plus `--draft`, then
+     `auto_issue_dev.sh mark-blocked <N> "<one-line reason>"`.
 7. **Audit.** After determining the outcome, append one record to the audit log:
 
    ```bash
@@ -133,8 +137,8 @@ deterministic primitives so the (currently gated) irreversible step is never a j
    - `update-branch` → one `gh pr update-branch`; re-read; `DIRTY`/conflict → `needs-human`.
    - `hand-human` → apply the decision's `label` (`needs-human` or `ready-to-merge`) and skip.
    - `halt` → main CI went red after a merge: **stop the whole loop**, flag for a human (FR-012a).
-   - `merge` → the decision layer still reaches this verdict once the #360 verification
-     gate passes (Tier-1) and consensus is high — `../../runtime/bin/pr_merge_loop.sh tick <pr>`
+   - `merge` → the decision layer reaches this verdict only after the #360
+     verification gate passes (Tier-1) — `../../runtime/bin/pr_merge_loop.sh tick <pr>`
      runs the gate and re-decides normally. But the sink, `cmd_merge`, hard-refuses
      unconditionally in this bundle (exit 78) before touching admin pre-flight or
      `gh pr merge` at all — see the section intro above. `PR_MERGE_LOOP_APPLY` has **no

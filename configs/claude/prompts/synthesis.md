@@ -80,7 +80,7 @@ Return ONLY the following JSON object. No commentary outside the JSON block.
 
 ```json
 {
-  "consensus_score": 0.75,
+  "evidence_summary": "Attributed findings and unresolved disagreements",
   "total_findings": 12,
   "agreements": 9,
   "disagreements": [
@@ -126,8 +126,7 @@ Return ONLY the following JSON object. No commentary outside the JSON block.
 Set `"override_applied"` to a string (e.g. `"security_domain: safer position preferred"`) when an override
 decided the resolution, else `null`.
 
-## Scoring Guide
+## Evidence Handling
 
-- consensus_score >= 0.80: High agreement — proceed with unified recommendation
-- consensus_score 0.50-0.79: Moderate agreement — highlight key differences to user
-- consensus_score < 0.50: Low agreement — escalate for human review
+Attribute every conclusion to its source, resolve disagreement with cited
+evidence, and escalate any unresolved load-bearing choice for human judgment.

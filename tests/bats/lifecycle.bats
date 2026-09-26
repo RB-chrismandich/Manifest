@@ -1,12 +1,18 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/lifecycle.sh — the codified state-gated lifecycle.
+# Tests for plugins/manifest-forge/runtime/bin/lifecycle.sh — the codified state-gated lifecycle.
 # Contract: specs/365-lifecycle-codification/contracts/lifecycle-cli.md
 
-SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/lifecycle.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/lifecycle.sh"
 
 setup() {
-    LIFECYCLE_STATE_DIR="$BATS_TEST_TMPDIR/state"
-    export LIFECYCLE_STATE_DIR
+    # Forge contract: tracks live under $XDG_STATE_HOME/manifest/forge/lifecycle
+    # (the configs twin's LIFECYCLE_STATE_DIR env seam is gone), and provider
+    # config is the bundled tracker_providers.json plus a JSON overlay at
+    # $XDG_CONFIG_HOME/manifest/forge/tracker_providers.json. Pin both roots
+    # per-test so the real ~/ state and config never leak in.
+    export XDG_STATE_HOME="$BATS_TEST_TMPDIR/xdg-state"
+    export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/xdg-config"
+    LIFECYCLE_STATE_DIR="$XDG_STATE_HOME/manifest/forge/lifecycle"
 }
 
 action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
@@ -324,17 +330,25 @@ echo "REMOTE-$(echo "$3" | tr ' ' '-')"
 P
     chmod +x "$BATS_TEST_TMPDIR/prov.sh"
     export LIFECYCLE_PROVISION_CMD="$BATS_TEST_TMPDIR/prov.sh"
-    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/tracker_providers.yml"
+    # Forge resolves tier maps from the bundled tracker_providers.json (merged
+    # with an optional $XDG_CONFIG_HOME/manifest/forge/tracker_providers.json
+    # overlay); the configs twin's LIFECYCLE_PROVIDERS_CONFIG YAML seam is gone.
 }
 nodes() { python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("hierarchy",[])))'; }
-tier_count() { python3 -c "import json,sys;H=json.load(sys.stdin).get('hierarchy',[]);print(sum(1 for n in H if n['tier_level']==$1))"; }
 tier_state() { python3 -c "import json,sys;H=json.load(sys.stdin).get('hierarchy',[]);print([n['provision_state'] for n in H if n['tier_level']==$1][0])"; }
+tier_count() { python3 -c "import json,sys;H=json.load(sys.stdin).get('hierarchy',[]);print(sum(1 for n in H if n['tier_level']==$1))"; }
 child_links_entry() { python3 -c '
 import json,sys
 H=json.load(sys.stdin)["hierarchy"]
 entry=next(n for n in H if n.get("source")=="entry")
 sub=next(n for n in H if n["tier_level"]==4)
 print(sub.get("parent_node_id")==entry["node_id"])'; }
+# forge_providers_overlay <json>: merge a partial registry into the pinned XDG
+# config overlay (forge reads it on top of the bundled tracker_providers.json).
+forge_providers_overlay() {
+    mkdir -p "$XDG_CONFIG_HOME/manifest/forge"
+    printf '%s\n' "$1" > "$XDG_CONFIG_HOME/manifest/forge/tracker_providers.json"
+}
 
 @test "init seeds the entry entity as a present Tier-3 anchor node (FR-016 consume)" {
     mk_provision_stub
@@ -383,30 +397,19 @@ print(sub.get("parent_node_id")==entry["node_id"])'; }
 }
 @test "missing tier -> configuration error naming the tier (FR-014)" {
     mk_provision_stub
-    cat > "$BATS_TEST_TMPDIR/prov.yml" <<'Y'
-providers:
-  github:
-    tier_map:
-      2: milestone
-      3: issue
-      4: sub_issue
-    missing_tier_behavior: error
-Y
-    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_TMPDIR/prov.yml"
+    # Forge seam: JSON overlay at $XDG_CONFIG_HOME/manifest/forge/tracker_providers.json
+    # merged over the bundled registry (tier_map is string-keyed there; the
+    # overlay drops tier 1 so this stays a genuine miss if the lookup is fixed).
+    forge_providers_overlay '{"providers":{"github":{"tier_map":{"1":null}}}}'
     "$SCRIPT" init "org/repo#9" >/dev/null
     run "$SCRIPT" provision github__org_repo_9 --tier 1 --title "Initiative X"
     [ "$status" -eq 2 ]; [[ "$output" == *"tier 1 has no native construct"* ]]
 }
 @test "missing_tier_behavior fails CLOSED on an unknown value (no silent label collapse, FR-014)" {
     mk_provision_stub
-    cat > "$BATS_TEST_TMPDIR/prov.yml" <<'Y'
-providers:
-  github:
-    tier_map:
-      3: issue
-    missing_tier_behavior: bogus-value
-Y
-    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_TMPDIR/prov.yml"
+    # Overlay deep-merges over the bundled registry, so tier 1 must be nulled for
+    # the lookup to actually MISS and surface the unknown behavior value.
+    forge_providers_overlay '{"providers":{"github":{"tier_map":{"1":null},"missing_tier_behavior":"bogus-value"}}}'
     "$SCRIPT" init "org/repo#14" >/dev/null
     run "$SCRIPT" provision github__org_repo_14 --tier 1 --title "Init"
     [ "$status" -eq 2 ]   # errors, does not collapse to a label
@@ -417,6 +420,7 @@ Y
     run "$SCRIPT" provision github__org_repo_15 --tier 4 --title "x" --parent-tier abc
     [ "$status" -eq 64 ]; [[ "$output" == *"--parent-tier must be 1-4"* ]]
 }
+
 @test "partial failure -> FAILED_PROVISION; same-(tier,key) retry updates IN PLACE (no duplicate, FR-022)" {
     mk_provision_stub
     "$SCRIPT" init "org/repo#11" >/dev/null
@@ -437,7 +441,9 @@ Y
 # US4 — Jira via pre-authenticated Atlassian MCP (T028–T032, SC-004)
 # ============================================================================
 
-use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/tracker_providers.yml"; }
+# Forge contract: provider registry is the bundled tracker_providers.json; the
+# configs twin's LIFECYCLE_PROVIDERS_CONFIG YAML seam is gone, so these tests
+# run against the bundled registry directly (overlays via forge_providers_overlay).
 
 @test "Jira entry detection: bare issue key -> jira provider" {
     run "$SCRIPT" init PROJ-123
@@ -448,17 +454,14 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
     [ "$status" -eq 0 ]; [[ "$output" == *"jira__ENG-44"* ]]
 }
 @test "status-map: Jira renders canonical status as a workflow TRANSITION (not a label, FR-021)" {
-    use_repo_config
     run "$SCRIPT" status-map jira in-progress
     [ "$status" -eq 0 ]; [[ "$output" == transition* ]]; [[ "$output" == *"In Progress"* ]]
 }
 @test "status-map: GitHub renders canonical status as a label" {
-    use_repo_config
     run "$SCRIPT" status-map github done
     [ "$status" -eq 0 ]; [[ "$output" == label* ]]; [[ "$output" == *"done"* ]]
 }
 @test "status-map: unknown status -> error (no silent default)" {
-    use_repo_config
     run "$SCRIPT" status-map jira not-a-status
     [ "$status" -eq 2 ]
 }
@@ -483,7 +486,6 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
     [ "$status" -ne 0 ]
 }
 @test "status-map: Linear renders canonical status as a workflow STATE (transition), not a label" {
-    use_repo_config
     run "$SCRIPT" status-map linear in-progress
     [ "$status" -eq 0 ]; [[ "$output" == transition* ]]; [[ "$output" == *"In Progress"* ]]
 }
@@ -512,7 +514,6 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
 }
 
 @test "reconcile: first sync establishes shadow; same value again is a noop (no loop)" {
-    use_repo_config
     "$SCRIPT" init PROJ-40 >/dev/null   # phase specify -> canonical planned
     run "$SCRIPT" reconcile jira__PROJ-40 --tracker-status planned
     [ "$status" -eq 0 ]
@@ -520,14 +521,12 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
     [ "$status" -eq 0 ]; [[ "$output" == *"in sync"* ]]   # origin suppression: no ping-pong
 }
 @test "reconcile: tracker-side change is adopted (human moved the ticket)" {
-    use_repo_config
     "$SCRIPT" init PROJ-41 >/dev/null
     "$SCRIPT" reconcile jira__PROJ-41 --tracker-status planned >/dev/null   # baseline
     run "$SCRIPT" reconcile jira__PROJ-41 --tracker-status done             # human changed it
     [ "$status" -eq 0 ]; [[ "$output" == *"adopted tracker status done"* ]]
 }
 @test "reconcile: after adopt, the SAME tracker value settles to noop (no oscillation, SC-010)" {
-    use_repo_config
     "$SCRIPT" init PROJ-45 >/dev/null
     "$SCRIPT" reconcile jira__PROJ-45 --tracker-status planned >/dev/null   # baseline
     "$SCRIPT" reconcile jira__PROJ-45 --tracker-status done >/dev/null      # adopt
@@ -537,7 +536,6 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
     [[ "$output" == *"in sync"* ]]
 }
 @test "reconcile: genuine conflict (both diverge to different values) -> needs-human" {
-    use_repo_config
     "$SCRIPT" init PROJ-46 >/dev/null
     "$SCRIPT" reconcile jira__PROJ-46 --tracker-status planned >/dev/null   # baseline (shadow=planned, local=planned)
     # advance the lifecycle (local moves) AND have the tracker move elsewhere
@@ -548,7 +546,6 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
     [ "$status" -eq 1 ]; [[ "$output" == *"CONFLICT"* ]]
 }
 @test "audit: stale tracking state (shadow disagrees with lifecycle status) is flagged" {
-    use_repo_config
     "$SCRIPT" init PROJ-47 >/dev/null
     "$SCRIPT" reconcile jira__PROJ-47 --tracker-status planned >/dev/null   # shadow=planned
     # advance so phase-derived status moves to in-progress while shadow stays planned

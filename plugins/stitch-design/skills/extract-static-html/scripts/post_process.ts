@@ -21,6 +21,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { extractCssUrls } from './css_url_parser.ts';
+
 // ---------------------------------------------------------------------------
 // MIME type mapping
 // ---------------------------------------------------------------------------
@@ -55,12 +57,6 @@ interface Opts {
   maxSize: number;
 }
 
-interface CssUrlRef {
-  url: string;
-  fullMatch: string;
-  start: number;
-  end: number;
-}
 
 interface InlineStats {
   srcInlined: number;
@@ -154,88 +150,52 @@ function validateOpts(opts: Opts): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Robust CSS url() parser — character-by-character (no regex)
-// ---------------------------------------------------------------------------
-function extractCssUrls(text: string): CssUrlRef[] {
-  const results: CssUrlRef[] = [];
-  let i = 0;
-  const len = text.length;
-
-  while (i < len) {
-    if (
-      i + 3 < len &&
-      text[i].toLowerCase() === 'u' &&
-      text[i + 1].toLowerCase() === 'r' &&
-      text[i + 2].toLowerCase() === 'l' &&
-      text[i + 3] === '('
-    ) {
-      const urlStart = i;
-      i += 4;
-
-      // Skip whitespace
-      while (i < len && (text[i] === ' ' || text[i] === '\t' || text[i] === '\n' || text[i] === '\r')) i++;
-
-      let quote: string | null = null;
-      if (i < len && (text[i] === '"' || text[i] === "'")) {
-        quote = text[i];
-        i++;
-      }
-
-      let url = '';
-      if (quote) {
-        while (i < len && text[i] !== quote) {
-          if (text[i] === '\\' && i + 1 < len) {
-            i++;
-            url += text[i];
-          } else {
-            url += text[i];
-          }
-          i++;
-        }
-        if (i < len) i++;
-      } else {
-        while (i < len && text[i] !== ')' && text[i] !== ' ' && text[i] !== '\t' && text[i] !== '\n') {
-          url += text[i];
-          i++;
-        }
-      }
-
-      while (i < len && (text[i] === ' ' || text[i] === '\t' || text[i] === '\n' || text[i] === '\r')) i++;
-
-      if (i < len && text[i] === ')') {
-        const fullMatch = text.substring(urlStart, i + 1);
-        results.push({ url: url.trim(), fullMatch, start: urlStart, end: i + 1 });
-        i++;
-      } else {
-        i = urlStart + 1;
-      }
-    } else {
-      i++;
-    }
-  }
-
-  return results;
-}
-
+// Robust CSS url() parsing is shared — see ./css_url_parser.ts.
 // ---------------------------------------------------------------------------
 // Local path resolution
 // ---------------------------------------------------------------------------
 function resolveLocalFile(localPath: string, baseDir: string): string | null {
-  const candidates = [localPath];
-  if (baseDir) {
-    candidates.push(path.join(baseDir, localPath.replace(/^\//, '')));
+  // Only image types are inlined — anything else (e.g. /etc/hosts) is refused.
+  if (!(path.extname(localPath).toLowerCase() in MIME_MAP)) {
+    return null;
   }
 
-  for (const candidate of candidates) {
-    try {
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-        return candidate;
-      }
-    } catch (e) {
-      // Permission errors, etc. — skip
-      console.warn(`⚠️  Failed resolving local file ${candidate}: ${e instanceof Error ? e.message : String(e)}`);
+  let root: string;
+  try {
+    root = fs.realpathSync(path.resolve(baseDir || '.'));
+  } catch (e) {
+    console.warn(`⚠️  Failed resolving base directory ${baseDir}: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
+
+  // Resolve under the base dir only: a leading '/' is a web-root reference,
+  // not filesystem-absolute, and '..' must never escape the base dir.
+  const candidate = path.resolve(root, localPath.replace(/^\/+/, ''));
+  if (!fs.existsSync(candidate)) {
+    return null;
+  }
+
+  let real: string;
+  try {
+    real = fs.realpathSync(candidate);
+  } catch (e) {
+    console.warn(`⚠️  Failed resolving local file ${candidate}: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
+
+  const rel = path.relative(root, real);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    console.warn(`⚠️  Refusing ${localPath}: resolves outside ${root}`);
+    return null;
+  }
+
+  try {
+    if (fs.statSync(real).isFile()) {
+      return real;
     }
+  } catch (e) {
+    // Permission errors, etc. — skip
+    console.warn(`⚠️  Failed resolving local file ${real}: ${e instanceof Error ? e.message : String(e)}`);
   }
   return null;
 }
@@ -252,7 +212,7 @@ function readFileAtomic(
 ): { size: number; mime: string; b64: string } | { size: number; tooLarge: true } | null {
   let fd: number;
   try {
-    fd = fs.openSync(filePath, 'r');
+    fd = fs.openSync(filePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
   } catch (e) {
     console.warn(`⚠️  Failed opening ${filePath}: ${e instanceof Error ? e.message : String(e)}`);
     // File was removed or became inaccessible between resolve and open

@@ -132,20 +132,9 @@ Beyond WCAG, check for common ARIA misuse:
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 target files or pages need auditing, dispatch one accessibility review
-unit per file or page in a single OMP `task` call (in waves of at most 32),
-using `reviewer`. Each child audits only its assigned unit and never
-re-dispatches. The parent directly merges the cited findings into this skill's
-report. Use `hub` only to coordinate or wait. If `task` is unavailable, audit
-inline and report `DEGRADED`. Below the threshold, audit inline.
-
+Follow the [shared dispatch contract](references/sub-agent-dispatch.md).
+When this skill's threshold selects independent audits, assign one bounded file
+or page per reviewer and combine only cited, attributed findings.
 ## Outcome discipline
 
 Static or automated checks never issue a WCAG-conformance verdict. Report verified automated checks, failures, manual-required checks, skipped checks, and unavailable checks separately. Any skipped or unavailable result prevents a green or verified outcome.

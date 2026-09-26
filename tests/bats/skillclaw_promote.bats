@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for scripts/skillclaw_promote.sh (mocked git_ops + skillclaw + git)
+# Tests for scripts/skillclaw_promote.sh with native CLI fixtures.
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
@@ -17,11 +17,21 @@ setup() {
     printf -- '---\nname: alpha\ndescription: d\n---\nbody\n' > "$SKILLCLAW_EVOLVED/alpha/SKILL.md"
 
     export MOCK_BIN="$SANDBOX/bin"; mkdir -p "$MOCK_BIN"
-    cat > "$MOCK_BIN/git_ops.sh" << 'EOF'
+    cat > "$MOCK_BIN/gh" << 'EOF'
 #!/usr/bin/env bash
-echo "git_ops.sh $*" >> "$SKILLCLAW_PROMOTE_LOG"
-[ "$1" = "pr-create" ] && echo "https://example.test/pr/1"
-exit 0
+echo "gh $*" >> "$SKILLCLAW_PROMOTE_LOG"
+case "$1 $2" in
+  "pr list") printf '%s\n' "${SKILLCLAW_OPEN_PR:-}" ;;
+  "pr create") echo "https://example.test/pr/1" ;;
+esac
+EOF
+    cat > "$MOCK_BIN/glab" << 'EOF'
+#!/usr/bin/env bash
+echo "glab $*" >> "$SKILLCLAW_PROMOTE_LOG"
+case "$1 $2" in
+  "api -X") printf '%s\n' '[]' ;;
+  "mr create") echo "https://example.test/mr/1" ;;
+esac
 EOF
     cat > "$MOCK_BIN/git" << 'EOF'
 #!/usr/bin/env bash
@@ -33,10 +43,10 @@ case "$1" in
 esac
 exit 0
 EOF
-    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/git"
-    export SKILLCLAW_GITOPS="$MOCK_BIN/git_ops.sh"
+    chmod +x "$MOCK_BIN/gh" "$MOCK_BIN/glab" "$MOCK_BIN/git"
     export HOME="$SANDBOX/home"
     mkdir -p "$HOME"
+    export MANIFEST_GIT_PLATFORM=github
     # shellcheck disable=SC1091
     source "$REPO_ROOT/tests/test_helper/stub_home_runtime.bash"
     stub_home_manifest_runtime "$REPO_ROOT"
@@ -57,7 +67,7 @@ teardown() {
     assert_success
     assert_output --partial "alpha"
     assert_output --partial "NEW"
-    run grep -c "pr-create" "$SKILLCLAW_PROMOTE_LOG"
+    run grep -c "gh pr create\|glab mr create" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "0"
 }
 
@@ -65,7 +75,7 @@ teardown() {
     export SKILLCLAW_OPEN_PR=""
     run bash "$SCRIPT" --apply --no-evolve
     assert_success
-    run grep -c "pr-create" "$SKILLCLAW_PROMOTE_LOG"
+    run grep -c "gh pr create\|glab mr create" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "1"
     run grep -c "git-commit" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "1"
@@ -76,9 +86,22 @@ teardown() {
     run bash "$SCRIPT" --apply --no-evolve
     assert_failure
     assert_output --partial "open"
-    run grep -c "pr-create" "$SKILLCLAW_PROMOTE_LOG"
+    run grep -c "gh pr create\|glab mr create" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "0"
 }
+
+@test "--apply on GitLab uses source and target branch flags" {
+    export MANIFEST_GIT_PLATFORM=gitlab
+    export SKILLCLAW_OPEN_PR=""
+    run bash "$SCRIPT" --apply --no-evolve
+    assert_success
+    grep -q -- 'glab mr create ' "$SKILLCLAW_PROMOTE_LOG"
+    grep -q -- '--target-branch ' "$SKILLCLAW_PROMOTE_LOG"
+    grep -q -- '--source-branch ' "$SKILLCLAW_PROMOTE_LOG"
+    grep -q 'glab api -X GET projects/:id/merge_requests -f state=opened --paginate' "$SKILLCLAW_PROMOTE_LOG"
+    ! grep -Fq -- '--head' "$SKILLCLAW_PROMOTE_LOG"
+}
+
 
 @test "skill-evolve SKILL.md has valid frontmatter and points at its bundle-local command" {
     local f="$REPO_ROOT/.apm/skills/skill-evolve/SKILL.md"

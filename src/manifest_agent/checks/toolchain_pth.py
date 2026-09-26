@@ -50,7 +50,7 @@ def _contained_pth_path(line: str, pth_path: Path, env_root: Path) -> None:
     stripped = line.strip()
     if not stripped or stripped.startswith("#"):
         return
-    if stripped.startswith("import "):
+    if stripped.startswith(("import ", "import\t")):
         raise UntrustedPthError(f"untrusted .pth line: {stripped!r}")
     candidate = Path(stripped)
     target = candidate if candidate.is_absolute() else pth_path.parent / candidate

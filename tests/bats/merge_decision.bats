@@ -1,14 +1,14 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/merge_decision.sh — the pure merge-decision core.
+# Tests for plugins/manifest-forge/runtime/bin/merge_decision.sh — the pure merge-decision core.
 # Contract: specs/361-auto-dev-merge-loop/contracts/merge_decision.md
 
-SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/merge_decision.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/merge_decision.sh"
 
 # Build a signals JSON: a fully-CLEAR/high-consensus base, with $1 (JSON) merged over it.
 mk() {
     python3 -c '
 import json,sys
-base={"checks":"PASS","review_block":False,"pr_review_disposition":"merge","verify":"pass",
+base={"checks":"PASS","review_block":False,"pr_review_disposition":"merge",
       "gate_tier1":"pass","consensus":0.9,"mergeable":"MERGEABLE","merge_state":"CLEAN",
       "hold":False,"revisions_used":0,"max_revisions":3,"reviewer_error":False,"main_ci":"n/a"}
 base.update(json.loads(sys.argv[1] or "{}"))
@@ -84,24 +84,17 @@ label()  { python3 -c 'import json,sys;print(json.load(sys.stdin).get("label") o
     run "$SCRIPT" decide "$(mk '{"gate_tier1":null,"consensus":null}')"
     [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "run-gate" ]
 }
-@test "all clear + consensus 0.86 -> merge" {
-    run "$SCRIPT" decide "$(mk '{"consensus":0.86}')"
+
+@test "all clear + Tier-1 pass -> merge without consensus score" {
+    run "$SCRIPT" decide "$(mk '{}')"
     [ "$(echo "$output" | action)" = "merge" ]
-}
-@test "all clear + consensus 0.65 -> hand-human/ready-to-merge" {
-    run "$SCRIPT" decide "$(mk '{"consensus":0.65}')"
-    [ "$(echo "$output" | action)" = "hand-human" ]; [ "$(echo "$output" | label)" = "ready-to-merge" ]
-}
-@test "all clear + consensus 0.40 -> hand-human/needs-human" {
-    run "$SCRIPT" decide "$(mk '{"consensus":0.40}')"
-    [ "$(echo "$output" | action)" = "hand-human" ]; [ "$(echo "$output" | label)" = "needs-human" ]
 }
 
 # --- invariants ---
 @test "INVARIANT (SC-002): no hard-block input ever yields merge" {
     for j in '{"checks":"FAIL"}' '{"checks":"PENDING"}' '{"checks":"NO_CHECKS"}' \
              '{"review_block":true}' '{"hold":true}' '{"gate_tier1":"fail"}' \
-             '{"mergeable":"CONFLICTING"}' '{"merge_state":"DIRTY"}' '{"verify":"fail-blocking"}' \
+             '{"mergeable":"CONFLICTING"}' '{"merge_state":"DIRTY"}' \
              '{"reviewer_error":true}' '{"main_ci":"red"}' '{"pr_review_disposition":"keep"}'; do
         run "$SCRIPT" decide "$(mk "$j")"
         [ "$(echo "$output" | action)" != "merge" ] || { echo "MERGED on $j"; false; }

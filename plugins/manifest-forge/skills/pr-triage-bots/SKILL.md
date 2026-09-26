@@ -45,23 +45,6 @@ skill.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 bot PRs are open, dispatch one independent read-only `reviewer` unit
-per PR (or non-overlapping PR batch) in one OMP `task` call (waves of at most
-32); below that, triage inline. Children execute only their assigned review and
-never redispatch. The parent uses `hub` only to coordinate or wait, validates
-and aggregates the evidence directly, and makes the dispositions—there is no
-text-consensus or synthesis step. If `task` is unavailable, triage inline and
-report `DEGRADED`; never fall back to a provider CLI.
-
-Before any close or merge, obtain a read-only `reviewer` assessment of the
-proposed mutations. Apply only the confirmed dispositions, one at a time, and
-re-check mergeability against updated `main` between merges as required above.
-
-> Merged from the former bot-pr-triage and triage-bot-pr-flood skills (specs/480, 2026-07).
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+The parent decides bot-PR dispositions from attributed evidence and serializes
+any mutation.
