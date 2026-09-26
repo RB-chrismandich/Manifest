@@ -16,6 +16,7 @@ from pathlib import Path
 
 from health_install_files import (
     LAUNCHD_LABEL,
+    RETIRED_RUNTIME_SOURCES,
     SCHEMA_VERSION,
     SESSION_TIMEOUT_SECONDS,
     FileSnapshot,
@@ -341,21 +342,22 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
     except BaseException:
         if job_was_bootstrapped:
             _run_best_effort([plan.launchctl, "bootout", service], environment)
-        _restore_snapshots(plan.snapshots)
-        if plan.job_was_replaced and _path_present(plan.paths.plist):
-            _run_best_effort(
-                [plan.launchctl, "bootstrap", domain, str(plan.paths.plist)],
-                environment,
-            )
+        try:
+            _restore_snapshots(plan.snapshots)
+        finally:
+            if plan.job_was_replaced and _path_present(plan.paths.plist):
+                _run_best_effort(
+                    [plan.launchctl, "bootstrap", domain, str(plan.paths.plist)],
+                    environment,
+                )
         raise
 
 
 def _cleanup_retired_runtime(plan: _InstallPlan) -> None:
-    retired_sources = frozenset({"plugin_reconcile.py"})
     receipt_files = (
         (plan.receipt or {}).get("files", {}) if isinstance(plan.receipt, dict) else {}
     )
-    for name in retired_sources:
+    for name in RETIRED_RUNTIME_SOURCES:
         retired_path = plan.paths.runtime_root / name
         if _path_present(retired_path):
             row = receipt_files.get(name) if isinstance(receipt_files, dict) else None
