@@ -159,6 +159,10 @@ done
 cat > "$SEAMS/gh_seam.sh" << 'EOF'
 #!/usr/bin/env bash
 case "$1" in
+    fp-scope) echo '{"host":"github.com","owner_repo":"acme/widgets"}' ;;
+    fp-view) echo '{"headRefOid":"sha1","baseRefName":"main","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":"APPROVED","latestReviews":[],"labels":[],"isDraft":false,"state":"OPEN"}' ;;
+    fp-checks) echo '[{"name":"check-0","bucket":"pass","state":"COMPLETED","link":"https://checks.invalid/0","startedAt":"2026-09-19T00:00:00Z","completedAt":"2026-09-19T00:01:00Z"}]' ;;
+    fp-threads) echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}' ;;
     list) echo "${SEAM_LIST:-[]}" ;;
     checks) printf '%s\n' ${SEAM_BUCKETS-pass} ;;
     reviewdecision) echo "${SEAM_RD:-APPROVED}" ;;
@@ -327,8 +331,10 @@ printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert
 # merge_decision.sh (both the pre-gate and post-gate `decide` calls), and
 # verification_gate.sh (the run-gate branch, genuinely invoked) — the four
 # dependencies `--help`/`merge` alone never reach.
+# The reviewer_error transition is degraded (exit 13) so no unchanged-state
+# fingerprint is recorded and the next tick retries instead of going quiet.
 run_capture out "$SCRIPT" tick 1
-expect_rc "tick" 0 "$RC"
+expect_rc "tick" 13 "$RC"
 expect_contains "tick (loop_lock.sh reached)" "cross-host lease unavailable" "$out"
 expect_absent "tick (loop_lock.sh reached)" "locked — skipping" "$out"
 expect_contains "tick (verification_gate.sh reached, no reviewer configured -> honest degrade)" "hand-human" "$out"

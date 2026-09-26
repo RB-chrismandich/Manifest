@@ -437,13 +437,13 @@ PY
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ]
     run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
     printf 'sha2\n' > "$SEAM_HEAD_DIR/5"
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
     [ "$(gate_count)" = "2" ]
     run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
     [ "$(gate_count)" = "2" ]
 }
 
@@ -453,7 +453,7 @@ PY
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]]
     run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_FP_CHECKS='[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"https://checks.invalid/2","startedAt":"2026-09-19T01:00:00Z","completedAt":null}]'
     run "$SCRIPT" tick 5
@@ -467,7 +467,7 @@ PY
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ]
     run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_LATEST_REVIEWS='[{"id":"R2","state":"APPROVED","submittedAt":"2026-09-19T01:00:00Z"}]'
     run "$SCRIPT" tick 5
@@ -482,7 +482,7 @@ PY
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ]
     run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z"}]}}]}}}}}'
     run "$SCRIPT" tick 5
@@ -513,12 +513,12 @@ PY
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ]
     run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
     PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     "$SCRIPT" address-cycle 5 > /dev/null
     PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
@@ -876,14 +876,14 @@ EOF
     run "$VENDORED" tick 5
     [ "$status" -eq 0 ]
     run "$VENDORED" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     printf 'sha2\n' > "$SEAM_HEAD_DIR/5"
     run "$VENDORED" tick 5
     [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
     [ "$(gate_count)" = "2" ]
     run "$VENDORED" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
     [ "$(gate_count)" = "2" ]
 }
 
@@ -893,25 +893,25 @@ EOF
     run "$VENDORED" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]]
     run "$VENDORED" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_FP_CHECKS='[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"https://checks.invalid/2","startedAt":"2026-09-19T01:00:00Z","completedAt":null}]'
     run "$VENDORED" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]] && [[ "$output" != *"unchanged"* ]]
     run "$VENDORED" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_LATEST_REVIEWS='[{"id":"R1","state":"APPROVED","submittedAt":"2026-09-19T02:00:00Z"}]'
     run "$VENDORED" tick 5
     [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
     run "$VENDORED" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z"}]}}]}}}}}'
     run "$VENDORED" tick 5
     [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
     run "$VENDORED" tick 5
-    [[ "$output" == *"unchanged"* ]]
+    [[ "$output" == *"unchanged"* ]] || return 1
 
     export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z"}]}}]}}}}}'
     run "$VENDORED" tick 5
@@ -1024,7 +1024,7 @@ PY
         [[ "$output" == *"proceeding WITHOUT it"* ]] && \
         [[ "$output" != *"locked — skipping"* ]] && \
         [[ "$output" != *$'\nskip'* ]] && \
-        [[ "$output" == *"automated merge is disabled"* ]] # reached the real dispatch (merge -> hard gate)
+        [[ "$output" == *"automated merge is disabled"* ]] || return 1 # reached the real dispatch (merge -> hard gate)
     [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
 }
 @test "vendored REGRESSION: genuinely held lease (a live, non-stale lease owned by someone else) — tick still declines" {

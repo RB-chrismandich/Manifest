@@ -144,7 +144,7 @@ SH
 
     assert_failure 1
     assert_output --partial '"reason_code": "timeout"'
-    [[ "$elapsed" -lt 5 ]]
+    [[ "$elapsed" -lt 5 ]] || return 1
     grandchild_pid="$(cat "$MCP_GRANDCHILD_PID_FILE")"
     for _ in 1 2 3 4 5; do
         kill -0 "$grandchild_pid" 2>/dev/null || break
