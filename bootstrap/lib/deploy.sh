@@ -536,8 +536,9 @@ cursor_remove_rule_temps() {
 # Reconcile and atomically record owned Cursor rules. An existing manifest is
 # authoritative for ordinary rules. Without one, exact generator markers
 # recover ownership, generated orphans are removed, and unrecognized files are
-# preserved. Markerless orchestration.mdc is owned only while its destination
-# is byte-identical to the canonical source; a mismatch is a visible conflict.
+# preserved. Markerless orchestration.mdc is owned when the manifest records
+# it or its destination is byte-identical to the canonical source; any other
+# divergence is a visible conflict and the file is preserved.
 prune_cursor_rules() {
     local src_rules_dir="$1"
     local dest_rules_dir="$2"
@@ -645,7 +646,14 @@ prune_cursor_rules() {
                         cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
                         return 1
                     }
-                elif ! cmp -s "$source_rule" "$destination_rule"; then
+                elif { [[ "$manifest_existed" == true ]] &&
+                    cursor_manifest_has_rule "$old_manifest" "$rule_name"; } ||
+                    cmp -s "$source_rule" "$destination_rule"; then
+                    cursor_copy_rule "$source_rule" "$destination_rule" || {
+                        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                        return 1
+                    }
+                else
                     print_warning "Cursor rule conflict: orchestration.mdc differs from canonical source; preserved existing file"
                     continue
                 fi

@@ -149,6 +149,53 @@ EOF
     assert_output --partial "orchestration.mdc"
 }
 
+@test "manifest-owned orchestration is refreshed when canonical source changes" {
+    make_rule orchestration "canonical orchestration v1"
+    deploy_cursor_configs
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")" "orchestration.mdc"
+
+    # Canonical orchestration.mdc changes upstream: the manifest records this
+    # file as manifest-owned, so the new canonical copy must win rather than
+    # being treated as a user-authored divergence.
+    make_rule orchestration "canonical orchestration v2"
+    run deploy_cursor_configs
+    assert_success
+    refute_output --partial "Cursor rule conflict: orchestration.mdc"
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/orchestration.mdc")" "canonical orchestration v2"
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")" "orchestration.mdc"
+}
+
+@test "manifest-owned orchestration refresh overwrites local edits" {
+    make_rule orchestration "canonical orchestration"
+    deploy_cursor_configs
+
+    # Ownership lives in the manifest, not in byte-identity: a hand edit to a
+    # manifest-owned orchestration.mdc is reverted by the next deploy.
+    printf '%s\n' "local edit to deployed rule" > "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+    run deploy_cursor_configs
+    assert_success
+    refute_output --partial "Cursor rule conflict: orchestration.mdc"
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/orchestration.mdc")" "canonical orchestration"
+}
+
+@test "unrecorded divergent orchestration stays a preserved conflict on redeploy" {
+    # A user-authored orchestration.mdc the manifest never recorded must keep
+    # conflict-preserving on every redeploy, never silently overwritten.
+    make_rule orchestration "canonical orchestration"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    printf '%s\n' "user-modified orchestration" > "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+
+    deploy_cursor_configs
+    make_rule orchestration "canonical orchestration v2"
+    run deploy_cursor_configs
+    assert_success
+    assert_output --partial "Cursor rule conflict: orchestration.mdc"
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/orchestration.mdc")" "user-modified orchestration"
+    run cat "$CURSOR_TARGET_DIR/rules/.deployed-rules"
+    refute_output --partial "orchestration.mdc"
+}
+
+
 @test "absent-manifest recovery is idempotent on the second run" {
     make_generated_rule alpha "canonical alpha"
     mkdir -p "$CURSOR_TARGET_DIR/rules"
