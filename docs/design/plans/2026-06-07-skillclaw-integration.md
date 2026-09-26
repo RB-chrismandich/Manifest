@@ -1,6 +1,6 @@
 # SkillClaw Integration Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Capture CLI-agent sessions through SkillClaw's local proxy and turn evolved `SKILL.md` files into reviewed PRs into `.retired skill supply/skills/`, fully managed by `bootstrap.sh` and fail-open by design.
 

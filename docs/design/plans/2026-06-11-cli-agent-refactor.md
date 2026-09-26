@@ -25,7 +25,7 @@
 >    was added — agy has no non-interactive auth-status command to probe, and
 >    `check_status.sh` covers CLI availability.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the `CursorAgent`/`CodexAgent` classes with one YAML-driven `CLIAgent`, add Antigravity (`agy`) as the 5th parallel agent, refresh all model tier pins, govern `spec_review.sh`'s model from the same registry, and add a warn-only model staleness check.
 

@@ -1,6 +1,6 @@
 # Deploy-Stamp Staleness Nudge Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Surface when the local Manifest clone has advanced past the last `./bootstrap.sh` deploy, via a fail-open SessionStart hook that reads a stamp written at deploy time.
 

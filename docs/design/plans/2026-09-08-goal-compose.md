@@ -1,6 +1,6 @@
 # Goal Compose Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Use superpowers:subagent-driven-development only when delegated execution is selected. Steps use checkbox syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use executing-plans to implement this plan task-by-task. Use subagent-driven-development only when delegated execution is selected. Steps use checkbox syntax for tracking.
 
 **Goal:** Deliver an opt-in goal composition skill with faithful model profiles, honest validation, explicit activation, and measured end-to-end behavior.
 

@@ -80,7 +80,7 @@ The change reaches the live environment the usual way: PR → merge → `./boots
 ## Unchanged (model-agnostic)
 
 Content-hash debounce, detached execution, single-flight + stale-lock self-heal,
-fail-open, `--format tree|json`, discovery (speckit + superpowers), and the prompt
+fail-open, `--format tree|json`, discovery (speckit + design-doc), and the prompt
 template.
 
 ## Verification items (carried into the plan)

@@ -1,6 +1,6 @@
 # Token Economy Skill + Tiered CLAUDE.md Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an opt-in `/token-economy` session-mutator skill and split the 685-line always-loaded `configs/claude/CLAUDE.md` into a lean core + on-demand `references/`, cutting both dynamic-session and fixed-per-turn token cost without degrading accuracy.
 

@@ -1,6 +1,6 @@
 # Agent/App-Agnostic Skills Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make Manifest skills capability-driven instead of vendor-coupled: one tracker abstraction (GitHub/GitLab/Linear/Jira), a gap-free forge dispatcher, CI-platform-aware ci-* skills, and a single agent-fleet roster.
 

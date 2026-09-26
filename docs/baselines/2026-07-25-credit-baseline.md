@@ -269,12 +269,12 @@ regardless of `--until`, so quoting it would make a fixed baseline look stale.)
 | issue-prep-auto | 43 |
 | issue-dev-auto | 16 |
 | pr-address-comments | 16 |
-| superpowers:brainstorming | 13 |
-| superpowers:writing-plans | 13 |
-| superpowers:subagent-driven-development | 12 |
+| brainstorming | 13 |
+| writing-plans | 13 |
+| subagent-driven-development | 12 |
 | commit-commands:commit-push-pr | 12 |
 | spec-review | 11 |
-| superpowers:test-driven-development | 10 |
+| test-driven-development | 10 |
 
 346 Skill-tool invocations across 64 distinct skills; 521 user-typed slash
 commands across 41 distinct commands.

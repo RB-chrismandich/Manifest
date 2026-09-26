@@ -1,6 +1,6 @@
 # #361 Auto-Dev Merge-Loop — Completion Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Close the 6 remaining #361 tasks — give the merge loop a hard wall-clock ceiling in code, wire the real fail-closed review-thread accessor, add the missing tests, and reconcile docs/tasks.
 

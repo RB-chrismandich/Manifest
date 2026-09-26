@@ -1,6 +1,6 @@
 # Autonomous Issue Developer (`/auto-issue-dev`) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a curated, fully autonomous loop that picks an opted-in (`auto-dev`) issue, develops it test-first, and opens a PR for human review — repeating until the eligible queue is empty.
 
@@ -687,7 +687,7 @@ this skill with fresh context for the next issue.
      "eligible queue empty — stopping (skipped N dependency-blocked)", and END.
    - Exit 0 ⇒ parse `{number,title,url,skipped_dependency}`; call the issue `#N`.
 3. **Branch.** `git switch -c <N>-<short-slug>` (numeric prefix links `#N`).
-4. **Develop test-first.** Invoke `superpowers:test-driven-development`: write a
+4. **Develop test-first.** Invoke `test-driven-development`: write a
    failing test for the issue's acceptance criteria, implement minimally, get green.
    Keep scope to the issue.
 5. **Verify.** Run `/verify`. Lint warnings are non-blocking; test or security

@@ -1,6 +1,6 @@
 # /spec-review Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** An analysis-only `/spec-review` skill + reusable engine script that cross-references spec/plan/tasks artifacts for consistency via the `gemini` CLI, with an optional fail-open, content-hash-debounced, detached PostToolUse save hook.
 
@@ -173,7 +173,7 @@ git commit -m "feat(spec-review): scaffold engine — arg parsing, seams, sourci
 
 ---
 
-## Task 2: Artifact discovery (speckit + superpowers)
+## Task 2: Artifact discovery (speckit + design-doc)
 
 **Files:**
 - Modify: `configs/claude/scripts/spec_review.sh`
@@ -195,7 +195,7 @@ git commit -m "feat(spec-review): scaffold engine — arg parsing, seams, sourci
     assert_output --partial "tasks	$SANDBOX/specs/001-feature/tasks.md"
 }
 
-@test "discover_artifacts finds superpowers design+plan (tasks embedded in plan)" {
+@test "discover_artifacts finds design-doc design+plan (tasks embedded in plan)" {
     mkdir -p "$SANDBOX/docs/design/specs" "$SANDBOX/docs/design/plans"
     : > "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
     : > "$SANDBOX/docs/design/plans/2026-06-08-thing.md"
@@ -225,7 +225,7 @@ Insert before `main()`:
 
 ```bash
 # Print "role\tpath" lines for discovered artifacts. speckit: spec/plan/tasks.md
-# (cwd or specs/<n>/). superpowers: newest *-design.md + newest plans/*.md (tasks
+# (cwd or specs/<n>/). design-doc: newest *-design.md + newest plans/*.md (tasks
 # are embedded in the plan, so no tasks line). Newest = name sort (date-prefixed).
 discover_artifacts() {
     local root="${1:-.}" sp pl tk
@@ -239,7 +239,7 @@ discover_artifacts() {
         [[ -f "$d/tasks.md" ]] && printf 'tasks\t%s\n' "$d/tasks.md"
         return 0
     fi
-    # superpowers: newest design + newest plan (tasks embedded in plan)
+    # design-doc: newest design + newest plan (tasks embedded in plan)
     sp=$(ls -1 "$root"/docs/design/specs/*-design.md 2>/dev/null | sort | tail -1 || true)
     pl=$(ls -1 "$root"/docs/design/plans/*.md 2>/dev/null | sort | tail -1 || true)
     [[ -n "$sp" ]] && printf 'spec\t%s\n' "$sp"
@@ -257,7 +257,7 @@ Expected: PASS (5 tests).
 
 ```bash
 git add configs/claude/scripts/spec_review.sh tests/bats/spec_review.bats
-git commit -m "feat(spec-review): framework-agnostic artifact discovery (speckit + superpowers)"
+git commit -m "feat(spec-review): framework-agnostic artifact discovery (speckit + design-doc)"
 ```
 
 ---
@@ -722,7 +722,7 @@ description: |
   consistency using an independent model (Gemini), and surface structured
   remediation guidance (Location / Gap / Recommended Direction / Reason Why).
   Analysis-only — never edits artifacts. Works with both speckit
-  (spec.md/plan.md/tasks.md) and superpowers (design + plan-with-embedded-tasks)
+  (spec.md/plan.md/tasks.md) and design-doc (design + plan-with-embedded-tasks)
   layouts. Auto-discovers artifacts, or pass explicit paths.
 ---
 
@@ -842,7 +842,7 @@ git commit -m "feat(spec-review): register fail-open PostToolUse save hook"
 
 Add a `/spec-review` row/section to `docs/COMMANDS.md` describing: independent
 Gemini cross-reference of spec/plan/tasks; on-demand + optional save hook;
-analysis-only; speckit + superpowers; `.spec-review/feedback.md` for silent runs.
+analysis-only; speckit + design-doc; `.spec-review/feedback.md` for silent runs.
 If the repo has a command table in `CLAUDE.md`/`configs/claude/CLAUDE.md`, add a
 matching row there too.
 
@@ -874,7 +874,7 @@ git commit -m "docs(spec-review): document /spec-review command and save hook"
 
 **Spec coverage:**
 - Engine script, front-end-agnostic → Tasks 1–6. ✓
-- Framework-agnostic discovery (speckit + superpowers, tasks-in-plan) → Task 2. ✓
+- Framework-agnostic discovery (speckit + design-doc, tasks-in-plan) → Task 2. ✓
 - Prompt template + Location/Gap/Direction/Reason format → Tasks 3–4. ✓
 - Injectable gemini seam (no network in tests) → Task 4. ✓
 - Content-hash debounce + <2-artifact skip → Task 5. ✓

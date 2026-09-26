@@ -20,7 +20,7 @@
 >
 > Still open by design: design-checklist item 14, "Release N+1: delete shims".
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a uv-managed home runtime at `~/.claude/.venv` with a unified `manifest` CLI, replacing `pip install --user` and eliminating missing-package / host-Python-pollution / pin-drift failures for deployed Python tools.
 

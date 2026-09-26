@@ -9,7 +9,7 @@ Two implementations of the same goal — *autonomously take one opted-in issue �
 implement → open a PR (never merge), one issue at a time* — were in flight:
 
 - **issue-dev-auto (#354, merged):** a skill + `auto_issue_dev.sh` + `/loop`;
-  runs in the Claude Code session; TDD via `superpowers`; `/project-verify`; allowlist
+  runs in the Claude Code session; TDD via `design-doc`; `/project-verify`; allowlist
   `auto-dev` label.
 - **issue-orchestrator (#346, open):** a polling Python **daemon** + stateless
   6-phase decision engine, consensus gates, `agy` dual-model, redacted audit

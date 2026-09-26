@@ -1,6 +1,6 @@
 # sync-skills CLI Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a `sync-skills` native CLI command that syncs `.retired skill supply/skills/` to all home targets and runs `retired skill supply sync` for the Copilot target, enabling fast day-to-day skill iteration without running bootstrap.
 

@@ -832,7 +832,7 @@ therefore versioned changes requiring minor bumps. They are "non-migrating" — 
 skill changes bundles, so no `renames` map is needed — not "non-breaking".
 
 - **2a-i · Trim descriptions.** Manifest: 197 mean / 200 median. Best-in-class
-  (superpowers 6.3.0, 14 skills): **133 mean / 105 median**. Target the mean;
+  (design-doc 6.3.0, 14 skills): **133 mean / 105 median**. Target the mean;
   narrow skills keep keyword-rich descriptions — trimming is not uniformly safe
   and would break their triggering. Lockstep bump per §9a.
   **Required gate:** a per-skill **positive/negative trigger corpus** for every
@@ -917,7 +917,7 @@ reason — "I write Python", "I manage PRs". `manifest-code-quality` bundles 24
 skills spanning Go, Terraform, Node, Python, shell, data pipelines and CLI auditing
 because they are conceptually code quality, not because anyone wants all seven.
 
-*Counter-evidence to weigh:* superpowers ships 14 topically-coherent skills at 439
+*Counter-evidence to weigh:* design-doc ships 14 topically-coherent skills at 439
 tok and is widely adopted, so the principle is not "smaller is always better" — it
 is "coherent with an install decision". Cut on language/tool boundaries, not
 arbitrarily.

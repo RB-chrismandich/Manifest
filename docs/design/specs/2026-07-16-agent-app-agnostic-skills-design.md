@@ -226,7 +226,7 @@ by design for now), all PR/forge verbs (Phase 2), CI skills (Phase 3).
   Per the decision rule, neither clears the bar — `mcp_servers.yml` and
   `tracker_providers.yml`'s `access:` lists are unchanged; `git_ops.sh`
   (CLI/API) remains the sole forge/PR-operations path. Full findings with
-  sources: `.superpowers/sdd/task-18-report.md`.
+  sources: `.design-doc/sdd/task-18-report.md`.
 - **Bot identity config — done (Task 17, 2026-07-17).** Added
   `configs/claude/config/review_bots.yml` (copilot, jules, palette, bolt);
   `pr-monitor`/`pr-triage-bots` now read it instead of hardcoding logins.
@@ -238,7 +238,7 @@ by design for now), all PR/forge verbs (Phase 2), CI skills (Phase 3).
   those two, and a follow-up fix pass corrected two live search-command bugs
   this surfaced (an AND-instead-of-OR title search, and a wrong `bolt-`
   vs. `bolt/` branch-prefix). Full evidence:
-  `.superpowers/sdd/task-17-report.md`.
+  `.design-doc/sdd/task-17-report.md`.
 - **`~/.claude/` as the hardcoded config home — documented (Task 25,
   2026-07-17), not eliminated.** The four fleet-inspection skills
   (`env-check`, `config-audit`, `deploy-reconcile`, `deploy-retire-component`)

@@ -29,7 +29,7 @@ catches blind spots that Claude-reviewing-Claude would miss.
 | Packaging | A **new Manifest skill** (`/spec-review`), NOT a new `agi`/Antigravity CLI. Antigravity is an IDE in this repo (symlink-only config dir); there is no `agi` binary to extend. |
 | Reviewer engine | **Gemini alone** via the `gemini` CLI (`gemini -p`). Uses existing CLI auth — no Google API key, no client library, no model pinning to a dated `1.5 Flash`. |
 | Trigger | **On-demand `/spec-review`** (primary) **plus an optional Claude Code PostToolUse save hook** (advisory, debounced, fail-open). NOT a background daemon / file-watcher. |
-| Framework scope | **Framework-agnostic**: speckit (`spec.md`/`plan.md`/`tasks.md`) and superpowers (`*-design.md` + plan-with-embedded-tasks). |
+| Framework scope | **Framework-agnostic**: speckit (`spec.md`/`plan.md`/`tasks.md`) and design-doc (`*-design.md` + plan-with-embedded-tasks). |
 | Mutation | **Analysis-only.** Never edits artifacts (like `speckit-analyze`, `pr-review`). |
 | Name / output | Skill `/spec-review`; silent-mode findings → `.spec-review/feedback.md` (gitignored). |
 
@@ -86,9 +86,9 @@ One core engine script, two thin entry points:
     - *speckit:* `specs/<NNN>-*/{spec,plan,tasks}.md` (or `spec.md` in cwd). Note:
       speckit's `.specify/` dir holds templates/memory/scripts, NOT the artifacts —
       the spec/plan/tasks live under `specs/<NNN>/`, which is what we discover.
-    - *superpowers:* `docs/design/specs/*-design.md` (spec) +
+    - *design-doc:* `docs/design/specs/*-design.md` (spec) +
       `docs/design/plans/*.md` (plan, **with tasks embedded** — there is no
-      separate `tasks.md`). The cross-reference for superpowers is therefore
+      separate `tasks.md`). The cross-reference for design-doc is therefore
       **spec ↔ plan(+embedded tasks)**; for speckit it is the three-way
       **spec ↔ plan ↔ tasks**. The assembled prompt states which shape it sees.
   - **Engine seam:** `gemini` is invoked through one function with an injectable
@@ -172,7 +172,7 @@ user's primary work**:
 ## Testing
 
 - **bats `spec_review.bats`:**
-  - speckit-layout discovery; superpowers-layout discovery (spec + plan with
+  - speckit-layout discovery; design-doc-layout discovery (spec + plan with
     embedded tasks); no-artifacts case → clean exit.
   - debounce: **unchanged-hash skip** (same combined-content hash → no run);
     **changed-hash run** (any content change → run, regardless of elapsed time);
@@ -196,7 +196,7 @@ user's primary work**:
 | Hook blocks or breaks the user's Write/Edit | Advisory/non-blocking by construction; fail-open on every error path |
 | `gemini` not authed in headless/CI | Silent mode exits 0 with a logged note; on-demand gives a clear message |
 | Gemini returns non-structured prose | Tolerant parse: show raw under a warning, never crash |
-| Superpowers "tasks" mis-discovered as a missing file | Discovery treats plan-with-embedded-tasks as the canonical superpowers shape |
+| design-doc "tasks" mis-discovered as a missing file | Discovery treats plan-with-embedded-tasks as the canonical design-doc shape |
 
 ## Follow-ups (not in V1)
 

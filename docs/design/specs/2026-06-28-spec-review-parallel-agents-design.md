@@ -9,7 +9,7 @@ the multi-agent parallel panel instead of a single Antigravity (`agy`) reviewer.
 
 `spec-review` runs an independent, analysis-only consistency check across a
 project's planning artifacts (speckit `spec.md`/`plan.md`/`tasks.md` or the
-superpowers `*-design.md` + `plans/*.md` layout). Today `spec_review.sh` pipes the
+design-doc `*-design.md` + `plans/*.md` layout). Today `spec_review.sh` pipes the
 assembled artifact prompt to **one** reviewer CLI via the injectable
 `SPEC_REVIEW_CLI` seam (default `agy`). A single model means a single blind spot:
 whatever that one reviewer misses goes unreported.

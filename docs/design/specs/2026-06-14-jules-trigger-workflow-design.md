@@ -2,7 +2,7 @@
 
 **Date**: 2026-06-14
 **Status**: Approved (design) — pending implementation plan
-**Author**: Brainstormed via `/superpowers:brainstorming`
+**Author**: Brainstormed via `/brainstorming`
 
 ## Problem
 

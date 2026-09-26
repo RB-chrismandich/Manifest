@@ -1,7 +1,7 @@
 # 24h Change-Set Validation & Live Deploy — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
-> superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Validate every runnable change in the 24h set (`4643b72..0722b88`), fix any reds, back up and deploy to live
 `~/.claude` via `bootstrap.sh`, then re-validate the deployed environment — with evidence at every step.

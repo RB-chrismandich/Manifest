@@ -49,7 +49,7 @@ All notable changes are documented here in reverse chronological order.
   `session-checkpoint` hook script (`configs/claude/prompts/context_monitor.md`
   states outright that no automatic trigger exists); it never fired. Deleted
   rather than rewritten to the real schema — reinstating it is a separate
-  spec. See `docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`
+  spec. See `docs/design/specs/2026-08-19-marketplace-restructure-design.md`
   §4 Phase 1 item 1.3.
 - `manifest-workspace`: `workspace-learning-advisory` — the same catalog
   invented a `task-completed` event routed to `learning-capture`. Claude Code
@@ -334,7 +334,7 @@ Both fixes are mutation-verified in both directions.
 
 ### Task-completion audit of the shipped manifest CLI — two gaps closed
 
-A `/spec-audit-tasks` pass over `docs/superpowers/plans/2026-07-13-manifest-uv-cli.md`
+A `/spec-audit-tasks` pass over `docs/design/plans/2026-07-13-manifest-uv-cli.md`
 verified all 11 tasks against the tree (the plan's 50 step boxes had never been ticked, so
 nothing rested on them) and found two real gaps:
 

@@ -1,6 +1,6 @@
 # Spec-Review via Parallel-Agent Panel — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make `spec-review` cross-reference planning artifacts with the parallel-agent panel (excluding the author, Claude) and synthesize one deduped findings list, replacing the single `agy` reviewer.
 
@@ -581,7 +581,7 @@ git commit -m "feat(spec-review): route on-demand + hook review through the pane
 - [ ] **Step 1: Update `SKILL.md`** — replace the description and intro so they describe the panel. New frontmatter description:
 
 ```markdown
-description: Cross-reference spec/plan/tasks artifacts for internal consistency using the parallel-agent panel (gemini/cursor/codex/antigravity, excluding the author) and a synthesized deduped findings list. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths.
+description: Cross-reference spec/plan/tasks artifacts for internal consistency using the parallel-agent panel (gemini/cursor/codex/antigravity, excluding the author) and a synthesized deduped findings list. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and design-doc layouts; auto-discovers or takes explicit paths.
 ```
 
 Update the body heading/intro from "Antigravity cross-reference" / "A second model (Antigravity / `agy`)" to: "Runs the parallel-agent panel (excluding the author) and synthesizes a single deduped findings list." Update the closing line `Requires the `agy` CLI` → `Requires `parallel_agent.py` plus at least one non-Claude agent CLI (falls back to a single `agy` review).`
