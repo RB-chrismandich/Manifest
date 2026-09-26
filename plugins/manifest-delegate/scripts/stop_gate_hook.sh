@@ -68,16 +68,21 @@ if [ "$INPUT_BYTES" -gt 1048576 ]; then
     exit 0
 fi
 
-if ! "$JQ" -e -s 'length == 1 and (.[0] | type == "object")' \
+# Loop safety must work even when the managed Python runtime is broken. The
+# recursion guard runs FIRST, before the generic object-shape check: a guarded
+# follow-up must never be mistaken for invalid input, and the guard's own jq
+# projection is type-guarded so non-object payloads (arrays, scalars, strings)
+# can never satisfy it — on some jq builds `.<field>` on a non-object coerces
+# rather than errors, which would be a false approve.
+if "$JQ" -e -s 'length == 1 and (.[0] | type == "object" and .stop_hook_active == true)' \
     "$INPUT_FILE" > /dev/null 2>&1; then
-    block "invalid_input"
+    printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
 fi
 
-# Loop safety must work even when the managed Python runtime is broken.
-if "$JQ" -e -s 'length == 1 and (.[0].stop_hook_active == true)' \
+if ! "$JQ" -e -s 'length == 1 and (.[0] | type == "object")' \
     "$INPUT_FILE" > /dev/null 2>&1; then
-    printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+    block "invalid_input"
     exit 0
 fi
 

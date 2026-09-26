@@ -517,6 +517,44 @@ PY
     run "$SCRIPT" tick 5
     [[ "$output" == *"unchanged"* ]]
 }
+@test "deleting an older human comment resumes the loop even when latestComments is unchanged" {
+    # PR #953 thread 17: count_unresolved_human reads every comment's author;
+    # a human objection followed by a bot reply leaves latestComments identical
+    # before and after the human comment is deleted, so the fingerprint must
+    # cover full comment material or the PR stays stuck on `unchanged`.
+    local base='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":__COMMENTS__},"latestComments":{"nodes":[{"id":"C2","createdAt":"2026-09-19T01:00:00Z"}]}}]}}}}}'
+    local human_then_bot='[{"id":"C1","createdAt":"2026-09-19T00:00:00Z","author":{"login":"some-human"}},{"id":"C2","createdAt":"2026-09-19T01:00:00Z","author":{"login":"Copilot"}}]'
+    local bot_only='[{"id":"C2","createdAt":"2026-09-19T01:00:00Z","author":{"login":"Copilot"}}]'
+
+    export SEAM_FP_THREADS="${base/__COMMENTS__/$human_then_bot}"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_THREADS="${base/__COMMENTS__/$bot_only}"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]]
+}
+
+@test "comment pagination truncation flips the fingerprint" {
+    # Same thread 17: hasNextPage on the comments connection is part of the
+    # blocking classification (truncated = treat as blocking), so toggling it
+    # with identical visible comments must still resume the loop.
+    local base='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":__TRUNC__},"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z"}]}}]}}}}}'
+    export SEAM_FP_THREADS="${base/__TRUNC__/true}"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_THREADS="${base/__TRUNC__/false}"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+}
+
 
 @test "array reordering and lease-label churn do not change the fingerprint" {
     export SEAM_LABELS='["zeta","hold","loop-active:1:owner-a"]'
@@ -690,6 +728,23 @@ gh_op fp-checks 5
     unset PR_MERGE_LOOP_GH_CMD                # exercise the real platform branch
     PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" merge 5
     [ "$status" -eq 78 ]
+}
+
+@test "gitlab: unknown review-thread monitor state fails closed in signals" {
+    # PR #953 thread 6: GitLab has no reviewThreads twin, so unresolved-human
+    # is unknowable there — it must surface as an observation failure (signals
+    # exit 13), never as "0 human threads" that could clear an auto-merge.
+    cat > "$TMP/glab" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "ci status") echo ok; exit 0 ;;
+  *) echo '{}' ;;
+esac
+EOF
+    chmod +x "$TMP/glab"
+    unset PR_MERGE_LOOP_GH_CMD
+    PATH="$TMP:$PATH" PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" signals 5
+    [ "$status" -eq 13 ] && [[ "$output" == *"review-thread"* ]]
 }
 
 # --- T026: run loop driver + hard ceiling ---

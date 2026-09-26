@@ -37,6 +37,14 @@ gh_op() {
                 err "gitlab auto-merge not implemented — fail closed"
                 return 1
                 ;;
+            unresolved-human)
+                # GitLab has no reviewThreads twin, so the human-blocking-thread
+                # state is UNKNOWN here — it must never fall through to the
+                # wildcard's empty output, which the classifier reads as "0
+                # human threads" and would let an auto-merge proceed.
+                err "gitlab: unresolved-human monitor state unknown — fail closed"
+                return 13
+                ;;
             *) echo "" ;;
         esac
         return $?

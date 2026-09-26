@@ -352,10 +352,48 @@ for page_index, page in enumerate(pages):
         latest_comment = latest[0] if latest else {}
         if latest_comment and not isinstance(latest_comment, dict):
             raise ValueError("thread.latestComment")
+        # count_unresolved_human classifies a thread from every comment author
+        # plus the comments pageInfo.hasNextPage truncation flag, so all of it
+        # must change the fingerprint — recording only latestComments would
+        # miss a deleted older human objection.
+        comments_conn = thread.get("comments")
+        comments_truncated = False
+        comment_authors = []
+        if comments_conn is None:
+            # A missing connection is indistinguishable from "cannot rule out
+            # a human comment" — same as the classifier blocking default.
+            comments_truncated = True
+        elif not isinstance(comments_conn, dict):
+            raise ValueError("thread.comments")
+        else:
+            comments_truncated = bool((comments_conn.get("pageInfo") or {}).get("hasNextPage"))
+            comment_nodes = comments_conn.get("nodes")
+            if not isinstance(comment_nodes, list):
+                comments_truncated = True
+            else:
+                for comment in comment_nodes:
+                    if not isinstance(comment, dict):
+                        raise ValueError("thread.comment")
+                    author = comment.get("author")
+                    if isinstance(author, dict):
+                        author = author.get("login")
+                    comment_authors.append({
+                        "id": optional_text(comment.get("id"), "comment.id"),
+                        "createdAt": optional_text(
+                            comment.get("createdAt"), "comment.createdAt"
+                        ),
+                        "author": optional_text(author, "comment.author"),
+                    })
+        comment_authors.sort(key=lambda item: tuple(
+            "" if item[key] is None else item[key]
+            for key in ("id", "createdAt", "author")
+        ))
         threads.append({
             "id": require_text(thread.get("id"), "thread.id"),
             "isResolved": thread["isResolved"],
             "isOutdated": thread["isOutdated"],
+            "commentsTruncated": comments_truncated,
+            "comments": comment_authors,
             "latestCommentId": optional_text(latest_comment.get("id"), "thread.latestComment.id"),
             "latestCommentCreatedAt": optional_text(
                 latest_comment.get("createdAt"), "thread.latestComment.createdAt"
@@ -363,6 +401,7 @@ for page_index, page in enumerate(pages):
         })
 threads.sort(key=lambda item: (
     item["id"], item["isResolved"], item["isOutdated"],
+    item["commentsTruncated"], json.dumps(item["comments"], sort_keys=True),
     item["latestCommentId"] or "", item["latestCommentCreatedAt"] or "",
 ))
 
