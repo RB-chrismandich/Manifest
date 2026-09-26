@@ -240,6 +240,48 @@ def test_missing_jq_is_a_hard_refusal(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+@pytest.mark.parametrize("raw", ["true", "false", "1", '"true"', "[]", "[true]", "null"])
+def test_launcher_never_treats_non_object_payload_as_recursion_guard(tmp_path, raw):
+    # jq `.<field>` projections on non-objects can coerce rather than error on
+    # some builds; the recursion guard must be type-guarded so only the exact
+    # boolean object form approves — every other shape blocks invalid_input.
+    result = subprocess.run(
+        ["/bin/sh", str(SHELL)],
+        input=raw,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=dict(
+            os.environ,
+            HOME=str(tmp_path),
+            CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
+        ),
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "invalid_input" in decision["reason"]
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_launcher_rejects_string_stop_hook_active_flag(tmp_path):
+    # The recursion guard fires only on the exact JSON boolean true.
+    result = subprocess.run(
+        ["/bin/sh", str(SHELL)],
+        input=json.dumps({"stop_hook_active": "true"}),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=dict(
+            os.environ,
+            HOME=str(tmp_path),
+            CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
+        ),
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert decision["reason"] != "stop-hook-active"
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
 def test_launcher_rejects_invalid_python_decision(tmp_path):
     runtime = tmp_path / ".claude" / ".venv" / "bin" / "python"
     runtime.parent.mkdir(parents=True)
