@@ -44,6 +44,20 @@ make_rule() {
     echo "$body" > "$SRC_RULES/$name.mdc"
 }
 
+write_generated_rule() {
+    local path="$1" name="$2" body="${3:-generated body}"
+    cat > "$path" <<EOF
+$body
+<!-- Auto-generated from .claude/skills/$name/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+EOF
+}
+
+make_generated_rule() {
+    local name="$1" body="${2:-generated body}"
+    write_generated_rule "$SRC_RULES/$name.mdc" "$name" "$body"
+}
+
 # ── Baseline deploy ──────────────────────────────────────────────────────────
 
 @test "fresh deploy copies all source rules and writes a manifest" {
@@ -56,6 +70,104 @@ make_rule() {
     [ -f "$CURSOR_TARGET_DIR/rules/beta.mdc" ]
     [ -f "$CURSOR_TARGET_DIR/rules/.deployed-rules" ]
     assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")" "$(printf 'alpha.mdc\nbeta.mdc')"
+}
+
+# ── Recovery when the ownership manifest is absent ─────────────────────────
+
+@test "absent manifest removes an exactly marked generated orphan" {
+    make_generated_rule alpha "canonical alpha"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    write_generated_rule "$CURSOR_TARGET_DIR/rules/retired.mdc" retired "stale retired rule"
+
+    run deploy_cursor_configs
+    assert_success
+    assert_output --partial "Pruned orphan Cursor rule: retired.mdc"
+    [ ! -e "$CURSOR_TARGET_DIR/rules/retired.mdc" ]
+    [ -f "$CURSOR_TARGET_DIR/rules/alpha.mdc" ]
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")" "alpha.mdc"
+}
+
+@test "absent manifest refreshes an exactly marked generated counterpart" {
+    make_generated_rule alpha "canonical alpha"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    write_generated_rule "$CURSOR_TARGET_DIR/rules/alpha.mdc" alpha "stale alpha"
+
+    run deploy_cursor_configs
+    assert_success
+    run cmp "$SRC_RULES/alpha.mdc" "$CURSOR_TARGET_DIR/rules/alpha.mdc"
+    assert_success
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")" "alpha.mdc"
+}
+
+@test "absent manifest preserves generated-marker lookalikes" {
+    make_generated_rule alpha "canonical alpha"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    cat > "$CURSOR_TARGET_DIR/rules/alpha.mdc" <<'EOF'
+user-authored alpha
+<!-- Auto-generated from .claude/skills/alpha/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh (maybe) -->
+EOF
+    cat > "$CURSOR_TARGET_DIR/rules/retired.mdc" <<'EOF'
+user-authored retired
+<!-- Auto-generated from .claude/skills/retired/SKILL.md (maybe) -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+EOF
+
+    run deploy_cursor_configs
+    assert_success
+    assert_output --partial "Preserved unrecognized Cursor rule: alpha.mdc"
+    assert_equal "$(sed -n '1p' "$CURSOR_TARGET_DIR/rules/alpha.mdc")" "user-authored alpha"
+    assert_equal "$(sed -n '1p' "$CURSOR_TARGET_DIR/rules/retired.mdc")" "user-authored retired"
+    run cat "$CURSOR_TARGET_DIR/rules/.deployed-rules"
+    refute_output --partial "alpha.mdc"
+    refute_output --partial "retired.mdc"
+}
+
+@test "absent manifest preserves modified markerless orchestration as a conflict" {
+    make_generated_rule alpha "canonical alpha"
+    make_rule orchestration "canonical orchestration"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    printf '%s\n' "user-modified orchestration" > "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+
+    run deploy_cursor_configs
+    assert_success
+    assert_output --partial "Cursor rule conflict: orchestration.mdc"
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/orchestration.mdc")" "user-modified orchestration"
+    run cat "$CURSOR_TARGET_DIR/rules/.deployed-rules"
+    refute_output --partial "orchestration.mdc"
+}
+
+@test "absent manifest records markerless orchestration only after canonical byte match" {
+    make_generated_rule alpha "canonical alpha"
+    make_rule orchestration "canonical orchestration"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    cp "$SRC_RULES/orchestration.mdc" "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+
+    run deploy_cursor_configs
+    assert_success
+    run cat "$CURSOR_TARGET_DIR/rules/.deployed-rules"
+    assert_output --partial "orchestration.mdc"
+}
+
+@test "absent-manifest recovery is idempotent on the second run" {
+    make_generated_rule alpha "canonical alpha"
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+    write_generated_rule "$CURSOR_TARGET_DIR/rules/alpha.mdc" alpha "stale alpha"
+    write_generated_rule "$CURSOR_TARGET_DIR/rules/retired.mdc" retired "stale retired rule"
+
+    deploy_cursor_configs
+    local first_manifest
+    first_manifest="$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")"
+
+    run deploy_cursor_configs
+    assert_success
+    refute_output --partial "Pruned orphan Cursor rule:"
+    refute_output --partial "Preserved unrecognized Cursor rule:"
+    refute_output --partial "Cursor rule conflict:"
+    [ ! -e "$CURSOR_TARGET_DIR/rules/retired.mdc" ]
+    run cmp "$SRC_RULES/alpha.mdc" "$CURSOR_TARGET_DIR/rules/alpha.mdc"
+    assert_success
+    assert_equal "$(cat "$CURSOR_TARGET_DIR/rules/.deployed-rules")" "$first_manifest"
 }
 
 # ── Orphan pruning ───────────────────────────────────────────────────────────
@@ -122,15 +234,20 @@ make_rule() {
     [ -f "$CURSOR_TARGET_DIR/rules/keep.mdc" ]
 }
 
-@test "orchestration.mdc and commands-index.mdc are excluded from the manifest and never pruned" {
+@test "protected singleton rules survive removal from source" {
     make_rule alpha
     make_rule orchestration
     make_rule commands-index
     deploy_cursor_configs
 
-    # Simulate a broken/edited source that (contrived) briefly lacks these
-    # singletons — since they were never manifest-tracked, dest copies must
-    # survive untouched regardless of source state.
+    # Markerless orchestration is recorded only after the fresh copy is known
+    # to match canonical bytes. commands-index remains outside the manifest.
+    run cat "$CURSOR_TARGET_DIR/rules/.deployed-rules"
+    assert_output --partial "orchestration.mdc"
+    refute_output --partial "commands-index.mdc"
+
+    # Losing either singleton from source must preserve the deployed copy and
+    # remove orchestration from the next ownership record, not prune it.
     rm -f "$SRC_RULES/orchestration.mdc" "$SRC_RULES/commands-index.mdc"
     run deploy_cursor_configs
     assert_success

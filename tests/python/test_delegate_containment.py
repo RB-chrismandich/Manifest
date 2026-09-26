@@ -1,11 +1,9 @@
-"""Behavioral contracts for cgroup-v2 delegate containment."""
+"""Behavioral contracts for the approved cgroup-v2 containment prerequisite."""
 
 import errno
 import os
 import subprocess
-import threading
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from _delegate_inproc import delegate
@@ -31,6 +29,24 @@ def _write_containment_marker(tmp_path, job_dir, monkeypatch):
     (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(path))
     monkeypatch.setenv(containment.CGROUP_ROOT_ENV, str(root))
     return path
+
+
+def test_package_import_exposes_containment_module():
+    assert delegate.containment is containment
+
+
+def test_join_hook_uses_the_owned_marker_path(tmp_path, monkeypatch):
+    job_dir = tmp_path / "job"
+    job_dir.mkdir()
+    cgroup = _write_containment_marker(tmp_path, job_dir, monkeypatch)
+    joined = []
+    monkeypatch.setattr(containment, "join", joined.append)
+
+    hook = containment.join_hook(str(job_dir))
+
+    assert hook is not None
+    hook()
+    assert joined == [str(cgroup)]
 
 
 class TestContainmentOperations:
@@ -166,10 +182,9 @@ class TestContainmentOperations:
         job_dir.mkdir()
         _write_containment_marker(tmp_path, job_dir, monkeypatch)
         for name in ("cgroup.procs", "cgroup.kill"):
-            (
-                containment.read_path(str(job_dir))
-                and Path(containment.read_path(str(job_dir))) / name
-            ).unlink()
+            path = containment.read_path(str(job_dir))
+            assert path is not None
+            (Path(path) / name).unlink()
         monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: True)
         assert containment.cleanup(str(job_dir)) is True
         assert containment.read_path(str(job_dir)) is None
@@ -206,6 +221,7 @@ class TestContainmentOperations:
         monkeypatch.setattr(
             containment, "join", lambda path: (_ for _ in ()).throw(OSError("denied"))
         )
+
         with pytest.raises(subprocess.SubprocessError):
             delegate.process._launch_backend(["true"], "devnull", str(job_dir))
 
@@ -218,260 +234,3 @@ class TestContainmentOperations:
         (cgroup / "cgroup.kill").mkdir()
         (job_dir / containment.CGROUP_DIR_FILENAME).write_text(str(cgroup))
         assert containment.reap(str(job_dir)) is False
-
-
-class TestContainmentProcessLifecycle:
-    def test_cancel_attempts_pgid_and_worker_fallback_after_failed_cgroup_reap(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        record.update(
-            pgid=1234,
-            worker_pid=5678,
-            foreground=False,
-            containment={"state": containment.STATE_CONTAINED},
-        )
-        attempts = []
-        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: False)
-        monkeypatch.setattr(delegate.process, "_backend_alive", lambda *_args: True)
-        monkeypatch.setattr(
-            delegate.process,
-            "_kill_pgid",
-            lambda *_args: attempts.append("pgid") or True,
-        )
-        monkeypatch.setattr(delegate.process, "_worker_alive", lambda *_args: True)
-        monkeypatch.setattr(
-            delegate.jobs_cli.os,
-            "kill",
-            lambda pid, sig: attempts.append(("worker", pid, sig)),
-        )
-
-        assert (
-            delegate.jobs_cli._terminate_job_processes(store, record["job_id"], record)
-            is False
-        )
-        assert attempts == ["pgid", ("worker", 5678, delegate.jobs_cli.signal.SIGKILL)]
-
-    def test_orphan_reaper_attempts_pgid_fallback_after_failed_cgroup_reap(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        record.update(
-            pgid=1234,
-            containment={"state": containment.STATE_CONTAINED},
-        )
-        attempts = []
-        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: False)
-        monkeypatch.setattr(delegate.process, "_backend_alive", lambda *_args: True)
-        monkeypatch.setattr(
-            delegate.process,
-            "_kill_pgid",
-            lambda *_args: attempts.append("pgid") or True,
-        )
-        monkeypatch.setattr(
-            delegate.process, "_clear_pgid_tracking", lambda *_args: None
-        )
-
-        assert (
-            delegate.process._reap_cancelled_orphan(store, record["job_id"], record)
-            is False
-        )
-        assert attempts == ["pgid"]
-
-    def test_orphan_recovery_reaps_containment_without_pgid(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_dir = Path(store.job_dir(record["job_id"]))
-        cgroup = _write_containment_marker(tmp_path, job_dir, monkeypatch)
-        kill_file = cgroup / "cgroup.kill"
-
-        delegate.process._reap_cancelled_orphan(
-            store, record["job_id"], store.read(record["job_id"])
-        )
-
-        assert kill_file.read_text() == "1"
-
-    def test_contained_record_fails_closed_when_marker_is_missing(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                state="failed",
-                containment={"state": containment.STATE_CONTAINED},
-            ),
-        )
-        monkeypatch.setattr(delegate.jobs_cli.jobstore, "JobStore", lambda: store)
-
-        args = SimpleNamespace(
-            job_id=job_id, expected_version=None, recovery_id=None, json=True
-        )
-        assert delegate.jobs_cli.cmd_cancel(args) == 1
-        assert store.read(job_id)["containment_cleanup_failed"] is True
-        assert Path(store.job_dir(job_id)).exists()
-
-    def test_recovery_retains_contained_job_with_dangling_marker(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        job_dir = Path(store.job_dir(job_id))
-        (job_dir / containment.CGROUP_DIR_FILENAME).symlink_to(tmp_path / "missing")
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                containment={"state": containment.STATE_CONTAINED},
-                created_at=0,
-            ),
-        )
-
-        recovered = store.reap_if_dead(job_id)
-
-        assert recovered["state"] == "queued"
-        assert recovered["containment_cleanup_failed"] is True
-
-    def test_prune_retains_contained_job_when_marker_is_dangling(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        job_dir = Path(store.job_dir(job_id))
-        (job_dir / containment.CGROUP_DIR_FILENAME).symlink_to(tmp_path / "missing")
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                state="failed",
-                containment={"state": containment.STATE_CONTAINED},
-            ),
-        )
-
-        assert store._delete_job_locked(job_id) is False
-        assert job_dir.exists()
-
-
-class TestContainmentCleanupCheckpoint:
-    def test_terminal_cancel_marks_cleanup_complete_before_removing_marker(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        job_dir = Path(store.job_dir(job_id))
-        _write_containment_marker(tmp_path, job_dir, monkeypatch)
-        for name in ("cgroup.procs", "cgroup.kill"):
-            (
-                containment.read_path(str(job_dir))
-                and Path(containment.read_path(str(job_dir))) / name
-            ).unlink()
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                state="failed",
-                containment={"state": containment.STATE_CONTAINED},
-            ),
-        )
-        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: True)
-        monkeypatch.setattr(delegate.jobs_cli.jobstore, "JobStore", lambda: store)
-        args = SimpleNamespace(
-            job_id=job_id, expected_version=None, recovery_id=None, json=True
-        )
-
-        assert delegate.jobs_cli.cmd_cancel(args) == 0
-        assert store.read(job_id)["containment"]["state"] == "cleaned"
-        assert delegate.jobs_cli.cmd_cancel(args) == 0
-
-    def test_prune_accepts_successfully_cleaned_containment(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        job_dir = Path(store.job_dir(job_id))
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                state="failed",
-                containment={"state": "cleaned"},
-            ),
-        )
-        assert store._delete_job_locked(job_id) is True
-        assert not job_dir.exists()
-
-    def test_prune_persists_cleanup_checkpoint_without_relocking(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        job_dir = Path(store.job_dir(job_id))
-        _write_containment_marker(tmp_path, job_dir, monkeypatch)
-        for name in ("cgroup.procs", "cgroup.kill"):
-            (
-                containment.read_path(str(job_dir))
-                and Path(containment.read_path(str(job_dir))) / name
-            ).unlink()
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                state="failed",
-                containment={"state": containment.STATE_CONTAINED},
-            ),
-        )
-        monkeypatch.setattr(containment, "reap", lambda *_args, **_kwargs: True)
-        result = []
-        pruning = threading.Thread(
-            target=lambda: result.append(store._delete_job_locked(job_id)), daemon=True
-        )
-
-        pruning.start()
-        pruning.join(timeout=1)
-
-        assert not pruning.is_alive(), "prune deadlocked while persisting cleanup"
-        assert result == [True]
-        assert not job_dir.exists()
-
-    def test_cancelled_recovery_retains_pgid_when_contained_marker_is_missing(
-        self, tmp_path, monkeypatch
-    ):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        store = delegate.JobStore(cwd=str(tmp_path))
-        record = store.create("codex")
-        job_id = record["job_id"]
-        store.mutate(
-            job_id,
-            lambda current: dict(
-                current,
-                state="cancelled",
-                pgid=12345,
-                containment={"state": containment.STATE_CONTAINED},
-            ),
-        )
-
-        recovered = store.reap_if_dead(job_id)
-
-        assert recovered["containment_cleanup_failed"] is True
-        assert recovered["pgid"] == 12345

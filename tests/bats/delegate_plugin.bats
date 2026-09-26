@@ -43,6 +43,20 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
+@test "Stop hook uses the fail-closed POSIX launcher exactly once" {
+  run python3 -c "
+import json
+d = json.load(open('$HOOKS_JSON'))['hooks']['Stop']
+hooks = [hook for matcher in d for hook in matcher['hooks']]
+assert len(hooks) == 1, hooks
+assert hooks[0]['command'] == '/bin/sh \"\${CLAUDE_PLUGIN_ROOT}/scripts/stop_gate_hook.sh\"', hooks[0]
+assert hooks[0]['timeout'] == 900, hooks[0]
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
 @test "hooks.json commands use \${CLAUDE_PLUGIN_ROOT}, never an absolute path" {
   run python3 -c "
 import json
@@ -68,7 +82,7 @@ for entries in d.values():
     for entry in entries:
         for h in entry['hooks']:
             cmd = h['command']
-            rel = re.search(r'\\\$\{CLAUDE_PLUGIN_ROOT\}(/[^ ]+)', cmd).group(1)
+            rel = re.search(r'\\\$\{CLAUDE_PLUGIN_ROOT\}(/[^ \"]+)', cmd).group(1)
             path = plugin_dir + rel
             assert os.path.isfile(path), path
             assert os.access(path, os.X_OK), path
@@ -138,12 +152,19 @@ print('ok', val)
   done
 }
 
-@test "stop_gate_hook.py fails open (exit 0) when transcript_path is missing" {
-  # Tolerant of gate subcommand (T031) not existing yet — this path never
-  # reaches delegate.py because transcript_path is absent.
+@test "stop_gate_hook.py blocks when transcript_path is missing" {
   run bash -c "echo '{\"hook_event_name\":\"Stop\"}' | python3 '$PLUGIN_DIR/scripts/stop_gate_hook.py'"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"systemMessage"* ]]
+  run python3 -c "
+import json
+d = json.loads('''$output''')
+assert d['decision'] == 'block', d
+assert 'missing_transcript' in d['reason'], d
+assert 'systemMessage' not in d, d
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
 }
 
 # T045: registration gates — plugin.json skills array, marketplace.json entry,

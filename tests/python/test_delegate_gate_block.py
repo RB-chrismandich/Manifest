@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Review-gate BLOCK decisions, fail-open behaviour, and budget handling.
+"""Review-gate BLOCK decisions, fail-closed behavior, and budget handling.
 
-Split out of the former test_delegate_dispatcher.py: TestGateCommand alone was
-531 lines across 22 methods, past both the file and the class ceiling. The seam
-is behavioural — this file covers blocking, every fail-open route, and the budget cap; the
-sibling covers the allow paths.
+Split out of the former test_delegate_dispatcher.py. This file covers material
+findings, every infrastructure-refusal route, and the budget cap; the sibling
+covers the explicit allow paths.
 
 Run with: uv run --project configs/claude pytest tests/python/test_delegate_gate_block.py -q
 """
@@ -127,9 +126,9 @@ class TestGateBlocks:
         assert out_text.count('"decision"') == 1
 
 
-class TestGateFailsOpen:
-    """The gate is advisory: an unready backend, a timeout, or an unparseable
-    transcript must degrade to `allow` plus a systemMessage, never to a block."""
+class TestGateInfrastructureBlocks:
+    """An unready backend, timeout, or unreadable review input must block with
+    a stable sanitized reason instead of certifying the turn."""
 
     def _setup(self, tmp_path, monkeypatch):
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
@@ -146,7 +145,15 @@ class TestGateFailsOpen:
         path.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
         return str(path)
 
-    def test_unready_backend_fails_open_with_system_message(
+    @staticmethod
+    def _assert_infrastructure_block(captured, reason_code):
+        out = json.loads(captured.out)
+        assert out["decision"] == "block"
+        assert reason_code in out["reason"]
+        assert "make no tool calls or edits" in out["reason"]
+        assert "systemMessage" not in out
+
+    def test_unready_backend_blocks_with_sanitized_reason(
         self, tmp_path, monkeypatch, capsys
     ):
         self._setup(tmp_path, monkeypatch)
@@ -175,14 +182,10 @@ class TestGateFailsOpen:
         )
         assert rc == 0
         captured = capsys.readouterr()
-        out = json.loads(captured.out)
-        assert "systemMessage" in out
-        assert "review gate skipped" in out["systemMessage"]
-        assert "review gate skipped" in captured.err
+        self._assert_infrastructure_block(captured, "backend_unavailable")
+        assert "not installed" not in captured.out
 
-    def test_timeout_fails_open_with_system_message(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_timeout_blocks_with_sanitized_reason(self, tmp_path, monkeypatch, capsys):
         self._setup(tmp_path, monkeypatch)
         monkeypatch.setattr(
             delegate.worker,
@@ -210,10 +213,9 @@ class TestGateFailsOpen:
             set(),
         )
         assert rc == 0
-        out = json.loads(capsys.readouterr().out)
-        assert "systemMessage" in out
+        self._assert_infrastructure_block(capsys.readouterr(), "review_timeout")
 
-    def test_malformed_transcript_fails_open_with_system_message(
+    def test_unreadable_transcript_blocks_with_sanitized_reason(
         self, tmp_path, monkeypatch, capsys
     ):
         self._setup(tmp_path, monkeypatch)
@@ -228,9 +230,8 @@ class TestGateFailsOpen:
         )
         assert rc == 0
         captured = capsys.readouterr()
-        out = json.loads(captured.out)
-        assert "systemMessage" in out
-        assert captured.err
+        self._assert_infrastructure_block(captured, "transcript_unreadable")
+        assert str(bad_path) not in captured.out
 
 
 class TestGateBudget:
@@ -423,9 +424,8 @@ class TestGateEnvelopeParsing:
     def test_e2e_malformed_backend_output_never_silently_allows(
         self, tmp_path, monkeypatch, capsys
     ):
-        """G4: when the backend emits no usable fenced JSON, `normalize_envelope`
-        produces a failure envelope with a non-empty `error`; the gate must
-        surface that as an explicit systemMessage (fail-open, not silent)."""
+        """When the backend emits no usable envelope, the gate must block
+        instead of treating missing review evidence as approval."""
         self._setup(tmp_path, monkeypatch)
         raw_output = "I looked at the diff but forgot to emit any JSON block, sorry.\n"
         monkeypatch.setattr(
@@ -450,10 +450,9 @@ class TestGateEnvelopeParsing:
         assert rc == 0
         captured = capsys.readouterr()
         out = json.loads(captured.out)
-        assert '"decision": "block"' not in captured.out
-        assert "systemMessage" in out
-        assert "review gate skipped" in out["systemMessage"]
-        assert "review gate skipped" in captured.err
+        assert out["decision"] == "block"
+        assert "backend_error" in out["reason"]
+        assert "forgot to emit" not in captured.out
 
     def test_gate_validate_findings_rejects_non_list_findings(self):
         """G4: `_gate_validate_findings` itself must reject a well-formed

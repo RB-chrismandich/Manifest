@@ -4,24 +4,101 @@
 # exit 78 — see merge_capability_disabled), so the retired operator copy's
 # live-merge tests are gone; the gate itself is covered by the dedicated block
 # at the end of this file. Every read-only path (signals/decide/tick-to-gate/
-# run) is exercised against the seams below.
+# run) plus state-driven fingerprint polling is exercised against the seams below.
 
 SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/pr_merge_loop.sh"
 DECIDE="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/merge_decision.sh"
+VENDORED="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/pr_merge_loop.sh"
+VENDORED_DECIDE="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/merge_decision.sh"
 
 setup() {
     TMP=$(mktemp -d "${BATS_TMPDIR:-/tmp}/prloop.XXXXXX")
-    export PR_MERGE_LOOP_STATE_DIR="$TMP/state"
+    export TMP PR_MERGE_LOOP_STATE_DIR="$TMP/state"
     # Keep forge XDG state (audit_log.jsonl etc.) inside the sandbox too.
     export XDG_STATE_HOME="$TMP/xdg-state"
+    export SEAM_CALL_LOG="$TMP/gh-calls" SEAM_GATE_LOG="$TMP/gate-calls"
+    export SEAM_LABEL_LOG="$TMP/label-calls" SEAM_HEAD_DIR="$TMP/heads"
+    mkdir -p "$SEAM_HEAD_DIR"
+    : > "$SEAM_CALL_LOG"
+    : > "$SEAM_GATE_LOG"
+    : > "$SEAM_LABEL_LOG"
+
     # cmd_signals calls cmd_post_merge_check, which first resolves main HEAD via
     # `git ls-remote origin` — run from a non-repo dir so that lookup fails fast
     # and deterministically offline before the POSTMERGE seam is consulted.
     cd "$TMP" || return 1
-    # Seam: <op> <pr>. Values come from per-op env so each test tunes them.
+
+    # Host seam: <op> <pr>. Fingerprint observations are complete by default and
+    # can be replaced independently to model a single material transition.
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
-case "$1" in
+op="$1"; pr="${2:-}"
+printf '%s %s\n' "$op" "$pr" >> "${SEAM_CALL_LOG:?}"
+if [[ "${SEAM_FP_FAIL:-}" == "$op" || "${SEAM_FP_FAIL:-}" == "${op#fp-}" ]]; then
+  exit 71
+fi
+case "$op" in
+  fp-scope)
+    if [[ -n "${SEAM_SCOPE:-}" ]]; then
+      printf '%s\n' "$SEAM_SCOPE"
+    else
+      printf '%s\n' '{"host":"github.com","owner_repo":"acme/widgets"}'
+    fi ;;
+  fp-view)
+    if [[ -n "${SEAM_FP_VIEW:-}" ]]; then
+      printf '%s\n' "$SEAM_FP_VIEW"
+    else
+      python3 - "$pr" <<'PY'
+import json
+import os
+import sys
+
+pr = sys.argv[1]
+head = os.environ.get("SEAM_HEAD", "sha1")
+head_file = os.path.join(os.environ.get("SEAM_HEAD_DIR", ""), pr)
+if os.path.isfile(head_file):
+    with open(head_file, encoding="utf-8") as handle:
+        head = handle.read().strip()
+print(json.dumps({
+    "headRefOid": head,
+    "baseRefName": os.environ.get("SEAM_BASE", "main"),
+    "mergeable": os.environ.get("SEAM_FP_MERGEABLE", "MERGEABLE"),
+    "mergeStateStatus": os.environ.get("SEAM_FP_MERGE_STATE", "CLEAN"),
+    "reviewDecision": os.environ.get("SEAM_RD", "APPROVED"),
+    "latestReviews": json.loads(os.environ.get("SEAM_LATEST_REVIEWS", "[]")),
+    "labels": [{"name": name} for name in json.loads(os.environ.get("SEAM_LABELS", "[]"))],
+    "isDraft": os.environ.get("SEAM_DRAFT", "false") == "true",
+    "state": os.environ.get("SEAM_PR_STATE", "OPEN"),
+}))
+PY
+    fi ;;
+  fp-checks)
+    if [[ -n "${SEAM_FP_CHECKS:-}" ]]; then
+      printf '%s\n' "$SEAM_FP_CHECKS"
+    else
+      python3 - <<'PY'
+import json
+import os
+
+checks = []
+for index, bucket in enumerate(os.environ.get("SEAM_BUCKETS", "pass").split()):
+    checks.append({
+        "name": f"check-{index}",
+        "bucket": bucket,
+        "state": "IN_PROGRESS" if bucket == "pending" else "COMPLETED",
+        "link": f"https://checks.invalid/{index}",
+        "startedAt": "2026-09-19T00:00:00Z",
+        "completedAt": None if bucket == "pending" else "2026-09-19T00:01:00Z",
+    })
+print(json.dumps(checks))
+PY
+    fi ;;
+  fp-threads)
+    if [[ -n "${SEAM_FP_THREADS:-}" ]]; then
+      printf '%s\n' "$SEAM_FP_THREADS"
+    else
+      printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}'
+    fi ;;
   list)             echo "${SEAM_LIST:-[]}" ;;
   checks)           printf '%s\n' ${SEAM_BUCKETS-pass} ;;
   reviewdecision)   echo "${SEAM_RD:-APPROVED}" ;;
@@ -32,15 +109,25 @@ case "$1" in
   author)           echo "${SEAM_AUTHOR:-Copilot}" ;;
   admin-check)      echo "${SEAM_ADMIN:-true}" ;;
   protection)       echo "${SEAM_PROT:-enforce_admins=false required_signatures=false merge_queue=false}" ;;
-  update-branch)    echo updated ;;
+  update-branch)    [ "${SEAM_UPDATE_FAIL:-0}" = 1 ] && exit 1 || echo updated ;;
+  add-label)
+    printf '%s %s\n' "$pr" "${3:-}" >> "${SEAM_LABEL_LOG:?}"
+    [ "${SEAM_LABEL_FAIL:-0}" = 1 ] && exit 1 || exit 0 ;;
   do-merge)         [ "${SEAM_MERGE_FAIL:-0}" = 1 ] && exit 1 || echo merged ;;
-  headsha)          echo "${SEAM_HEAD:-sha1}" ;;
+  headsha)
+    if [[ -f "${SEAM_HEAD_DIR:?}/$pr" ]]; then cat "${SEAM_HEAD_DIR}/$pr"; else echo "${SEAM_HEAD:-sha1}"; fi ;;
   basebranch)       echo "${SEAM_BASE:-main}" ;;
   mergecommit)      echo "${SEAM_MERGE_SHA:-mergesha1}" ;;
 esac
 EOF
     chmod +x "$TMP/seam.sh"
     export PR_MERGE_LOOP_GH_CMD="$TMP/seam.sh"
+    export PR_MERGE_LOOP_CLOCK_CMD="$TMP/clock.sh"
+    cat > "$TMP/clock.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "2026-09-19T00:00:00Z"
+EOF
+    chmod +x "$TMP/clock.sh"
 
     # loop_lock seam (file-backed) so cmd_tick can acquire/release offline.
     export LOOP_LOCK_DIR="$TMP/locks"
@@ -54,23 +141,6 @@ EOF
     chmod +x "$TMP/pmc-green.sh"
     export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc-green.sh"
     export SEAM_STATE="$TMP/labels"
-    # Protocol (matches loop_lock.sh's owner-token lease): <cmd> has|add|remove <pr>
-    # [<owner>]; `has` prints "<age>\t<owner>" for the newest lease, exit 0 if any.
-    #
-    # FIXED-BACKEND SEAM (2026-08-20, Finding 1(a)): `add` SUCCEEDS. Real
-    # GitHub `--add-label` only ATTACHES a label that already exists as a repo
-    # label — it never creates one — and labels.yml can never pre-provision
-    # the dynamic "loop-active:<epoch>:<owner>" lease name (the epoch+owner
-    # suffix is unbounded, generated fresh per acquisition). loop_lock.sh's
-    # `label_op add` now self-provisions it (`gh label create --force`)
-    # immediately before attaching it, so a healthy real backend's add
-    # succeeds — model that here by writing a lease-marker file, exactly what
-    # a real add followed by `has` reading it back would produce. The dedicated
-    # DEGRADED-path tests below use their own rejecting seam (mirroring the
-    # vendored copy's "vendored REGRESSION: degraded lease" tests) to cover
-    # the case where label creation itself still fails (no permission, API
-    # error, etc.) — that remains realistic even after this fix and is exactly
-    # what Finding 1(b) requires cmd_tick to report loudly rather than skip.
     cat > "$TMP/lockseam.sh" <<'EOF'
 #!/usr/bin/env bash
 d="${SEAM_STATE:?}"; op="$1"; pr="$2"; owner="${3:-}"
@@ -91,9 +161,6 @@ esac
 EOF
     chmod +x "$TMP/lockseam.sh"; export LOOP_LOCK_LABEL_CMD="$TMP/lockseam.sh"
 
-    # DEGRADED-backend seam (Finding 1(b) regression coverage): `add` always
-    # rejects, modeling a backend where label creation itself cannot land.
-    # Opt in per-test via `LOOP_LOCK_LABEL_CMD="$TMP/lockseam_degraded.sh"`.
     cat > "$TMP/lockseam_degraded.sh" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in
@@ -104,10 +171,17 @@ esac
 EOF
     chmod +x "$TMP/lockseam_degraded.sh"
 
-    # verification gate review seam (tunable via SEAM_GATE).
+    # Verification-gate seam. It can fail or change the observed head during
+    # dispatch, which exercises the post-dispatch external-transition guard.
     cat > "$TMP/gateseam.sh" <<'EOF'
 #!/usr/bin/env bash
-_d='{"tier1":{"passed":true},"tier2":{"concerns":[]},"verdict":"APPROVED"}'; echo "${SEAM_GATE:-$_d}"
+printf 'gate\n' >> "${SEAM_GATE_LOG:?}"
+if [[ -n "${SEAM_GATE_NEW_HEAD:-}" ]]; then
+  printf '%s\n' "$SEAM_GATE_NEW_HEAD" > "${SEAM_HEAD_DIR:?}/${SEAM_GATE_NEW_HEAD_PR:-5}"
+fi
+[[ "${SEAM_GATE_FAIL:-0}" != 1 ]] || exit 1
+_d='{"tier1":{"passed":true},"tier2":{"concerns":[]},"verdict":"APPROVED"}'
+echo "${SEAM_GATE:-$_d}"
 EOF
     chmod +x "$TMP/gateseam.sh"; export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
 }
@@ -115,6 +189,55 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 
 field() { python3 -c "import json,sys;print(json.load(sys.stdin)[\"$1\"])"; }
 action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
+call_count() {
+    python3 - "$1" "$SEAM_CALL_LOG" <<'PY'
+import sys
+
+op, path = sys.argv[1:3]
+with open(path, encoding="utf-8") as handle:
+    print(sum(1 for line in handle if line.split(maxsplit=1)[0] == op))
+PY
+}
+
+gate_count() {
+    python3 - "$SEAM_GATE_LOG" <<'PY'
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    print(sum(1 for line in handle if line.strip()))
+PY
+}
+
+fingerprint_state() {
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+import glob
+import os
+import sys
+
+paths = glob.glob(os.path.join(sys.argv[1], "fp_*.json"))
+assert len(paths) == 1, paths
+print(paths[0])
+PY
+}
+
+make_race_lock_seam() {
+    cat > "$TMP/race-lockseam.sh" <<'EOF'
+#!/usr/bin/env bash
+d="${SEAM_STATE:?}"; op="$1"; pr="$2"; owner="${3:-}"; pd="$d/$pr"; mkdir -p "$pd"
+case "$op" in
+  has)
+    newest="" ; shopt -s nullglob
+    for f in "$pd"/*; do newest="$(basename "$f")"; done
+    [ -n "$newest" ] || exit 1
+    printf '0\t%s\n' "$newest" ;;
+  add)
+    cp "${RACE_STATE:?}" "${RACE_DEST:?}"
+    : > "$pd/$owner" ;;
+  remove) rm -f "$pd/$owner" ;;
+esac
+EOF
+    chmod +x "$TMP/race-lockseam.sh"
+}
 
 @test "--help exits 0" { run "$SCRIPT" --help; [ "$status" -eq 0 ]; }
 
@@ -220,9 +343,19 @@ EOF
 # merge — the merge-gate block below covers that path. CONTENDED still yields
 # a benign "skip" (exit 0, see "a held lock makes the run skip" below).
 
-@test "tick: gate Tier-1 fail -> hand-human (never merge)" {
+@test "tick: gate Tier-1 fail -> hand-human and dedupes on second tick" {
     SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
     [ "$status" -eq 0 ] && [[ "$output" == *"hand-human"* ]] && [[ "$output" != *"merged"* ]]
+    [ -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+    gate_runs_before="$(gate_count)"
+    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "$gate_runs_before" ]
+}
+@test "tick: reviewer infrastructure failure degrades and never persists state" {
+    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED","reviewer_error":true}' run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"hand-human"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
 }
 @test "tick: failing checks -> revise (no gate, no merge)" {
     SEAM_BUCKETS="pass fail" run "$SCRIPT" tick 5
@@ -252,6 +385,292 @@ EOF
     [ "$status" -eq 0 ] && [[ "$output" == *$'\nskip'* ]]
 }
 
+# --- material fingerprinting and transition state ---
+@test "tick: identical material returns unchanged before reviewer or mutation calls" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"merge"* ]]
+    [ "$(gate_count)" = "1" ]
+
+    : > "$SEAM_CALL_LOG"
+    : > "$SEAM_LABEL_LOG"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "1" ]
+    [ "$(call_count admin-check)" = "0" ]
+    [ ! -s "$SEAM_LABEL_LOG" ]
+}
+
+@test "fingerprint state is namespaced, strict-schema JSON, atomic, and private" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    state="$(fingerprint_state)"
+    python3 - "$state" <<'PY'
+import json
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+    state = json.load(handle)
+assert set(state) == {"schema_version", "fingerprint", "action", "observed_at"}, state
+assert state["schema_version"] == 1
+assert len(state["fingerprint"]) == 64
+assert state["action"] == "merge"
+assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+assert not [name for name in os.listdir(os.path.dirname(path)) if ".tmp." in name]
+PY
+}
+
+@test "fingerprint state never collides for the same PR number in separate repositories" {
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/one"}'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/two"}'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+import glob
+import os
+import sys
+
+paths = glob.glob(os.path.join(sys.argv[1], "fp_*_5.json"))
+assert len(paths) == 2, paths
+PY
+}
+
+@test "head transition resumes exactly once" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+    printf 'sha2\n' > "$SEAM_HEAD_DIR/5"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    [ "$(gate_count)" = "2" ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+    [ "$(gate_count)" = "2" ]
+}
+
+@test "a CI rerun that is still pending resumes exactly once" {
+    export SEAM_BUCKETS="pending"
+    export SEAM_FP_CHECKS='[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"https://checks.invalid/1","startedAt":"2026-09-19T00:00:00Z","completedAt":null}]'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_CHECKS='[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"https://checks.invalid/2","startedAt":"2026-09-19T01:00:00Z","completedAt":null}]'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]] && [[ "$output" != *"unchanged"* ]]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]]
+}
+
+@test "a new review with the same decision resumes exactly once" {
+    export SEAM_LATEST_REVIEWS='[{"id":"R1","state":"APPROVED","submittedAt":"2026-09-19T00:00:00Z"}]'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_LATEST_REVIEWS='[{"id":"R2","state":"APPROVED","submittedAt":"2026-09-19T01:00:00Z"}]'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    [ "$(gate_count)" = "2" ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]]
+}
+
+@test "thread resolution resumes exactly once" {
+    export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z"}]}}]}}}}}'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z"}]}}]}}}}}'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]]
+}
+
+@test "array reordering and lease-label churn do not change the fingerprint" {
+    export SEAM_LABELS='["zeta","hold","loop-active:1:owner-a"]'
+    export SEAM_LATEST_REVIEWS='[{"id":"R2","state":"APPROVED","submittedAt":"2026-09-19T01:00:00Z"},{"id":"R1","state":"COMMENTED","submittedAt":"2026-09-19T00:00:00Z"}]'
+    export SEAM_FP_CHECKS='[{"name":"z","bucket":"pass","state":"COMPLETED","link":"z","startedAt":"2","completedAt":"3"},{"name":"a","bucket":"pass","state":"COMPLETED","link":"a","startedAt":"1","completedAt":"2"}]'
+    export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T2","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C2","createdAt":"2","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C2","createdAt":"2"}]}},{"id":"T1","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"1","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"1"}]}}]}}}}}'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+
+    export SEAM_LABELS='["loop-active:9:owner-b","hold","zeta"]'
+    export SEAM_LATEST_REVIEWS='[{"id":"R1","state":"COMMENTED","submittedAt":"2026-09-19T00:00:00Z"},{"id":"R2","state":"APPROVED","submittedAt":"2026-09-19T01:00:00Z"}]'
+    export SEAM_FP_CHECKS='[{"name":"a","bucket":"pass","state":"COMPLETED","link":"a","startedAt":"1","completedAt":"2"},{"name":"z","bucket":"pass","state":"COMPLETED","link":"z","startedAt":"2","completedAt":"3"}]'
+    export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"1","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"1"}]}},{"id":"T2","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C2","createdAt":"2","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C2","createdAt":"2"}]}}]}}}}}'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "1" ]
+}
+
+@test "apply mode, revision budget, and recorded disposition are fingerprint inputs" {
+    export SEAM_BUCKETS="pending"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    "$SCRIPT" address-cycle 5 > /dev/null
+    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+
+    "$SCRIPT" set-disposition 5 keep
+    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+}
+
+@test "failed or malformed observations degrade without overwriting good state" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    state="$(fingerprint_state)"
+    before="$(cat "$state")"
+
+    export SEAM_HEAD=sha2 SEAM_FP_FAIL=fp-checks
+    run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"observation"* ]]
+    [ "$(cat "$state")" = "$before" ]
+
+    unset SEAM_FP_FAIL
+    export SEAM_FP_VIEW='not-json'
+    run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ]
+    [ "$(cat "$state")" = "$before" ]
+}
+
+@test "corrupt state requires fresh processing and is replaced only after success" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    state="$(fingerprint_state)"
+    printf '{\n' > "$state"
+    : > "$SEAM_GATE_LOG"
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    [ "$(gate_count)" = "1" ]
+    python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["schema_version"] == 1' "$state"
+}
+
+@test "reviewer infrastructure failure is degraded and never records unchanged state" {
+    SEAM_GATE_FAIL=1 run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"review"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+}
+
+@test "failed remote mutation is degraded and never records unchanged state" {
+    # On this bundle the only reachable remote mutation is the action label —
+    # merge itself is hard-gated before gh_op do-merge. A rejected label write
+    # must degrade loudly and leave no transition state.
+    PR_MERGE_LOOP_APPLY=1 SEAM_LABEL_FAIL=1 run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"failure"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+}
+
+@test "fingerprint state write failure is degraded and preserves the conflicting path" {
+    printf 'user-owned\n' > "$TMP/not-a-state-directory"
+    export PR_MERGE_LOOP_STATE_DIR="$TMP/not-a-state-directory"
+    run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"state write failed"* ]]
+    [ "$(cat "$PR_MERGE_LOOP_STATE_DIR")" = "user-owned" ]
+}
+
+@test "external transition during dispatch leaves state unrecorded for the next tick" {
+    export SEAM_GATE_NEW_HEAD=sha2
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"transition"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+
+    unset SEAM_GATE_NEW_HEAD
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    [ "$(gate_count)" = "2" ]
+    state="$(fingerprint_state)"
+    [ -f "$state" ]
+}
+
+@test "worker that acquires after another persisted the same material returns unchanged" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]
+    state="$(fingerprint_state)"
+    cp "$state" "$TMP/raced-state"
+    rm "$state"
+    export RACE_STATE="$TMP/raced-state" RACE_DEST="$state"
+    make_race_lock_seam
+    : > "$SEAM_GATE_LOG"
+    LOOP_LOCK_LABEL_CMD="$TMP/race-lockseam.sh" run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "0" ]
+}
+
+@test "GitHub fingerprint checks accept documented pending and failed statuses only with valid JSON" {
+    mkdir -p "$TMP/fake-bin"
+    cat > "$TMP/fake-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == "pr" && "$2" == "checks" ]] || exit 64
+cat "${GH_CHECK_PAYLOAD:?}"
+exit "${GH_CHECK_RC:-0}"
+EOF
+    chmod +x "$TMP/fake-bin/gh"
+    printf '%s\n' '[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"","startedAt":"2026-09-19T00:00:00Z","completedAt":null}]' > "$TMP/checks.json"
+
+    script_dir="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin"
+    fragment_path="lib/pr_merge_loop_gh.sh"
+        for check_rc in 8 1; do
+            PATH="$TMP/fake-bin:$PATH" MANIFEST_GIT_PLATFORM=github \
+                GH_CHECK_PAYLOAD="$TMP/checks.json" GH_CHECK_RC="$check_rc" \
+                run bash -c '
+set -euo pipefail
+unset PR_MERGE_LOOP_GH_CMD
+SCRIPT_DIR="$1"; STATE_DIR="$2"; AUTHORS_FILE=/dev/null
+err() { printf "%s\n" "$*" >&2; }
+_net() { "$@"; }
+source "$SCRIPT_DIR/$3"
+gh_op fp-checks 5
+' _ "$script_dir" "$TMP/fragment-state" "$fragment_path"
+            [ "$status" -eq 0 ]
+            echo "$output" | python3 -c 'import json,sys; assert json.load(sys.stdin)[0]["name"] == "ci"'
+        done
+
+    printf 'not-json\n' > "$TMP/checks.json"
+    PATH="$TMP/fake-bin:$PATH" MANIFEST_GIT_PLATFORM=github \
+        GH_CHECK_PAYLOAD="$TMP/checks.json" GH_CHECK_RC=8 \
+        run bash -c '
+set -euo pipefail
+unset PR_MERGE_LOOP_GH_CMD
+SCRIPT_DIR="$1"; STATE_DIR="$2"; AUTHORS_FILE=/dev/null
+err() { printf "%s\n" "$*" >&2; }
+_net() { "$@"; }
+source "$SCRIPT_DIR/lib/pr_merge_loop_gh.sh"
+gh_op fp-checks 5
+' _ "$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin" "$TMP/fragment-state"
+    [ "$status" -ne 0 ]
+}
+
+@test "unsupported provider fingerprinting is a visible non-success" {
+    unset PR_MERGE_LOOP_GH_CMD
+    PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"unsupported"* ]]
+}
+@test "gitlab: merge fails closed (no auto-merge parity → ready-to-merge + human)" {
+    unset PR_MERGE_LOOP_GH_CMD                # exercise the real platform branch
+    PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" merge 5
+    [ "$status" -eq 78 ]
+}
+
 # --- T026: run loop driver + hard ceiling ---
 @test "run: _net passes through and returns command output" {
     run "$SCRIPT" _net echo hi
@@ -273,28 +692,37 @@ EOF
     [[ "$output" != *"merged"* ]]
 }
 
-@test "run: fully-idle passes increment empty-run and stop at 5" {
+@test "run: fully idle pass stops immediately" {
     export SEAM_LIST='[]' PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
     run "$SCRIPT" run
     [ "$status" -eq 0 ]
-    [ "$("$SCRIPT" empty-run get)" = "5" ]
+    [ "$("$SCRIPT" empty-run get)" = "1" ]
+    [[ "$output" == *"first unchanged pass"* ]]
 }
 
-@test "run: an in-flight (waiting) PR resets the empty-run counter" {
-    "$SCRIPT" empty-run incr; "$SCRIPT" empty-run incr; "$SCRIPT" empty-run incr; "$SCRIPT" empty-run incr
-    [ "$("$SCRIPT" empty-run get)" = "4" ]
-    # now-seam: plenty of zeros (>=1 pass) then sticky-huge to exit
-    cat > "$TMP/now.sh" <<'EOF'
-#!/usr/bin/env bash
-c="${TMP:?}/nowc"; n=$(( $( [ -f "$c" ] && cat "$c" || echo 0 ) + 1 )); echo "$n" > "$c"
-[ "$n" -le 8 ] && echo 0 || echo 999999
-EOF
-    chmod +x "$TMP/now.sh"
-    export PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh" TMP PR_MERGE_LOOP_CEILING_SEC=10 PR_MERGE_LOOP_POLL_SEC=0
+@test "run: changed waiting PR is handled once, then the first unchanged pass stops" {
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
     export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]' SEAM_BUCKETS="pending"
     run "$SCRIPT" run
     [ "$status" -eq 0 ]
-    [ "$("$SCRIPT" empty-run get)" = "0" ]
+    [ "$("$SCRIPT" empty-run get)" = "1" ]
+    [ "$(call_count fp-view)" = "4" ]
+}
+
+@test "run: one changed PR does not reopen work on unchanged siblings" {
+    "$SCRIPT" tick 5 > /dev/null
+    "$SCRIPT" tick 6 > /dev/null
+    : > "$SEAM_GATE_LOG"
+    : > "$SEAM_CALL_LOG"
+    printf 'sha2\n' > "$SEAM_HEAD_DIR/5"
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}},{"number":6,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [ "$(gate_count)" = "1" ]
+    [ "$(call_count headsha)" = "1" ] # headsha runs only for the fully-processed PR
 }
 
 @test "run: halt action propagates exit 11" {
@@ -434,10 +862,126 @@ EOF
 }
 
 # =====================================================================
-# MERGE HARD GATE (CDDL QA-critic finding): `merge` in this bundle copy always
-# refuses (exit 78) — the retired operator copy's live-merge tests are deleted
-# above; this block covers the gate itself and the read-only subset.
+# VENDORED COPY (plugins/manifest-forge/runtime/bin/pr_merge_loop.sh) —
+# shared fingerprint/race/idle behavior is repeated at this boundary.
+# Its structural merge gate remains intentionally different and is tested
+# independently below.
 # =====================================================================
+
+@test "vendored: identical material skips repeated review and label mutation" {
+    PR_MERGE_LOOP_APPLY=1 run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"automated merge is disabled"* ]]
+    [ "$(gate_count)" = "1" ] && [ "$(call_count add-label)" = "1" ]
+
+    PR_MERGE_LOOP_APPLY=1 run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "1" ] && [ "$(call_count add-label)" = "1" ]
+}
+
+@test "vendored: a head transition resumes exactly once" {
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    printf 'sha2\n' > "$SEAM_HEAD_DIR/5"
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    [ "$(gate_count)" = "2" ]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+    [ "$(gate_count)" = "2" ]
+}
+
+@test "vendored: CI rerun, new review, and thread resolution each resume once" {
+    export SEAM_BUCKETS="pending"
+    export SEAM_FP_CHECKS='[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"https://checks.invalid/1","startedAt":"2026-09-19T00:00:00Z","completedAt":null}]'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_CHECKS='[{"name":"ci","bucket":"pending","state":"IN_PROGRESS","link":"https://checks.invalid/2","startedAt":"2026-09-19T01:00:00Z","completedAt":null}]'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"wait"* ]] && [[ "$output" != *"unchanged"* ]]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_LATEST_REVIEWS='[{"id":"R1","state":"APPROVED","submittedAt":"2026-09-19T02:00:00Z"}]'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z"}]}}]}}}}}'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+
+    export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":true,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T03:00:00Z"}]}}]}}}}}'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    run "$VENDORED" tick 5
+    [[ "$output" == *"unchanged"* ]]
+}
+
+@test "vendored: repositories namespace same-number PR state" {
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/one"}'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ]
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/two"}'
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+import glob
+import os
+import sys
+
+assert len(glob.glob(os.path.join(sys.argv[1], "fp_*_5.json"))) == 2
+PY
+}
+
+@test "vendored: observation and reviewer failures never create transition state" {
+    SEAM_FP_FAIL=fp-checks run "$VENDORED" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"observation"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+
+    SEAM_GATE_FAIL=1 run "$VENDORED" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"review"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+}
+
+@test "vendored: second worker rechecks state after acquiring the lease" {
+    run "$VENDORED" tick 5
+    [ "$status" -eq 0 ]
+    state="$(fingerprint_state)"
+    cp "$state" "$TMP/raced-state"
+    rm "$state"
+    export RACE_STATE="$TMP/raced-state" RACE_DEST="$state"
+    make_race_lock_seam
+    : > "$SEAM_GATE_LOG"
+
+    LOOP_LOCK_LABEL_CMD="$TMP/race-lockseam.sh" run "$VENDORED" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "0" ]
+}
+
+@test "vendored: run handles a transition once and stops on the first idle pass" {
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    run "$VENDORED" run
+    [ "$status" -eq 0 ] && [[ "$output" == *"first unchanged pass"* ]]
+    [ "$(gate_count)" = "1" ]
+    [ "$(call_count fp-view)" = "4" ]
+    [ "$("$VENDORED" empty-run get)" = "1" ]
+}
+
+@test "vendored: failed update action is degraded and leaves no transition state" {
+    SEAM_MRG="MERGEABLE BEHIND" SEAM_UPDATE_FAIL=1 run "$VENDORED" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"update-branch action failed"* ]]
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+}
 
 @test "vendored: merge is hard-gated regardless of PR_MERGE_LOOP_APPLY (dry-run)" {
     PR_MERGE_LOOP_APPLY=0 run "$SCRIPT" merge 5
@@ -486,7 +1030,8 @@ EOF
         [[ "$output" == *"proceeding WITHOUT it"* ]] && \
         [[ "$output" != *"locked — skipping"* ]] && \
         [[ "$output" != *$'\nskip'* ]] && \
-        [[ "$output" == *"automated merge is disabled"* ]] # reached the real dispatch (merge -> hard gate)
+        [[ "$output" == *"automated merge is disabled"* ]] || return 1 # reached the real dispatch (merge -> hard gate)
+    [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
 }
 @test "vendored REGRESSION: genuinely held lease (a live, non-stale lease owned by someone else) — tick still declines" {
     # Seed a real lease via the SAME (pr)/(owner-file) layout `has` reads —

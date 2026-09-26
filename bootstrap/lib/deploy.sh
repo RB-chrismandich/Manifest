@@ -484,48 +484,222 @@ list_deployed_files() {
     return 0
 }
 
-# Manifest-tracked prune of orphan Cursor rules (spec 2026-07-11
-# cursor-feature-parity WS-3 / #505). Mirrors deploy_home_skills's
-# prune model (common.sh:144-171): a `.deployed-rules` manifest records the
-# *.mdc basenames we shipped last deploy; anything in that manifest that is
-# no longer in the source (skill renamed/removed) AND still present in dest
-# gets removed. Rules never in the manifest — i.e. user-authored rules the
-# user dropped into ~/.cursor/rules/ themselves — are never touched.
-# orchestration.mdc and commands-index.mdc are excluded from the manifest (and
-# thus never prune-eligible): they are hand/generator-maintained singletons,
-# not one-per-skill.
+# Cursor rule ownership predicates used when the legacy `.deployed-rules`
+# manifest is absent. A generated skill rule is owned only when BOTH marker
+# lines exactly match the destination basename; marker-like user content is
+# not sufficient proof. commands-index has its own generator markers and
+# remains a protected singleton outside the ownership manifest.
+cursor_rule_has_generator_markers() {
+    local rule_file="$1"
+    local rule_name="$2"
+    local skill_name
+
+    [[ -f "$rule_file" && ! -L "$rule_file" && "$rule_name" == *.mdc ]] || return 1
+    skill_name="${rule_name%.mdc}"
+    grep -Fqx "<!-- Auto-generated from .claude/skills/$skill_name/SKILL.md -->" "$rule_file" &&
+        grep -Fqx '<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->' "$rule_file"
+}
+
+cursor_commands_index_has_generator_markers() {
+    local rule_file="$1"
+
+    [[ -f "$rule_file" && ! -L "$rule_file" ]] || return 1
+    grep -Fqx '<!-- Auto-generated from .apm/skills/ via generate_commands_doc.py --compact -->' "$rule_file" &&
+        grep -Fqx '<!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->' "$rule_file"
+}
+
+cursor_manifest_has_rule() {
+    local manifest="$1"
+    local rule_name="$2"
+
+    [[ -f "$manifest" ]] && grep -Fqx -- "$rule_name" "$manifest"
+}
+
+cursor_copy_rule() {
+    local source_rule="$1"
+    local destination_rule="$2"
+
+    if ! cp "$source_rule" "$destination_rule"; then
+        print_error "Could not deploy Cursor rule: $(basename "$source_rule")"
+        return 1
+    fi
+}
+
+cursor_remove_rule_temps() {
+    local path
+
+    for path in "$@"; do
+        [[ -z "$path" ]] || rm -f "$path" || true
+    done
+}
+
+# Reconcile and atomically record owned Cursor rules. An existing manifest is
+# authoritative for ordinary rules. Without one, exact generator markers
+# recover ownership, generated orphans are removed, and unrecognized files are
+# preserved. Markerless orchestration.mdc is owned only while its destination
+# is byte-identical to the canonical source; a mismatch is a visible conflict.
 prune_cursor_rules() {
     local src_rules_dir="$1"
     local dest_rules_dir="$2"
     local manifest="$dest_rules_dir/.deployed-rules"
+    local manifest_existed=false
+    local source_list="" destination_list="" old_manifest="" new_manifest=""
 
-    local src_rule_count
-    src_rule_count=$(find "$src_rules_dir" -maxdepth 1 -type f -name '*.mdc' | wc -l | tr -d ' ')
+    [[ -f "$manifest" ]] && manifest_existed=true
 
-    if [[ -f "$manifest" && "$src_rule_count" -gt 0 ]]; then
-        local rule_name
+    source_list="$(mktemp "${manifest}.sources.XXXXXX")" || {
+        print_error "Could not enumerate canonical Cursor rules"
+        return 1
+    }
+    if ! find "$src_rules_dir" -maxdepth 1 -type f -name '*.mdc' > "$source_list" ||
+        ! LC_ALL=C sort -o "$source_list" "$source_list"; then
+        cursor_remove_rule_temps "$source_list"
+        print_error "Could not enumerate canonical Cursor rules"
+        return 1
+    fi
+
+    # An empty source can indicate a broken checkout. Preserve both deployed
+    # files and the last good ownership record rather than mass-pruning or
+    # replacing the record with an empty manifest.
+    if [[ ! -s "$source_list" ]]; then
+        cursor_remove_rule_temps "$source_list"
+        return 0
+    fi
+
+    destination_list="$(mktemp "${manifest}.destinations.XXXXXX")" || {
+        cursor_remove_rule_temps "$source_list"
+        print_error "Could not enumerate deployed Cursor rules"
+        return 1
+    }
+    new_manifest="$(mktemp "${manifest}.tmp.XXXXXX")" || {
+        cursor_remove_rule_temps "$source_list" "$destination_list"
+        print_error "Could not create Cursor rule ownership manifest"
+        return 1
+    }
+
+    if [[ "$manifest_existed" == true ]]; then
+        old_manifest="$(mktemp "${manifest}.previous.XXXXXX")" || {
+            cursor_remove_rule_temps "$source_list" "$destination_list" "$new_manifest"
+            print_error "Could not snapshot Cursor rule ownership"
+            return 1
+        }
+        if ! cp "$manifest" "$old_manifest"; then
+            cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+            print_error "Could not read Cursor rule ownership"
+            return 1
+        fi
+    else
+        if ! find "$dest_rules_dir" -maxdepth 1 -type f -name '*.mdc' > "$destination_list" ||
+            ! LC_ALL=C sort -o "$destination_list" "$destination_list"; then
+            cursor_remove_rule_temps "$source_list" "$destination_list" "$new_manifest"
+            print_error "Could not enumerate deployed Cursor rules"
+            return 1
+        fi
+    fi
+
+    local destination_rule rule_name
+    if [[ "$manifest_existed" != true ]]; then
+        while IFS= read -r destination_rule; do
+            rule_name="${destination_rule##*/}"
+            case "$rule_name" in
+                orchestration.mdc | commands-index.mdc) continue ;;
+            esac
+            if [[ ! -f "$src_rules_dir/$rule_name" ]] &&
+                cursor_rule_has_generator_markers "$destination_rule" "$rule_name"; then
+                if ! rm -f "$destination_rule"; then
+                    cursor_remove_rule_temps "$source_list" "$destination_list" "$new_manifest"
+                    print_error "Could not prune orphan Cursor rule: $rule_name"
+                    return 1
+                fi
+                print_info "Pruned orphan Cursor rule: $rule_name"
+            fi
+        done < "$destination_list"
+    fi
+
+    local source_rule
+    while IFS= read -r source_rule; do
+        rule_name="${source_rule##*/}"
+        destination_rule="$dest_rules_dir/$rule_name"
+
+        case "$rule_name" in
+            commands-index.mdc)
+                if [[ ! -e "$destination_rule" && ! -L "$destination_rule" ]]; then
+                    cursor_copy_rule "$source_rule" "$destination_rule" || {
+                        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                        return 1
+                    }
+                elif cursor_commands_index_has_generator_markers "$destination_rule" ||
+                    cmp -s "$source_rule" "$destination_rule"; then
+                    cursor_copy_rule "$source_rule" "$destination_rule" || {
+                        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                        return 1
+                    }
+                else
+                    print_warning "Preserved unrecognized Cursor rule: $rule_name"
+                fi
+                continue
+                ;;
+            orchestration.mdc)
+                if [[ ! -e "$destination_rule" && ! -L "$destination_rule" ]]; then
+                    cursor_copy_rule "$source_rule" "$destination_rule" || {
+                        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                        return 1
+                    }
+                elif ! cmp -s "$source_rule" "$destination_rule"; then
+                    print_warning "Cursor rule conflict: orchestration.mdc differs from canonical source; preserved existing file"
+                    continue
+                fi
+                ;;
+            *)
+                if [[ ! -e "$destination_rule" && ! -L "$destination_rule" ]]; then
+                    cursor_copy_rule "$source_rule" "$destination_rule" || {
+                        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                        return 1
+                    }
+                elif { [[ "$manifest_existed" == true ]] &&
+                    cursor_manifest_has_rule "$old_manifest" "$rule_name"; } ||
+                    cursor_rule_has_generator_markers "$destination_rule" "$rule_name"; then
+                    cursor_copy_rule "$source_rule" "$destination_rule" || {
+                        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                        return 1
+                    }
+                else
+                    print_warning "Preserved unrecognized Cursor rule: $rule_name"
+                    continue
+                fi
+                ;;
+        esac
+
+        if ! printf '%s\n' "$rule_name" >> "$new_manifest"; then
+            cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+            print_error "Could not build Cursor rule ownership manifest"
+            return 1
+        fi
+    done < "$source_list"
+
+    if [[ "$manifest_existed" == true ]]; then
         while IFS= read -r rule_name; do
             case "$rule_name" in
                 '' | */* | .* | *..* | orchestration.mdc | commands-index.mdc) continue ;;
             esac
             if [[ ! -f "$src_rules_dir/$rule_name" && -f "$dest_rules_dir/$rule_name" ]]; then
-                rm -f "${dest_rules_dir:?}/${rule_name}"
+                if ! rm -f "${dest_rules_dir:?}/${rule_name}"; then
+                    cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+                    print_error "Could not prune orphan Cursor rule: $rule_name"
+                    return 1
+                fi
                 print_info "Pruned orphan Cursor rule: $rule_name"
             fi
-        done < "$manifest"
+        done < "$old_manifest"
     fi
 
-    # Atomic manifest write: a failed subshell must not truncate the previous
-    # manifest (that would silently disable future pruning). The two
-    # protected singletons are excluded at the find level so they can never
-    # end up manifest-tracked / prune-eligible.
-    if (cd "$src_rules_dir" && find . -maxdepth 1 -type f -name '*.mdc' \
-        ! -name 'orchestration.mdc' ! -name 'commands-index.mdc' |
-        LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
-        mv "$manifest.tmp" "$manifest"
-    else
-        rm -f "$manifest.tmp"
+    if ! mv -f "$new_manifest" "$manifest"; then
+        cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest" "$new_manifest"
+        print_error "Could not record Cursor rule ownership"
+        return 1
     fi
+    cursor_remove_rule_temps "$source_list" "$destination_list" "$old_manifest"
+    return 0
 }
 
 # configure_codex_skill_source — establish only the safe legacy fallback.
@@ -703,11 +877,15 @@ deploy_cursor_configs() {
     # Create .cursor directory structure
     mkdir -p "$CURSOR_TARGET_DIR/rules"
 
-    # Copy .mdc rule files
+    # Reconcile before copying: an absent ownership manifest requires
+    # conflict-aware recovery, so a wildcard copy here would destroy the very
+    # destination evidence used to distinguish generated and custom files.
     if [[ -d "$cursor_source_dir/rules" ]]; then
-        cp "$cursor_source_dir/rules"/*.mdc "$CURSOR_TARGET_DIR/rules/" 2> /dev/null || true
+        if ! prune_cursor_rules "$cursor_source_dir/rules" "$CURSOR_TARGET_DIR/rules"; then
+            print_error "Cursor rule deployment failed"
+            return 1
+        fi
         print_success "Deployed Cursor rules to $CURSOR_TARGET_DIR/rules/"
-        prune_cursor_rules "$cursor_source_dir/rules" "$CURSOR_TARGET_DIR/rules"
     fi
 
     # Merge MCP defaults without replacing user servers or bearer headers.
