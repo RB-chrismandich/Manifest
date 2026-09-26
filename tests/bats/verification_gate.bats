@@ -81,7 +81,7 @@ EOF
     echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["reviewer_error"] is True;assert d["verdict"]=="BLOCKED"'
 }
 
-@test "review: Tier-1 failure returns reviewer_error" {
+@test "review: Tier-1 failure returns non-error BLOCKED verdict" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash
 echo '{"tier1":{"passed":false},"tier2":{"concerns":[]},"consensus_score":0.9,"verdict":"BLOCKED"}'
@@ -89,7 +89,7 @@ EOF
     chmod +x "$TMP/seam.sh"
     VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
     [ "$status" -eq 0 ]
-    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["reviewer_error"] is True;assert d["tier1"]["passed"] is False'
+    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d.get("reviewer_error") is not True;assert d["tier1"]["passed"] is False;assert d["verdict"]=="BLOCKED"'
 }
 
 @test "review: seam non-zero -> reviewer_error sentinel (fail closed)" {

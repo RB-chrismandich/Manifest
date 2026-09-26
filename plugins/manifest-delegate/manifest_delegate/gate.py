@@ -13,13 +13,7 @@ from .envelope import validate_findings
 
 
 def _gate_allow(reason=None, json_mode=False, cause=None):
-    """Emit the Stop-hook approval outcome, optionally noting why the gate was skipped.
-
-    `reason` is the detailed (possibly dynamic) explanation used for the
-    legacy stderr/systemMessage output. `cause` is the coarse, stable label
-    (gate disabled / stop-hook-active / no code edits / backend unready)
-    reported in --json mode; it defaults to `reason` when omitted.
-    """
+    """Emit approval only for an explicit skip: disabled, guarded, or no edits."""
     if reason:
         sys.stderr.write(f"delegate: review gate skipped: {reason}\n")
         if not json_mode:
@@ -33,14 +27,45 @@ def _gate_allow(reason=None, json_mode=False, cause=None):
     return 0
 
 
+_INFRA_REASON_CODES = frozenset(
+    {
+        "backend_error",
+        "backend_unavailable",
+        "gate_execution_failed",
+        "invalid_review",
+        "prompt_unavailable",
+        "review_incomplete",
+        "review_timeout",
+        "transcript_unreadable",
+        "working_tree_unavailable",
+    }
+)
+
+
+def _gate_block_infra(reason, json_mode=False):
+    """Emit one sanitized block when review evidence cannot be established."""
+    reason_code = reason if reason in _INFRA_REASON_CODES else "gate_execution_failed"
+    message = (
+        f"Review gate could not verify this turn ({reason_code}); make no tool calls or "
+        "edits; report the failure to the developer for a decision."
+    )
+    if not json_mode:
+        sys.stderr.write(f"delegate: review gate blocked: {reason_code}\n")
+    print(json.dumps({"decision": "block", "reason": message}))
+    return 0
+
+
 def _gate_resolve_backend(gate_cfg, backends, user_config, services_disabled):
     """Resolve and validate the gate backend. Returns (entry, error_reason)."""
     backend_id = gate_cfg.get("backend") or user_config.get("default_backend")
     entry = registry.resolve_backend(backends, backend_id)
     if entry is None:
         return None, f"unknown gate backend {backend_id!r}"
-    if (entry.get("execution") or {}).get("read_only") is False:
-        return None, "remote backend does not support a read-only review gate"
+    execution = entry.get("execution")
+    if execution is not None and (
+        not isinstance(execution, dict) or execution.get("read_only") is False
+    ):
+        return None, "backend {} cannot guarantee read-only review".format(entry["id"])
     enabled, layer = config.effective_backend_enabled(
         entry["id"], user_config, services_disabled
     )
@@ -85,8 +110,8 @@ def _gate_build_prompt(entry):
     """Assemble and size-check the gate review prompt. Returns (prompt, prompt_bytes, error_reason)."""
     try:
         diff = review.assemble_review_diff("auto", None, cwd=None)
-    except (OSError, ValueError, RuntimeError) as exc:
-        return None, None, f"could not assemble review diff ({exc})"
+    except (OSError, ValueError, RuntimeError, review.ReviewDiffError):
+        return None, None, "could not assemble review diff"
     prompt = _GATE_PROMPT_INSTRUCTIONS + diff
     prompt_bytes = prompt.encode("utf-8")
     limit_error = backend.check_payload_limits(entry, prompt_bytes)
@@ -140,30 +165,29 @@ def cmd_gate(args, backends, user_config, services_disabled):
 
     try:
         edits_present, bash_used = _finishing_turn_tool_use(args.transcript)
-    except (OSError, ValueError) as exc:
-        return _gate_allow(
-            f"could not read transcript {args.transcript} ({exc})",
-            json_mode=json_mode,
-            cause="backend unready",
-        )
-    # Dedicated edit tools are the clear signal. The edit-tool allowlist misses
-    # shell-mediated changes (sed -i, redirection, formatters, generators, patch
-    # tools), so also review when the finishing turn used Bash AND the working
-    # tree actually changed — otherwise a turn that only ran `sed -i` would
-    # silently bypass the gate. A Bash turn that changed nothing still allows
-    # (no over-trigger).
-    if not edits_present and not (bash_used and _working_tree_has_changes()):
-        return _gate_allow(json_mode=json_mode, cause="no code edits")
+    except (OSError, UnicodeError, ValueError):
+        return _gate_block_infra("transcript_unreadable", json_mode=json_mode)
+    # Dedicated edit tools are the clear signal. Shell-mediated changes also
+    # require review when git proves the tree changed. If git cannot establish
+    # that fact, uncertainty blocks instead of being misreported as no edits.
+    if not edits_present:
+        if not bash_used:
+            return _gate_allow(json_mode=json_mode, cause="no code edits")
+        tree_changed = _working_tree_has_changes()
+        if tree_changed is None:
+            return _gate_block_infra("working_tree_unavailable", json_mode=json_mode)
+        if not tree_changed:
+            return _gate_allow(json_mode=json_mode, cause="no code edits")
 
     entry, error_reason = _gate_resolve_backend(
         gate_cfg, backends, user_config, services_disabled
     )
     if error_reason:
-        return _gate_allow(error_reason, json_mode=json_mode, cause="backend unready")
+        return _gate_block_infra("backend_unavailable", json_mode=json_mode)
 
     prompt, prompt_bytes, error_reason = _gate_build_prompt(entry)
     if error_reason:
-        return _gate_allow(error_reason, json_mode=json_mode, cause="backend unready")
+        return _gate_block_infra("prompt_unavailable", json_mode=json_mode)
 
     budget = min(
         backend.resolve_budget(entry, user_config, gate_cfg.get("budget_seconds")),
@@ -192,39 +216,28 @@ def _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, transcr
 
     record = store.mutate(job_id, _claim_running)
 
-    final = worker._run_backend_foreground(store, job_id, entry, record, prompt_bytes)
-    if final.get("state") == "timeout":
-        return _gate_allow(
-            f"gate review timed out after {budget}s",
-            json_mode=json_mode,
-            cause="backend unready",
+    try:
+        final = worker._run_backend_foreground(
+            store, job_id, entry, record, prompt_bytes
         )
+    # This is the security boundary: an unexpected reviewer/runtime failure is
+    # uncertainty and therefore a block. Never relay the exception text.
+    except Exception:  # constitution: exempt C-ERR -- fail-closed gate boundary
+        return _gate_block_infra("gate_execution_failed", json_mode=json_mode)
+    if final.get("state") == "timeout":
+        return _gate_block_infra("review_timeout", json_mode=json_mode)
 
     envelope = final.get("envelope") or {}
     if envelope.get("error"):
-        return _gate_allow(
-            "gate review failed ({})".format(envelope["error"]),
-            json_mode=json_mode,
-            cause="backend unready",
-        )
+        return _gate_block_infra("backend_error", json_mode=json_mode)
 
     findings, error_reason = _gate_validate_findings(envelope)
     if error_reason:
-        return _gate_allow(error_reason, json_mode=json_mode, cause="backend unready")
+        return _gate_block_infra("invalid_review", json_mode=json_mode)
     if not findings:
-        # An empty findings list is only a CLEAN pass on outcome=success. A
-        # `partial` outcome means the reviewer could not inspect the whole diff,
-        # so "no findings" there is incomplete coverage, not a clean review —
-        # reporting it as clean would be a false-green. Fail open (a Stop hook
-        # must never trap the turn) but say the coverage was incomplete.
         if envelope.get("outcome") == "success":
             return _gate_allow(json_mode=json_mode, cause="no findings")
-        return _gate_allow(
-            "gate review returned outcome={!r} with no findings — coverage was "
-            "incomplete, not a clean review".format(envelope.get("outcome")),
-            json_mode=json_mode,
-            cause="review incomplete",
-        )
+        return _gate_block_infra("review_incomplete", json_mode=json_mode)
 
     print(json.dumps(_gate_format_block(findings)))
     return 0
@@ -234,17 +247,23 @@ _EDIT_TOOL_NAMES = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 
 def _iter_transcript_entries(transcript_path):
-    """Yield parsed JSONL entries, skipping blank and malformed lines. Streams
-    one line at a time so a very long session cannot exhaust memory."""
+    """Yield strict JSONL objects and reject empty or malformed transcripts."""
+    saw_entry = False
     with open(transcript_path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
                 continue
             try:
-                yield json.loads(line)
-            except json.JSONDecodeError:
-                continue
+                entry = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError("malformed transcript JSONL") from exc
+            if not isinstance(entry, dict):
+                raise ValueError("transcript entry is not an object")
+            saw_entry = True
+            yield entry
+    if not saw_entry:
+        raise ValueError("empty transcript")
 
 
 def _is_tool_result_carrier(entry):
@@ -294,9 +313,7 @@ def _finishing_turn_has_edits(transcript_path):
 
 
 def _working_tree_has_changes(cwd=None):
-    """True iff `git status --porcelain` reports any tracked or untracked change.
-    Fails CLOSED to False (allow) on any git error: a gate must never block a
-    turn because it could not inspect the tree."""
+    """Return change state, or ``None`` when git cannot make the observation."""
     try:
         proc = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -305,5 +322,7 @@ def _working_tree_has_changes(cwd=None):
             cwd=cwd,
         )
     except OSError:
-        return False
-    return proc.returncode == 0 and bool(proc.stdout.strip())
+        return None
+    if proc.returncode != 0:
+        return None
+    return bool(proc.stdout.strip())
