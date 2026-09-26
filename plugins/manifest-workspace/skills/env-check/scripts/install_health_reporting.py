@@ -202,12 +202,15 @@ def _validate_receipt(receipt: dict, paths: InstallPaths) -> None:
         for value in executables.values()
     ):
         raise InstallError("health installation manifest has non-absolute executables")
+    files = receipt.get("files")
     if not isinstance(files, dict):
         raise InstallError(
             "health installation manifest has an invalid runtime inventory"
         )
     RETIRED_SOURCES = frozenset({"plugin_reconcile.py"})
-    valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (set(RUNTIME_SOURCES) | RETIRED_SOURCES)
+    valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (
+        set(RUNTIME_SOURCES) | RETIRED_SOURCES
+    )
     if not valid_keys:
         raise InstallError(
             "health installation manifest has an invalid runtime inventory"
