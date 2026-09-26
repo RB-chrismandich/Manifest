@@ -83,10 +83,11 @@ bare names fail to resolve when multiple MCP servers are connected:
 | provision a node | `mcp__atlassian__createJiraIssue` (parent field set) | `lifecycle.sh provision … --external-id <new-key>` |
 | apply status | `mcp__atlassian__getTransitionsForJiraIssue` → `mcp__atlassian__transitionJiraIssue` (by **id**, never free-text) | mirror canonical status |
 
-For GitHub/GitLab (`git_ops.sh`) the provision backend is the `LIFECYCLE_PROVISION_CMD` seam
-wrapping those CLIs, and status renders as a canonical **label** via `label_sync.sh`. Linear
-(`linear_ops.sh`) uses the same seam but status renders as a workflow **state** (GraphQL
-`transition-state`), not a label — per each provider's `status_via` in the config.
+For GitHub/GitLab, `LIFECYCLE_PROVISION_CMD` is a provision seam over native
+`gh issue create` / `glab issue create`; status renders as a canonical **label**
+via `label_sync.sh`. Linear (`linear_ops.sh`) uses the same seam but status renders
+as a workflow **state** (GraphQL `transition-state`), not a label — per each
+provider's `status_via` in the config.
 
 ## Notes
 

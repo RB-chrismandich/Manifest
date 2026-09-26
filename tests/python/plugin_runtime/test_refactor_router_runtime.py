@@ -44,7 +44,7 @@ def _resolved_local_routing_sources(skill: Path) -> tuple[str, ...]:
 
 def _assert_no_count_based_router_activation(sources: tuple[str, ...]) -> None:
     assert not re.search(
-        r"sub-agent-dispatch\.md|architectural|>200-line|≥3 independent units|three or more language|independent_units >=",
+        r"architectural|>200-line|≥3 independent units|three or more language|independent_units >=",
         "\n".join(sources).lower(),
     )
 
@@ -87,7 +87,7 @@ def test_refactor_router_guidance_defaults_single_agent_and_escalates_risk(
         "only when the investigation has genuinely independent analysis tracks"
         in " ".join(dispatch.group(1).split())
     )
-    assert "pinned `sonnet` model" in dispatch.group(1)
+    assert "pinned `sonnet` model" not in dispatch.group(1)
     assert "does not re-dispatch" in " ".join(references[1].split())
     _assert_no_count_based_router_activation((source, *references))
 

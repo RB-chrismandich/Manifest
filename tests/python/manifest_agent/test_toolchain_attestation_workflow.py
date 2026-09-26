@@ -44,7 +44,7 @@ def test_dispatch_attestation_preserves_only_machine_parseable_evidence() -> Non
     job = _attestation_job()
 
     assert re.search(
-        r'"\$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision .*--platform linux-x64 '
+        r'"\$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision .*--platform linux-arm64 '
         r'--store "\$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "\$report"',
         job,
     )

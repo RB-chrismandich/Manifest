@@ -72,3 +72,36 @@ def test_scan_reports_ink_and_enforces_radius_limit(ras, tmp_path):
     # the white block reaches ~r=24.7 from center; a tighter limit must fail
     assert ras.scan(ras.parse_args([*base, "--radius-limit", "20"])) == 1
     assert ras.scan(ras.parse_args([*base, "--radius-limit", "30"])) == 0
+
+
+def test_radius_limit_fails_on_small_ink_outside_top_20(ras, tmp_path, capsys):
+    Image = pytest.importorskip("PIL.Image")
+    img = Image.new("RGB", (100, 100), (0, 0, 0))
+    for i in range(21):
+        x0 = 32 + (i % 5) * 7
+        y0 = 32 + (i // 5) * 7
+        color = (20 + i * 10, 100, 200)
+        for x in range(x0, x0 + 6):
+            for y in range(y0, y0 + 6):
+                img.putpixel((x, y), color)
+    for x in range(92, 95):
+        for y in range(92, 95):
+            img.putpixel((x, y), (255, 255, 0))
+    png = tmp_path / "screen.png"
+    img.save(png)
+
+    args = ras.parse_args(
+        [
+            "in.html",
+            str(png),
+            "--scan-only",
+            "--frame",
+            "100x100",
+            "--min-pixels",
+            "5",
+            "--radius-limit",
+            "30",
+        ]
+    )
+    assert ras.scan(args) == 1
+    assert "EXCEEDS LIMIT (outside top 20)" in capsys.readouterr().out

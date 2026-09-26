@@ -1,28 +1,37 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/pr_review.sh
+# Tests for plugins/manifest-forge/runtime/bin/pr_review.sh
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
-SCRIPT="$REPO_ROOT/configs/claude/scripts/pr_review.sh"
+SCRIPT="$REPO_ROOT/plugins/manifest-forge/runtime/bin/pr_review.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX=$(mktemp -d "$BATS_TMPDIR/pr_review.XXXXXX")
-    cat > "$SANDBOX/fetch.sh" <<'EOF'
+
+    # Forge contract: no PR_REVIEW_FETCH seam — the script enumerates through
+    # the native platform CLI on PATH. Stub `gh` to cat a fixture file that
+    # uses the raw `gh pr list --json` shape (author.login, updatedAt,
+    # mergeable MERGEABLE/CONFLICTING, isDraft, headRefName,
+    # statusCheckRollup); the script normalizes it.
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/gh" <<'EOF'
 #!/usr/bin/env bash
-cat <<'JSON'
+cat "${GH_STUB_JSON:?}"
+EOF
+    chmod +x "$SANDBOX/bin/gh"
+    export PATH="$SANDBOX/bin:$PATH"
+
+    export GH_STUB_JSON="$SANDBOX/prs.json"
+    cat > "$GH_STUB_JSON" <<'JSON'
 [
- {"number":1,"title":"Clean feature","author":"a","updated":"2026-05-30T00:00:00Z","mergeable":"CLEAN","checks":"PASS","draft":false,"head":"feat","merged":false},
- {"number":2,"title":"Conflicts","author":"b","updated":"2026-01-01T00:00:00Z","mergeable":"CONFLICTING","checks":"NONE","draft":false,"head":"old","merged":false},
- {"number":3,"title":"Merged","author":"c","updated":"2026-05-29T00:00:00Z","mergeable":"UNKNOWN","checks":"NONE","draft":false,"head":"done","merged":true},
- {"number":4,"title":"Draft","author":"d","updated":"2026-05-31T00:00:00Z","mergeable":"CLEAN","checks":"PENDING","draft":true,"head":"wip","merged":false}
+ {"number":1,"title":"Clean feature","author":{"login":"a"},"updatedAt":"2026-05-30T00:00:00Z","mergeable":"MERGEABLE","isDraft":false,"headRefName":"feat","statusCheckRollup":[{"conclusion":"SUCCESS"}]},
+ {"number":2,"title":"Conflicts","author":{"login":"b"},"updatedAt":"2026-01-01T00:00:00Z","mergeable":"CONFLICTING","isDraft":false,"headRefName":"old","statusCheckRollup":[]},
+ {"number":4,"title":"Draft","author":{"login":"d"},"updatedAt":"2026-05-31T00:00:00Z","mergeable":"MERGEABLE","isDraft":true,"headRefName":"wip","statusCheckRollup":[{"state":"PENDING"}]}
 ]
 JSON
-EOF
-    chmod +x "$SANDBOX/fetch.sh"
-    export PR_REVIEW_FETCH="$SANDBOX/fetch.sh"
 }
 
 teardown() {
@@ -32,19 +41,13 @@ teardown() {
 @test "enumerates all open PRs" {
     run "$SCRIPT" --platform github
     assert_success
-    assert_output --partial "Open PRs on github: 4"
+    assert_output --partial "Open PRs on github: 3"
 }
 
 @test "clean + passing PR is recommended for merge" {
     run "$SCRIPT" --platform github --json
     assert_success
     echo "$output" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert next(r for r in d if r["number"]==1)["disposition"]=="merge"'
-}
-
-@test "merged branch is recommended for close" {
-    run "$SCRIPT" --platform github --json
-    assert_success
-    echo "$output" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert next(r for r in d if r["number"]==3)["disposition"]=="close"'
 }
 
 @test "conflicting PR is recommended for rebase" {
@@ -60,43 +63,31 @@ teardown() {
 }
 
 @test "empty queue reports clean without error" {
-    cat > "$SANDBOX/empty.sh" <<'EOF'
-#!/usr/bin/env bash
-echo "[]"
-EOF
-    chmod +x "$SANDBOX/empty.sh"
-    export PR_REVIEW_FETCH="$SANDBOX/empty.sh"
+    echo "[]" > "$GH_STUB_JSON"
     run "$SCRIPT" --platform github
     assert_success
     assert_output --partial "Clean queue"
 }
 
 @test "superseded PR (shared head branch) is recommended for close" {
-    cat > "$SANDBOX/dup.sh" <<'EOF'
-#!/usr/bin/env bash
-cat <<'JSON'
+    cat > "$GH_STUB_JSON" <<'JSON'
 [
- {"number":10,"title":"first","author":"a","updated":"2026-05-30T00:00:00Z","mergeable":"CLEAN","checks":"PASS","draft":false,"head":"shared","merged":false},
- {"number":11,"title":"dup","author":"a","updated":"2026-05-31T00:00:00Z","mergeable":"CLEAN","checks":"PASS","draft":false,"head":"shared","merged":false}
+ {"number":10,"title":"first","author":{"login":"a"},"updatedAt":"2026-05-30T00:00:00Z","mergeable":"MERGEABLE","isDraft":false,"headRefName":"shared","statusCheckRollup":[{"conclusion":"SUCCESS"}]},
+ {"number":11,"title":"dup","author":{"login":"a"},"updatedAt":"2026-05-31T00:00:00Z","mergeable":"MERGEABLE","isDraft":false,"headRefName":"shared","statusCheckRollup":[{"conclusion":"SUCCESS"}]}
 ]
 JSON
-EOF
-    chmod +x "$SANDBOX/dup.sh"
-    export PR_REVIEW_FETCH="$SANDBOX/dup.sh"
     run "$SCRIPT" --platform github --json
     assert_success
     echo "$output" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert next(r for r in d if r["number"]==11)["disposition"]=="close"'
 }
 
 @test "unsupported platform errors with exit 2" {
-    unset PR_REVIEW_FETCH
     run "$SCRIPT" --platform bitbucket
     assert_failure
     assert_equal "$status" 2
 }
 
 @test "missing platform CLI reports an enumeration error (not a clean queue)" {
-    unset PR_REVIEW_FETCH
     # PATH without gh/glab: default_fetch should fail and surface the auth/CLI hint.
     run env PATH="/usr/bin:/bin" "$SCRIPT" --platform github
     assert_failure

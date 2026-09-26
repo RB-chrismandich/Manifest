@@ -61,7 +61,7 @@ def test_unpacked_delegate_script_accepts_only_trusted_installed_policy(
     tmp_path: Path,
 ) -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    plugin = tmp_path / "installed/manifest-delegate"
+    plugin = tmp_path / "installed plugin/manifest delegate"
     shutil.copytree(repo_root / "plugins/manifest-delegate", plugin)
     venv = _trusted_policy_venv(tmp_path)
     environment = dict(os.environ)

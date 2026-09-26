@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
+
+import yaml
 
 
 def _checker_module():
@@ -120,6 +123,28 @@ def test_repository_skills_use_no_bare_agent_names(tmp_path: Path) -> None:
     report = checker.scan(root)
 
     assert report.violations == ()
+
+
+def test_delegate_runner_has_discoverable_thin_forwarder_metadata() -> None:
+    """The installed plugin exposes the constrained native relay agent."""
+    root = Path(__file__).resolve().parents[2]
+    path = root / "plugins/manifest-delegate/agents/delegate-runner.md"
+    _, raw, _ = path.read_text(encoding="utf-8").split("---", 2)
+    metadata = yaml.safe_load(raw)
+    assert set(metadata) == {"name", "description", "tools", "model"}
+    assert metadata["name"] == "delegate-runner"
+    assert metadata["tools"] == "Bash"
+    assert metadata["model"] == "sonnet"
+    assert isinstance(metadata["description"], str)
+    assert "runs one `delegate.py` dispatcher call" in metadata["description"]
+    assert "verbatim" in metadata["description"]
+
+    plugin = json.loads(
+        (root / "plugins/manifest-delegate/.claude-plugin/plugin.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert plugin["agents"] == ["./agents/delegate-runner.md"]
 
 
 def test_main_exits_nonzero_on_violation(tmp_path: Path, capsys) -> None:

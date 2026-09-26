@@ -30,7 +30,8 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
-- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
+- Default dispatched agents to Sonnet through the current host's native control;
+  OMP uses `task.agentModelOverrides`, never a task-item `model` field.
 
 ## MCP Default Policy
 
@@ -278,18 +279,15 @@ Skills are shared across all platforms via symlinks from `configs/claude/skills/
   A second copy under its home would register every skill twice
   (`/devin:<name>` beside `/claude:<name>`), so there deliberately is none.
 
-## OMP Sub-Agent Dispatch
+## Native Sub-Agent Dispatch
 
-OMP `task` and `hub` are the only interactive sub-agent contract. When work has
-independent units, submit all ready units in one `task` call, in waves of at
-most 32. Choose `scout` for read-only exploration, `reviewer` for quality
-review, `security-reviewer` for security review, `sonic` only for mechanical
-work, and omit `agent` for default implementation work.
-
-Children execute their assigned unit directly and never redispatch. Use `hub`
-only to coordinate or wait. The parent validates evidence, resolves material
-disagreement, and aggregates results. If `task` is unavailable, execute inline
-and report `DEGRADED`; never fall back to a provider CLI.
+Use the current host's supported native mechanism: OMP parents use `task` and
+`hub`; Claude Code parents use discovered native Agents and background
+collection. Preserve OMP specialist selection and do not guess Claude aliases.
+The parent validates evidence and aggregates results. The authoritative shared
+contract is [`configs/claude/references/sub-agent-dispatch.md`](configs/claude/references/sub-agent-dispatch.md);
+it defines child limits, the narrow delegate-runner exception, and `DEGRADED`
+behavior.
 
 ## Proactive Coding Guardrails (always on)
 
@@ -315,8 +313,9 @@ Apply while writing or refactoring code, in every session:
   controls or validation without stating it in the change description.
 
 Registry of anti-patterns (detection cues + prevention rules):
-`configs/claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
-error-handling, security, dependency, iteration). Full reference:
+`plugins/manifest-workspace/skills/learning-capture/data/seed.jsonl` bundled seed
+plus the XDG-owned `manifest/knowledge/entries.jsonl` store (guardrail tags: arch,
+async-state, error-handling, security, dependency, iteration). Full reference:
 `configs/claude/references/antipatterns.md`. Pre-write doctrine (13 articles, size
 ceilings, per-language annexes): `configs/claude/references/code-constitution.md`,
 enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit:
@@ -327,8 +326,8 @@ enforced by `configs/claude/scripts/constitution_check.py`. On-demand deep audit
 ## Coding Standards
 
 **Script language: Bash (`.sh`) and Python (`.py`) are both Active — primary.**
-Neither is legacy. `configs/claude/scripts/` holds 41 `.sh` files beside 36
-`.py`, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
+Neither is legacy. `configs/claude/scripts/` holds 23 `.sh` files beside the
+`.py` helpers, and the whole bootstrap surface (`bootstrap.sh`, `bootstrap/lib/*.sh`)
 is Bash by design. **Do not propose blanket `.sh`→`.py` migrations, or the
 reverse.** Match the convention of the code you are changing; when adding a new
 script, follow the directory it lives in. `docs/CODING_STANDARDS.md` sections

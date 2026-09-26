@@ -118,20 +118,10 @@ and record the dissent under Unverified observations for transparency.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-Dispatch sub-agents ONLY for the cross-verification step: one adversarial
-`reviewer` per candidate `critical`/`high` finding. The passes themselves run
-inline — they share the P0 orientation context and must not be split. Put all
-independent refuters in one OMP `task` call (waves of at most 32). Each child
-judges only its assigned evidence and never re-dispatches. The parent
-adjudicates and aggregates the returned evidence directly. If OMP `task` is
-unavailable, perform the adversarial re-reads inline and report `DEGRADED`.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+For cross-verification only, assign one adversarial `reviewer` per candidate
+critical/high finding. The seven passes stay inline because they share P0
+orientation; the parent adjudicates returned evidence directly.
 
 ## Acceptance harness
 

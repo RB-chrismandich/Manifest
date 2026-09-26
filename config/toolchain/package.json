@@ -6,7 +6,7 @@
   "dependencies": {
     "bats": "1.13.0",
     "eslint": "10.10.0",
-    "markdownlint-cli2": "0.23.2",
+    "markdownlint-cli2": "0.23.3",
     "pyright": "1.1.414"
   }
 }

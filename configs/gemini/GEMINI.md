@@ -28,24 +28,20 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
-- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
+- Default dispatched agents to Sonnet through the current host's native control;
+  OMP uses `task.agentModelOverrides`, never a task-item `model` field.
 
 `/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
 ## OMP Sub-Agent Dispatch
 
-OMP `task` and `hub` are the only interactive sub-agent contract. For workload
-decomposition, when work has independent units, submit all ready units in one
-`task` call, in waves of at most 32. Choose `scout` for read-only exploration,
-`reviewer` for quality review, `security-reviewer` for security review, `sonic`
-only for mechanical work, and omit `agent` for default implementation work.
-
-Children execute their assigned unit directly and never redispatch. Use `hub`
-only to coordinate or wait. The parent validates evidence, resolves material
-disagreement, and aggregates results. If `task` is unavailable, execute inline
-and report `DEGRADED`; never fall back to a provider CLI.
-
----
+Gemini CLI has no separate native sub-agent API in this configuration. Its
+supported interactive dispatch mechanism is OMP `task` and `hub`: for workload
+decomposition, submit ready independent units in one `task` call and use the
+documented OMP specialist roles. Children execute their unit directly and never
+redispatch. The parent validates evidence and aggregates results. If OMP is
+unavailable, work inline and report `DEGRADED`; do not infer Claude-native or
+delegate-runner capabilities for Gemini.
 
 ## Proactive Decision Framework
 
@@ -88,8 +84,9 @@ Apply while writing or refactoring code, in every session:
   controls or validation without stating it in the change description.
 
 Registry of anti-patterns (detection cues + prevention rules):
-`~/.claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
-error-handling, security, dependency, iteration). Full reference:
+the `manifest-workspace:learning-capture` registry (bundled `seed.jsonl` plus the
+XDG-owned `manifest/knowledge/entries.jsonl` store; guardrail tags: arch,
+async-state, error-handling, security, dependency, iteration). Full reference:
 `~/.claude/references/antipatterns.md`. Pre-write doctrine (13 articles, size
 ceilings, per-language annexes): `~/.claude/references/code-constitution.md`,
 enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.

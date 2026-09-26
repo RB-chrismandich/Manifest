@@ -89,11 +89,6 @@
   },
   "permissions": {
     "allow": [
-      "Bash(~/.claude/scripts/git_ops.sh:*)",
-      "Bash(~/.claude/scripts/label_sync.sh:*)",
-      "Bash(~/.claude/scripts/linear_ops.sh:*)",
-      "Bash(~/.claude/scripts/pr_review.sh:*)",
-      "Bash(~/.claude/scripts/branch_clean.sh:*)",
       "Bash(~/.claude/scripts/command_catalog.py:*)",
       "Bash(~/.claude/scripts/generate_commands_doc.py:*)",
       "Bash(~/.claude/scripts/guidance_hint.py:*)",

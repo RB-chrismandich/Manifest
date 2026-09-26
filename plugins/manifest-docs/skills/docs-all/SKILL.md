@@ -39,9 +39,9 @@ result. Concision rules: `../../runtime/references/doc-concision.md`.
      dependency.
 
 3. **Dispatch each docs skill as a sub-agent**, one per skill, passing the
-   target path. Put independent sub-skills in one OMP `task` call (waves of at
-   most 32); `/manifest-docs:docs-improve` remains a later wave because it must
-   see README and diagram updates.
+   target path through the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+   `/manifest-docs:docs-improve` remains a later wave because it must see README
+   and diagram updates.
 
 4. **Continue on failure.** Capture a failing sub-agent's error and still run
    the rest — never abort the whole run because one failed.
@@ -73,16 +73,6 @@ result. Concision rules: `../../runtime/references/doc-concision.md`.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-This skill always fans out: one sub-agent per docs sub-skill. Dispatch
-independent sub-skills in one OMP `task` call (waves of at most 32), omitting
-`agent` for the default implementation worker. Children execute their assigned
-sub-skill directly and never re-dispatch. The parent captures each outcome and
-aggregates measured evidence directly into the report. If OMP `task` is
-unavailable, run the sub-skills inline and report `DEGRADED`.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+This skill always assigns the three independent documentation sub-skills and
+the parent reports each measured outcome.

@@ -2,7 +2,7 @@
 # skillclaw_promote.sh - Turn evolved SkillClaw skills into a review PR.
 #
 # Pipeline: idempotency check -> preflight -> scrub -> evolve -> classify ->
-# verify -> stage branch (per-skill commits) -> git_ops pr-create.
+# verify -> stage branch (per-skill commits) -> native PR/MR creation.
 # Dry-run by default; --apply required to branch/commit/PR. Never touches main
 # directly, never force-pushes. Implements Option A: aborts if an open
 # skillclaw/evolve-* PR already exists (override with --force-new).
@@ -10,7 +10,7 @@
 # Usage: skillclaw_promote.sh --bundle NAME [--apply] [--skill NAME] [--no-evolve] [--force-new]
 #
 # Env overrides (for tests): SKILLCLAW_EVOLVED, SKILLCLAW_COMMITTED,
-#   SKILLCLAW_SESSIONS, SKILLCLAW_GITOPS, SKILLCLAW_OPEN_PR, SKILLCLAW_TRANSCRIPTS,
+#   SKILLCLAW_SESSIONS, SKILLCLAW_OPEN_PR, SKILLCLAW_TRANSCRIPTS,
 #   SKILLCLAW_STATE, SKILLCLAW_REJECTED, SKILLCLAW_TEMPLATE.
 #
 # LLM CLI seam (llm-invoke-stdin pattern): the evolve stage (manifest skillclaw evolve,
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GITOPS="${SKILLCLAW_GITOPS:-${SCRIPT_DIR}/git_ops.sh}"
+PLATFORM="$(bash "${SCRIPT_DIR}/git_platform.sh" 2> /dev/null || printf git)"
 # The `manifest` CLI lives in ~/.local/bin, which a login shell gets from the
 # user's profile but hooks, launchd/systemd jobs and cron do not. Put it back on
 # PATH rather than hardcoding the path: the command seams below are word-split
@@ -154,8 +154,14 @@ open_pr() {
         echo "$SKILLCLAW_OPEN_PR"
         return 0
     fi
-    "$GITOPS" pr-list --search "head:${BRANCH_PREFIX}" --state open 2> /dev/null |
-        grep -Eo 'https?://[^ ]+' | head -1 || true
+    case "${PLATFORM}" in
+        github) gh pr list --search "head:${BRANCH_PREFIX}" --state open --json url -q '.[0].url // empty' 2> /dev/null || true ;;
+        gitlab) glab api -X GET projects/:id/merge_requests -f state=opened --paginate 2> /dev/null | jq -r --arg prefix "${BRANCH_PREFIX}" '.[] | select(.source_branch | startswith($prefix)) | .web_url' | head -1 || true ;;
+        *)
+            err "unsupported Git platform for SkillClaw PR creation: ${PLATFORM}"
+            return 1
+            ;;
+    esac
 }
 if [[ "$APPLY" == true && "$FORCE_NEW" == false ]]; then
     existing="$(open_pr)"
@@ -298,9 +304,14 @@ body="$(printf 'Auto-evolved by SkillClaw. Skills: %s\n\nProvenance: %s\nReview 
 
 git push -u origin "$branch"
 
-pr_url="$("$GITOPS" pr-create --base "$PR_BASE" --head "$branch" \
-    --title "SkillClaw: evolve ${count} skill(s)" --body "$body" \
-    --label needs-review --label follow-up)"
+case "${PLATFORM}" in
+    github) pr_url="$(gh pr create --base "$PR_BASE" --head "$branch" --title "SkillClaw: evolve ${count} skill(s)" --body "$body" --label needs-review --label follow-up)" ;;
+    gitlab) pr_url="$(glab mr create --title "SkillClaw: evolve ${count} skill(s)" --description "$body" --target-branch "$PR_BASE" --source-branch "$branch" --label needs-review --label follow-up --yes)" ;;
+    *)
+        err "unsupported Git platform for SkillClaw PR creation: ${PLATFORM}"
+        exit 1
+        ;;
+esac
 
 audit log "$run_id" promote pr_opened url="$pr_url"
 audit log "$run_id" promote stage_end seconds=$((SECONDS - _t0))

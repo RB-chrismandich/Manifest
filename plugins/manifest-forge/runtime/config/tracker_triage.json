@@ -20,10 +20,7 @@
     ]
   },
   "review": {
-    "reviewers_per_item": 5,
-    "minimum_valid_verdicts": 3,
-    "duplicate_agreement_threshold": 0.8,
-    "priority_agreement_threshold": 0.7
+    "reviewers_per_item": 3
   },
   "duplicate_detection": {
     "description_overlap_high": 0.7,

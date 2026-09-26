@@ -1,15 +1,14 @@
+import json
 import subprocess
 import sys
 from pathlib import Path
 
-import yaml
-
 REPO = Path(__file__).resolve().parents[2]
-REG = REPO / "configs/claude/config/tracker_providers.yml"
+REG = REPO / "plugins/manifest-forge/runtime/config/tracker_providers.json"
 
 
 def load():
-    return yaml.safe_load(REG.read_text())
+    return json.loads(REG.read_text())
 
 
 def test_registry_exists_and_parses():
@@ -50,7 +49,7 @@ def test_default_provider_is_a_known_provider():
     assert data["default_provider"] in data["providers"]
 
 
-SCRIPT = REPO / "configs/claude/scripts/tracker_registry.py"
+SCRIPT = REPO / "plugins/manifest-forge/runtime/python/tracker_registry.py"
 
 
 def run(*args):
@@ -95,4 +94,4 @@ def test_missing_registry_exits_2(tmp_path, monkeypatch):
         text=True,
     )
     assert r.returncode == 2
-    assert "cannot read registry" in r.stderr
+    assert "cannot read" in r.stderr

@@ -1,0 +1,41 @@
+{
+  "skill_name": "pr-address-comments",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Address a verified GitHub inline review thread on PR #42. The fix is commit abc123 and focused tests pass. The thread is unresolved and viewerCanReply/viewerCanResolve are true.",
+      "expected_output": "Enumerates the thread and every nested-comment page, replies in the exact thread with abc123 and test evidence, resolves it with resolveReviewThread, independently queries isResolved afterward, and reports it formally resolved only if that readback is true.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Address a verified GitLab MR !9 discussion D1 with resolvable unresolved notes. The fix is commit def456 and tests pass.",
+      "expected_output": "Uses paginated discussions and notes inventory, posts to discussion D1, PUTs resolved=true to the GitLab discussion endpoint, GETs D1 afterward, and reports resolution only when all resolvable notes read back resolved.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "A GitHub review-thread resolution mutation returns a permission error after the fix reply succeeds.",
+      "expected_output": "Reports the exact thread link and permission failure as unresolved—resolution failed; does not claim all feedback addressed and does not substitute a top-level Resolved comment.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "A review thread has one fixed claim and one actionable claim pending investigation.",
+      "expected_output": "Publishes the fixed claim evidence but leaves the entire thread formally unresolved until every actionable item in that thread is addressed and verified.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "A GitHub thread's second page contains a later reviewer objection; another thread is already resolved from the same recorded fix.",
+      "expected_output": "Fetches all nested comment pages, treats the later objection as outstanding and leaves that thread open, while skipping duplicate reply and resolution mutations for the already-resolved rerun.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "A standalone top-level PR comment has been addressed, but it is not a resolvable review thread or GitLab discussion note.",
+      "expected_output": "Posts a linked reply and summary disposition, then reports the item addressed — not applicable for formal resolution rather than falsely claiming it resolved.",
+      "files": []
+    }
+  ]
+}
