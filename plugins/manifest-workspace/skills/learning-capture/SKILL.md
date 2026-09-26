@@ -8,8 +8,11 @@ description: Append, query, increment, and render structured lessons from an XDG
 Run `scripts/learning_capture.py` with `add`, `query`, `increment`, `list`,
 `stats`, or `sync-docs`. Run `contract` for the machine-readable command and
 option surface consumed by other plugin bundles.
-Records are append-only JSON Lines at
-`$XDG_DATA_HOME/manifest/knowledge/entries.jsonl`.
+User records are append-only JSON Lines at
+`$XDG_DATA_HOME/manifest/knowledge/entries.jsonl`. They merge with the bundled
+seed registry (`data/seed.jsonl`, ids `ANTI-*`/`CI-*`/`TD-*`) on every read —
+`query`, `list`, `stats`, and `sync-docs` see both; a user record overrides a
+seed record with the same id (which is how `increment <seed-id>` persists).
 
 Legacy cross-domain calls remain supported: `add` accepts title, description,
 tags, confidence, severity, detection cue, prevention rule, provenance, and

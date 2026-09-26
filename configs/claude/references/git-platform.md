@@ -1,89 +1,74 @@
 # Git Platform Reference
 
-> Platform detection (`git_platform.sh`) and platform-agnostic operations
-> (`git_ops.sh`) for GitHub/GitLab/plain git. Referenced from CLAUDE.md.
+> Native `git`, `gh`, and `glab` operations for GitHub, GitLab, and plain Git
+> repositories. `git_platform.sh` remains the deterministic provider detector.
 
-## Git Platform Detection & Operations
-
-The framework provides platform-agnostic Git hosting operations that work with GitHub, GitLab, and plain Git repositories.
-
-### Platform Detection Script
-
-**Location**: `~/.claude/scripts/git_platform.sh`
-
-Detects the Git hosting platform from the repository's remote URL.
-
-**Usage**:
+## Platform detection
 
 ```bash
 ~/.claude/scripts/git_platform.sh [remote_name]
 ```
 
-**Output**: `github`, `gitlab`, or `git` to stdout
+It prints `github`, `gitlab`, or `git`. Its precedence is:
 
-**Environment Variables**:
+1. `MANIFEST_GIT_PLATFORM` (`github`, `gitlab`, or `git`);
+2. the explicit `remote_name`;
+3. `MANIFEST_GIT_REMOTE`;
+4. `origin`.
 
-- `MANIFEST_GIT_PLATFORM` - Force a specific platform (github|gitlab|git)
-- `MANIFEST_GIT_REMOTE` - Remote name to check (default: origin)
+Skills may inspect `git remote get-url` directly, but must use the same
+override and remote precedence. Keep the chosen repository and host for every
+read, reply, mutation, and verification—especially for forks and enterprise
+hosts. Do not fall back to the current checkout after a target is known.
 
-**Exit Codes**: 0 = success, 1 = failure (no repo or remote)
+Plain Git and unknown custom hosts allow local `git` operations only. Do not
+guess a forge from which executable happens to be installed; request explicit
+provider context for forge operations.
 
-**Examples**:
+Authentication belongs to `gh` or `glab`. A missing executable,
+authentication, permission, or nonzero native command is an actionable
+failure, never an empty queue or successful mutation. An existing hook may
+intentionally report that failure while remaining fail-open; preserve that
+hook's policy.
 
-```bash
-# Auto-detect from origin remote
-~/.claude/scripts/git_platform.sh
-# Output: github
+## Native provider commands
 
-# Check a specific remote
-~/.claude/scripts/git_platform.sh upstream
-# Output: gitlab
+Use the native CLI directly at the call site; there is no platform-agnostic
+operations wrapper.
 
-# Force platform override
-MANIFEST_GIT_PLATFORM=gitlab ~/.claude/scripts/git_platform.sh
-# Output: gitlab
-```
+| Behavior | GitHub | GitLab |
+| --- | --- | --- |
+| Read/list/create/close issues | `gh issue view/list/create/close` | `glab issue view/list/create/close` |
+| Edit issue description/labels | `gh issue edit N --body TEXT --add-label LABEL --remove-label LABEL` | `glab issue update N --description TEXT --label LABEL --unlabel LABEL` |
+| Comment on issue | `gh issue comment N --body TEXT` | `glab issue note N --message TEXT` |
+| Create PR/MR | `gh pr create --title TITLE --body TEXT --base BASE --head BRANCH` | `glab mr create --title TITLE --description TEXT --target-branch BASE --source-branch BRANCH --yes` |
+| Create draft PR/MR | add `--draft` | add `--draft` |
+| Read/list/diff/close/reopen PR/MR | `gh pr view/list/diff/close/reopen` | `glab mr view/list/diff/close/reopen` |
+| Edit PR/MR | `gh pr edit N --body TEXT --base BASE` | `glab mr update N --description TEXT --target-branch BASE` |
+| General PR/MR reply | `gh pr comment N --body TEXT` | `glab mr note N --message TEXT` |
+| Close with explanation | `gh pr close N --comment TEXT` | `glab mr note N --message TEXT`, then `glab mr close N` |
+| Approve | `gh pr review N --approve` | `glab mr approve N` |
+| Create label | `gh label create NAME --color COLOR --description TEXT --force` | `glab label create --name NAME --color '#RRGGBB' --description TEXT` |
 
-### Operations Wrapper Script
+Do not use approval as a substitute for a comment or request-changes review.
+For GitLab JSON, request `--output json` and consume actual fields such as
+`iid`, `description`, `source_branch`, `target_branch`, and `state`; GitHub
+JSON field names are not portable.
 
-**Location**: `~/.claude/scripts/git_ops.sh`
-
-Platform-agnostic wrapper for Git operations (issue/PR management). Routes
-commands to `gh` (GitHub), `glab` (GitLab), or warns if neither is available.
-
-**Usage**:
-
-```bash
-~/.claude/scripts/git_ops.sh <subcommand> [args...]
-```
-
-**Subcommands**:
-
-| Subcommand | GitHub (`gh`) | GitLab (`glab`) | Plain git |
-|------------|---------------|-----------------|-----------|
-| `issue-view N` | `gh issue view N` | `glab issue view N` | warn |
-| `issue-list` | `gh issue list` | `glab issue list` | warn |
-| `issue-create` | `gh issue create` | `glab issue create` | warn |
-| `issue-comment N` | `gh issue comment N` | `glab issue note N` | warn |
-| `issue-close N` | `gh issue close N` | `glab issue close N` | warn |
-| `issue-edit N` | `gh issue edit N` | `glab issue update N` | warn |
-| `pr-create` | `gh pr create` | `glab mr create` | warn |
-| `pr-view N` | `gh pr view N` | `glab mr view N` | warn |
-| `pr-list` | `gh pr list` | `glab mr list` | warn |
-| `label-create` | `gh label create` | `glab label create` | warn |
-
-**Examples**:
+GitLab issues are open by default. Map closed/all listing explicitly to
+`--closed`/`--all`, and use `--per-page` only where a bounded listing needs a
+limit. For a GitLab issue body held in a file, use:
 
 ```bash
-# View an issue (auto-detects platform)
-~/.claude/scripts/git_ops.sh issue-view 123
-
-# Create a pull/merge request
-~/.claude/scripts/git_ops.sh pr-create --title "Fix bug" --body "Description"
-
-# List open issues
-~/.claude/scripts/git_ops.sh issue-list --state open
+glab api -X POST projects/PROJECT/issues -f title="$title" \
+  -F description=@"$body_file" -f labels=planned
 ```
 
-**Note**: The script automatically detects the platform using `git_platform.sh`.
-All arguments are passed through to the underlying CLI tool (`gh` or `glab`).
+Consume `.iid`. When API query fields are supplied, pass `-X GET` for reads;
+otherwise `glab api` defaults to POST. `glab api` supports `--paginate`, `-X`,
+`-f`, and typed `-F`; process returned JSON with `jq`. `glab mr create --head`
+selects a head repository, not a branch—use `--source-branch`.
+
+`gh pr view` does not expose a `reviewThreads` JSON field. Review-thread
+enumeration and resolution require GitHub GraphQL, and GitLab discussion
+resolution requires the Discussions API; see `pr-address-comments`.

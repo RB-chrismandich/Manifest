@@ -15,8 +15,8 @@ This skill performs comprehensive issue triage by:
 1. Detecting duplicate issues using semantic similarity
 2. Identifying stale/obsolete issues (deleted file references, long inactivity)
 3. Validating priority alignment with impact/urgency
-4. Using OMP-native reviewer waves for ambiguous duplicate and priority decisions
-5. Generating actionable recommendations with explicit verdict evidence
+4. Using current-host native reviewers for ambiguous duplicate and priority decisions
+5. Generating actionable recommendations with explicitly validated evidence
 
 ## Arguments
 
@@ -40,9 +40,10 @@ This skill performs comprehensive issue triage by:
    - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
      shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
      of shelling out)
-2. **Tools installed**: `jq`, `python3`, plus OMP `task` for reviewer waves
-3. **Scripts available**: `../../runtime/bin/tracker_ops.sh`
-4. **Config loaded**: `../../runtime/config/tracker_triage.json`
+2. **Tools installed**: `jq`, `python3`
+3. **Native dispatch available when independent review is selected**
+4. **Scripts available**: `../../runtime/bin/tracker_ops.sh`
+5. **Config loaded**: `../../runtime/config/tracker_triage.json`
 
 ## Workflow
 
@@ -63,8 +64,8 @@ session** (later steps consume env vars and intermediate files set by earlier on
 ## Safety Rules
 
 1. **Never auto-close issues with "planned" label** - these are intentionally kept in backlog
-2. **Promote a MEDIUM duplicate only with three valid reviewer verdicts and ≥80% duplicate votes**
-3. **Change a priority recommendation only with three valid verdicts and ≥70% modal agreement**
+2. **Promote duplicates only after parent validation of cited reviewer evidence**
+3. **Change priority recommendations only after parent validation of cited reviewer evidence**
 4. **Verify file deletion before marking stale** - check if files truly don't exist
 5. **Require explicit --close-stale flag** - no accidental closures
 6. **Log all actions to audit trail** - full accountability
@@ -126,23 +127,20 @@ fi
 
 The parent dispatches OMP-native, read-only `reviewer` tasks only for:
 
-1. **MEDIUM-confidence duplicates** — five reviewers per pair return the
+1. **MEDIUM-confidence duplicates** — three reviewers per pair return the
    duplicate verdict schema from Step 5.
-2. **Priority validation** — five reviewers per candidate return the priority
+2. **Priority validation** — three reviewers per candidate return the priority
    verdict schema from Step 7.
 
 Dispatch each independent wave in one `task` call, with at most 32 task items
 per wave. Children execute one assigned review and never redispatch. The parent
-validates every structured result, excludes and names invalid results, applies
-the configured quorum and thresholds, and aggregates the evidence. If OMP
-`task` is unavailable, execute the review inline and report `DEGRADED`; never
-fall back to a provider CLI or model-specific dispatch.
+validates every structured result, excludes and names invalid results, and
+records attributed evidence for direct adjudication; it never applies a quorum
+or percentage threshold. If OMP `task` is unavailable, execute the review
+inline and report `DEGRADED`; never fall back to a provider CLI or
+model-specific dispatch.
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+Keep duplicate and staleness evidence attributed to its assigned issue scope.

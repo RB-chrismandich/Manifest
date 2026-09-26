@@ -30,7 +30,7 @@
 #   run                     Bounded self-paced loop (ceiling + 5-empty stop).
 #
 # Seams (tests/the loop inject these): PR_MERGE_LOOP_GH_CMD "<op> <pr>" (checks|reviewdecision|
-#   unresolved-human|disposition|mergeable|verify|hold|author|list), PR_MERGE_LOOP_STATE_DIR,
+#   unresolved-human|disposition|mergeable|hold|author|list), PR_MERGE_LOOP_STATE_DIR,
 #   AUTOMATION_AUTHORS_FILE, PR_MERGE_LOOP_NOW_CMD, PR_MERGE_LOOP_CEILING_SEC,
 #   PR_MERGE_LOOP_POLL_SEC, GH_NET_TIMEOUT, PR_MERGE_LOOP_POSTMERGE_CMD.
 
@@ -52,7 +52,7 @@ _net() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # XDG state root, matching every other manifest-forge runtime script (FORGE_STATE_DIR
-# convention in audit_log.sh, git_ops.sh, lifecycle.sh, etc.) — not the coordinator's
+# convention in audit_log.sh, lifecycle.sh, etc.) — not the coordinator's
 # bootstrap-only home tree, which this portable bundle does not depend on.
 STATE_DIR="${PR_MERGE_LOOP_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge/pr_merge_loop}"
 AUTHORS_FILE="${AUTOMATION_AUTHORS_FILE:-${SCRIPT_DIR}/../config/automation_authors.json}"
@@ -82,7 +82,7 @@ source "${SCRIPT_DIR}/lib/pr_merge_loop_gh.sh"
 # --- pure classifier: raw gh values -> normalized signals JSON ---
 CLASSIFY_PY='
 import json, sys
-buckets, rd, uh, disp, mrg, verify, hold, rev, maxrev, head = sys.argv[1:11]
+buckets, rd, uh, disp, mrg, main_ci, hold, rev, maxrev, head = sys.argv[1:11]
 bl = buckets.split() if buckets.strip() else []
 if   "fail" in bl or "cancel" in bl: checks="FAIL"
 elif "pending" in bl:                checks="PENDING"
@@ -95,9 +95,9 @@ parts=(mrg or "UNKNOWN UNKNOWN").split()
 mergeable=parts[0] if parts else "UNKNOWN"
 mstate=parts[1] if len(parts)>1 else "UNKNOWN"
 print(json.dumps({"checks":checks,"review_block":review_block,"pr_review_disposition":disp or "keep",
-  "verify":verify or "pass","gate_tier1":None,"consensus":None,"mergeable":mergeable,
+  "gate_tier1":None,"mergeable":mergeable,
   "merge_state":mstate,"hold":(hold=="true"),"revisions_used":int(rev or 0),
-  "max_revisions":int(maxrev or 3),"reviewer_error":False,"main_ci":"n/a",
+  "max_revisions":int(maxrev or 3),"reviewer_error":False,"main_ci":main_ci,
   "head_sha":head or None}))
 '
 
@@ -108,16 +108,20 @@ revisions_used() {
 
 cmd_signals() {
     local pr="${1:?pr required}"
-    local buckets rd uh disp mrg verify hold head
+    local buckets rd uh disp mrg hold head
     buckets="$(gh_op checks "$pr" | tr '\n' ' ')"
     rd="$(gh_op reviewdecision "$pr")"
     uh="$(gh_op unresolved-human "$pr")"
     disp="$(gh_op disposition "$pr")"
     mrg="$(gh_op mergeable "$pr")"
-    verify="$(gh_op verify "$pr")"
     hold="$(gh_op hold "$pr")"
     head="$(gh_op headsha "$pr")" # captured at decision time (finding 2 sink re-check)
-    python3 -c "${CLASSIFY_PY}" "$buckets" "$rd" "$uh" "$disp" "$mrg" "$verify" "$hold" \
+    # main-ci health replaces the retired `verify` signal: with no sha arg
+    # cmd_post_merge_check reads main HEAD and is fail-closed — unreadable or
+    # pending main CI counts as red, which decide() maps to halt.
+    local main_ci=green
+    cmd_post_merge_check > /dev/null 2>&1 || main_ci=red
+    python3 -c "${CLASSIFY_PY}" "$buckets" "$rd" "$uh" "$disp" "$mrg" "$main_ci" "$hold" \
         "$(revisions_used "$pr")" "${MAX_REVISIONS:-3}" "$head"
 }
 
@@ -208,7 +212,7 @@ cmd_set_disposition() {
 # on main in between can't make us grade someone else's commit. Falls back to
 # reading main HEAD (pre-existing behaviour) when no sha is supplied.
 cmd_post_merge_check() {
-    local sha="${1:-}" state rc=0
+    local sha="${1:-}" state rc=0 repo=""
     [[ -n "$sha" ]] || sha="$(git ls-remote origin main 2> /dev/null | awk 'NR==1{print $1}')"
     if [[ -z "$sha" ]]; then
         [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]] || {
@@ -220,11 +224,13 @@ cmd_post_merge_check() {
     if [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]]; then
         state="$("${PR_MERGE_LOOP_POSTMERGE_CMD}")" || rc=$?
     else
-        # NOTE: github check-run conclusions (failure/cancelled/timed_out/action_required)
-        # vs gitlab pipeline statuses (failed/canceled/...) use slightly different
-        # vocabulary; the grep below matches github's. This path only runs on github
-        # today (gitlab auto-merge fails closed before reaching post-merge-check).
-        state="$(_net "${SCRIPT_DIR}/git_ops.sh" commit-checks "${sha}" 2> /dev/null)" || rc=$?
+        # GitHub check-run conclusions are queried only after deriving the
+        # selected remote's owner/repository; failure is fail-closed.
+        repo="$(_owner_repo_from_remote)" || {
+            err "cannot resolve GitHub repository — fail closed"
+            return 10
+        }
+        state="$(_net gh api "repos/${repo}/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' 2> /dev/null)" || rc=$?
     fi
     # Explicit rc check (not `||`) — this function is invoked on the left of `||` by
     # callers, which suspends errexit for everything inside it; a failed status
@@ -271,7 +277,7 @@ apply_label() {
         err "[dry-run] would label #$1 '$2'"
         return 0
     }
-    "${SCRIPT_DIR}/git_ops.sh" issue-edit "$1" --add-label "$2" > /dev/null 2>&1 || err "could not label #$1 $2"
+    gh issue edit "$1" --add-label "$2" > /dev/null 2>&1 || err "could not label #$1 $2"
 }
 
 # HARD GATE (this vendored copy only — CDDL QA-critic finding, 2026-08-19/20).
@@ -391,7 +397,6 @@ try: g=json.loads(sys.argv[1])
 except Exception: g={"reviewer_error":True}
 ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
 s["gate_tier1"]="pass" if ok else "fail"
-s["consensus"]=g.get("consensus_score",0)
 s["reviewer_error"]=bool(g.get("reviewer_error"))
 print(json.dumps(s))' "$gate")"
         d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"

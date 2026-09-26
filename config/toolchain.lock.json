@@ -11,6 +11,12 @@
           "exe_sha256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
           "path_in_archive": "gitleaks"
         },
+        "linux-arm64": {
+          "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz",
+          "sha256": "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080",
+          "exe_sha256": "00e91bbe655bd7c47753e8cfe61cb76ea1a5d7e7702fe161ee40102b46b3823b",
+          "path_in_archive": "gitleaks"
+        },
         "darwin-arm64": {
           "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
           "sha256": "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
@@ -28,6 +34,12 @@
           "sha256": "fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1",
           "exe_sha256": "fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1",
           "path_in_archive": "shfmt_v3.13.1_linux_amd64"
+        },
+        "linux-arm64": {
+          "url": "https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_arm64",
+          "sha256": "32d92acaa5cd8abb29fc49dac123dc412442d5713967819d8af2c29f1b3857c7",
+          "exe_sha256": "32d92acaa5cd8abb29fc49dac123dc412442d5713967819d8af2c29f1b3857c7",
+          "path_in_archive": "shfmt_v3.13.1_linux_arm64"
         },
         "darwin-arm64": {
           "url": "https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_darwin_arm64",
@@ -47,6 +59,12 @@
           "exe_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
           "path_in_archive": "shellcheck-v0.11.0/shellcheck"
         },
+        "linux-arm64": {
+          "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.xz",
+          "sha256": "12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588",
+          "exe_sha256": "127f13925eadd52c341bca0ebaf9ab0dbd78c6468f30a8f262a528bf8de47546",
+          "path_in_archive": "shellcheck-v0.11.0/shellcheck"
+        },
         "darwin-arm64": {
           "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.xz",
           "sha256": "56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79",
@@ -63,12 +81,46 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
           "project_sha256": "58e4cb0eb44c82e1f424c9b39f0542edfe4d0b3d7eb2ac44b4e15f2fc2506875",
-          "exe_sha256": "5577df89745de251581c406e22522affe5f3bf20aebcdb8b775a41bb13b26a1c",
+          "exe_sha256": "9c1d1393e4de5c55556e30784a879cfba551cb5013469f729530d19d6f50bdae",
           "python_provider": {
             "implementation": "cpython",
             "version": "3.12.3",
-            "build": "main:Jul 15 2026 23:46:41",
-            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+          },
+          "path_in_archive": ".",
+          "console_scripts": [
+            "bin/python",
+            "bin/ruff",
+            "bin/yamllint",
+            "bin/pip-audit",
+            "bin/pytest",
+            "bin/semgrep",
+            "bin/check-yaml",
+            "bin/check-json",
+            "bin/check-added-large-files",
+            "bin/check-case-conflict",
+            "bin/check-merge-conflict",
+            "bin/check-executables-have-shebangs",
+            "bin/check-shebang-scripts-are-executable",
+            "bin/detect-private-key",
+            "bin/check-ast",
+            "bin/debug-statement-hook",
+            "bin/trailing-whitespace-fixer",
+            "bin/end-of-file-fixer",
+            "bin/mixed-line-ending"
+          ]
+        },
+        "linux-arm64": {
+          "url": "file://config/toolchain/uv.lock",
+          "sha256": "1c393f9ea42186cc675a284ae36365c092b8014c33877396b1eb3d57f63d2c87",
+          "project_sha256": "58e4cb0eb44c82e1f424c9b39f0542edfe4d0b3d7eb2ac44b4e15f2fc2506875",
+          "exe_sha256": "a89f16559c12372856e9dc7c2ff46c3a531f863b7a2dd4de093ab2c1cb110b05",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
           },
           "path_in_archive": ".",
           "console_scripts": [
@@ -171,6 +223,19 @@
             }
           }
         },
+        "linux-arm64": {
+          "url": "https://nodejs.org/dist/v24.9.0/node-v24.9.0-linux-arm64.tar.xz",
+          "sha256": "5a5b1dc4906e891a655d2f0689db664879724f2d9e63309486fd588172a052bc",
+          "exe_sha256": "1bf5215fc974343c7a9f3a6432390334183628aac3f9daae201366924ec56f3a",
+          "path_in_archive": "node-v24.9.0-linux-arm64/bin/node",
+          "extra_executables": {
+            "npm": {
+              "path_in_archive": "node-v24.9.0-linux-arm64/lib/node_modules/npm",
+              "executable_relative": "bin/npm-cli.js",
+              "exe_sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+            }
+          }
+        },
         "darwin-arm64": {
           "url": "https://nodejs.org/dist/v24.9.0/node-v24.9.0-darwin-arm64.tar.gz",
           "sha256": "961024296c2a8e60daed0784f8b61e0fab5c51d197502a92eff052c72b53209b",
@@ -192,9 +257,22 @@
       "platforms": {
         "linux-x64": {
           "url": "file://config/toolchain/package-lock.json",
-          "sha256": "98d2e0f0344e064b93eeb859945104621db53c98bf674dc1bfbf83cc667280fa",
-          "package_json_sha256": "e6460283b54148deb6ffd13010f6f89ab4c3b089b795ca62e8512b051ed686d2",
-          "exe_sha256": "433886a84aa80230b20e2a9e246236427f7d413620dd69259a3fc64b2776d404",
+          "sha256": "0172bdc8c04d0d227f8565264ece613bcefd20dfbd91f5bcbda7910ef7b04022",
+          "package_json_sha256": "41dece63615ea0bb2deeb13809c21240c69a94deca4fa7d3d3911b3767f623e8",
+          "exe_sha256": "a5a593e767034f68d3bade0be01d8a72c6b222e299e2653e49e87000f9beef87",
+          "path_in_archive": ".",
+          "console_scripts": [
+            "bin/markdownlint-cli2",
+            "bin/bats",
+            "bin/eslint",
+            "bin/pyright"
+          ]
+        },
+        "linux-arm64": {
+          "url": "file://config/toolchain/package-lock.json",
+          "sha256": "0172bdc8c04d0d227f8565264ece613bcefd20dfbd91f5bcbda7910ef7b04022",
+          "package_json_sha256": "41dece63615ea0bb2deeb13809c21240c69a94deca4fa7d3d3911b3767f623e8",
+          "exe_sha256": "a5a593e767034f68d3bade0be01d8a72c6b222e299e2653e49e87000f9beef87",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -226,12 +304,28 @@
           "url": "file://uv.lock",
           "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
           "project_sha256": "8a39c8b222447b0555144b26de63566923e7465608b2728c7e91875ad1084257",
-          "exe_sha256": "81a900ac03486b2651a0fe9e0b3a65340936abe20116db762366de0d7a3cb4bb",
+          "exe_sha256": "3467f152b48526739aae55b075f390815f1e7f336e552bc5d3652b08284dde64",
           "python_provider": {
             "implementation": "cpython",
             "version": "3.12.3",
-            "build": "main:Jul 15 2026 23:46:41",
-            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+          },
+          "path_in_archive": ".",
+          "console_scripts": [
+            "bin/python"
+          ]
+        },
+        "linux-arm64": {
+          "url": "file://uv.lock",
+          "sha256": "ebccd61d94d6a7b526ebe3b13a8c377e7fd38d6481fbcaa72233d91b350116dd",
+          "project_sha256": "8a39c8b222447b0555144b26de63566923e7465608b2728c7e91875ad1084257",
+          "exe_sha256": "bb0cd00dd224e88a3bcc4baf0c93ab00385d857f52dc3c5354b2d5d587cf191b",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
           },
           "path_in_archive": ".",
           "console_scripts": [
@@ -256,14 +350,30 @@
       "platforms": {
         "linux-x64": {
           "url": "file://configs/claude/uv.lock",
-          "sha256": "cceed04d9fc7bda097f0c72d809f984873e08eec86eac1c74be953cbc787798e",
-          "project_sha256": "5c92d6b575e3859370644ae7533973a31cfaaf615d32de239ff6d4e04e4f3e2c",
-          "exe_sha256": "4ea7863852f861f59c23b612ca2406f473757c560acc921064efad86fd096c30",
+          "sha256": "4d85923fc0bad3f008cd4d064d3774540cbd6efd184e7ba7fc4dd0a0b256c94c",
+          "project_sha256": "ec2e95819bcd35721c64892efe56c2d272669f8b17d8db847ae44c53311541b8",
+          "exe_sha256": "23b023661df14310d96e2812938ceadabe83ee3450aca2fc3040686f67f18fb2",
           "python_provider": {
             "implementation": "cpython",
             "version": "3.12.3",
-            "build": "main:Jul 15 2026 23:46:41",
-            "exe_sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+          },
+          "path_in_archive": ".",
+          "console_scripts": [
+            "bin/manifest"
+          ]
+        },
+        "linux-arm64": {
+          "url": "file://configs/claude/uv.lock",
+          "sha256": "4d85923fc0bad3f008cd4d064d3774540cbd6efd184e7ba7fc4dd0a0b256c94c",
+          "project_sha256": "ec2e95819bcd35721c64892efe56c2d272669f8b17d8db847ae44c53311541b8",
+          "exe_sha256": "c2f58f18b7f376d7f05dfc3ce2fa38e096b6ebfbc0200e63c8d88ba2060c04e0",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
           },
           "path_in_archive": ".",
           "console_scripts": [
@@ -285,13 +395,16 @@
   },
   "caches": {
     "node-cache": {
-      "source_sha256": "594308ed7cae2fda5de738bd5017ab1ba02b815a6ab82f759a074859b31fde1d",
+      "source_sha256": "aa83d8f0d92efd6e91a47eb1f2845f1192ac1cd858fd77b7729afbc2f85ee19f",
       "platforms": {
         "darwin-arm64": {
           "digest": null
         },
         "linux-x64": {
-          "digest": "12f405b5fc334ec74d92ef7ced304a3bb679564a3bbc09dcc39313d86030a925"
+          "digest": "9467f460119e186536146c893db9951ad6a4a37944cae83a073bfde36b65207a"
+        },
+        "linux-arm64": {
+          "digest": "43c67ef22f243b0ccaf239e51a3891018654f7eb47ad7f3c1c0cd7c3b6d27010"
         }
       }
     }

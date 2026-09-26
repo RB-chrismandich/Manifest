@@ -95,7 +95,7 @@ _<date> · stale threshold: <N>d_
 
 ### ✅ Ready to merge (<n>)
 - **#<num>** <title> — `<branch>` · checks ✓ · <age>
-  → Next: merge — `../../runtime/bin/git_ops.sh pr-merge <num>`
+  → Next: merge — `gh pr merge <num>` (GitHub) or `glab mr merge <num>` (GitLab)
 
 ### 🔧 Needs work (<n>)
 - **#<num>** <title> — <conflict / failing checks / draft-with-activity>
@@ -149,12 +149,15 @@ When the user confirms (or invoked with `--apply` / "apply"), act on exactly the
 items you put in the **Stale / closeable** and **Safe to delete** lists — never
 on `keep`, `needs-work`, or `confirm-individually` items without a separate OK.
 
-**Close stale PRs** (including the empty no-ops) via `git_ops.sh pr-close`
-(routes to `gh pr close` / `glab mr close`). Leave a short comment so the
-trail explains *why*:
+**Close stale PRs** (including empty no-ops) with the provider's native CLI.
+Leave a short explanation:
 
 ```bash
-../../runtime/bin/git_ops.sh pr-close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
+# GitHub
+gh pr close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
+# GitLab
+glab mr note <num> --message "Closing as stale: <reason>. Reopen if still needed." \
+  && glab mr close <num>
 ```
 
 **Delete branches**, by class. The split matters because force-delete is only
@@ -207,21 +210,6 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 open PRs or stale branches exist, dispatch independent read-only
-`reviewer` units per PR or non-overlapping branch batch in one OMP `task` call
-(waves of at most 32); below that, sweep inline. Children execute only their
-assigned review and never redispatch. The parent uses `hub` only to coordinate
-or wait, validates and aggregates the evidence directly, and produces the
-report—there is no text-consensus or synthesis step. If `task` is unavailable,
-sweep inline and report `DEGRADED`; never fall back to a provider CLI.
-
-Before closing a PR or deleting a branch, dispatch a read-only `reviewer` to
-check the exact confirmed mutation set against the report and safety guarantees.
-Perform the approved closes and deletions sequentially, reporting each outcome.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+The parent validates each attributed PR or branch assessment before any
+serialized close or deletion.

@@ -21,9 +21,26 @@
         "click"
       ],
       "allowedVersions": "<=8.3.3"
+    },
+    {
+      "description": "uv is pinned in config/toolchain.lock.json, bootstrap/lib/verified_uv.sh (with per-target digests), and every setup-uv `version:` of a toolchain-provisioning job; on GRF the uv release decides the attested managed-CPython provider. Renovate can only bump the workflow copies, which fails tests/python/test_uv_pin_coherence.py. Require dashboard approval and bump all three by hand, then re-attest.",
+      "matchPackageNames": [
+        "astral-sh/uv"
+      ],
+      "dependencyDashboardApproval": true
     }
   ],
   "ignoreDeps": [
     "myapp"
-  ]
+  ],
+  "prConcurrentLimit": 2,
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "updateNotScheduled": false,
+  "rebaseWhen": "conflicted",
+  "vulnerabilityAlerts": {
+    "schedule": [],
+    "prConcurrentLimit": 0
+  }
 }

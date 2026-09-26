@@ -54,14 +54,15 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
      human-owned.
 
 4. **Close the gap (NEEDS-PREP):**
-   - If the missing detail is knowable from the repo/issue, propose a rewritten description
-     and, on confirmation, update it: `git_ops.sh issue-edit <N> --body "<improved>"` (body
-     rewrites have no `tracker_ops.sh` verb — only label mutations route through it — so
-     this stays on the git-hosting wrapper and is unavailable on Linear/Jira).
-     **Preserve the reporter's intent and content — tighten, don't replace.**
-   - If it needs the reporter's input, draft the questions and, on confirmation, post them:
-     `tracker_ops.sh issue-comment <N> "<questions>"`. If the reporter is in this session, just
-     ask inline instead of commenting.
+   - If the missing detail is knowable from the repo/issue, propose a rewritten
+     description and, on confirmation, update it with `gh issue edit <N> --body
+     "<improved>"` (GitHub) or `glab issue update <N> --description
+     "<improved>"` (GitLab). Body rewrites have no `tracker_ops.sh` verb and
+     remain unavailable on Linear/Jira. **Preserve the reporter's intent and
+     content — tighten, don't replace.**
+   - If it needs the reporter's input, draft the questions and, on confirmation,
+     post them: `tracker_ops.sh issue-comment <N> "<questions>"`. If the reporter
+     is in this session, just ask inline instead of commenting.
    - Re-score once answers land; promote to READY when the rubric clears.
 
 5. **Report** using the template below: verdict, per-rubric result, and the exact proposed

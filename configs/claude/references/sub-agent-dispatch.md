@@ -3,14 +3,12 @@
 > Read-on-demand reference. Skills that dispatch work link here rather than
 > restating these rules.
 
-## OMP-native dispatch
+## Current-host native dispatch
 
-OMP `task` and `hub` are the only interactive sub-agent contract. When work has
-independent units, the parent dispatches all ready units in **one** `task` call,
-in waves of at most 32. Each task states its bounded unit, acceptance criteria,
-and read/write scope.
-
-Choose the narrowest role:
+Use the current host's supported native dispatch. On OMP, the parent submits all
+ready independent units in one `task` call and coordinates them with `hub`;
+each task states its bounded unit, acceptance criteria, and read/write scope.
+Choose the narrowest OMP role:
 
 | Work | `task` agent |
 |---|---|
@@ -20,13 +18,21 @@ Choose the narrowest role:
 | Strictly mechanical collection or updates | `sonic` |
 | Implementation or mixed work | Omit `agent` for the default worker |
 
-Children execute their assigned unit directly and **never redispatch**. Use
-`hub` only to coordinate or wait for already-dispatched workers. The parent
-validates results, resolves material disagreements from evidence, and aggregates
-the final outcome.
+On Claude Code, use only native Agent types actually discovered from installed
+plugins, including a plugin-qualified name when discovery reports one. Do not
+infer an alias, a model override, or an OMP role mapping.
 
-If `task` is unavailable, perform the units inline and report `DEGRADED`. Never
-fall back to a provider CLI for interactive fan-out.
+Ordinary children execute their assigned unit directly and never redispatch.
+The only exception is the discovered `delegate-runner` /
+`manifest-delegate:delegate-runner`: it forwards exactly one fully
+parent-composed `delegate.py` command and cannot plan, inspect the task,
+retry, poll, select a backend, or spawn native children. This does not permit
+other children to invoke provider CLIs.
+
+If native dispatch is unavailable, perform ordinary units inline and report
+`DEGRADED`. Do not fall back implicitly to a provider CLI. When an external
+backend is explicitly requested, the parent may invoke the same dispatcher
+sequentially and report native fan-out as unavailable.
 
 ## Workload decomposition
 
@@ -48,8 +54,12 @@ A skill records one disposition in `configs/claude/config/command_config.yml`:
 
 ## Model selection (measured — the one cache-safe cost lever)
 
-**Default a dispatched sub-agent to Sonnet unless the task needs more.** Pass an
-explicit `model` when dispatching; do not inherit the parent's model by accident.
+**Default a dispatched sub-agent to Sonnet unless the task needs more.** Apply
+that default through the current host's supported control: OMP users override
+agent selection only with `task.agentModelOverrides` and must never add a
+nonexistent `model` field to a task item; Claude Code uses only its documented
+native model controls. A plugin runner's frontmatter `model: sonnet` remains its
+default and is separate from any external backend tier.
 
 Measured 2026-07-25 over 47,185 real API requests
 (`docs/baselines/2026-07-25-credit-baseline.md`): 63% of sub-agent traffic
@@ -69,9 +79,9 @@ and the obvious alternative fail:
 > **$129 saved against a $1,628 penalty — net −$1,499.** This is the intuitive
 > optimisation and it loses money; it is rejected on evidence, not preference.
 
-Escalate a sub-agent above Sonnet only for genuinely hard reasoning. Mechanical
-fan-out (file reads, greps, per-item transforms) is Haiku-eligible and roughly
-halves the Sonnet figure again.
+Escalate above Sonnet only for genuinely hard reasoning. Mechanical fan-out is
+Haiku-eligible where the current host exposes that native control. Do not switch
+the parent conversation's model as a substitute for a child override.
 
 ### Enforcement
 
@@ -82,8 +92,8 @@ halves the Sonnet figure again.
 from their `## Sub-agent dispatch` section, and the retired coordinator
 settings (`parallel_agents`, `subagent_model`, `session_model`,
 `harness_routing`, `consensus`, and their siblings) are rejected anywhere in
-the tree. Model choice is therefore stated at the dispatch site, not pinned in
-configuration:
+the tree. Model choice is expressed through each host's native dispatch control,
+not a portable task-item field or coordinator configuration:
 
 | Model | Use for |
 |---|---|
