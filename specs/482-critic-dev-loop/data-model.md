@@ -13,7 +13,7 @@ Normalized input to a run (spec FR-001, FR-002).
 
 | Field | Type | Notes |
 |---|---|---|
-| `layout_type` | enum `speckit \| superpowers \| explicit` | from discovery seam; `explicit` when `--spec/--plan` provided |
+| `layout_type` | enum `speckit \| design-doc \| explicit` | from discovery seam; `explicit` when `--spec/--plan` provided |
 | `spec_path` | string (abs path) | required; run refuses without it (pre-flight) |
 | `plan_path` | string \| null | optional; absence recorded and disclosed to critics |
 | `spec_content` / `plan_content` | string | snapshotted at run start (immutable for the run) |

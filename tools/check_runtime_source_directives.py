@@ -3,7 +3,7 @@
 from its own bundle.
 
 Spec §4 Phase 1 item 1.3's own requirement
-(``docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md``):
+(``docs/design/specs/2026-08-19-marketplace-restructure-design.md``):
 "the bundle-local link checker (§4 1.4) must cover script-to-script calls,
 not only SKILL.md references ... It must cover source/. directives, or the
 next such dependency is missed the same way" -- named after

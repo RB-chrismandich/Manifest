@@ -24,7 +24,7 @@
 | [TESTING.md](TESTING.md) | Running the test suites |
 | [CODING_STANDARDS.md](CODING_STANDARDS.md) | Per-language standards |
 | [SKILL-NAMING.md](SKILL-NAMING.md) | Naming rules for skills |
-| [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | speckit vs superpowers vs .plans |
+| [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | speckit vs design-doc vs .plans |
 | [DEPLOY_OWNERSHIP.md](DEPLOY_OWNERSHIP.md) | Who owns which deployed path |
 | [PLUGIN_RELEASE.md](PLUGIN_RELEASE.md) | Releasing plugin bundles |
 | [PLUGIN_CAPABILITY_MATRIX.md](PLUGIN_CAPABILITY_MATRIX.md) | Bundle capabilities |

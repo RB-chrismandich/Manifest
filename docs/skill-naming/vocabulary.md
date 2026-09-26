@@ -54,7 +54,6 @@ shell
 skill
 smoke
 spec
-speckit
 terraform
 test
 token

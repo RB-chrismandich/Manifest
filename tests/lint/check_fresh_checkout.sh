@@ -38,7 +38,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 # FINDING 3(a) FIX (2026-08-20): a bundle installs independently (spec:
-# docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md, Phase 1
+# docs/design/specs/2026-08-19-marketplace-restructure-design.md, Phase 1
 # item 1.4) — a real plugin-only user gets ONLY plugins/manifest-forge/, never
 # the rest of this monorepo. Extracting the whole `git write-tree` here made
 # every monorepo path present in the "fresh checkout", so an undeclared

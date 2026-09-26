@@ -225,7 +225,7 @@ repository gates passing.
   > **Update (2026-07-11, cursor-feature-parity WS-5)**: Cursor 2.x shipped native subagent
   > support (`~/.cursor/agents/*.md`) after this FR was written, closing the gap this FR
   > anticipated. Cursor is now a second provisioned pilotfish target — see
-  > `docs/superpowers/specs/2026-07-11-cursor-feature-parity-design.md` §WS-5 and
+  > `docs/design/specs/2026-07-11-cursor-feature-parity-design.md` §WS-5 and
   > `configs/claude/scripts/generate_cursor_agents.py`. Gemini/Codex/Antigravity still have no
   > subagent-file mechanism and remain out of scope; this FR's text is left as originally
   > written for the historical record.
