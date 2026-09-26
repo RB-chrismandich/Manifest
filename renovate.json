@@ -32,5 +32,9 @@
   ],
   "ignoreDeps": [
     "myapp"
+  ],
+  "prConcurrentLimit": 2,
+  "schedule": [
+    "before 6am on monday"
   ]
 }
