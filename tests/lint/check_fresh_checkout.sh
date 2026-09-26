@@ -13,7 +13,8 @@
 #
 # CDDL QA-critic finding (2026-08-20): an earlier ad-hoc version of this gate
 # exercised only `--help` and `merge` — the two subcommands that never touch
-# loop_lock.sh, merge_decision.sh, verification_gate.sh, or pr_merge_loop_gh.sh.
+# loop_lock.sh, merge_decision.sh, verification_gate.sh, or the sourced libs
+# lib/pr_merge_loop_gh.sh / lib/pr_merge_loop_fp.sh.
 # The critic proved this empirically: deleting those files from a fresh
 # archive left both `--help` and `merge` passing (a "gate" that never fails is
 # worth nothing). This version also exercises list-managed/signals/tick, using
@@ -47,8 +48,8 @@ cd "$REPO_ROOT"
 # gate proved nothing about isolation, only about the script's own syntax.
 # Narrow the extraction to the bundle directory under test: every dependency
 # `pr_merge_loop.sh` and everything it calls actually needs (loop_lock.sh,
-# merge_decision.sh, verification_gate.sh, pr_merge_loop_gh.sh,
-# git_platform.sh, audit_log.sh, lifecycle.sh, runtime/config/*.json) is
+# merge_decision.sh, verification_gate.sh, lib/pr_merge_loop_gh.sh,
+# lib/pr_merge_loop_fp.sh,
 # declared, machine-readably, in manifest-capabilities.yml's
 # `components.runtime` list (forge-bin/forge-python/forge-config/
 # forge-references, each a path INSIDE plugins/manifest-forge/) — none of it
@@ -115,7 +116,7 @@ fail=0
 # Two lists, not one: every entry below is directly EXECUTED (invoked as
 # `"${SCRIPT_DIR}/x.sh" args`, or `bash "${SCRIPT_DIR}/x.sh"` for
 # git_platform.sh) and so must carry the executable bit `git archive`
-# preserves from this repo's tracked mode — except pr_merge_loop_gh.sh, which
+# preserves from this repo's tracked mode — except the two lib/ files, which
 # `pr_merge_loop.sh` pulls in with `source`, not exec. A `source`d file only
 # needs to exist and be readable; asserting `-x` on it would fail against its
 # own correct, intentionally non-executable mode (confirmed against this
@@ -132,6 +133,7 @@ REQUIRED_EXEC_DEPS=(
 )
 REQUIRED_SOURCED_DEPS=(
     lib/pr_merge_loop_gh.sh
+    lib/pr_merge_loop_fp.sh
 )
 for dep in "${REQUIRED_EXEC_DEPS[@]}"; do
     depfile="$BIN_DIR/$dep"
@@ -341,6 +343,6 @@ expect_contains "tick (verification_gate.sh reached, no reviewer configured -> h
 expect_absent "tick (merge never dispatched without a real reviewer)" "automated merge is disabled" "$out"
 
 if [[ "$fail" -eq 0 ]]; then
-    printf 'check-fresh-checkout: PASS (all %d declared runtime dependencies present+executable; help_exit=0 merge_exit=78; list-managed/signals reached; tick reached loop_lock.sh, merge_decision.sh, verification_gate.sh, pr_merge_loop_gh.sh and correctly degraded to hand-human with no reviewer configured)\n' "$((${#REQUIRED_EXEC_DEPS[@]} + ${#REQUIRED_SOURCED_DEPS[@]}))"
+    printf 'check-fresh-checkout: PASS (all %d declared runtime dependencies present+executable; help_exit=0 merge_exit=78; list-managed/signals reached; tick reached loop_lock.sh, merge_decision.sh, verification_gate.sh, pr_merge_loop_gh.sh, pr_merge_loop_fp.sh and correctly degraded to hand-human with no reviewer configured)\n' "$((${#REQUIRED_EXEC_DEPS[@]} + ${#REQUIRED_SOURCED_DEPS[@]}))"
 fi
 exit "$fail"

@@ -164,33 +164,6 @@ class TestGateAllows:
         )
         assert rc == 0
 
-    def test_stop_hook_active_approves_even_when_backend_resolution_is_broken(
-        self, monkeypatch, capsys
-    ):
-        monkeypatch.setattr(
-            delegate.gate,
-            "_gate_resolve_backend",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(
-                AssertionError("recursion guard reached backend resolution")
-            ),
-        )
-        args = _GateArgs()
-        args.stop_hook_active = True
-        args.json = True
-
-        rc = delegate.cmd_gate(
-            args,
-            [],
-            {"review_gate": {"enabled": True, "backend": "missing"}},
-            set(),
-        )
-
-        assert rc == 0
-        assert json.loads(capsys.readouterr().out) == {
-            "decision": "approve",
-            "reason": "stop-hook-active",
-        }
-
     def test_enabled_gate_with_edits_initializes_jobstore_before_execution(
         self, tmp_path, monkeypatch
     ):
@@ -277,3 +250,31 @@ class TestGateAllows:
             )
             is False
         )
+
+
+def test_stop_hook_active_approves_even_when_backend_resolution_is_broken(
+    monkeypatch, capsys
+):
+    monkeypatch.setattr(
+        delegate.gate,
+        "_gate_resolve_backend",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("recursion guard reached backend resolution")
+        ),
+    )
+    args = _GateArgs()
+    args.stop_hook_active = True
+    args.json = True
+
+    rc = delegate.cmd_gate(
+        args,
+        [],
+        {"review_gate": {"enabled": True, "backend": "missing"}},
+        set(),
+    )
+
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "decision": "approve",
+        "reason": "stop-hook-active",
+    }

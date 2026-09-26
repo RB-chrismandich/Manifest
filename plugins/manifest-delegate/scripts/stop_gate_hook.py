@@ -94,11 +94,7 @@ def _relay_gate_decision(result):
     ):
         _fail_closed("invalid_decision")
         return
-    print(
-        json.dumps(
-            {"decision": decision["decision"], "reason": decision["reason"]}
-        )
-    )
+    print(json.dumps({"decision": decision["decision"], "reason": decision["reason"]}))
 
 
 def main(argv=None):
@@ -147,8 +143,6 @@ def main(argv=None):
     return 0
 
 
-
-
 _SAFE_FAILURE_REASONS = frozenset(
     {
         "delegate_failed",
@@ -170,9 +164,9 @@ def _fail_closed(reason_code):
     if reason_code not in _SAFE_FAILURE_REASONS:
         reason_code = "delegate_failed"
     reason = (
-        "Review gate could not verify this turn ({}); make no tool calls or "
+        f"Review gate could not verify this turn ({reason_code}); make no tool calls or "
         "edits; report the failure to the developer for a decision."
-    ).format(reason_code)
+    )
     print(json.dumps({"decision": "block", "reason": reason}))
 
 

@@ -343,12 +343,18 @@ EOF
 # merge — the merge-gate block below covers that path. CONTENDED still yields
 # a benign "skip" (exit 0, see "a held lock makes the run skip" below).
 
-@test "tick: gate Tier-1 fail -> hand-human (never merge)" {
-    # The gate envelopes a Tier-1 fail as reviewer_error (verification_gate.sh's
-    # fail-closed shaping), so the transition is degraded — hand-human still
-    # surfaces, but non-zero and with no state persisted.
+@test "tick: gate Tier-1 fail -> hand-human and dedupes on second tick" {
     SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
-    [ "$status" -ne 0 ] && [[ "$output" == *"hand-human"* ]] && [[ "$output" != *"merged"* ]]
+    [ "$status" -eq 0 ] && [[ "$output" == *"hand-human"* ]] && [[ "$output" != *"merged"* ]]
+    [ -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
+    gate_runs_before="$(gate_count)"
+    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}' run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"unchanged"* ]]
+    [ "$(gate_count)" = "$gate_runs_before" ]
+}
+@test "tick: reviewer infrastructure failure degrades and never persists state" {
+    SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED","reviewer_error":true}' run "$SCRIPT" tick 5
+    [ "$status" -ne 0 ] && [[ "$output" == *"hand-human"* ]]
     [ ! -e "$PR_MERGE_LOOP_STATE_DIR"/fp_*.json ]
 }
 @test "tick: failing checks -> revise (no gate, no merge)" {

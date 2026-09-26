@@ -191,6 +191,7 @@ def test_invalid_gate_decision_blocks(capsys, stdout):
         code in decision["reason"] for code in ("empty_decision", "invalid_decision")
     )
 
+
 def test_delegate_import_crash_blocks_without_relaying_stderr(capsys):
     mod = _load_module()
     result = subprocess.CompletedProcess(

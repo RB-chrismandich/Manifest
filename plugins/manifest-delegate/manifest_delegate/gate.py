@@ -46,9 +46,9 @@ def _gate_block_infra(reason, json_mode=False):
     """Emit one sanitized block when review evidence cannot be established."""
     reason_code = reason if reason in _INFRA_REASON_CODES else "gate_execution_failed"
     message = (
-        "Review gate could not verify this turn ({}); make no tool calls or "
+        f"Review gate could not verify this turn ({reason_code}); make no tool calls or "
         "edits; report the failure to the developer for a decision."
-    ).format(reason_code)
+    )
     if not json_mode:
         sys.stderr.write(f"delegate: review gate blocked: {reason_code}\n")
     print(json.dumps({"decision": "block", "reason": message}))
@@ -175,9 +175,7 @@ def cmd_gate(args, backends, user_config, services_disabled):
             return _gate_allow(json_mode=json_mode, cause="no code edits")
         tree_changed = _working_tree_has_changes()
         if tree_changed is None:
-            return _gate_block_infra(
-                "working_tree_unavailable", json_mode=json_mode
-            )
+            return _gate_block_infra("working_tree_unavailable", json_mode=json_mode)
         if not tree_changed:
             return _gate_allow(json_mode=json_mode, cause="no code edits")
 

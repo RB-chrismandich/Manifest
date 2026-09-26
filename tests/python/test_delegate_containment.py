@@ -34,6 +34,7 @@ def _write_containment_marker(tmp_path, job_dir, monkeypatch):
 def test_package_import_exposes_containment_module():
     assert delegate.containment is containment
 
+
 def test_join_hook_uses_the_owned_marker_path(tmp_path, monkeypatch):
     job_dir = tmp_path / "job"
     job_dir.mkdir()
@@ -106,7 +107,10 @@ class TestContainmentOperations:
         monkeypatch.setattr(containment.os, "makedirs", make_cgroup)
         path, state, reason = containment.create(str(job_dir), root=str(root))
         assert state == containment.STATE_CONTAINED
-        assert reason == "cgroup v2 delegated root with writable membership and cgroup.kill"
+        assert (
+            reason
+            == "cgroup v2 delegated root with writable membership and cgroup.kill"
+        )
         assert containment.read_path(str(job_dir)) == path
 
     @pytest.mark.parametrize(

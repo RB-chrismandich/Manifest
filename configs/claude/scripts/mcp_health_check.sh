@@ -8,7 +8,7 @@ warn_degraded() {
 if [ -n "${MANIFEST_HEALTH_PYTHON:-}" ]; then
     health_python=$MANIFEST_HEALTH_PYTHON
 else
-    health_python=$(command -v python3 2>/dev/null || true)
+    health_python=$(command -v python3 2> /dev/null || true)
 fi
 
 if [ -z "$health_python" ] || [ ! -x "$health_python" ]; then
@@ -25,7 +25,7 @@ fi
 
 outer_timeout=${MANIFEST_MCP_HEALTH_OUTER_TIMEOUT_SECONDS:-25}
 summary=$(
-    "$health_python" - "$health_helper" "$outer_timeout" <<'PY'
+    "$health_python" - "$health_helper" "$outer_timeout" << 'PY'
 import json
 import math
 import os
@@ -214,7 +214,7 @@ controller_status=$?
 
 if [ "$controller_status" -ne 0 ]; then
     case "$summary" in
-        auth_required|connection_failed|timeout|unavailable|unparseable|not_probed|probe_in_progress|outer_timeout|invalid_result|python_unavailable|helper_unavailable)
+        auth_required | connection_failed | timeout | unavailable | unparseable | not_probed | probe_in_progress | outer_timeout | invalid_result | python_unavailable | helper_unavailable)
             warn_degraded "$summary"
             ;;
         *,*)

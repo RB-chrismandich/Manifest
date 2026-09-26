@@ -185,9 +185,7 @@ class TestGateInfrastructureBlocks:
         self._assert_infrastructure_block(captured, "backend_unavailable")
         assert "not installed" not in captured.out
 
-    def test_timeout_blocks_with_sanitized_reason(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_timeout_blocks_with_sanitized_reason(self, tmp_path, monkeypatch, capsys):
         self._setup(tmp_path, monkeypatch)
         monkeypatch.setattr(
             delegate.worker,

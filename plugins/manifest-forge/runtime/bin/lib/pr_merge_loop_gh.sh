@@ -76,7 +76,7 @@ gh_op() {
 _repository_scope_json() {
     local url
     url="$(git remote get-url origin 2> /dev/null)" || return 1
-    python3 - "$url" <<'PY'
+    python3 - "$url" << 'PY'
 import json
 import re
 import sys

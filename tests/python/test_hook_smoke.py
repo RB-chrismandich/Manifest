@@ -170,9 +170,7 @@ def test_installed_plugin_index_is_the_default_plugin_authority(tmp_path, monkey
         json.dumps(
             {
                 "plugins": {
-                    "manifest-delegate@manifest": [
-                        {"installPath": str(PLUGIN_ROOT)}
-                    ]
+                    "manifest-delegate@manifest": [{"installPath": str(PLUGIN_ROOT)}]
                 }
             }
         ),
@@ -196,7 +194,7 @@ def test_aggregate_deadline_kills_a_sleeping_launcher(tmp_path):
                             "hooks": [
                                 {
                                     "type": "command",
-                                    "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/stop_gate_hook.sh\"",
+                                    "command": '/bin/sh "${CLAUDE_PLUGIN_ROOT}/scripts/stop_gate_hook.sh"',
                                     "timeout": 900,
                                 }
                             ]

@@ -573,7 +573,6 @@ else
 fi
 echo ""
 
-
 # Model staleness (warn-only; full detail via model_check.sh directly)
 echo -e "${BOLD}Model Pins:${NC}"
 # SCRIPT_DIR is set once near the top of the file (agent_roster.yml resolution).
