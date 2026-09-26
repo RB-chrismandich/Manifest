@@ -202,21 +202,7 @@ def _validate_receipt(receipt: dict, paths: InstallPaths) -> None:
         for value in executables.values()
     ):
         raise InstallError("health installation manifest has non-absolute executables")
-    if not isinstance(files, dict):
-        raise InstallError(
-            "health installation manifest has an invalid runtime inventory"
-        )
-    RETIRED_SOURCES = frozenset({"plugin_reconcile.py"})
-    valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (set(RUNTIME_SOURCES) | RETIRED_SOURCES)
-    if not valid_keys:
-        raise InstallError(
-            "health installation manifest has an invalid runtime inventory"
-        )
-    for name in RUNTIME_SOURCES:
-        if not _valid_row(files.get(name), paths.runtime_root / name):
-            raise InstallError(
-                "health installation manifest has an invalid runtime row"
-            )
+    _validate_receipt_files(receipt.get("files"), paths.runtime_root)
     for key, destination in (
         ("omp_extension", paths.extension),
         ("claude_wrapper", paths.wrapper),
@@ -239,6 +225,33 @@ def _validate_receipt(receipt: dict, paths: InstallPaths) -> None:
         or any(not _is_digest(value) for value in hashes.values())
     ):
         raise InstallError("health installation manifest has invalid hook hashes")
+
+
+def _validate_receipt_files(files: object, runtime_root: Path) -> None:
+    if not isinstance(files, dict):
+        raise InstallError(
+            "health installation manifest has an invalid runtime inventory"
+        )
+    retired_sources = frozenset({"plugin_reconcile.py"})
+    valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (
+        set(RUNTIME_SOURCES) | retired_sources
+    )
+    if not valid_keys:
+        raise InstallError(
+            "health installation manifest has an invalid runtime inventory"
+        )
+    for name in RUNTIME_SOURCES:
+        if not _valid_row(files.get(name), runtime_root / name):
+            raise InstallError(
+                "health installation manifest has an invalid runtime row"
+            )
+    for name in retired_sources:
+        if name in files:
+            dest = runtime_root / name
+            if _path_present(dest) and not _valid_row(files.get(name), dest):
+                raise InstallError(
+                    f"health installation manifest has an invalid runtime row for {name}"
+                )
 
 
 def _source_payloads(

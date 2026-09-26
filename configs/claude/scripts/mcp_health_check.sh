@@ -1,6 +1,15 @@
 #!/bin/sh
 # Bounded, advisory SessionStart surface for the shared MCP health helper.
 
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    cat << 'USAGE'
+Usage: mcp_health_check.sh [--help]
+
+SessionStart advisory hook that checks cached MCP health status.
+USAGE
+    exit 0
+fi
+
 warn_degraded() {
     printf '%s\n' "MCP health: degraded ($1)"
 }
