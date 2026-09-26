@@ -5,7 +5,7 @@
   "description": "Pinned console-script tools materialized into the node-env toolchain store (phase-3-5-decisions.md Correction 3, chunk C7b). Never installed as a dependency of any tracked project; matches config/project-checks.json expected_version pins and docs/SHARED_CHECKS.md.",
   "dependencies": {
     "bats": "1.13.0",
-    "eslint": "10.10.0",
+    "eslint": "10.11.0",
     "markdownlint-cli2": "0.23.3",
     "pyright": "1.1.414"
   }
