@@ -306,14 +306,14 @@ repos:
         # docs/superpowers/{plans,specs}/ are design docs that legitimately quote
         # paths (plans embed bats fixtures writing a fake $FHOME/.claude/... path;
         # specs document stale paths being fixed) — excluded like tests/.
-        # specs/ (speckit layout) is the same category as docs/superpowers/specs/
         # and was missed when it was added: spec artifacts quote deployed paths
         # verbatim as evidence. Feature 522's decision-record.md embeds raw `apm
         # install` transcripts and apm.lock.yaml excerpts whose .claude/skills/…
         # paths live inside a throwaway isolated HOME, not this repo. Rewording
         # them to satisfy the grep would falsify recorded tool output, which is
-        # the one thing a decision record must not do.
-        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|specs/|docs/superpowers/plans/|docs/superpowers/specs/|docs/templates/)
+        # the one thing a decision record must not do. docs/decisions/ is the
+        # same class: records that name the paths they removed.
+        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|specs/|docs/superpowers/plans/|docs/superpowers/specs/|docs/templates/|docs/decisions/)
 
       # Rust format + lint — DORMANT/guarded (feature 366): only runs when .rs
       # files are staged AND a Cargo.toml exists. Avoids the unmaintained
