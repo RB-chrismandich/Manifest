@@ -92,7 +92,6 @@ target-version = "py311"
 extend-exclude = [
     "templates",
     "specs",
-    ".specify",
     ".Jules",
     "node_modules",
 ]
@@ -141,6 +140,6 @@ show_missing = true
 # the changed-files gate until typed coverage grows.
 typeCheckingMode = "basic"
 include = ["configs/claude/scripts", "tests/python"]
-exclude = ["templates", "specs", ".specify", ".Jules", "node_modules"]
+exclude = ["templates", "specs", ".Jules", "node_modules"]
 reportMissingImports = false
 reportMissingModuleSource = false

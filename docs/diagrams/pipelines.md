@@ -76,7 +76,7 @@ flowchart LR
 
 How CDDL (`cddl_loop.py` + the `cddl/` package, feature 482) runs a two-phase,
 critic-gated implementation over a resolved spec+plan context (speckit or
-superpowers, via the `spec_review.sh` discovery seam). Both critics must emit
+design-doc, via the `spec_review.sh` discovery seam). Both critics must emit
 structured `complete` verdicts before any code; the implement→verify→critique
 loop stages exactly the final approved candidate's paths — the loop never
 commits, pushes, merges, or reverts. Runs persist under

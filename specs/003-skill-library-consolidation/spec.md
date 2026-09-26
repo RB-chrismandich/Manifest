@@ -119,7 +119,7 @@ against the canonical source.
    date.
 6. **Given** a reader wondering which spec/plan system to use, **When** they
    consult the docs, **Then** a short map exists explaining the roles of
-   specs/, .specify/, configs/claude/.plans/, and docs/superpowers/ (and the
+   specs/, .specify/, configs/claude/.plans/, and docs/design/ (and the
    .Jules/ journal is referenced or relocated, not orphaned).
 
 ---

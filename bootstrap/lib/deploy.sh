@@ -57,7 +57,7 @@ foreign_state_rules() {
 # scripts/, skills/, …). Everything else under ~/.claude is user/runtime state
 # created by Claude Code at runtime — installed plugins, chat sessions, task and
 # command history, the user's own settings.json, credentials, MCP auth caches,
-# and plugin data dirs (.remember, .superpowers, …). The "Backup and replace"
+# and plugin data dirs (.remember, …). The "Backup and replace"
 # path moves the entire live directory into a timestamped backup, so this helper
 # copies that runtime state back into the freshly created target. Repo-owned
 # entries are excluded so the redeploy below provides the authoritative copy.

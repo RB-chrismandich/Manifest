@@ -21,10 +21,7 @@ else
     # All tracked shell scripts (repo root = two levels up from tests/lint/).
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     cd "$repo_root"
-    # .specify/ is vendored speckit tooling (set -e only, no -u; expansions
-    # length-guarded there) — out of scope; we lint the code we own.
     while IFS= read -r f; do
-        [[ "$f" == .specify/* ]] && continue
         # Skip self: the rule documentation above quotes the unsafe pattern.
         [[ "$f" == tests/lint/check_array_expansion.sh ]] && continue
         files+=("$f")

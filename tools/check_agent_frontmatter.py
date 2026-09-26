@@ -6,7 +6,7 @@ fork spawns. Claude Code's own schema for that field is an unconstrained
 string -- a bare name that does not resolve to an installed agent silently
 falls back to the built-in `general-purpose` agent, with **no error and no
 warning** (spec:
-docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md, Phase 1
+docs/design/specs/2026-08-19-marketplace-restructure-design.md, Phase 1
 item 1.4). That failure mode is invisible until someone notices the wrong
 agent ran.
 

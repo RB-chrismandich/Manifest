@@ -15,14 +15,14 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 
 | # | Phase | Command(s) | Gate (exit criterion) |
 |---|-------|-----------|-----------------------|
-| 1 | specify | `/speckit-specify` | artifact: `spec.md` exists |
-| 2 | clarify | `/speckit-clarify` | artifact: clarifications resolved |
+| 1 | specify | spec-authoring pass (manual or agent-written) producing `spec.md` | artifact: `spec.md` exists |
+| 2 | clarify | clarify pass: resolve open requirements questions in `spec.md` | artifact: clarifications resolved |
 | 3 | spec_review_product | `/manifest-spec-planning:spec-review --mode product` | verdict: APPROVED |
-| 4 | plan | `/speckit-plan` | artifact: `plan.md` + design |
-| 5 | task_creation | `/speckit-tasks` + `/speckit-taskstoissues` | artifact: `tasks.md` + hierarchy provisioned |
-| 6 | analyze | `/speckit-analyze` | verdict: 0 critical |
+| 4 | plan | planning pass producing `plan.md` + design artifacts | artifact: `plan.md` + design |
+| 5 | task_creation | task-breakdown pass producing `tasks.md` + issue hierarchy | artifact: `tasks.md` + hierarchy provisioned |
+| 6 | analyze | cross-artifact consistency pass (spec ↔ plan ↔ tasks) | verdict: 0 critical |
 | 7 | spec_review_tech | `/manifest-spec-planning:spec-review --mode technical` | verdict: APPROVED |
-| 8 | implement | `/speckit-implement` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
+| 8 | implement | `/manifest-spec-planning:spec-implement-loop` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
 | 9 | verify | `/manifest-spec-planning:spec-audit-tasks` + `/manifest-code-quality:smoke-manage --tier Lite` | runner: exit 0 |
 
 > The `--mode product|technical` flag routes the state dir and selects the
