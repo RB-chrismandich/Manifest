@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-open SessionStart delivery for the pinned ADHD guidance."""
+"""Fail-open SessionStart delivery for owned ADHD guidance."""
 
 from __future__ import annotations
 

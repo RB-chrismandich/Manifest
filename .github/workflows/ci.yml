@@ -151,6 +151,7 @@ jobs:
         run: |
           set -euo pipefail
           uv run python tools/generate_plugin_views.py --check
+          uv run python tools/sync_i_have_adhd.py --check
           uv run python tools/vendor_bundle_dependencies.py --check
           uv run python tools/sync_bundle_mirrors.py --check
           uv run python tools/check_plugin_runtime_paths.py --json

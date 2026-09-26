@@ -79,12 +79,15 @@ Two consequences when adding, renaming, or moving a skill:
 
 See [SKILL-NAMING.md](SKILL-NAMING.md) for the naming grammar itself.
 
-## Mirrored Plugin Provenance
+## ADHD Guidance Generation
 
-`manifest-i-have-adhd` is refreshed only with `tools/sync_i_have_adhd.py` from
-an already checked-out, reviewed Git commit. The tool reads regular-file bytes
-directly from the pinned commit object, rejects symlinks/submodules, verifies
-checksums in `upstream-lock.json`, and never fetches mutable upstream content.
+`manifest-i-have-adhd` owns `skills/i-have-adhd/SKILL.md` as its canonical
+source. Run `python3 tools/sync_i_have_adhd.py` after editing it, then commit
+the generated `guidance/always-on.md` and `devin/global-rule.md`. CI and
+pre-commit run `python3 tools/sync_i_have_adhd.py --check` to reject drift.
+
+The skill was adapted from `ayghri/i-have-adhd` at `2d19ad20`; its MIT license
+remains in `plugins/manifest-i-have-adhd/LICENSE.upstream`.
 
 ## Live Parity Credentials
 

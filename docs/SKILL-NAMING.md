@@ -102,7 +102,7 @@ upload-to-stitch
 | `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
 | `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
-| `i-have-adhd` | Pinned from `ayghri/i-have-adhd`; preserving the upstream user-facing name keeps attribution and migration behavior exact. |
+| `i-have-adhd` | Adapted from `ayghri/i-have-adhd`; preserving the upstream user-facing name keeps attribution and migration behavior exact. |
 | `delegate` | spec 675 delegation surface; name is the user-facing verb. |
 | `refactor` | Router over the five `<lang>-refactor` engines; the bare verb is the user-facing entry point, as with `help` and `delegate`. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
