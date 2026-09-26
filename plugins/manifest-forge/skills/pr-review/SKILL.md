@@ -15,7 +15,7 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
 
 - You want an overview of every open PR and a recommended action for each.
 - Before a cleanup pass on the PR queue.
-- To identify PRs that are no longer needed (already merged or superseded).
+- To identify PRs that are no longer needed (superseded by another open PR on the same branch).
 
 ## Task
 
@@ -36,8 +36,7 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
    rationale:
    - `merge` — mergeable, checks passing, not a draft.
    - `needs-rebase` — merge conflicts or failing checks.
-   - `close` — branch already merged, or superseded by an earlier open PR on the
-     same branch.
+   - `close` — superseded by an earlier open PR on the same branch.
    - `keep` — active work (draft, pending checks, or simply ongoing).
 3. **Act with confirmation.** This skill recommends; it does not change PRs. To
    act on a recommendation, use `gh pr merge` or `glab mr merge` explicitly and
