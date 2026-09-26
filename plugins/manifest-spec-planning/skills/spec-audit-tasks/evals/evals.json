@@ -3,8 +3,8 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "I just ran /speckit-implement on the 361-auto-dev-merge-loop feature and every task is checked off. Confirm everything actually got done.",
-      "expected_output": "Detects the speckit layout (resolves tasks.md via check-prerequisites.sh); per-task table verifying each task against real evidence (files exist, tests pass, no stubs); verdict ALL VERIFIED or GAPS FOUND with a punch list; analysis-only (no edits).",
+      "prompt": "I just finished implementing the 361-auto-dev-merge-loop feature and every task is checked off. Confirm everything actually got done.",
+      "expected_output": "Detects the specs/<n>/ layout and resolves its tasks.md; per-task table verifying each task against real evidence (files exist, tests pass, no stubs); verdict ALL VERIFIED or GAPS FOUND with a punch list; analysis-only (no edits).",
       "files": []
     },
     {
@@ -21,7 +21,7 @@
     },
     {
       "id": 4,
-      "prompt": "This is a superpowers project (no .specify/, tasks live in docs/superpowers/plans/). We finished executing the plan — audit that every task in the plan actually got done.",
+      "prompt": "This is a superpowers project (no specs/ feature dirs, tasks live in docs/superpowers/plans/). We finished executing the plan — audit that every task in the plan actually got done.",
       "expected_output": "Detects the superpowers layout: parses the embedded task list from the newest docs/superpowers/plans/*.md and cross-references the newest *-design.md; does NOT report a missing tasks.md; per-task evidence table + verdict + punch list; analysis-only.",
       "files": []
     }

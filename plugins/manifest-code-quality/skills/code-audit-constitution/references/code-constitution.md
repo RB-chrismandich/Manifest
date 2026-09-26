@@ -342,5 +342,5 @@ code is written rather than after it is reviewed.
 - [antipatterns.md](antipatterns.md) — reactive guardrail registry (`ANTI-*`)
 - [doc-concision.md](doc-concision.md) — the same discipline for documentation
 - `docs/CODING_STANDARDS.md` — the tools and gates each language runs
-- `.specify/memory/constitution.md` — project governance (distinct from this
+- `docs/constitution.md` — project governance (distinct from this
   file, which governs source changes)

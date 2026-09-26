@@ -78,5 +78,5 @@ yamllint configs/claude/config/*.yml
 ## Key Paths (in this repo)
 
 Paths are mapped in the root [CLAUDE.md](../CLAUDE.md) structure tree. One not
-listed there: `docs/SPEC-SYSTEMS.md` — spec/plan systems map (speckit vs
+listed there: `docs/SPEC-SYSTEMS.md` — spec/plan systems map (`specs/` artifacts vs
 superpowers vs `.plans` vs `.Jules`).

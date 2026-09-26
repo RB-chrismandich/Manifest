@@ -1,6 +1,6 @@
 ---
 name: spec-audit-tasks
-description: After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with speckit (tasks.md) and superpowers layouts; auto-discovers or takes paths. Runs as the speckit after_implement hook.
+description: After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with speckit (tasks.md) and superpowers layouts; auto-discovers or takes paths. Invoke right after the implement step finishes.
 ---
 
 # Task-Completion Audit
@@ -19,9 +19,9 @@ implementer's call — this skill's job is to tell the truth about what is actua
 
 1. **Locate the artifacts** per `../../runtime/references/spec-artifact-discovery.md` (explicit
    paths win, else detect the layout):
-   - **speckit:** run `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` to get
-     `FEATURE_DIR`, `FEATURE_SPEC`, `IMPL_PLAN`, `TASKS`; the task list is `tasks.md`.
-   - **superpowers:** there is no `tasks.md` and no `.specify/` — the spec is the newest
+   - **speckit:** the task list is `tasks.md` inside the spec's feature directory
+     (`specs/<NNN-slug>/`, newest by name sort, or a caller-supplied path).
+   - **superpowers:** there is no `tasks.md` — the spec is the newest
      `docs/superpowers/specs/*-design.md` and the task list is embedded in the newest
      `docs/superpowers/plans/*.md`. Parse the plan's checkbox/numbered tasks.
 
@@ -87,12 +87,10 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 - **Analysis-only**, which is what makes it safe to auto-run: it never edits code or
   re-checks boxes. It produces the punch list; the implementer (or a follow-up implement pass)
   acts on it.
-- **Runs as an `after_implement` hook** in speckit (`.specify/extensions.yml`) so it fires the
-  moment implementation finishes and before the auto-commit hook — gaps are cheapest to fix
-  before the work is committed. In superpowers or standalone, invoke it directly after the
-  implement step; it re-audits any time.
+- **Invoke it right after the implement step** — gaps are cheapest to fix while the
+  work is fresh and before it is committed. It re-audits any time.
 - Complements `/manifest-code-quality:project-verify` (deterministic lint/test/scan) and the cross-artifact
-  consistency pass (`speckit-analyze` / `spec-review`): this skill is specifically about
+  consistency pass (`/manifest-spec-planning:spec-review`): this skill is specifically about
   **did we actually finish every task**.
 
 ## Sub-agent dispatch

@@ -95,7 +95,7 @@ _SHARED_REFERENCE_BASENAMES: tuple[str, ...] = (
 # - ``constitution_check.py --update-baseline`` writes
 #   ``config/constitution_baseline.json``, a ratchet of pre-existing
 #   violation counts keyed by the monorepo-era file path they were measured
-#   against (".specify/...", "legacy-setup/...", "bundle-runtime/..."),
+#   against ("legacy-setup/...", "bundle-runtime/..."),
 #   several of which now coincidentally collide with real files under
 #   unrelated bundles post-migration.
 _GENERATED_DATA_FILES: frozenset[str] = frozenset(

@@ -53,11 +53,11 @@ Added:
   Source: specs/365-lifecycle-codification (feature 365).
 Removed sections: N/A
 Templates / docs requiring updates (feature 365):
-  - .specify/templates/plan-template.md ⚠ Constitution Check must add lifecycle gates (T034)
-  - .specify/templates/tasks-template.md ⚠ reconcile "Tests OPTIONAL" w/ per-workflow smoke coverage (T034)
+  - plan-template.md ⚠ Constitution Check must add lifecycle gates (T034; spec-kit templates since removed)
+  - tasks-template.md ⚠ reconcile "Tests OPTIONAL" w/ per-workflow smoke coverage (T034; spec-kit templates since removed)
   - docs/SPEC-SYSTEMS.md ⚠ describe the 9-phase state-gated lifecycle (T035)
-  - .specify/templates/spec-template.md ✅ no constitution-specific mandatory sections affected
-  - .specify/templates/constitution-template.md ✅ source template (not modified)
+  - spec-template.md ✅ no constitution-specific mandatory sections affected (spec-kit templates since removed)
+  - constitution-template.md ✅ source template (not modified)
 Follow-up TODOs: provider-specific specifics intentionally live in
   configs/claude/config/lifecycle_providers.yml, not the constitution (durability).
 
@@ -107,8 +107,8 @@ NOTE ON SEQUENCING: this amendment is deliberately MECHANISM-NEUTRAL. It names n
   It is therefore valid whether that spike returns GO or NO-GO, and it does not
   constitute adoption of any specific tool.
 Templates / docs requiring updates:
-  - .specify/templates/plan-template.md ⚠ Constitution Check should reference the
-    ownership/idempotence gates (Principle V) for any feature touching deployment
+  - plan-template.md ⚠ Constitution Check should reference the
+    ownership/idempotence gates (Principle V) for any feature touching deployment (spec-kit templates since removed)
   - CLAUDE.md / configs/claude/CLAUDE.md ⚠ drift-correction guidance still names
     `./bootstrap.sh --reconfigure`; update when a migrated domain exists
   - docs/configuration/, docs/GETTING_STARTED.md ⚠ same
@@ -303,16 +303,16 @@ work and anchored at the Task tier. The implementation is `plugins/manifest-forg
 (the shared, bats-tested decide/gate core) fronted by the `/lifecycle-run` skill and enforced by
 the autonomous-development loop — humans and agents share one tested gate.
 
-| # | Phase | Command(s) | Exit gate |
-|---|-------|-----------|-----------|
-| 1 | Specify | `/speckit-specify` | `spec.md` exists |
-| 2 | Clarify | `/speckit-clarify` | clarifications resolved |
+| # | Phase | Activity | Exit gate |
+|---|-------|----------|-----------|
+| 1 | Specify | Contract / spec drafting | `spec.md` exists |
+| 2 | Clarify | Requirements clarification | clarifications resolved |
 | 3 | Spec-Review (product) | `/spec-review --mode product` | `APPROVED` |
-| 4 | Plan | `/speckit-plan` | `plan.md` + design artifacts |
-| 5 | Task Creation | `/speckit-tasks` + `/speckit-taskstoissues` | `tasks.md` + hierarchy provisioned |
-| 6 | Analyze | `/speckit-analyze` | 0 critical findings |
+| 4 | Plan | Architecture & design plan | `plan.md` + design artifacts |
+| 5 | Task Creation | Breakdown into runnable tasks | `tasks.md` + hierarchy provisioned |
+| 6 | Analyze | Pre-implementation verification | 0 critical findings |
 | 7 | Spec-Review (technical) | `/spec-review --mode technical` | `APPROVED` |
-| 8 | Implement | `/speckit-implement` | per-user-facing-workflow smoke coverage |
+| 8 | Implement | Test-driven implementation | per-user-facing-workflow smoke coverage |
 | 9 | Verify task-by-task | `/spec-audit-tasks` + `smoke_test.py run --tier Lite` | exit `0` |
 
 **Gating**: hard halt for agents, advisory-with-logged-override for humans (Principle VI).
