@@ -281,6 +281,7 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
     try:
         for name, (_source, payload) in plan.runtime.items():
             _atomic_write(plan.paths.runtime_root / name, payload, 0o600)
+        _cleanup_retired_runtime(plan)
         _smoke_runtime(
             plan.paths.runtime_root,
             plan.runtime.keys(),
@@ -329,3 +330,16 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
                 environment,
             )
         raise
+
+
+def _cleanup_retired_runtime(plan: _InstallPlan) -> None:
+    retired_sources = frozenset({"plugin_reconcile.py"})
+    receipt_files = (
+        (plan.receipt or {}).get("files", {}) if isinstance(plan.receipt, dict) else {}
+    )
+    for name in retired_sources:
+        retired_path = plan.paths.runtime_root / name
+        if _path_present(retired_path):
+            row = receipt_files.get(name) if isinstance(receipt_files, dict) else None
+            _assert_destination_owned(retired_path, row, f"retired runtime file {name}")
+            retired_path.unlink()

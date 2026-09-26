@@ -325,7 +325,14 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
     updated_settings = _rewrite_health_hook(settings, hook_command, install=True)
 
     _preflight_destinations(receipt, paths)
-    snapshots = [_snapshot(path) for path in _managed_paths(paths, RUNTIME_SOURCES)]
+    managed_names = set(RUNTIME_SOURCES)
+    if receipt and isinstance(receipt.get("files"), dict):
+        managed_names.update(
+            name for name in receipt["files"] if name == "plugin_reconcile.py"
+        )
+    snapshots = [
+        _snapshot(path) for path in _managed_paths(paths, sorted(managed_names))
+    ]
     snapshots.extend((_snapshot(settings_target), _snapshot(paths.receipt)))
     return _InstallPlan(
         source_root=source_root,
