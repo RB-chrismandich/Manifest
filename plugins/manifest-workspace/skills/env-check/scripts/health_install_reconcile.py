@@ -36,6 +36,20 @@ def _managed_hook(command: str) -> dict[str, object]:
     return {"type": "command", "command": command, "timeout": SESSION_TIMEOUT_SECONDS}
 
 
+def _hook_targets_wrapper(hook: object, wrapper: Path) -> bool:
+    """Match health-hook commands in either absolute or shipped tilde form."""
+    if not isinstance(hook, dict):
+        return False
+    command = hook.get("command")
+    if not isinstance(command, str):
+        return False
+    try:
+        candidate = Path(command).expanduser().resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return candidate == wrapper
+
+
 def _session_entries(settings: dict) -> tuple[dict, list]:
     hooks = settings.setdefault("hooks", {})
     if not isinstance(hooks, dict):
@@ -70,6 +84,7 @@ def _rewrite_health_hook(settings: dict, command: str, *, install: bool) -> dict
             return updated
         hooks, entries = uninstalled
     desired = _managed_hook(command)
+    canonical = Path(command).expanduser().resolve(strict=False)
     rewritten: list[object] = []
     for entry in entries:
         if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
@@ -78,11 +93,14 @@ def _rewrite_health_hook(settings: dict, command: str, *, install: bool) -> dict
         retained: list[object] = []
         removed = False
         for hook in entry["hooks"]:
-            if isinstance(hook, dict) and hook.get("command") == command:
+            if _hook_targets_wrapper(hook, canonical):
                 if hook != desired:
-                    raise InstallError(
-                        "Claude health hook registration was externally edited"
-                    )
+                    equivalent = dict(hook)
+                    equivalent["command"] = command
+                    if equivalent != desired:
+                        raise InstallError(
+                            "Claude health hook registration was externally edited"
+                        )
                 removed = True
                 continue
             retained.append(hook)
@@ -105,12 +123,12 @@ def _hook_is_present(settings: dict, command: str) -> bool:
     entries = hooks.get("SessionStart")
     if not isinstance(entries, list):
         return False
+    canonical = Path(command).expanduser().resolve(strict=False)
     return any(
         isinstance(entry, dict)
         and isinstance(entry.get("hooks"), list)
         and any(
-            isinstance(hook, dict) and hook.get("command") == command
-            for hook in entry["hooks"]
+            _hook_targets_wrapper(hook, canonical) for hook in entry["hooks"]
         )
         for entry in entries
     )

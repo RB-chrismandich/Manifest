@@ -489,32 +489,25 @@ TS
     assert_output '[]'
 }
 
-@test "runtime settings register the MCP check as a separate SessionStart hook once" {
+@test "runtime settings leave the MCP check hook to the owned installer" {
     run "$PYTHON_BIN" - "$REPO_ROOT/configs/claude/settings.runtime.json" <<'PY'
 import json
 import sys
 
 settings = json.load(open(sys.argv[1], encoding="utf-8"))
-entries = settings["hooks"]["SessionStart"]
+entries = settings.get("hooks", {}).get("SessionStart", [])
 commands = [
     hook["command"]
     for entry in entries
     for hook in entry.get("hooks", [])
+    if isinstance(hook, dict)
 ]
-assert commands.count("~/.claude/scripts/mcp_health_check.sh") == 1, commands
-mcp_entry = [
-    entry
-    for entry in entries
-    if any(
-        hook.get("command") == "~/.claude/scripts/mcp_health_check.sh"
-        for hook in entry.get("hooks", [])
-    )
-]
-assert len(mcp_entry) == 1, entries
-assert len(mcp_entry[0]["hooks"]) == 1, mcp_entry
-print("wired")
+# install_health_reporting.py owns hook registration; static settings must not
+# ship a second copy or the installer would duplicate/reject it.
+assert "mcp_health_check.sh" not in "\n".join(commands), commands
+print("delegated")
 PY
 
     assert_success
-    assert_output "wired"
+    assert_output "delegated"
 }
