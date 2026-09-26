@@ -41,6 +41,13 @@ err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "pr-merge-loop: $*" >
 # Injectable clock (tests fast-forward via PR_MERGE_LOOP_NOW_CMD) and a bounded
 # network wrapper so a single hung call can never bust the hard ceiling.
 _now() { if [[ -n "${PR_MERGE_LOOP_NOW_CMD:-}" ]]; then "${PR_MERGE_LOOP_NOW_CMD}"; else date +%s; fi; }
+_observed_at() {
+    if [[ -n "${PR_MERGE_LOOP_CLOCK_CMD:-}" ]]; then
+        "${PR_MERGE_LOOP_CLOCK_CMD}"
+    else
+        date -u +%Y-%m-%dT%H:%M:%SZ
+    fi
+}
 _net() {
     local t="${GH_NET_TIMEOUT:-60}"
     if command -v timeout > /dev/null 2>&1; then
@@ -54,7 +61,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # XDG state root, matching every other manifest-forge runtime script (FORGE_STATE_DIR
 # convention in audit_log.sh, lifecycle.sh, etc.) — not the coordinator's
 # bootstrap-only home tree, which this portable bundle does not depend on.
+# shellcheck disable=SC2034  # consumed by the sourced lib/pr_merge_loop_fp.sh
 STATE_DIR="${PR_MERGE_LOOP_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge/pr_merge_loop}"
+# shellcheck disable=SC2034  # consumed by the sourced lib/pr_merge_loop_fp.sh
 AUTHORS_FILE="${AUTOMATION_AUTHORS_FILE:-${SCRIPT_DIR}/../config/automation_authors.json}"
 
 usage() {
@@ -79,196 +88,16 @@ USAGE
 # shellcheck source=lib/pr_merge_loop_gh.sh disable=SC1091
 source "${SCRIPT_DIR}/lib/pr_merge_loop_gh.sh"
 
-# --- pure classifier: raw gh values -> normalized signals JSON ---
-CLASSIFY_PY='
-import json, sys
-buckets, rd, uh, disp, mrg, main_ci, hold, rev, maxrev, head = sys.argv[1:11]
-bl = buckets.split() if buckets.strip() else []
-if   "fail" in bl or "cancel" in bl: checks="FAIL"
-elif "pending" in bl:                checks="PENDING"
-elif not bl:                         checks="NO_CHECKS"
-else:                                checks="PASS"
-try: uh_n=int(uh or 0)
-except: uh_n=0
-review_block = (rd=="CHANGES_REQUESTED") or (uh_n>0)
-parts=(mrg or "UNKNOWN UNKNOWN").split()
-mergeable=parts[0] if parts else "UNKNOWN"
-mstate=parts[1] if len(parts)>1 else "UNKNOWN"
-print(json.dumps({"checks":checks,"review_block":review_block,"pr_review_disposition":disp or "keep",
-  "gate_tier1":None,"mergeable":mergeable,
-  "merge_state":mstate,"hold":(hold=="true"),"revisions_used":int(rev or 0),
-  "max_revisions":int(maxrev or 3),"reviewer_error":False,"main_ci":main_ci,
-  "head_sha":head or None}))
-'
-
-revisions_used() {
-    local f="${STATE_DIR}/rev_${1}"
-    [[ -f "$f" ]] && cat "$f" || echo 0
-}
-
-cmd_signals() {
-    local pr="${1:?pr required}"
-    local buckets rd uh disp mrg hold head
-    buckets="$(gh_op checks "$pr" | tr '\n' ' ')"
-    rd="$(gh_op reviewdecision "$pr")"
-    uh="$(gh_op unresolved-human "$pr")"
-    disp="$(gh_op disposition "$pr")"
-    mrg="$(gh_op mergeable "$pr")"
-    hold="$(gh_op hold "$pr")"
-    head="$(gh_op headsha "$pr")" # captured at decision time (finding 2 sink re-check)
-    # main-ci health replaces the retired `verify` signal: with no sha arg
-    # cmd_post_merge_check reads main HEAD and is fail-closed — unreadable or
-    # pending main CI counts as red, which decide() maps to halt.
-    local main_ci=green
-    cmd_post_merge_check > /dev/null 2>&1 || main_ci=red
-    python3 -c "${CLASSIFY_PY}" "$buckets" "$rd" "$uh" "$disp" "$mrg" "$main_ci" "$hold" \
-        "$(revisions_used "$pr")" "${MAX_REVISIONS:-3}" "$head"
-}
-
-# SECURITY (finding 1): `raw` is attacker-influenced — it is `gh pr list`'s author
-# profile metadata, and a crafted display name (e.g. containing `'''` + Python) must
-# never become part of the interpreted program text. LIST_MANAGED_PY is a CONSTANT,
-# single-quoted string (no shell expansion happens inside it); `raw` is delivered
-# exclusively via stdin and parsed with `json.load`, never interpolated into source.
-LIST_MANAGED_PY='
-import json, sys
-try:
-    prs = json.load(sys.stdin)
-    if not isinstance(prs, list):
-        raise ValueError("prs not a list")
-except Exception:
-    prs = []
-try:
-    cfg = json.load(open(sys.argv[1])) or {}
-except Exception:
-    cfg = {}
-allow = {a.lower().replace("[bot]", "") for a in (cfg.get("authors") or [])}
-out = []
-for p in prs:
-    a = (p.get("author") or {})
-    login = (a.get("login") if isinstance(a, dict) else str(a)) or ""
-    key = login.lower().replace("[bot]", "")
-    is_bot = isinstance(a, dict) and (a.get("is_bot") or a.get("__typename") == "Bot")
-    if key in allow or (cfg.get("trust_bot_typename") and is_bot):
-        out.append({"number": p.get("number"), "author": login})
-print(json.dumps(out))
-'
-
-cmd_list_managed() {
-    local raw
-    raw="$(gh_op list)"
-    printf '%s' "$raw" | python3 -c "${LIST_MANAGED_PY}" "$AUTHORS_FILE"
-}
-
-cmd_empty_run() {
-    mkdir -p "$STATE_DIR" 2> /dev/null || true
-    local f="${STATE_DIR}/empty_count" n
-    n=$([[ -f "$f" ]] && cat "$f" || echo 0)
-    case "${1:-get}" in
-        get) echo "$n" ;;
-        incr)
-            n=$((n + 1))
-            echo "$n" > "$f"
-            echo "$n"
-            ;;
-        reset)
-            echo 0 > "$f"
-            echo 0
-            ;;
-        *)
-            err "empty-run: get|incr|reset"
-            return 64
-            ;;
-    esac
-}
-
-# --- live orchestration (integration paths; seam-overridable) ---
-cmd_address_cycle() {
-    local pr="${1:?pr required}"
-    err "address-cycle #${pr}: run /pr-address-comments, /project-verify, /pr-review (where independent, in parallel — FR-015)"
-    local f="${STATE_DIR}/rev_${pr}"
-    mkdir -p "$STATE_DIR" 2> /dev/null || true
-    echo $(($(revisions_used "$pr") + 1)) > "$f"
-    return 0
-}
-
-# The reviewing agent records its /pr-review verdict here; cmd_signals reads it back through
-# gh_op disposition. Without a recorded verdict the decision can never reach run-gate/merge
-# (the live default is "keep"), which is the safe default for unreviewed PRs.
-cmd_set_disposition() {
-    local pr="${1:?pr required}" v="${2:?merge|keep|close required}"
-    case "$v" in merge | keep | close) ;; *)
-        err "invalid disposition: ${v} (merge|keep|close)"
-        return 64
-        ;;
-    esac
-    mkdir -p "$STATE_DIR" 2> /dev/null || true
-    echo "$v" > "${STATE_DIR}/disp_${pr}"
-    return 0
-}
-
-# SECURITY (finding 5): $1, if given, pins the exact merge-commit sha to verify
-# (set by cmd_tick right after a successful merge) so a concurrent merge landing
-# on main in between can't make us grade someone else's commit. Falls back to
-# reading main HEAD (pre-existing behaviour) when no sha is supplied.
-cmd_post_merge_check() {
-    local sha="${1:-}" state rc=0 repo=""
-    [[ -n "$sha" ]] || sha="$(git ls-remote origin main 2> /dev/null | awk 'NR==1{print $1}')"
-    if [[ -z "$sha" ]]; then
-        [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]] || {
-            err "cannot read main sha — fail closed"
-            return 10
-        }
-        sha="seam"
-    fi
-    if [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]]; then
-        state="$("${PR_MERGE_LOOP_POSTMERGE_CMD}")" || rc=$?
-    else
-        # GitHub check-run conclusions are queried only after deriving the
-        # selected remote's owner/repository; failure is fail-closed.
-        repo="$(_owner_repo_from_remote)" || {
-            err "cannot resolve GitHub repository — fail closed"
-            return 10
-        }
-        state="$(_net gh api "repos/${repo}/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' 2> /dev/null)" || rc=$?
-    fi
-    # Explicit rc check (not `||`) — this function is invoked on the left of `||` by
-    # callers, which suspends errexit for everything inside it; a failed status
-    # command must never silently fall through to the `return 0` at the bottom.
-    if [[ $rc -ne 0 ]]; then
-        err "main CI status command failed (exit ${rc}) — fail closed, never success"
-        return 10
-    fi
-    if [[ -z "${state//[[:space:]]/}" || "$state" == "[]" ]]; then
-        err "main CI: no check results readable — fail closed, never success"
-        return 10
-    fi
-    if printf '%s' "$state" | grep -qE 'failure|cancelled|timed_out|action_required'; then
-        err "main CI red — HALT"
-        return 10
-    fi
-    # A still-running check (null conclusion) or a "pending" status word is NOT
-    # success either — only "neutral"/"skipped" completed conclusions pass through,
-    # matching how gh's own check-run vocabulary distinguishes done-but-advisory
-    # from not-yet-done.
-    if printf '%s' "$state" | grep -qE 'null|pending'; then
-        err "main CI still unresolved — HALT (never treat as success)"
-        return 10
-    fi
-    return 0
-}
+# --- observation & transition-state layer: split out of this file into
+# lib/pr_merge_loop_fp.sh (C-SIZE/CON-002 — see that file's header for the
+# seam rationale). Provides cmd_signals, cmd_list_managed, cmd_empty_run,
+# cmd_address_cycle, cmd_set_disposition, cmd_post_merge_check, _jget, and the
+# collect_fingerprint_material / fingerprint_state_* machinery.
+# shellcheck source=lib/pr_merge_loop_fp.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_fp.sh"
 
 # --- merge path (T019) + dispatch (T021) ---
 APPLY="${PR_MERGE_LOOP_APPLY:-0}"
-# SECURITY (finding-1 class, hardened preventively): the key is argv, never
-# interpolated into the program text — only current callers pass literal keys
-# ("action","label"), but the function itself must stay safe if that changes.
-_JGET_PY='
-import json, sys
-v = json.load(sys.stdin).get(sys.argv[1])
-print("" if v is None else v)
-'
-_jget() { python3 -c "${_JGET_PY}" "$1"; }
 
 # apply_label <pr> <label> — no-op in dry-run; skips empty labels.
 apply_label() {
@@ -277,7 +106,10 @@ apply_label() {
         err "[dry-run] would label #$1 '$2'"
         return 0
     }
-    gh issue edit "$1" --add-label "$2" > /dev/null 2>&1 || err "could not label #$1 $2"
+    gh_op add-label "$1" "$2" > /dev/null 2>&1 || {
+        err "could not label #$1 $2"
+        return 1
+    }
 }
 
 # HARD GATE (this vendored copy only — CDDL QA-critic finding, 2026-08-19/20).
@@ -348,131 +180,256 @@ lifecycle_gate_ok() {
 }
 
 cmd_tick() {
-    local pr="${1:?pr required}" sig d act gate sig2 rc=0 head_sha lock_rc=0
-    # PROPORTIONALITY FIX (2026-08-20, CDDL QA-critic finding): merge is
-    # hard-gated elsewhere in this bundle (cmd_merge -> exit 78, unconditional,
-    # not an env toggle — see merge_capability_disabled above), so this lock no
-    # longer guards anything irreversible; its only remaining job is avoiding a
-    # duplicated (expensive) run-gate pass. loop_lock.sh's `acquire` now reports
-    # WHY it failed via distinct exit codes: 1 = genuinely CONTENDED (someone
-    # else holds a live lease, or we lost a race, or same-host flock
-    # contention) — that must still block. 2 = DEGRADED (the lease could not
-    # even be attempted, e.g. the backend rejects the unprovisioned dynamic
-    # `loop-active:<epoch>:<token>` label name — labels.yml:58-61) — that is
-    # NOT evidence of contention, so treat it as "proceed without the cross-host
-    # lock" rather than silently going dark on every tick forever. Any other
-    # non-zero (including 1) is treated conservatively as contention.
+    local pr="${1:?pr required}" sig d act gate sig2 head_sha
+    local material post_material rc=0 lock_rc=0 handling_failed=0 lock_degraded=0
+
+    # Observe before touching the mutation lease. An exact valid state match is
+    # the cheap path: no lease label, reviewer, action label, or audit append.
+    material="$(collect_fingerprint_material "$pr")" || return 13
+    if fingerprint_state_matches "$pr" "$material"; then
+        printf 'unchanged\n'
+        return 0
+    fi
+
+    # The bundle's structural merge gate makes a rejected lease safe to
+    # tolerate for read-only/reviewer work, but degraded work is never persisted
+    # as successfully handled. Genuine contention still skips this tick.
     "${SCRIPT_DIR}/loop_lock.sh" acquire "$pr" 2> /dev/null || lock_rc=$?
     case "$lock_rc" in
-        0) : ;; # acquired the cross-host lease normally
+        0) : ;;
+        1)
+            err "#$pr: locked — skipping (lease genuinely held by another run)"
+            printf 'skip\n'
+            return 0
+            ;;
         2)
             err "#$pr: cross-host lease unavailable (label backend rejected the add)" \
                 "— proceeding WITHOUT it (degraded, not contended; duplicate" \
                 "run-gate work is possible, but no irreversible action can" \
                 "result since merge is hard-gated in this bundle)"
+            lock_degraded=1
             ;;
         *)
-            err "#$pr locked — skipping"
-            printf 'skip\n'
-            return 0
+            err "#$pr: lease acquisition failed unexpectedly (exit=${lock_rc})"
+            return 12
             ;;
     esac
-    # Idempotent even when nothing was actually acquired (lock_rc==2): release
-    # on an unheld PR is a documented no-op (loop_lock.sh header).
     # shellcheck disable=SC2064
     trap "'${SCRIPT_DIR}/loop_lock.sh' release '$pr' >/dev/null 2>&1" RETURN
 
-    sig="$(cmd_signals "$pr")"
-    head_sha="$(printf '%s' "$sig" | _jget head_sha)" # pinned for the sink SHA re-check
-    d="$(printf '%s' "$sig" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
-    act="$(printf '%s' "$d" | _jget action)"
+    # Close the pre-lease race. Another worker may have processed this exact
+    # transition while we waited; only the state re-read under the lease decides.
+    material="$(collect_fingerprint_material "$pr")" || return 13
+    if fingerprint_state_matches "$pr" "$material"; then
+        printf 'unchanged\n'
+        return 0
+    fi
 
-    # Cheap signals clear → run the (expensive) verification gate, augment, re-decide.
+    sig="$(cmd_signals "$pr")" || {
+        err "#$pr: signal observation failed"
+        return 13
+    }
+    head_sha="$(printf '%s' "$sig" | _jget head_sha 2> /dev/null)" || {
+        err "#$pr: signal payload was invalid"
+        return 13
+    }
+    d="$(printf '%s' "$sig" | "${SCRIPT_DIR}/merge_decision.sh" decide)" || {
+        err "#$pr: merge decision failed"
+        return 13
+    }
+    act="$(printf '%s' "$d" | _jget action 2> /dev/null)" || {
+        err "#$pr: merge decision was invalid"
+        return 13
+    }
+    [[ -n "$act" ]] || {
+        err "#$pr: merge decision omitted action"
+        return 13
+    }
+
+    # Cheap signals clear → run the expensive verification gate once.
     if [[ "$act" == "run-gate" ]]; then
-        gate="$("${SCRIPT_DIR}/verification_gate.sh" review "$pr" 2> /dev/null)" || gate='{"reviewer_error":true}'
+        gate="$("${SCRIPT_DIR}/verification_gate.sh" review "$pr" 2> /dev/null)" || {
+            gate='{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0}'
+            handling_failed=1
+        }
         sig2="$(printf '%s' "$sig" | python3 -c '
 import json,sys
 s=json.load(sys.stdin)
-try: g=json.loads(sys.argv[1])
-except Exception: g={"reviewer_error":True}
+try:
+    g=json.loads(sys.argv[1])
+    if not isinstance(g,dict):
+        raise ValueError()
+except Exception:
+    g={"reviewer_error":True}
 ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
 s["gate_tier1"]="pass" if ok else "fail"
 s["reviewer_error"]=bool(g.get("reviewer_error"))
-print(json.dumps(s))' "$gate")"
-        d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
-        act="$(printf '%s' "$d" | _jget action)"
+print(json.dumps(s))' "$gate" 2> /dev/null)" || {
+            err "#$pr: review gate returned an invalid envelope"
+            return 13
+        }
+        # Only genuine reviewer/infra failure degrades the run without persisting state.
+        # A valid gate verdict (even BLOCKED / Tier-1 fail) is a completed observation
+        # and must persist its fingerprint to prevent infinite review loops.
+        if [[ "$(printf '%s' "$sig2" | _jget reviewer_error 2> /dev/null)" == "True" ]]; then
+            handling_failed=1
+        fi
+        d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)" || {
+            err "#$pr: post-review decision failed"
+            return 13
+        }
+        act="$(printf '%s' "$d" | _jget action 2> /dev/null)" || return 13
     fi
 
     case "$act" in
         merge)
             if ! lifecycle_gate_ok "$pr"; then
                 err "#$pr: lifecycle gate unsatisfied (audit drift) → needs-human (SC-011)"
-                apply_label "$pr" needs-human
+                apply_label "$pr" needs-human || handling_failed=1
                 act="hand-human"
             else
+                rc=0
                 cmd_merge "$pr" "$head_sha" || rc=$?
                 if [[ $rc -eq 9 ]]; then
-                    apply_label "$pr" ready-to-merge
+                    apply_label "$pr" ready-to-merge || handling_failed=1
+                elif [[ $rc -eq 78 ]]; then
+                    # The portable copy uses this structural hard gate. Keeping
+                    # it here lets both maintained implementations share the
+                    # transition machinery without weakening that gate.
+                    apply_label "$pr" needs-human || handling_failed=1
                 elif [[ $rc -eq 0 ]]; then
-                    cmd_post_merge_check "$LAST_MERGE_SHA" > /dev/null 2>&1 || {
-                        err "#$pr merged → main RED/pending — HALT"
-                        act="halt"
-                    }
-                else apply_label "$pr" needs-human; fi
+                    if [[ "$APPLY" == "1" ]]; then
+                        cmd_post_merge_check "$LAST_MERGE_SHA" > /dev/null 2>&1 || {
+                            err "#$pr merged → main RED/pending — HALT"
+                            act="halt"
+                            handling_failed=1
+                        }
+                    fi
+                else
+                    err "#$pr: merge action failed (exit ${rc})"
+                    apply_label "$pr" needs-human || true
+                    handling_failed=1
+                fi
             fi
             ;;
-        update-branch) gh_op update-branch "$pr" > /dev/null 2>&1 || apply_label "$pr" needs-human ;;
-        hand-human) apply_label "$pr" "$(printf '%s' "$d" | _jget label)" ;;
-        halt) err "#$pr: HALT (post-merge main breakage)" ;;
+        update-branch)
+            if ! gh_op update-branch "$pr" > /dev/null 2>&1; then
+                err "#$pr: update-branch action failed"
+                apply_label "$pr" needs-human || true
+                handling_failed=1
+            fi
+            ;;
+        hand-human)
+            apply_label "$pr" "$(printf '%s' "$d" | _jget label)" || handling_failed=1
+            ;;
+        halt)
+            err "#$pr: HALT (post-merge main breakage)"
+            handling_failed=1
+            ;;
         revise) err "#$pr: revise — the skill runs /pr-address-comments, /project-verify, /pr-review" ;;
         wait) err "#$pr: waiting on checks/mergeability" ;;
+        *)
+            err "#$pr: unsupported decision action '$act'"
+            return 13
+            ;;
     esac
-    # Audit (redacted, fail-open — FR-021/022).
+
+    # Audit remains fail-open, but only changed material reaches it.
     "${SCRIPT_DIR}/audit_log.sh" append \
         "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"pr\":${pr},\"action\":\"${act}\",\"apply\":${APPLY}}" \
         2> /dev/null || true
+
+    if ((handling_failed == 1)); then
+        err "#$pr: handling/review failure — transition state not recorded"
+        printf '%s\n' "$act"
+        [[ "$act" == "halt" ]] && return 0
+        return 13
+    fi
+    if ((lock_degraded == 1)); then
+        err "#$pr: degraded lease — transition state not recorded"
+        printf '%s\n' "$act"
+        return 0
+    fi
+
+    # Only certify the handled transition if head/check/review material stayed
+    # stable through dispatch. Local disposition/action-label effects are
+    # incorporated by persisting the fresh full fingerprint.
+    post_material="$(collect_fingerprint_material "$pr")" || return 13
+    if ! fingerprint_external_matches "$material" "$post_material"; then
+        err "#$pr: external transition occurred during dispatch — state not recorded"
+        printf '%s\n' "$act"
+        return 0
+    fi
+    persist_fingerprint_state "$pr" "$post_material" "$act" || {
+        err "#$pr: atomic fingerprint state write failed"
+        printf '%s\n' "$act"
+        return 13
+    }
     printf '%s\n' "$act"
 }
 
-# --- T026/T024: bounded self-paced loop driver. One merge in flight at a time
-# (loop_lock, inside cmd_tick). Hard wall-clock ceiling; stops after 5 empty passes.
-# Exit 0 = ceiling/5-empty (normal); exit 11 = halt (main red post-merge).
+# --- bounded state-driven loop. Every managed PR is observed each pass, while
+# expensive handling only runs for changed fingerprints. The first complete
+# pass with no changed/actionable PR stops immediately.
 cmd_run() {
     local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
-    local start deadline now managed pr act inflight n
+    local start deadline now managed_json managed pr act rc changed complete
+    gh_op fp-scope > /dev/null || {
+        err "material fingerprinting unsupported for this repository/provider"
+        return 13
+    }
     start="$(_now)"
     deadline=$((start + ceiling))
     while :; do
         now="$(_now)"
         ((now < deadline)) || break
-        managed="$(cmd_list_managed | python3 -c \
-            'import json,sys;print(" ".join(str(p["number"]) for p in json.load(sys.stdin)))' 2> /dev/null || echo "")"
-        inflight=0
-        # shellcheck disable=SC2086 # word-split the space-joined PR numbers (bash 3.2-safe)
+        managed_json="$(cmd_list_managed)" || return $?
+        managed="$(printf '%s' "$managed_json" | python3 -c '
+import json,sys
+items=json.load(sys.stdin)
+if not isinstance(items,list):
+    raise ValueError("managed list")
+numbers=[]
+for item in items:
+    number=item.get("number") if isinstance(item,dict) else None
+    if not isinstance(number,int) or number < 1:
+        raise ValueError("managed PR number")
+    numbers.append(str(number))
+print(" ".join(numbers))' 2> /dev/null)" || {
+            err "managed-PR observation was malformed"
+            return 13
+        }
+        changed=0
+        complete=1
+        # shellcheck disable=SC2086 # space-joined validated integer PR numbers
         for pr in $managed; do
             now="$(_now)"
-            ((now < deadline)) || break
-            act="$(cmd_tick "$pr")"
+            if ((now >= deadline)); then
+                complete=0
+                break
+            fi
+            rc=0
+            act="$(cmd_tick "$pr")" || rc=$?
+            [[ $rc -eq 0 ]] || return "$rc"
             case "$act" in
                 halt)
                     err "loop HALT — main breakage on #$pr"
                     return 11
                     ;;
-                merge | revise | update-branch | wait | skip) inflight=1 ;;
+                unchanged) : ;;
+                *) changed=1 ;;
             esac
         done
+        ((complete == 1)) || break
         now="$(_now)"
         ((now < deadline)) || break
-        if ((inflight == 1)); then
+        if ((changed == 0)); then
             cmd_empty_run reset > /dev/null
-        else
-            n="$(cmd_empty_run incr)"
-            # set -e-safe only as the LHS of && (non-tail); do not move to a tail position
-            ((n >= 5)) && {
-                err "5 consecutive empty runs — stopping"
-                break
-            }
+            cmd_empty_run incr > /dev/null
+            err "first unchanged pass — stopping"
+            break
         fi
+        cmd_empty_run reset > /dev/null
         now="$(_now)"
         ((now < deadline)) || break
         [[ "$poll" -gt 0 ]] && sleep "$poll"
@@ -518,7 +475,7 @@ main() {
             ;;
         tick)
             cmd_tick "$@"
-            exit 0
+            exit $?
             ;;
         run)
             cmd_run "$@"
