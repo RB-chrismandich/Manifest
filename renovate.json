@@ -36,5 +36,11 @@
   "prConcurrentLimit": 2,
   "schedule": [
     "before 6am on monday"
-  ]
+  ],
+  "updateNotScheduled": false,
+  "rebaseWhen": "conflicted",
+  "vulnerabilityAlerts": {
+    "schedule": [],
+    "prConcurrentLimit": 0
+  }
 }
