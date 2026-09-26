@@ -191,11 +191,19 @@ export default function manifestHealth(pi: ExtensionAPI) {
             if (
               !tool ||
               typeof tool !== "object" ||
-              !("mcpServerName" in tool)
+              !("sourceInfo" in tool) ||
+              !tool.sourceInfo ||
+              typeof tool.sourceInfo !== "object" ||
+              !("source" in tool.sourceInfo) ||
+              tool.sourceInfo.source !== "mcp" ||
+              !("metadata" in tool) ||
+              !tool.metadata ||
+              typeof tool.metadata !== "object" ||
+              !("mcpServerName" in tool.metadata)
             ) {
               continue;
             }
-            const name = tool.mcpServerName;
+            const name = tool.metadata.mcpServerName;
             if (name === undefined) continue;
             if (typeof name !== "string" || !SAFE_SERVER_NAME.test(name)) {
               inventoryObserved = false;

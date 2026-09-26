@@ -450,7 +450,7 @@ const pi = {
     if (name === "session_start") startHandler = handler;
   },
   getAllTools() {
-    return [{ name: "docs", mcpServerName: "context7" }, { name: "read" }];
+    return [{ name: "mcp__context7_docs", sourceInfo: { source: "mcp", path: "context7" }, metadata: { mcpServerName: "context7" } }, { name: "read" }];
   },
 };
 const extension = await import(process.argv[2]);
