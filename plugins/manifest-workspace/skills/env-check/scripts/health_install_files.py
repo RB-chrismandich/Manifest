@@ -2,21 +2,23 @@
 """File, snapshot, receipt, and plist primitives for the health installer."""
 
 from __future__ import annotations
-
+import fcntl
 import hashlib
 import json
 import os
 import plistlib
 import stat
 import tempfile
-from collections.abc import Mapping, Sequence
-from contextlib import suppress
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 
 SCHEMA_VERSION = 1
 LAUNCHD_LABEL = "com.manifest.health-report"
 PLIST_NAME = f"{LAUNCHD_LABEL}.plist"
+INSTALL_LOCK_NAME = "install.lock"
+RETIRED_RUNTIME_SOURCES = frozenset({"plugin_reconcile.py"})
 OWNERSHIP_MARKER = "manifest-health-reporting"
 SESSION_TIMEOUT_SECONDS = 30
 SHA256_LENGTH = 64
@@ -176,13 +178,53 @@ def _snapshot(path: Path) -> FileSnapshot:
 
 
 def _restore_snapshots(snapshots: Sequence[FileSnapshot]) -> None:
+    failures: list[str] = []
     for snapshot in reversed(snapshots):
-        with suppress(AssertionError, InstallError, OSError):
+        try:
             if snapshot.existed:
                 assert snapshot.payload is not None and snapshot.mode is not None
                 _atomic_write(snapshot.path, snapshot.payload, snapshot.mode)
             elif _path_present(snapshot.path):
                 snapshot.path.unlink()
+        except (AssertionError, InstallError, OSError) as error:
+            failures.append(f"{snapshot.path}: {error}")
+    if failures:
+        raise InstallError(
+            "rollback could not restore every pre-installation snapshot: "
+            + "; ".join(failures)
+        )
+
+
+@contextmanager
+def _installation_lock(paths: InstallPaths) -> Iterator[Path]:
+    """Hold the exclusive health-installation lock across one transaction.
+
+    Shares the coordinator's `<state>/manifest/install.lock` name so bootstrap,
+    installs, and uninstalls of the health runtime cannot interleave snapshots
+    and rollback. The blocking flock serializes concurrent invocations.
+    """
+    lock_dir = paths.state_root.parent
+    try:
+        lock_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    except OSError as error:
+        raise InstallError(f"could not create install lock directory: {lock_dir}") from error
+    try:
+        descriptor = os.open(lock_dir / INSTALL_LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600)
+    except OSError as error:
+        raise InstallError(
+            f"could not open install lock: {lock_dir / INSTALL_LOCK_NAME}"
+        ) from error
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+        except OSError as error:
+            raise InstallError("could not acquire the health installation lock") from error
+        try:
+            yield lock_dir / INSTALL_LOCK_NAME
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def _settings_target(path: Path) -> Path:

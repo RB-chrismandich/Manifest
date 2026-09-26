@@ -16,6 +16,7 @@ from health_install_files import (  # noqa: E402
     LAUNCHD_LABEL,
     OWNERSHIP_MARKER,
     PLIST_NAME,
+    RETIRED_RUNTIME_SOURCES,
     SCHEMA_VERSION,
     SESSION_TIMEOUT_SECONDS,
     SHA256_LENGTH,
@@ -26,6 +27,7 @@ from health_install_files import (  # noqa: E402
     _assert_plist_owned,
     _atomic_write,
     _digest,
+    _installation_lock,
     _is_digest,
     _json_bytes,
     _load_receipt,
@@ -232,9 +234,8 @@ def _validate_receipt_files(files: object, runtime_root: Path) -> None:
         raise InstallError(
             "health installation manifest has an invalid runtime inventory"
         )
-    retired_sources = frozenset({"plugin_reconcile.py"})
     valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (
-        set(RUNTIME_SOURCES) | retired_sources
+        set(RUNTIME_SOURCES) | RETIRED_RUNTIME_SOURCES
     )
     if not valid_keys:
         raise InstallError(
@@ -245,7 +246,7 @@ def _validate_receipt_files(files: object, runtime_root: Path) -> None:
             raise InstallError(
                 "health installation manifest has an invalid runtime row"
             )
-    for name in retired_sources:
+    for name in RETIRED_RUNTIME_SOURCES:
         if name in files:
             dest = runtime_root / name
             if _path_present(dest) and not _valid_row(files.get(name), dest):
@@ -290,6 +291,13 @@ def _preflight_destinations(receipt: dict | None, paths: InstallPaths) -> None:
             files.get(name) if isinstance(files, dict) else None,
             f"runtime file {name}",
         )
+    if isinstance(files, dict):
+        for name in RETIRED_RUNTIME_SOURCES:
+            _assert_destination_owned(
+                paths.runtime_root / name,
+                files.get(name),
+                f"retired runtime file {name}",
+            )
     _assert_destination_owned(
         paths.extension,
         receipt.get("omp_extension") if receipt else None,
@@ -328,7 +336,7 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
     managed_names = set(RUNTIME_SOURCES)
     if receipt and isinstance(receipt.get("files"), dict):
         managed_names.update(
-            name for name in receipt["files"] if name == "plugin_reconcile.py"
+            name for name in receipt["files"] if name in RETIRED_RUNTIME_SOURCES
         )
     snapshots = [
         _snapshot(path) for path in _managed_paths(paths, sorted(managed_names))
@@ -359,23 +367,36 @@ def install(source_root: Path, environment: Mapping[str, str]) -> None:
     source_root = source_root.expanduser().resolve(strict=False)
     if not source_root.is_dir():
         raise InstallError(f"source root is not a directory: {source_root}")
-    _apply_install(_prepare_install(source_root, environment), environment)
+    with _installation_lock(_paths(environment)):
+        _apply_install(_prepare_install(source_root, environment), environment)
 
 
-def uninstall(source_root: Path, environment: Mapping[str, str]) -> None:
-    del source_root
+def _retired_runtime_names(receipt: dict) -> list[str]:
+    files = receipt.get("files")
+    if not isinstance(files, dict):
+        return []
+    return sorted(
+        name for name in files if name in RETIRED_RUNTIME_SOURCES
+    )
+
+
+def _uninstall(environment: Mapping[str, str]) -> None:
     paths = _paths(environment)
     receipt = _load_receipt(paths.receipt)
     settings_target, settings = _read_settings(paths.settings)
+    retired_names = _retired_runtime_names(receipt) if receipt else []
     if receipt is None:
-        _assert_no_unowned_install(paths, settings, RUNTIME_SOURCES)
+        _assert_no_unowned_install(
+            paths, settings, [*RUNTIME_SOURCES, *RETIRED_RUNTIME_SOURCES]
+        )
         return
     _validate_receipt(receipt, paths)
     _preflight_destinations(receipt, paths)
     hook_command = str(paths.wrapper.resolve(strict=False))
     updated_settings = _rewrite_health_hook(settings, hook_command, install=False)
 
-    snapshots = [_snapshot(path) for path in _managed_paths(paths, RUNTIME_SOURCES)]
+    managed = _managed_paths(paths, [*RUNTIME_SOURCES, *retired_names])
+    snapshots = [_snapshot(path) for path in managed]
     snapshots.extend((_snapshot(settings_target), _snapshot(paths.receipt)))
     launchctl = _resolve_executable("launchctl")
     domain = f"gui/{os.getuid()}"
@@ -387,21 +408,29 @@ def uninstall(source_root: Path, environment: Mapping[str, str]) -> None:
             _run_best_effort([launchctl, "bootout", service], environment)
         if updated_settings != settings:
             _atomic_write(settings_target, _json_bytes(updated_settings), 0o600)
-        for path in _managed_paths(paths, RUNTIME_SOURCES):
+        for path in managed:
             if _path_present(path):
                 path.unlink()
         if _path_present(paths.receipt):
             paths.receipt.unlink()
     except BaseException:
-        _restore_snapshots(snapshots)
-        if had_plist and _path_present(paths.plist):
-            _run_best_effort(
-                [launchctl, "bootstrap", domain, str(paths.plist)], environment
-            )
+        try:
+            _restore_snapshots(snapshots)
+        finally:
+            if had_plist and _path_present(paths.plist):
+                _run_best_effort(
+                    [launchctl, "bootstrap", domain, str(paths.plist)], environment
+                )
         raise
 
     _remove_empty_directory(paths.runtime_root)
     _remove_empty_directory(paths.state_root)
+
+
+def uninstall(source_root: Path, environment: Mapping[str, str]) -> None:
+    del source_root
+    with _installation_lock(_paths(environment)):
+        _uninstall(environment)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -425,6 +454,10 @@ def main(argv: list[str] | None = None) -> int:
             print("health reporting uninstalled")
     except (OSError, ValueError, RuntimeError) as error:
         print(f"health reporting installer: {error}", file=sys.stderr)
+        cause: BaseException | None = error.__context__ or error.__cause__
+        while cause is not None:
+            print(f"health reporting installer: caused by: {cause}", file=sys.stderr)
+            cause = cause.__context__ or cause.__cause__
         return 1
     return 0
 
