@@ -60,8 +60,8 @@ retired 2026-08-17 (rationale in `docs/MODEL-POLICY.md`).
      "eligible queue empty — stopping (skipped N dependency-blocked)", and END.
    - Exit 0 ⇒ parse `{number,title,url,skipped_dependency}`; call the issue `#N`.
 3. **Branch.** `git switch -c <N>-<short-slug>` (numeric prefix links `#N`).
-4. **Develop test-first.** Invoke `superpowers:test-driven-development`: write a
-   failing test for the issue's acceptance criteria, implement minimally, get green.
+4. **Develop test-first.** Write a failing test for the issue's acceptance
+   criteria, confirm it fails for the right reason, implement minimally, get green.
    Keep scope to the issue.
 5. **Verify.** Run `/manifest-code-quality:project-verify`. Lint warnings are non-blocking; test or security
    failures are blocking.

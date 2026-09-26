@@ -96,7 +96,7 @@ discover_artifacts() {
     if [[ -f "$root" ]]; then
         printf 'spec\t%s\n' "$root"
         case "$root" in
-            */docs/superpowers/specs/*.md)
+            */docs/design/specs/*.md)
                 dir="${root%/specs/*}"
                 plan=$(find "$dir/plans" -maxdepth 1 -type f -name '*.md' 2> /dev/null | sort | tail -1 || true)
                 [[ -n "$plan" ]] && printf 'plan\t%s\n' "$plan"
@@ -118,8 +118,8 @@ discover_artifacts() {
         [[ -f "$dir/tasks.md" ]] && printf 'tasks\t%s\n' "$dir/tasks.md"
         return 0
     fi
-    spec=$(find "$root/docs/superpowers/specs" -maxdepth 1 -type f -name '*-design.md' 2> /dev/null | sort | tail -1 || true)
-    plan=$(find "$root/docs/superpowers/plans" -maxdepth 1 -type f -name '*.md' 2> /dev/null | sort | tail -1 || true)
+    spec=$(find "$root/docs/design/specs" -maxdepth 1 -type f -name '*-design.md' 2> /dev/null | sort | tail -1 || true)
+    plan=$(find "$root/docs/design/plans" -maxdepth 1 -type f -name '*.md' 2> /dev/null | sort | tail -1 || true)
     [[ -n "$spec" ]] && printf 'spec\t%s\n' "$spec"
     [[ -n "$plan" ]] && printf 'plan\t%s\n' "$plan"
 }

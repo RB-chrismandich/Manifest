@@ -32,7 +32,7 @@ Single project. Shell helpers in `configs/claude/scripts/`, config in
 
 **⚠️ This feature has no merge gate without #360.** The merge decision's safety inputs
 (`gate_tier1`, `consensus`) come from `configs/claude/scripts/verification_gate.sh`, which is
-currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-dev-verification-gate-design.md`,
+currently **only a design doc** (`docs/design/specs/2026-06-18-auto-issue-dev-verification-gate-design.md`,
 "Status: Design") — it is **not implemented**.
 
 - [x] T000 Verify `configs/claude/scripts/verification_gate.sh` exists and its bats suite passes; if #360 is not yet implemented and merged, **STOP and implement/merge #360 first** — every merge task (T018–T023) and the gate inputs in T019 depend on it. A missing gate is fail-closed (no merges).

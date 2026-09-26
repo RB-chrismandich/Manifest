@@ -213,8 +213,8 @@ blocking shellcheck gate for `.bats` is a future enhancement.
 
 **Rules:** 4-space indent (`.editorconfig`); follow PowerShell community style.
 
-**Enforcement:** EditorConfig only today. Add PSScriptAnalyzer if the `.ps1`
-scripts under `.specify/extensions/git/scripts/powershell/` become load-bearing.
+**Enforcement:** EditorConfig only today. Add PSScriptAnalyzer if real `.ps1`
+scripts ever become load-bearing in this repo.
 
 ### Go (Conditional)
 

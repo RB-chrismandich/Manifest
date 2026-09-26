@@ -146,7 +146,7 @@ consistent with the math above).
 
 **Decision**: new `docs/SPEC-SYSTEMS.md` (linked from README.md, docs/README.md
 and .claude/CLAUDE.md) mapping: `specs/` + `.specify/` = speckit feature flow;
-`docs/superpowers/` = design-doc history (superpowers workflow);
+`docs/design/` = design-doc history (design-doc workflow);
 `configs/claude/.plans/` = deployed plan-manage lifecycle; `.Jules/` = lesson
 journal (linked, stays in place).
 

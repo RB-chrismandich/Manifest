@@ -2,7 +2,7 @@
 """Fail when a skill cites a path that does not exist inside its own bundle.
 
 Bundles install independently (spec:
-docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md, Phase 1
+docs/design/specs/2026-08-19-marketplace-restructure-design.md, Phase 1
 item 1.4). A skill that cites a sibling bundle's file, a monorepo-only path
 (``configs/``, ``tests/``, ``docs/``, ``tools/``, ...), or the
 bootstrap-deployed home tree (``~/.claude/references``, ``~/.claude/prompts``)
@@ -35,7 +35,7 @@ exists anywhere else in the repository; or a machine-generated data file
 records, not a skill's own citation. A citation this gate cannot resolve at
 all (typo with no bundle anchor, hypothetical example) is left alone rather
 than guessed at -- see
-``docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`` §4
+``docs/design/specs/2026-08-19-marketplace-restructure-design.md`` §4
 Phase 1 item 1.4 for the "known non-defect" cases this design is calibrated
 against.
 """
@@ -95,7 +95,7 @@ _SHARED_REFERENCE_BASENAMES: tuple[str, ...] = (
 # - ``constitution_check.py --update-baseline`` writes
 #   ``config/constitution_baseline.json``, a ratchet of pre-existing
 #   violation counts keyed by the monorepo-era file path they were measured
-#   against (".specify/...", "legacy-setup/...", "bundle-runtime/..."),
+#   against ("legacy-setup/...", "bundle-runtime/..."),
 #   several of which now coincidentally collide with real files under
 #   unrelated bundles post-migration.
 _GENERATED_DATA_FILES: frozenset[str] = frozenset(
