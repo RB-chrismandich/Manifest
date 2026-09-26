@@ -277,12 +277,21 @@ if not isinstance(view["latestReviews"], list):
 for review in view["latestReviews"]:
     if not isinstance(review, dict):
         raise ValueError("review")
+    # The gh latestReviews projection emits "id" as "" (REST-backed reviews
+    # carry no GraphQL node id), so it can never be required — review material
+    # is keyed on the author/submittedAt/state/body fields gh actually emits.
+    author = review.get("author")
+    if isinstance(author, dict):
+        author = author.get("login")
     reviews.append({
-        "id": require_text(review.get("id"), "review.id"),
-        "state": require_text(review.get("state"), "review.state"),
+        "author": "" if author is None else require_text(author, "review.author"),
         "submittedAt": require_text(review.get("submittedAt"), "review.submittedAt"),
+        "state": require_text(review.get("state"), "review.state"),
+        "body": optional_text(review.get("body"), "review.body") or "",
     })
-reviews.sort(key=lambda item: (item["id"], item["state"], item["submittedAt"]))
+reviews.sort(key=lambda item: (
+    item["author"], item["submittedAt"], item["state"], item["body"],
+))
 
 if not isinstance(view["labels"], list):
     raise ValueError("view.labels")

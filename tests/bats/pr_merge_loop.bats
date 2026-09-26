@@ -482,6 +482,27 @@ PY
     run "$SCRIPT" tick 5
     [[ "$output" == *"unchanged"* ]]
 }
+@test "gh review material with an empty id fingerprints on author/submittedAt/state/body" {
+    # Regression for PR #953 review thread PRRT_kwDOPe2ygc6kRbeA: gh 2.100
+    # emits "id":"" inside latestReviews, so fingerprinting must never require
+    # it — otherwise every reviewed PR exits 13 during material observation.
+    export SEAM_LATEST_REVIEWS='[{"id":"","author":{"login":"Copilot"},"state":"APPROVED","submittedAt":"2026-09-19T00:00:00Z","body":"lgtm"}]'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" == *"merge"* ]]
+    [ "$(gate_count)" = "1" ]
+
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]] || return 1
+    [ "$(gate_count)" = "1" ]
+
+    export SEAM_LATEST_REVIEWS='[{"id":"","author":{"login":"Copilot"},"state":"COMMENTED","submittedAt":"2026-09-19T01:00:00Z","body":"nudge"}]'
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ] && [[ "$output" != *"unchanged"* ]]
+    [ "$(gate_count)" = "2" ]
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"unchanged"* ]]
+}
+
 
 @test "thread resolution resumes exactly once" {
     export SEAM_FP_THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"isOutdated":false,"comments":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z","author":{"login":"Copilot"}}]},"latestComments":{"nodes":[{"id":"C1","createdAt":"2026-09-19T00:00:00Z"}]}}]}}}}}'
