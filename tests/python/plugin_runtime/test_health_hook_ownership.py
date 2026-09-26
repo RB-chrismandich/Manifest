@@ -11,9 +11,7 @@ from tests.python.plugin_runtime.health_test_helpers import (
     repo_root,
 )
 
-_SCRIPTS = (
-    repo_root() / "plugins/manifest-workspace/skills/env-check/scripts"
-)
+_SCRIPTS = repo_root() / "plugins/manifest-workspace/skills/env-check/scripts"
 
 
 @pytest.fixture(scope="module")
@@ -66,8 +64,13 @@ def test_install_normalizes_tilde_hook_to_canonical_command(
     monkeypatch.setenv("HOME", str(tmp_path))
     canonical = str(wrapper.resolve())
     settings = _settings_with(
-        [{"type": "command", "command": "~/.claude/scripts/mcp_health_check.sh",
-          "timeout": 30}]
+        [
+            {
+                "type": "command",
+                "command": "~/.claude/scripts/mcp_health_check.sh",
+                "timeout": 30,
+            }
+        ]
     )
     updated = reconcile._rewrite_health_hook(settings, canonical, install=True)
     commands = _commands(updated)
@@ -103,19 +106,20 @@ def test_install_rejects_divergent_managed_hook(reconcile, tmp_path, monkeypatch
         reconcile._rewrite_health_hook(divergent, canonical, install=True)
 
 
-def test_rewrite_preserves_unrelated_hooks_and_empty_entries(
-    reconcile, tmp_path
-):
+def test_rewrite_preserves_unrelated_hooks_and_empty_entries(reconcile, tmp_path):
     wrapper = tmp_path / ".claude" / "scripts" / "mcp_health_check.sh"
     canonical = str(wrapper.resolve())
     other = {"type": "command", "command": "/custom/session"}
     settings = {
         "hooks": {
             "SessionStart": [
-                {"matcher": "x", "hooks": [
-                    {"type": "command", "command": canonical, "timeout": 30},
-                    other,
-                ]},
+                {
+                    "matcher": "x",
+                    "hooks": [
+                        {"type": "command", "command": canonical, "timeout": 30},
+                        other,
+                    ],
+                },
                 {"hooks": [{"type": "command", "command": "/other"}]},
             ]
         }
@@ -138,8 +142,11 @@ def test_uninstall_removes_hook_in_tilde_form(reconcile, tmp_path, monkeypatch):
     keep = {"type": "command", "command": "/custom/session"}
     settings = _settings_with(
         [
-            {"type": "command", "command": "~/.claude/scripts/mcp_health_check.sh",
-             "timeout": 30},
+            {
+                "type": "command",
+                "command": "~/.claude/scripts/mcp_health_check.sh",
+                "timeout": 30,
+            },
             keep,
         ]
     )

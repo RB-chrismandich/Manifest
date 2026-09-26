@@ -127,9 +127,7 @@ def _hook_is_present(settings: dict, command: str) -> bool:
     return any(
         isinstance(entry, dict)
         and isinstance(entry.get("hooks"), list)
-        and any(
-            _hook_targets_wrapper(hook, canonical) for hook in entry["hooks"]
-        )
+        and any(_hook_targets_wrapper(hook, canonical) for hook in entry["hooks"])
         for entry in entries
     )
 
