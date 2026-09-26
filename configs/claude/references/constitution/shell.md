@@ -74,7 +74,7 @@ a file, not a literal.
 - Output helpers already exist: `err()` in `configs/claude/scripts/`, the `print_error()`/`print_step()` family in
   `bootstrap/lib/common.sh`. A second one in a file that already sources them is a fork.
 - Platform probes, timeout wrappers, and path resolution live in `bootstrap/lib/platform.sh` and `common.sh`.
-- A new verb for an existing dispatcher (`git_ops.sh`, `tracker_ops.sh`, `label_sync.sh`) is added to that script,
+- A new verb for an existing dispatcher (`tracker_ops.sh`, `label_sync.sh`) is added to that script,
   not wrapped by a new one.
 
 ### CON-003 — Third time, centralize

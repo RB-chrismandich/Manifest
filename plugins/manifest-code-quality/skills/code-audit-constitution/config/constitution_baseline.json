@@ -92,18 +92,10 @@
     "bundle-runtime/scripts/generate_cursor_agents.py": {
       "C-SIZE": 1
     },
-    "bundle-runtime/scripts/git_ops.sh": {
-      "C-DUPE": 2,
-      "C-SIZE": 1
-    },
     "bundle-runtime/scripts/guidance_hint.py": {
       "C-ERR": 5
     },
     "bundle-runtime/scripts/issue_support.sh": {
-      "C-SIZE": 1
-    },
-    "bundle-runtime/scripts/learning_capture.sh": {
-      "C-DUPE": 1,
       "C-SIZE": 1
     },
     "bundle-runtime/scripts/lifecycle.sh": {

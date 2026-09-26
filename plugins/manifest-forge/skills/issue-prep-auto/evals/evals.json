@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Can issue #142 be handed to auto-dev? It's titled 'Add a --dry-run flag to label_sync.sh' and the body lists the expected behavior and an example invocation.",
-      "expected_output": "Verdict READY (clear bounded scope, testable criteria, self-contained, no deps), with a proposed action to add the `auto-dev` label via git_ops.sh, shown before applying.",
+      "expected_output": "Verdict READY (clear bounded scope, testable criteria, self-contained, no deps), with a proposed native provider action to add the `auto-dev` label, shown before applying.",
       "files": []
     },
     {

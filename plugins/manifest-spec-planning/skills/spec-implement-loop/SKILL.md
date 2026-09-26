@@ -64,20 +64,12 @@ developer and iterate.
 
 > Sub-agents: **always** — one fresh worker per persona per round or iteration.
 
-Use one OMP `task` call for each ready persona batch, in waves of at most 32.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
 In high-assurance mode, phase-1 QA and architecture critics may run together;
 phase-2 reviewers run only after the developer's verification result is
-available. Batch size follows the active mode: one reviewer in standard,
-three in high-assurance. Every child gets one bounded charter and artifact
-paths, executes directly, and never redispatches. Use `hub` only to
-coordinate or wait. The parent parses verdicts, gates progress, validates
-evidence, and aggregates the result.
-
-If `task` is unavailable, perform the corresponding work inline and report
-`DEGRADED`. Never use a provider CLI as an interactive fallback.
-
-See `../../runtime/references/sub-agent-dispatch.md` for the shared role and
-batching rules.
+available. Standard mode has one reviewer; high-assurance has three. Every
+child receives one bounded charter and artifact paths. The parent parses
+verdicts, gates progress, and validates evidence.
 
 Charters are packaged under `../../runtime/prompts/cddl/`:
 

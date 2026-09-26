@@ -74,6 +74,7 @@ components:
     - {id: session-continuity-scripts, path: skills/session-checkpoint/scripts}
     - {id: session-checkpoint-references, path: skills/session-checkpoint/references}
     - {id: learning-capture-scripts, path: skills/learning-capture/scripts}
+    - {id: learning-capture-seed, path: skills/learning-capture/data}
     - {id: help-scripts, path: skills/help/scripts}
     - {id: command-catalog, path: skills/help/catalog/commands.json}
     - {id: env-check-scripts, path: skills/env-check/scripts}

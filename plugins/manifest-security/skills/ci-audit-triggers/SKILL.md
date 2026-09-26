@@ -85,17 +85,7 @@ either platform — only the vocabulary changes:
 ## Sub-agent dispatch
 
 Follow the [CI audit dispatch rules](references/ci-audit-triggers-dispatch.md)
-and the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 workflow files need auditing, dispatch one security-review unit per
-workflow in a single OMP `task` call (in waves of at most 32). Use
-`security-reviewer` for each unit; each child reviews only its assigned workflow
-and never re-dispatches. The parent directly merges cited attacker-path evidence
-and retains this skill's severity rules. Use `hub` only to coordinate or wait.
-If `task` is unavailable, audit the workflows inline and report `DEGRADED`.
-Below the threshold, audit inline.
+and the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+When at least three workflow files need auditing, assign one
+`security-reviewer` unit per workflow. The parent merges cited attacker-path
+evidence under this skill's severity rules; below the threshold, audit inline.

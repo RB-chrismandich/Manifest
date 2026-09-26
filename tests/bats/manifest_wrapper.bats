@@ -191,9 +191,11 @@ _run_wrapper() {
     # suite once already: PATH=/usr/bin:/bin still carries HOME, so only env -i
     # catches it.
     local script
-    for script in skillclaw_promote verification_gate lifecycle spec_review; do
-        run grep -c '"\$HOME/\.local/bin:\$PATH"' \
-            "$REPO_ROOT/configs/claude/scripts/$script.sh"
+    for script in configs/claude/scripts/skillclaw_promote.sh \
+        plugins/manifest-forge/runtime/bin/verification_gate.sh \
+        plugins/manifest-forge/runtime/bin/lifecycle.sh \
+        configs/claude/scripts/spec_review.sh; do
+        run grep -c '"\$HOME/\.local/bin:\$PATH"' "$REPO_ROOT/$script"
         assert_output "0"
     done
 }

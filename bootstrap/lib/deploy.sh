@@ -1188,7 +1188,7 @@ PYEOF2
     case $rc in
         0) print_success "Preserved issue-sync opt-in gates in command_config.yml" ;;
         3) print_info "No issue-sync opt-in gates to preserve in command_config.yml" ;;
-        *) print_warning "Could not preserve issue-sync gates in command_config.yml (re-run install_issue_hooks.sh --enable if needed)" ;;
+        *) print_warning "Could not preserve issue-sync gates in command_config.yml (re-run the manifest-forge bundle's runtime/bin/install_issue_hooks.sh --enable if needed)" ;;
     esac
     return 0
 }
@@ -1693,35 +1693,32 @@ verify_installation() {
 
     local required_files=(
         "$TARGET_DIR/scripts/git_platform.sh"
-        "$TARGET_DIR/scripts/git_ops.sh"
         "$TARGET_DIR/config/command_config.yml"
         "$TARGET_DIR/config/mcp_servers.yml"
         "$TARGET_DIR/config/validation_criteria.yml"
         "$TARGET_DIR/config/services.yml"
-        "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
-        "$CURSOR_TARGET_DIR/mcp.json"
-        "$CURSOR_TARGET_DIR/hooks.json"
-        "$GEMINI_TARGET_DIR/GEMINI.md"
-        "$CODEX_TARGET_DIR/AGENTS.md"
     )
 
-    # Skill files are verified SEPARATELY from required_files because bootstrap
-    # is no longer necessarily their writer: SC-006 handed the `skills` domain to
-    # apm (configs/claude/config/apm_domains.yml), so deploy_home_skills stands
-    # down and these paths are populated by apm instead. Counting them as
-    # bootstrap errors made a correctly-standing-down deploy exit 1 with three
-    # "Missing: .cursor/skills/code-audit/SKILL.md" lines and no hint of who
-    # should fix it — observed on a machine where apm had not yet run.
-    #
-    # The check is NOT skipped when apm owns the domain: a home with no skills is
-    # genuinely broken for the user, and a check that quietly stops looking is how
-    # this would go unnoticed next time. It degrades to a warning that names the
-    # populate command, which is visible without blaming the wrong pipeline.
-    local -a skill_files=(
-        "$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md"
-        "$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md"
-        "$CODEX_TARGET_DIR/skills/code-audit/SKILL.md"
-    )
+    local -a skill_files=()
+
+    if [[ "${ENABLE_CURSOR:-true}" == true ]]; then
+        required_files+=(
+            "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+            "$CURSOR_TARGET_DIR/mcp.json"
+            "$CURSOR_TARGET_DIR/hooks.json"
+        )
+        skill_files+=("$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
+
+    if [[ "${ENABLE_GEMINI:-true}" == true ]]; then
+        required_files+=("$GEMINI_TARGET_DIR/GEMINI.md")
+        skill_files+=("$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
+
+    if [[ "${ENABLE_CODEX:-true}" == true ]]; then
+        required_files+=("$CODEX_TARGET_DIR/AGENTS.md")
+        skill_files+=("$CODEX_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
 
     # Guarded (unlike the sibling entries above): deploy_configs skips copying
     # CLAUDE.md when Claude is disabled (see claude_md_exclude above), so
@@ -1770,7 +1767,7 @@ verify_installation() {
         skills_retired=true
     fi
     local skills_missing=0
-    for file in "${skill_files[@]}"; do
+    for file in "${skill_files[@]+"${skill_files[@]}"}"; do
         if [[ -f "$file" ]]; then
             print_success "Found: ${file#"$HOME"/}"
         elif [[ "$skills_retired" == true ]]; then
@@ -1922,9 +1919,9 @@ verify_installation() {
 
     # Check jq
     if command_exists jq; then
-        print_success "jq is installed (required by git_ops.sh)"
+        print_success "jq is installed (required for native CLI JSON processing)"
     else
-        print_warning "jq is not installed - git_ops.sh will have limited functionality"
+        print_warning "jq is not installed - native Git platform JSON processing will be limited"
     fi
 
     # T4.4 (spec 674): verify the CLAUDE side, which nothing else does.
@@ -1985,6 +1982,21 @@ warn_stale_disabled_configs() {
             print_warning "$service disabled — deployed config left in place and will go stale: $path"
         fi
     done
+}
+
+# Warn when ~/.claude/settings.json still carries a PostToolUse hook pointing at
+# the retired ~/.claude/scripts/issue_support_hook.sh. The engine and installer
+# moved to the manifest-forge bundle (runtime/bin/install_issue_hooks.sh); the
+# old entry would fire a deleted script on every matching tool call. Detection
+# is a plain fixed-string grep; this function is warning-only and never edits
+# settings.json.
+warn_retired_issue_hooks() {
+    local settings="$HOME/.claude/settings.json"
+    [[ -f "$settings" ]] || return 0
+    grep -qF '.claude/scripts/issue_support_hook.sh' "$settings" 2> /dev/null || return 0
+    local forge_dir
+    forge_dir="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/plugins/manifest-forge"
+    print_warning "Retired issue hook still registered in ~/.claude/settings.json. Re-register from the manifest-forge bundle: $forge_dir/runtime/bin/install_issue_hooks.sh --remove --settings ~/.claude/settings.json && $forge_dir/runtime/bin/install_issue_hooks.sh --enable --settings ~/.claude/settings.json (its --remove matches the hook by script name, so it also removes the retired entry). Repos set up with --native: delete the '# >>> issue-support >>>' block from .git/hooks/post-commit and re-run --native from the forge copy."
 }
 
 # Print final summary
@@ -2094,6 +2106,9 @@ print_summary() {
 
     # Flag any disabled service whose deployed config is still present (#549).
     warn_stale_disabled_configs
+    # Flag a PostToolUse hook still pointing at the retired configs copy of
+    # issue_support_hook.sh (the engine now ships in the manifest-forge bundle).
+    warn_retired_issue_hooks
 
     echo -e "${BOLD}Authentication Commands:${NC}"
     echo ""

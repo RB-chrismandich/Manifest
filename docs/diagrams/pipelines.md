@@ -35,7 +35,7 @@ flowchart LR
     PROMOTE["skillclaw_promote.sh\nPR-gate: one open\nskillclaw/evolve-* PR\nat a time"]:::process
 
     GIT_BRANCH["git switch -c\nskillclaw/evolve-N-SHA"]:::process
-    PR["git_ops.sh pr-create\n(needs-review + follow-up labels)"]:::process
+    PR["gh pr create / glab mr create\n(needs-review + follow-up labels)"]:::process
 
     SKILL_LIBRARY[".apm/skills/\n(committed library)"]:::output
 
@@ -60,7 +60,7 @@ flowchart LR
 | Scrub | `skillclaw_scrub.py` | Redacts `sk-ant-*`, `sk-proj-*`, bearer tokens, `x-api-key` headers before evolve/promote |
 | Evolve | `skillclaw_evolve.py` | Map-reduce via headless `claude -p` (Max-backed); greedily packs sessions into chunks under `token_budget=100 000`; reduce deduplicates by skill name |
 | Classify | `skillclaw_promote.py` | Compares evolved `~/.skillclaw/skills/` against committed library; emits NEW / CHANGED / UNCHANGED; drops skills with missing or malformed frontmatter; copies rejected candidates to `~/.skillclaw/skills/rejected/` |
-| Promote | `skillclaw_promote.sh` | Idempotency check (one open `skillclaw/evolve-*` PR at a time); one commit per skill; opens review PR via `git_ops.sh` |
+| Promote | `skillclaw_promote.sh` | Idempotency check (one open `skillclaw/evolve-*` PR at a time); one commit per skill; opens review PR through native `gh`/`glab` |
 | Review | GitHub/GitLab PR | Human review gate; each skill is an independent commit — revert to drop; merge deploys via `bootstrap.sh` skill sync |
 
 **Key new skills**:

@@ -77,19 +77,14 @@ session** (later steps consume env vars and intermediate files set by earlier on
 7. Step 7: Generate Report
 8. Step 8: STOP
 
-## OMP reviewer refinement
+## Native reviewer refinement
 
-For Step 5, the parent dispatches three independent, read-only OMP `reviewer`
-tasks per top candidate in one task call, in waves of at most 32 items. Each
-child evaluates only its assigned candidate and never redispatches. The parent
-validates the required dimension scores, excludes invalid results, preserves
-stable submission order for first-result metadata, and recomputes the weighted
-score from averaged dimensions.
-
-If no valid reviewer result exists, retain the Step 4 heuristic score and mark
-the candidate `agent_refined: false`. If OMP `task` is unavailable, score
-inline and report `DEGRADED`; never use a provider CLI or model-specific
-fallback.
+For Step 5, assign **three** independent read-only reviewer units per top
+candidate through the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+Each child evaluates only its assigned candidate. The parent validates required
+dimension scores, excludes invalid results, preserves attribution, and recomputes
+the weighted score from accepted evidence. If fewer than three valid reviewer
+results exist, retain the Step 4 heuristic score and mark `agent_refined: false`.
 
 ## Scoring Formula
 
@@ -192,18 +187,5 @@ in the repository. The report includes:
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-Use OMP-native `task` only. For top-candidate refinement, submit three
-independent read-only `reviewer` tasks per candidate in one task call, in waves
-of at most 32 items. Each child scores only its assigned candidate and never
-redispatches; the parent validates results, preserves stable submission order,
-and merges the ranking.
-
-If OMP `task` is unavailable, score inline and report `DEGRADED`. Never fall
-back to a provider CLI or model-specific dispatch.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).
+The parent compares independently scored candidates directly.

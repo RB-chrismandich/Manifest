@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # auto_issue_dev.sh - selection/dependency/flagging engine for /issue-dev-auto
 #
-# Wraps git_ops.sh. Picks the next opted-in ('auto-dev') issue that is ready to
+# Uses native gh/glab commands. Picks the next opted-in ('auto-dev') issue that is ready to
 # develop, skipping (and tagging) ones with unmet dependencies. Failure/dependency
 # flagging is fail-open.
 #
@@ -23,7 +23,6 @@ FORGE_CONFIG_DIR="$FORGE_RUNTIME_DIR/config"
 FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
-GIT_OPS="${SCRIPT_DIR}/git_ops.sh"
 GIT_PLATFORM="${SCRIPT_DIR}/git_platform.sh"
 DEV_LABEL="${AUTO_ISSUE_DEV_LABEL:-auto-dev}"
 DEP_LABEL="${AUTO_ISSUE_DEV_DEP_LABEL:-blocked-dependency}"
@@ -33,8 +32,6 @@ FAIL_LABEL="${AUTO_ISSUE_DEV_FAIL_LABEL:-needs-human}"
 # every cycle until its PR merges.
 REVIEW_LABEL="${AUTO_ISSUE_DEV_REVIEW_LABEL:-needs-review}"
 PROGRESS_LABEL="${AUTO_ISSUE_DEV_PROGRESS_LABEL:-in-progress}"
-
-git_ops() { "${GIT_OPS}" "$@"; }
 
 # detect_platform — echo github|gitlab|git (via git_platform.sh)
 detect_platform() {
@@ -95,7 +92,7 @@ issue_json() {
     local n="$1" platform raw="" notes=""
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        raw="$(git_ops issue-view "${n}" --output json 2> /dev/null || true)"
+        raw="$(glab issue view "${n}" --output json 2> /dev/null || true)"
         [[ -z "${raw}" ]] && {
             err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"
             printf '{}'
@@ -103,10 +100,10 @@ issue_json() {
         }
         # glab `issue view --output json` does not embed notes; fetch text and
         # fold each comment in (via NORMALIZE_NOTES) so has_marker() can scan them.
-        notes="$(git_ops issue-view "${n}" --comments 2> /dev/null || true)"
+        notes="$(glab issue view "${n}" --comments 2> /dev/null || true)"
         printf '%s' "${raw}" | NORMALIZE_NOTES="${notes}" python3 -c "${NORMALIZE_ISSUE_PY}" 2> /dev/null || printf '{}'
     else
-        raw="$(git_ops issue-view "${n}" --json number,title,body,state,labels,comments 2> /dev/null || true)"
+        raw="$(gh issue view "${n}" --json number,title,body,state,labels,comments 2> /dev/null || true)"
         [[ -z "${raw}" ]] && {
             err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"
             printf '{}'
@@ -162,9 +159,9 @@ print((d.get("state") or "").lower())' 2> /dev/null || true)"
     local platform
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        view="$(git_ops pr-view "$m" --output json 2> /dev/null || true)"
+        view="$(glab mr view "$m" --output json 2> /dev/null || true)"
     else
-        view="$(git_ops pr-view "$m" --json state,merged 2> /dev/null || true)"
+        view="$(gh pr view "$m" --json state 2> /dev/null || true)"
     fi
     [[ -z "${view}" ]] && {
         err "could not resolve ref #${m} (issue+pr view both empty); treating as UNMET"
@@ -231,16 +228,19 @@ flag() {
         err "flag: issue number required"
         return 0
     }
-    git_ops issue-edit "${n}" --add-label "${label}" > /dev/null 2>&1 ||
-        err "FAILED to add '${label}' to #${n} — loop filters by label, so #${n} will be re-selected every run (is the label provisioned? run label_sync.sh)"
+    if [[ "$(detect_platform)" == "gitlab" ]]; then
+        glab issue update "${n}" --label "${label}" > /dev/null 2>&1
+    else
+        gh issue edit "${n}" --add-label "${label}" > /dev/null 2>&1
+    fi || err "FAILED to add '${label}' to #${n} — loop filters by label, so #${n} will be re-selected every run (is the label provisioned? run label_sync.sh)"
     if has_marker "${n}" "${marker}"; then
         return 0
     fi
-    # Mirror issue_support.sh: pass the body inline via --body (gitlab note +
-    # github comment both accept it through git_ops). Marker leads so dedup
-    # via has_marker() matches on the next run.
-    git_ops issue-comment "${n}" --body "${marker}"$'\n\n'"${comment}" > /dev/null 2>&1 ||
-        err "could not comment on #${n} (continuing)"
+    if [[ "$(detect_platform)" == "gitlab" ]]; then
+        glab issue note "${n}" --message "${marker}"$'\n\n'"${comment}" > /dev/null 2>&1
+    else
+        gh issue comment "${n}" --body "${marker}"$'\n\n'"${comment}" > /dev/null 2>&1
+    fi || err "could not comment on #${n} (continuing)"
     return 0
 }
 
@@ -265,12 +265,12 @@ cmd_next_issue() {
     local platform raw list
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --output json 2> /dev/null)"; then
+        if ! raw="$(glab issue list --label "${DEV_LABEL}" --output json 2> /dev/null)"; then
             err "issue-list failed (tracker outage/auth?); treating as empty queue — loop may stop prematurely"
             raw='[]'
         fi
     else
-        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --json number,title,url,labels 2> /dev/null)"; then
+        if ! raw="$(gh issue list --state open --label "${DEV_LABEL}" --json number,title,url,labels 2> /dev/null)"; then
             err "issue-list failed (tracker outage/auth?); treating as empty queue — loop may stop prematurely"
             raw='[]'
         fi

@@ -1221,12 +1221,6 @@ class BootstrapSyncService:
             return report("bootstrap-sync", results, notes, public_errors)
 
 
-def reconcile_owned_harnesses(service, receipt, desired, selected, apply=True):
-    """Public bridge retained for receipt-aware callers."""
-    del receipt, selected, apply
-    return BootstrapSyncService(service).run(desired)
-
-
 def _converged(result) -> bool:
     """Whether a harness result is good enough to commit.
 

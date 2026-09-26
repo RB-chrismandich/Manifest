@@ -1,16 +1,21 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/branch_clean.sh
+# Tests for plugins/manifest-forge/runtime/bin/branch_clean.sh
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
-SCRIPT="$REPO_ROOT/configs/claude/scripts/branch_clean.sh"
+SCRIPT="$REPO_ROOT/plugins/manifest-forge/runtime/bin/branch_clean.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX=$(mktemp -d "$BATS_TMPDIR/branch_clean.XXXXXX")
-    export BRANCH_CLEAN_CONFIG="$REPO_ROOT/configs/claude/config/command_config.yml"
+    # Forge branch_clean.sh reads a JSON config (XDG path by default); point the
+    # env seam at a sandbox JSON file with the same branch_clean keys.
+    cat >"$SANDBOX/branch_clean.json" <<'EOF'
+{"branch_clean": {"stale_days": 90, "protected": ["release/*"]}}
+EOF
+    export BRANCH_CLEAN_CONFIG="$SANDBOX/branch_clean.json"
     export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
     REMOTE=$(mktemp -d "$BATS_TMPDIR/branch_clean_remote.XXXXXX")
     git init -q --bare "$REMOTE/origin.git"

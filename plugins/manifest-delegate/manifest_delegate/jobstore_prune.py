@@ -57,6 +57,8 @@ class JobPruneMixin:
                 record = self.read(job_id)
             except (OSError, ValueError):
                 continue
+            if not isinstance(record, dict):
+                continue
             if record.get("state") not in TERMINAL_STATES:
                 continue
             record_path = os.path.join(self.job_dir(job_id), "record.json")
@@ -83,14 +85,18 @@ class JobPruneMixin:
                 record = self.read(job_id)
             except (OSError, ValueError):
                 record = None
+            if not isinstance(record, dict):
+                record = None
             record_path = os.path.join(job_dir, "record.json")
             if record is not None and record.get("state") not in TERMINAL_STATES:
                 return False
             if not containment.cleanup(
                 job_dir,
                 required=containment.is_contained(record or {}),
-                on_cgroup_removed=lambda: _mark_containment_cleaned(
-                    record_path, record
+                on_cgroup_removed=(
+                    None
+                    if record is None
+                    else (lambda: _mark_containment_cleaned(record_path, record))
                 ),
             ):
                 return False

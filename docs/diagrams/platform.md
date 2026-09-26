@@ -18,7 +18,7 @@ flowchart LR
     classDef fallback fill:#fef3c7,stroke:#d97706,color:#78350f
 
     COMMAND["User Command<br/>(issue-view, pr-create, etc.)"]:::input
-    GIT_OPS["git_ops.sh"]:::process
+    NATIVE_CLI["Native gh / glab"]:::process
     GIT_PLATFORM["git_platform.sh"]:::process
 
     subgraph "Platform Detection"
@@ -33,16 +33,16 @@ flowchart LR
     GLAB_CLI["GitLab CLI (glab)<br/>glab issue view, glab mr create"]:::gitlab
     PLAIN_GIT["Plain Git<br/>(warn + suggest install)"]:::fallback
 
-    COMMAND --> GIT_OPS
-    GIT_OPS --> GIT_PLATFORM
+    COMMAND --> GIT_PLATFORM
     GIT_PLATFORM --> ENV_OVERRIDE
+    NATIVE_CLI --> RESULT
 
     PATTERN_MATCH -->|github.com| GH_CLI
     PATTERN_MATCH -->|gitlab.com / gitlab.*| GLAB_CLI
     PATTERN_MATCH -->|other| PLAIN_GIT
 
-    GH_CLI --> RESULT["Result"]:::input
-    GLAB_CLI --> RESULT
+    GH_CLI --> NATIVE_CLI
+    GLAB_CLI --> NATIVE_CLI
     PLAIN_GIT --> RESULT
 ```
 
@@ -157,7 +157,7 @@ flowchart TD
   service can no longer abort the rest of the bootstrap (python deps, auth, verify, summary)
 - **Auto-Detection**: gh/glab default to `auto` mode (enable if already installed)
 - **Platform-Specific Install**: Uses appropriate package manager (brew/apt/dnf/pacman)
-- **Dependency Checking**: Verifies jq is installed (required for git_ops.sh JSON normalization)
+- **Dependency Checking**: Verifies jq is installed for native CLI JSON processing
 - **SkillClaw (disabled by default)**: When `--enable-skillclaw` is passed, sets `chmod 700`
   on `~/.skillclaw/` and enables the passive transcript-ingestion pipeline; no proxy, no daemon,
   no supervisor required

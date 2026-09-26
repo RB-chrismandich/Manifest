@@ -172,7 +172,7 @@ above applies.
 
 When independently reviewing:
 1. Record `review_mode` and `escalation_reason`.
-2. Submit bounded review concerns in one OMP `task` call.
+2. Submit bounded review concerns through the current host's native mechanism.
 3. Record one exact command/result for each applicable check; an unavailable
    check records `unavailable_reason`, never a passing result.
 4. Validate and aggregate evidence in the parent. Keep mutations sequential.

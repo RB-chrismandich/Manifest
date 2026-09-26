@@ -26,7 +26,7 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/terraform-refactor` | Terraform/OpenTofu IaC security, modularity, and quality analysis | CONDITIONAL (risk-based) |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/issue-dev-auto` | Autonomously develop one opted-in (`auto-dev`-labeled) issue end-to-end — selects next ready issue, implements test-first, verifies, opens a PR. **Now also monitors automation PRs and (opt-in via `PR_MERGE_LOOP_APPLY=1`) merges them to main once the gated decision clears — CI green, comments addressed, #360 gate Tier-1 pass, consensus ≥0.80; fail-closed to a human otherwise.** Self-paced, stops after 5 empty runs | NO |
+| `/issue-dev-auto` | Autonomously develop one opted-in (`auto-dev`-labeled) issue end-to-end — selects next ready issue, implements test-first, verifies, opens a PR. **Now also monitors automation PRs and (opt-in via `PR_MERGE_LOOP_APPLY=1`) merges them to main once the gated decision clears — CI green, comments addressed, and #360 Tier-1 evidence clear; fail-closed to a human otherwise.** Self-paced, stops after 5 empty runs | NO |
 | `pr_merge_loop.sh run [--apply]` | Bounded self-paced merge-loop pass: enforces a hard 10-minute ceiling, stops after 5 consecutive empty runs, serializes merges via `loop_lock` (one in flight), exits 11 on halt (post-merge `main` red). Default dry-run; pass `--apply` or set `PR_MERGE_LOOP_APPLY=1` for real merges. `/loop /issue-dev-auto` is the outer re-invoker. Standalone `run` orchestrates monitoring/merge only — it does not itself push code revisions; a PR needing `revise` requires the SKILL (`/loop /issue-dev-auto`) to apply fixes, otherwise it polls until the ceiling. | NO |
 | `/issue-sync-pr` | Hook-triggered: on PR open, back-link + advance linked issue to `needs-review` + ensure closing keyword (fail-open) | NO |
 | `/issue-sync-commit` | Hook-triggered: on branch commit, advance a `planned` issue to `in-progress`, deduped (fail-open) | NO |
@@ -112,37 +112,28 @@ across GitHub, GitLab, and Linear.
 ### Syncing Labels
 
 ```bash
-# Dry-run — see what would be created
-~/.claude/scripts/label_sync.sh --dry-run
-
-# Sync all labels to the current Git platform (GitHub or GitLab)
-~/.claude/scripts/label_sync.sh
-
-# Sync only to Linear
-~/.claude/scripts/label_sync.sh --platform linear --team ENG
-
-# Validate without creating
-~/.claude/scripts/label_sync.sh --validate
-
-# Via git_ops.sh wrapper
-~/.claude/scripts/git_ops.sh label-sync
-~/.claude/scripts/git_ops.sh label-sync --dry-run
+# Validate the label manifest, then preview or apply native CLI changes.
+plugins/manifest-forge/runtime/bin/label_sync.sh --validate
+plugins/manifest-forge/runtime/bin/label_sync.sh --dry-run
+plugins/manifest-forge/runtime/bin/label_sync.sh
 ```
 
 ### Managing Labels
 
 ```bash
-# List labels on current platform
-~/.claude/scripts/git_ops.sh label-list
+# List labels on GitHub or GitLab
+gh label list
+glab label list
 
-# Create a single label on current platform
-~/.claude/scripts/git_ops.sh label-create "my-label" --color "FF0000" --description "My label"
+# Create a single label
+gh label create "my-label" --color "FF0000" --description "My label" --force
+glab label create --name "my-label" --color "#FF0000" --description "My label"
 
 # Create a label in Linear
-~/.claude/scripts/linear_ops.sh label-create --name "my-label" --color "FF0000" --team ENG
+plugins/manifest-forge/runtime/bin/linear_ops.sh label-create --name "my-label" --color "FF0000" --team ENG
 
 # List labels in Linear
-~/.claude/scripts/linear_ops.sh label-list --team ENG
+plugins/manifest-forge/runtime/bin/linear_ops.sh label-list --team ENG
 ```
 
 ---
@@ -155,14 +146,14 @@ development activity (skills `issue-sync-pr` and `issue-sync-commit`, over the s
 
 ```bash
 # Enable (unified PostToolUse hook); add --native for a guarded git post-commit hook
-configs/claude/scripts/install_issue_hooks.sh --enable [--native]
+plugins/manifest-forge/runtime/bin/install_issue_hooks.sh --enable [--native]
 
 # Preview / debug without mutating the tracker
-configs/claude/scripts/issue_support.sh sync-pr --dry-run
-configs/claude/scripts/issue_support.sh resolve --branch 005-my-feature --json
+plugins/manifest-forge/runtime/bin/issue_support.sh sync-pr --dry-run
+plugins/manifest-forge/runtime/bin/issue_support.sh resolve --branch 005-my-feature --json
 
 # Disable (keeps the skills; flips the runtime gate off and removes the hooks)
-configs/claude/scripts/install_issue_hooks.sh --remove
+plugins/manifest-forge/runtime/bin/install_issue_hooks.sh --remove
 ```
 
 Behavior: PR opened → linked issue advances to `needs-review` + back-link + `Closes #N`;
