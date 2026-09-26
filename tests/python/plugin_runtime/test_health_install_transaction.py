@@ -1,0 +1,155 @@
+"""Transaction-safety tests for install_health_reporting.py (PR-953 threads 13/18/19).
+
+Covers the exclusive installation lock, rollback failure aggregation, and
+uninstall-time removal of receipt-owned retired runtime files.
+"""
+
+from __future__ import annotations
+
+import fcntl
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+from tests.python.plugin_runtime.health_test_helpers import (
+    isolated_env,
+    load_runtime_module,
+    run_script,
+)
+from tests.python.plugin_runtime.health_test_helpers import (
+    repo_root as _repo_root,
+)
+from tests.python.plugin_runtime.test_health_installer import (
+    _copy_health_source,
+    _install,
+    _installer,
+    _seed_claude_settings,
+    _write_health_tool_fakes,
+)
+
+
+@pytest.fixture
+def repo_root() -> Path:
+    return _repo_root()
+
+
+def _files_module(repo_root: Path):
+    return load_runtime_module(
+        repo_root
+        / "plugins/manifest-workspace/skills/env-check/scripts/health_install_files.py",
+        "health_install_files_test",
+    )
+
+
+def test_install_waits_for_exclusive_installation_lock(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    source_root = _copy_health_source(repo_root, tmp_path / "source")
+    env = isolated_env(tmp_path)
+    _write_health_tool_fakes(tmp_path, env)
+    _seed_claude_settings(env)
+
+    files = _files_module(repo_root)
+    paths = files._paths(env)
+    lock_dir = paths.state_root.parent
+    lock_dir.mkdir(parents=True)
+    descriptor = os.open(lock_dir / files.INSTALL_LOCK_NAME, os.O_RDWR | os.O_CREAT)
+    fcntl.flock(descriptor, fcntl.LOCK_EX)
+    try:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-B",
+                str(_installer(source_root)),
+                "--source-root",
+                str(source_root),
+                "--install",
+            ],
+            cwd=tmp_path,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        time.sleep(3)
+        assert process.poll() is None, (
+            f"installer finished while the install lock was held: "
+            f"{process.communicate()}"
+        )
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        stdout, stderr = process.communicate(timeout=60)
+        assert process.returncode == 0, stderr
+        assert "health reporting installed" in stdout
+    finally:
+        os.close(descriptor)
+
+
+def test_restore_snapshots_aggregates_failures(repo_root: Path, tmp_path: Path) -> None:
+    files = _files_module(repo_root)
+
+    good = tmp_path / "restored.py"
+    good.write_bytes(b"original\n")
+    good_snapshot = files._snapshot(good)
+    good.write_bytes(b"overwritten\n")
+
+    broken_dir = tmp_path / "broken"
+    broken_dir.mkdir()
+    broken = broken_dir / "stuck.py"
+    broken.write_bytes(b"original\n")
+    broken_snapshot = files._snapshot(broken)
+
+    os.chmod(broken_dir, 0o500)
+    try:
+        with pytest.raises(files.InstallError, match="rollback") as raised:
+            files._restore_snapshots([good_snapshot, broken_snapshot])
+    finally:
+        os.chmod(broken_dir, 0o700)
+
+    message = str(raised.value)
+    assert str(broken) in message
+    # The healthy snapshot is still restored despite the sibling failure.
+    assert good.read_bytes() == b"original\n"
+
+
+def test_uninstall_removes_receipt_owned_retired_runtime(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    source_root = _copy_health_source(repo_root, tmp_path / "source")
+    env = isolated_env(tmp_path)
+    _write_health_tool_fakes(tmp_path, env)
+    _seed_claude_settings(env)
+    _install(source_root, env, tmp_path)
+
+    runtime_root = Path(env["XDG_DATA_HOME"]) / "manifest/health"
+    receipt_path = Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json"
+    retired_file = runtime_root / "plugin_reconcile.py"
+    retired_content = b"# retired reconcile script\n"
+    retired_file.write_bytes(retired_content)
+    digest = hashlib.sha256(retired_content).hexdigest()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["files"]["plugin_reconcile.py"] = {
+        "source": str(retired_file.resolve()),
+        "destination": str(retired_file.resolve()),
+        "source_sha256": digest,
+        "destination_sha256": digest,
+    }
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    result = run_script(
+        _installer(source_root),
+        "--source-root",
+        str(source_root),
+        "--uninstall",
+        env=env,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not retired_file.exists()
+    assert not runtime_root.exists()
+    assert not receipt_path.exists()
