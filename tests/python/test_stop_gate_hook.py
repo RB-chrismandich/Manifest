@@ -55,6 +55,9 @@ def _run_shell(payload, home, extra_env=None):
         }
     )
     environment.update(extra_env or {})
+    # Isolate delegation-config discovery so host config can never leak in.
+    environment.setdefault("MANIFEST_CONFIG_DIR", str(home / "no-config-dir"))
+    environment.setdefault("XDG_CONFIG_HOME", str(home / "xdg-config"))
     return subprocess.run(
         ["/bin/sh", str(SHELL)],
         input=json.dumps(payload),
@@ -211,19 +214,112 @@ def test_delegate_import_crash_blocks_without_relaying_stderr(capsys):
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
-def test_missing_managed_interpreter_blocks_then_guarded_followup_approves(tmp_path):
-    first = _run_shell(
+def test_disabled_gate_approves_without_managed_interpreter(tmp_path):
+    """Plugin-only installs have no ~/.claude/.venv; a disabled gate approves."""
+    result = _run_shell(
         {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"}, tmp_path
+    )
+    assert _decision(result) == {
+        "decision": "approve",
+        "reason": "gate disabled",
+    }
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_disabled_gate_rejects_non_stop_event(tmp_path):
+    """A disabled gate must not approve arbitrary objects that are not Stop events."""
+    result = _run_shell(
+        {"some_field": 1, "transcript_path": "/missing.jsonl"}, tmp_path
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "not_stop_event" in decision["reason"]
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_disabled_gate_rejects_stop_without_transcript(tmp_path):
+    """A Stop event with no usable transcript is malformed and stays fail-closed."""
+    result = _run_shell({"hook_event_name": "Stop"}, tmp_path)
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "missing_transcript" in decision["reason"]
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_disabled_gate_approves_explicit_disabled_config(tmp_path):
+    """An explicit `review_gate.enabled: false` approves a genuine Stop event."""
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        json.dumps({"review_gate": {"enabled": False}}), encoding="utf-8"
+    )
+    result = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        {"MANIFEST_CONFIG_DIR": str(config_dir)},
+    )
+    assert _decision(result) == {
+        "decision": "approve",
+        "reason": "gate disabled",
+    }
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_missing_managed_interpreter_blocks_then_guarded_followup_approves(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        json.dumps({"review_gate": {"enabled": True}}), encoding="utf-8"
+    )
+    env = {"MANIFEST_CONFIG_DIR": str(config_dir)}
+    first = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        env,
     )
     first_decision = _decision(first)
     assert first_decision["decision"] == "block"
     assert "interpreter_unavailable" in first_decision["reason"]
 
-    followup = _run_shell({"stop_hook_active": True}, tmp_path)
+    followup = _run_shell({"stop_hook_active": True}, tmp_path, env)
     assert _decision(followup) == {
         "decision": "approve",
         "reason": "stop-hook-active",
     }
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_yaml_config_falls_through_to_managed_runtime(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.yml").write_text(
+        "review_gate:\n  enabled: false\n", encoding="utf-8"
+    )
+    env = {"MANIFEST_CONFIG_DIR": str(config_dir)}
+    result = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        env,
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "interpreter_unavailable" in decision["reason"]
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_unparseable_json_config_fails_closed(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text("{not json", encoding="utf-8")
+    env = {"MANIFEST_CONFIG_DIR": str(config_dir)}
+    result = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        env,
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "config_unparseable" in decision["reason"]
 
 
 def test_missing_jq_is_a_hard_refusal(tmp_path):
@@ -240,7 +336,9 @@ def test_missing_jq_is_a_hard_refusal(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
-@pytest.mark.parametrize("raw", ["true", "false", "1", '"true"', "[]", "[true]", "null"])
+@pytest.mark.parametrize(
+    "raw", ["true", "false", "1", '"true"', "[]", "[true]", "null"]
+)
 def test_launcher_never_treats_non_object_payload_as_recursion_guard(tmp_path, raw):
     # jq `.<field>` projections on non-objects can coerce rather than error on
     # some builds; the recursion guard must be type-guarded so only the exact
@@ -281,15 +379,23 @@ def test_launcher_rejects_string_stop_hook_active_flag(tmp_path):
     assert decision["decision"] == "block"
     assert decision["reason"] != "stop-hook-active"
 
+
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
 def test_launcher_rejects_invalid_python_decision(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        json.dumps({"review_gate": {"enabled": True}}), encoding="utf-8"
+    )
     runtime = tmp_path / ".claude" / ".venv" / "bin" / "python"
     runtime.parent.mkdir(parents=True)
     runtime.write_text("#!/bin/sh\nprintf '%s\\n' 'not-json'\n", encoding="utf-8")
     runtime.chmod(0o755)
 
     result = _run_shell(
-        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"}, tmp_path
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        {"MANIFEST_CONFIG_DIR": str(config_dir)},
     )
     decision = _decision(result)
     assert decision["decision"] == "block"

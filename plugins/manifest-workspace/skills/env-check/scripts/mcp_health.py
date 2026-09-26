@@ -126,8 +126,11 @@ def collect_health(
     clock: Clock = utc_now,
 ) -> dict[str, Any]:
     """Collect cached or freshly probed health and persist fresh reports."""
+    project_dir = Path(
+        environment.get("CLAUDE_PROJECT_DIR") or environment.get("PWD") or "."
+    )
     expectations = (
-        load_claude_expectations(paths, required=True)
+        load_claude_expectations(paths, required=True, project_dir=project_dir)
         if harness == "claude"
         else load_omp_expectations(paths)
     )

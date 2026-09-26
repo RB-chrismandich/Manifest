@@ -2,6 +2,7 @@
 """File, snapshot, receipt, and plist primitives for the health installer."""
 
 from __future__ import annotations
+
 import fcntl
 import hashlib
 import json
@@ -69,7 +70,9 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
     runtime_root = data_home / "manifest" / "health"
     state_root = state_home / "manifest" / "health"
     agent_root = _resolved_path(
-        environment.get("OMP_AGENT_DIR") or home / ".omp" / "agent"
+        environment.get("PI_CODING_AGENT_DIR")
+        or environment.get("OMP_AGENT_DIR")
+        or home / ".omp" / "agent"
     )
     return InstallPaths(
         home=home,
@@ -207,9 +210,13 @@ def _installation_lock(paths: InstallPaths) -> Iterator[Path]:
     try:
         lock_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as error:
-        raise InstallError(f"could not create install lock directory: {lock_dir}") from error
+        raise InstallError(
+            f"could not create install lock directory: {lock_dir}"
+        ) from error
     try:
-        descriptor = os.open(lock_dir / INSTALL_LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600)
+        descriptor = os.open(
+            lock_dir / INSTALL_LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600
+        )
     except OSError as error:
         raise InstallError(
             f"could not open install lock: {lock_dir / INSTALL_LOCK_NAME}"
@@ -218,7 +225,9 @@ def _installation_lock(paths: InstallPaths) -> Iterator[Path]:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX)
         except OSError as error:
-            raise InstallError("could not acquire the health installation lock") from error
+            raise InstallError(
+                "could not acquire the health installation lock"
+            ) from error
         try:
             yield lock_dir / INSTALL_LOCK_NAME
         finally:
