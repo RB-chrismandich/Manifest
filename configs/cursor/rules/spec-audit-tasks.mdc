@@ -1,12 +1,12 @@
 ---
-description: "After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with speckit (tasks.md) and design-doc layouts; auto-discovers or takes paths. Invoke right after the implement step finishes."
+description: "After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with structured (tasks.md) and design-doc layouts; auto-discovers or takes paths. Invoke right after the implement step finishes."
 globs: ".claude/skills/spec-audit-tasks/**"
 alwaysApply: false
 ---
 
 # spec-audit-tasks
 
-After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with speckit (tasks.md) and design-doc layouts; auto-discovers or takes paths. Invoke right after the implement step finishes.
+After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with structured (tasks.md) and design-doc layouts; auto-discovers or takes paths. Invoke right after the implement step finishes.
 
 <!-- Auto-generated from .claude/skills/spec-audit-tasks/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

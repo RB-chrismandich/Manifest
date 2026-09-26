@@ -1,6 +1,6 @@
 ---
 name: spec-audit-tasks
-description: After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with speckit (tasks.md) and design-doc layouts; auto-discovers or takes paths. Invoke right after the implement step finishes.
+description: After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with structured (tasks.md) and design-doc layouts; auto-discovers or takes paths. Invoke right after the implement step finishes.
 ---
 
 # Task-Completion Audit
@@ -19,7 +19,7 @@ implementer's call — this skill's job is to tell the truth about what is actua
 
 1. **Locate the artifacts** per `../../runtime/references/spec-artifact-discovery.md` (explicit
    paths win, else detect the layout):
-   - **speckit:** the task list is `tasks.md` inside the spec's feature directory
+   - **structured:** the task list is `tasks.md` inside the spec's feature directory
      (`specs/<NNN-slug>/`, newest by name sort, or a caller-supplied path).
    - **design-doc:** there is no `tasks.md` — the spec is the newest
      `docs/design/specs/*-design.md` and the task list is embedded in the newest
@@ -51,7 +51,7 @@ implementer's call — this skill's job is to tell the truth about what is actua
    - **Orphan requirements** — any FR-*/acceptance scenario with no implementing task.
    - **Orphan tasks** — any task that maps to no requirement (possible scope creep).
 
-   Use the spec↔task-list relationship for the active layout: speckit is spec ↔ plan ↔ tasks;
+   Use the spec↔task-list relationship for the active layout: structured is spec ↔ plan ↔ tasks;
    the design-doc layout is spec ↔ plan (with the tasks embedded in that plan).
 
 5. **Classify and report.** Give every task one of: **DONE** (verified), **INCOMPLETE**

@@ -85,7 +85,7 @@ noninteractive, headless API; it is not part of this interactive workflow.
 ## Prerequisites
 
 - Feature branch (not default); clean tree unless operator passes `--allow-dirty`
-- Resolvable spec (+ optional plan): speckit feature dir or a design doc —
+- Resolvable spec (+ optional plan): structured feature dir (`specs/`) or a design doc —
   discovery per `../../runtime/references/spec-artifact-discovery.md`
 - Installed verification tools for the selected project gate
 
