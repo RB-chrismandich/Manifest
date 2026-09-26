@@ -181,11 +181,16 @@ lifecycle_gate_ok() {
 
 cmd_tick() {
     local pr="${1:?pr required}" sig d act gate sig2 head_sha
-    local material post_material rc=0 lock_rc=0 handling_failed=0 lock_degraded=0
+    local material="${2:-}" post_material rc=0 lock_rc=0 handling_failed=0 lock_degraded=0
 
     # Observe before touching the mutation lease. An exact valid state match is
     # the cheap path: no lease label, reviewer, action label, or audit append.
-    material="$(collect_fingerprint_material "$pr")" || return 13
+    # cmd_run may pass material it already collected for this PR (used here for
+    # the cheap-path match and, in cmd_run, for the in-flight check); otherwise
+    # collect it — the `tick` subcommand relies on that.
+    if [[ -z "$material" ]]; then
+        material="$(collect_fingerprint_material "$pr")" || return 13
+    fi
     if fingerprint_state_matches "$pr" "$material"; then
         printf 'unchanged\n'
         return 0
@@ -369,11 +374,32 @@ print(json.dumps(s))' "$gate" 2> /dev/null)" || {
 }
 
 # --- bounded state-driven loop. Every managed PR is observed each pass, while
-# expensive handling only runs for changed fingerprints. The first complete
-# pass with no changed/actionable PR stops immediately.
+# expensive handling only runs for changed fingerprints. A pass is EMPTY only
+# when nothing changed and no unchanged PR is still in flight (FR-018a): a
+# fingerprint whose recorded action was wait/revise/update-branch is pending
+# work the loop must keep polling, not an idle queue, and a `skip` means another
+# worker holds the lease. Five consecutive empty passes stop the loop early.
+
+# fingerprint_recorded_action <pr> <material> — print the action persisted
+# alongside a still-matching fingerprint (empty when no valid state exists).
+# cmd_run uses it to distinguish "unchanged because settled" (hand-human, a
+# hard-gated merge) from "unchanged but in flight" (wait/revise/update-branch);
+# only the former may advance the consecutive-empty counter.
+fingerprint_recorded_action() {
+    local pr="${1:?pr required}" material="${2:?material required}" path
+    fingerprint_state_matches "$pr" "$material" || return 0
+    path="$(fingerprint_state_path "$pr" "$material")" || return 0
+    python3 - "$path" << 'PY' 2> /dev/null || true
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as handle:
+    print(json.load(handle)["action"])
+PY
+}
+
 cmd_run() {
     local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
-    local start deadline now managed_json managed pr act rc changed complete
+    local start deadline now managed_json managed pr act rc changed inflight complete n material
     gh_op fp-scope > /dev/null || {
         err "material fingerprinting unsupported for this repository/provider"
         return 13
@@ -400,6 +426,7 @@ print(" ".join(numbers))' 2> /dev/null)" || {
             return 13
         }
         changed=0
+        inflight=0
         complete=1
         # shellcheck disable=SC2086 # space-joined validated integer PR numbers
         for pr in $managed; do
@@ -408,28 +435,38 @@ print(" ".join(numbers))' 2> /dev/null)" || {
                 complete=0
                 break
             fi
+            # Observed once per PR per pass: feeds both cmd_tick's cheap-path
+            # match and, on `unchanged`, the in-flight check below.
+            material="$(collect_fingerprint_material "$pr")" || return 13
             rc=0
-            act="$(cmd_tick "$pr")" || rc=$?
+            act="$(cmd_tick "$pr" "$material")" || rc=$?
             [[ $rc -eq 0 ]] || return "$rc"
             case "$act" in
                 halt)
                     err "loop HALT — main breakage on #$pr"
                     return 11
                     ;;
-                unchanged) : ;;
+                unchanged)
+                    case "$(fingerprint_recorded_action "$pr" "$material")" in
+                        wait | revise | update-branch) inflight=1 ;;
+                    esac
+                    ;;
+                skip) inflight=1 ;;
                 *) changed=1 ;;
             esac
         done
         ((complete == 1)) || break
         now="$(_now)"
         ((now < deadline)) || break
-        if ((changed == 0)); then
+        if ((changed == 1 || inflight == 1)); then
             cmd_empty_run reset > /dev/null
-            cmd_empty_run incr > /dev/null
-            err "first unchanged pass — stopping"
-            break
+        else
+            n="$(cmd_empty_run incr)"
+            if ((n >= 5)); then
+                err "5 consecutive empty passes — stopping"
+                break
+            fi
         fi
-        cmd_empty_run reset > /dev/null
         now="$(_now)"
         ((now < deadline)) || break
         [[ "$poll" -gt 0 ]] && sleep "$poll"

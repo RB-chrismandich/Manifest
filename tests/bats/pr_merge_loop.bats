@@ -713,23 +713,85 @@ EOF
     [[ "$output" != *"merged"* ]]
 }
 
-@test "run: fully idle pass stops immediately" {
+@test "run: fully idle passes stop at the documented 5-empty threshold" {
+    # now-seam: +30s per _now call. Each pass costs 3 calls (top, post-loop,
+    # pre-sleep); five empty passes land at now=480 < deadline — the loop exits
+    # via the counter, not the clock.
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 30 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
     export SEAM_LIST='[]' PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
     run "$SCRIPT" run
     [ "$status" -eq 0 ]
-    [ "$("$SCRIPT" empty-run get)" = "1" ]
-    [[ "$output" == *"first unchanged pass"* ]]
+    [ "$("$SCRIPT" empty-run get)" = "5" ]
+    [[ "$output" == *"5 consecutive empty passes"* ]]
 }
 
-@test "run: changed waiting PR is handled once, then the first unchanged pass stops" {
+@test "run: a preserved empty_count keeps incrementing across empty passes" {
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 30 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
+    export SEAM_LIST='[]' PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
     "$SCRIPT" empty-run incr > /dev/null
     "$SCRIPT" empty-run incr > /dev/null
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    # 2 preserved + 3 fresh empty passes -> 5, then stop.
+    [ "$("$SCRIPT" empty-run get)" = "5" ]
+    [[ "$output" == *"5 consecutive empty passes"* ]]
+}
+
+@test "run: an unchanged PR whose recorded action is still pending stays in flight" {
+    # FR-018a regression: a PR whose fingerprint matches but whose recorded
+    # action is `wait` (checks still settling) is in-flight work — the empty
+    # counter must RESET, never increment, so the loop keeps polling instead of
+    # walking to the 5-empty stop. Seeded counter 2 -> 0 proves the reset ran.
+    export SEAM_BUCKETS="pending"
+    "$SCRIPT" tick 5 > /dev/null 2>&1   # persists fingerprint with action=wait
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 100 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [ "$("$SCRIPT" empty-run get)" = "0" ]
+}
+
+@test "run: a waiting PR keeps the loop polling — the empty counter never starts" {
+    # pending checks -> action `wait`, which is in-flight work (FR-018a): each
+    # pass resets the counter rather than incrementing it, so the loop only
+    # exits on the deadline. now-seam +100s/call: pass 1 completes below the
+    # ceiling, pass 2's per-PR check lands on the deadline -> break.
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 100 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
     export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
     export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]' SEAM_BUCKETS="pending"
     run "$SCRIPT" run
     [ "$status" -eq 0 ]
-    [ "$("$SCRIPT" empty-run get)" = "1" ]
-    [ "$(call_count fp-view)" = "4" ]
+    [ "$("$SCRIPT" empty-run get)" = "0" ]
+    [ "$(call_count fp-view)" = "3" ]
 }
 
 @test "run: one changed PR does not reopen work on unchanged siblings" {
@@ -988,14 +1050,14 @@ PY
     [ "$(gate_count)" = "0" ]
 }
 
-@test "vendored: run handles a transition once and stops on the first idle pass" {
+@test "vendored: run handles a transition once and stops after five idle passes" {
     export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
     export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
     run "$VENDORED" run
-    [ "$status" -eq 0 ] && [[ "$output" == *"first unchanged pass"* ]]
+    [ "$status" -eq 0 ] && [[ "$output" == *"5 consecutive empty passes"* ]]
     [ "$(gate_count)" = "1" ]
-    [ "$(call_count fp-view)" = "4" ]
-    [ "$("$VENDORED" empty-run get)" = "1" ]
+    [ "$(call_count fp-view)" = "8" ]
+    [ "$("$VENDORED" empty-run get)" = "5" ]
 }
 
 @test "vendored: failed update action is degraded and leaves no transition state" {
