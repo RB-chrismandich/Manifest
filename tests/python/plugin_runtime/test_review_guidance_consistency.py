@@ -46,7 +46,7 @@ def test_active_independent_review_guides_use_only_the_five_condition_gate(
     assert "each modified file" not in source
 
 
-def test_issue_process_template_requires_consensus_only_when_escalated(
+def test_issue_process_template_requires_attributed_evidence(
     repo_root: Path,
 ) -> None:
     source = (repo_root / "docs/templates/commands/issue-process.md").read_text(
@@ -54,11 +54,9 @@ def test_issue_process_template_requires_consensus_only_when_escalated(
     )
 
     assert "`single-agent`, all applicable checks pass" in source
-    assert (
-        "`independent-review`, all applicable checks pass, consensus >= 80%" in source
-    )
-    assert "All tests pass AND consensus >= 80%" not in source
-    assert "**Independent-review consensus**: [X]% or `not-applicable`" in source
+    assert "attributed review evidence resolves every load-bearing concern" in source
+    assert "consensus >= 80%" not in source
+    assert "**Independent-review consensus**" not in source
 
 
 def test_validation_configs_do_not_duplicate_code_audit_activation(
@@ -163,9 +161,7 @@ def test_refactor_cross_verification_is_conditional_on_escalation(
         "cross_verification"
     ]
     assert "consensus_threshold" not in policy
-    assert policy["conditional_consensus"]["review_mode"]["escalated"]["threshold"] == (
-        0.75 if command == "shell-refactor" else 0.80
-    )
+    assert "conditional_consensus" not in policy
 
 
 def test_shell_refactor_review_never_installs_or_executes_checkout_code(

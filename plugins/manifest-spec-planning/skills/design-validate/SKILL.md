@@ -27,17 +27,4 @@ plan, a sidecar is the only path).
 
 ## Sub-agent dispatch
 
-This skill uses the shared OMP dispatch contract in
-`../../runtime/references/sub-agent-dispatch.md`: submit all ready independent
-units in one `task` call, in waves of at most 32; children execute directly and
-never redispatch; use `hub` only to coordinate or wait; and the parent validates
-and aggregates evidence. If `task` is unavailable, work inline and report
-`DEGRADED`.
-
-When ≥3 load-bearing assumptions need validation, dispatch one read-only
-research unit per assumption in a single OMP `task` call (in waves of at most
-32), using `scout`. Each child researches only its assigned assumption and
-never re-dispatches. The parent directly compares and records the cited
-evidence; it does not synthesize text overlap. Use `hub` only to coordinate or
-wait. If `task` is unavailable, research inline and report `DEGRADED`. Below
-the threshold, research inline.
+Follow the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md).

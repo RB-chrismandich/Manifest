@@ -25,7 +25,7 @@ are not competing — each owns a distinct lifecycle stage and audience.
 - **Tracking multi-step operational work on a deployed machine?** `/plan-manage`
   with `configs/claude/.plans/`.
 - **Learned something the hard way?** Append to the matching `.Jules/` file
-  (or via the `learning-capture` skill into `knowledge_base.yml`).
+  (or via `manifest-workspace:learning-capture add` into the XDG-owned store).
 - A speckit feature's spec directory is permanent history; when delivered, its
   status line is marked **Delivered** (specs/ has no archive subdirectory —
   that convention belongs to `configs/claude/.plans/`).

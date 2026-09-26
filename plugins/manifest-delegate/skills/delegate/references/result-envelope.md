@@ -36,3 +36,22 @@ Task, review, and gate prompts also request `findings` as objects with string
 - Do not append your own opinion of quality to a relayed envelope unless
   the user asked for a second opinion (`--second-opinion`), which is a
   separate, explicitly-labeled envelope, not a mutation of the first.
+
+## Parent aggregation of multiple relays
+
+When a parent explicitly requested multiple independent external results, it may
+present a separate **Parent aggregation** after the individual relays. The
+section may deduplicate findings only after validating them against the stated
+input scope. Attribute every retained finding and conclusion to its `job_id` and
+`backend`; preserve each original envelope verbatim and never edit it to fit the
+aggregation.
+
+- Keep failed, partial, malformed, unavailable, and missing-findings results
+  visible with their per-envelope error or follow-up. They are not agreement,
+  and they never make the aggregate a clean review.
+- Record the revision or diff scope used by each job. If scopes differ, state
+  that results are not directly comparable rather than claiming consensus.
+- Report unresolved disagreement as unresolved. Text overlap, finding counts,
+  and vote percentages are not correctness evidence.
+- The parent, not a runner or backend, owns evidence validation, lifecycle
+  decisions, and the separately labeled synthesis.

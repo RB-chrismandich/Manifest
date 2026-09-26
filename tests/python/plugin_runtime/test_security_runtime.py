@@ -342,7 +342,7 @@ def test_installed_code_audit_dispatch_reference_resolves(
     assert (skill.parent / link.group(1)).is_file()
 
 
-def test_ci_audit_dispatch_uses_the_omp_task_contract(
+def test_ci_audit_dispatch_uses_the_shared_native_contract(
     security_bundle: Path,
 ) -> None:
     skill = security_bundle / "skills/ci-audit-triggers/SKILL.md"
@@ -354,8 +354,8 @@ def test_ci_audit_dispatch_uses_the_omp_task_contract(
     for text in (source, reference):
         assert "parallel-agent" not in text
         assert "--security-analysis" not in text
-    assert "security-reviewer" in reference
-    assert "task" in reference
+    assert "shared native dispatch contract" in reference
+    assert "Each reviewer owns one workflow" in reference
 
 
 def test_security_refute_findings_forwards_to_canonical_alias(

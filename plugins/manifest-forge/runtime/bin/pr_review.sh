@@ -10,7 +10,7 @@
 # Resolution: fetches through the selected native platform CLI on PATH. Each
 # normalized element has this shape:
 #   {number,title,author,updated(ISO8601),mergeable(CLEAN|CONFLICTING|UNKNOWN),
-#    checks(PASS|FAIL|PENDING|NONE),draft(bool),head(str),merged(bool)}
+#    checks(PASS|FAIL|PENDING|NONE),draft(bool),head(str)}
 #
 # Exit codes: 0 = success (incl. empty queue); 2 = usage / platform / auth error.
 #
@@ -120,7 +120,6 @@ for r in rows:
       "checks": checks(r),
       "draft": bool(r.get("isDraft")),
       "head": r.get("headRefName",""),
-      "merged": False,
     })
 print(json.dumps(out))
 ' || {
@@ -150,7 +149,6 @@ for r in rows:
       "checks": "NONE",
       "draft": bool(r.get("draft") or r.get("work_in_progress")),
       "head": r.get("source_branch",""),
-      "merged": False,
     })
 print(json.dumps(out))
 ' || {
@@ -208,12 +206,11 @@ for r in data:
     a = age_days(r.get("updated",""))
     head = r.get("head","")
     superseded = head and len(heads.get(head,[]))>1 and r.get("number")!=min(x for x in heads[head] if x is not None)
-    merged = bool(r.get("merged"))
     mergeable = r.get("mergeable","UNKNOWN")
     chk = r.get("checks","NONE")
     draft = bool(r.get("draft"))
-    if merged or superseded:
-        disp, why = "close", ("branch already merged" if merged else "superseded by an earlier open PR on the same branch")
+    if superseded:
+        disp, why = "close", "superseded by an earlier open PR on the same branch"
     elif mergeable=="CONFLICTING" or chk=="FAIL":
         disp, why = "needs-rebase", ("merge conflicts" if mergeable=="CONFLICTING" else "failing checks")
     elif mergeable=="CLEAN" and chk in ("PASS","NONE") and not draft:

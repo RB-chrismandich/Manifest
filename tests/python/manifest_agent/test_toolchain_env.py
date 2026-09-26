@@ -153,6 +153,7 @@ def test_environment_digests_normalize_only_generated_path_bearers(tmp_path: Pat
     "pth_contents",
     (
         "import sys; sys.path.insert(0, '/tmp/poison')\n",
+        "import\tos; os.system('echo pwned')\n",
         "/tmp/poison\n",
         "../../../../../../poison\n",
     ),

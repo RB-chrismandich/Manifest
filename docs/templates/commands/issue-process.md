@@ -81,7 +81,7 @@ Before planning or implementing anything, verify that the issue has been through
 1. Fetch the issue metadata:
 
    ```bash
-   ~/.claude/scripts/git_ops.sh issue-view $ARGUMENTS --json labels,body,comments -R {owner}/{repo}
+   gh issue view $ARGUMENTS --json labels,body,comments -R {owner}/{repo}
    ```
 
    **Replace `{owner}/{repo}` with your repository.**
@@ -115,7 +115,7 @@ Before planning or implementing anything, verify that the issue has been through
 
 ### Step 1: Ingestion & Checklist Extraction
 
-1. Read the provided GitHub Issue from $ARGUMENTS (use `~/.claude/scripts/git_ops.sh issue-view` if a number/URL is given). You already have the issue data from Step 0.5 — reuse it rather than re-fetching.
+1. Read the provided GitHub Issue from $ARGUMENTS (use `gh issue view` if a number/URL is given). You already have the issue data from Step 0.5 — reuse it rather than re-fetching.
 2. **Extract checklists from body AND comments**: Parse the issue body **and** every comment for GitHub-flavored markdown checklists (`- [ ]` / `- [x]` items). Track these as **acceptance criteria** throughout the workflow. For each checklist item, record:
    - The item text
    - Whether it's in the issue **body** or a **comment** (and if a comment, its `comment_id` — available from the API response)
@@ -210,8 +210,8 @@ results:
 | Condition | Label | Meaning |
 |-----------|-------|---------|
 | `single-agent`, all applicable checks pass, and all acceptance items are complete | `processed` | Fully implemented, validated, ready to merge |
-| `independent-review`, all applicable checks pass, consensus >= 80%, and all acceptance items are complete | `processed` | Fully implemented, independently reviewed, ready to merge |
-| Any applicable check fails, an item is blocked, or escalated-review consensus is below 80% | `needs-review` | Implemented or partial work requires review |
+| `independent-review`, all applicable checks pass, and attributed review evidence resolves every load-bearing concern | `processed` | Fully implemented, independently reviewed, ready to merge |
+| Any applicable check fails, an item is blocked, or attributed review evidence leaves a load-bearing concern unresolved | `needs-review` | Implemented or partial work requires review |
 | A required check is unavailable or evidence remains unresolved | `needs-review` | Verification cannot be represented as passing |
 
 #### 5c. Build the checklist status report
@@ -235,10 +235,10 @@ If neither the issue body nor any comments had checklists, skip this table.
 
 #### 5d. Post implementation comment
 
-Post a structured comment on the issue using `~/.claude/scripts/git_ops.sh issue-comment`:
+Post a structured comment on the issue using `gh issue comment`:
 
 ```bash
-~/.claude/scripts/git_ops.sh issue-comment <ISSUE_NUMBER> --body "$(cat <<'EOF'
+gh issue comment <ISSUE_NUMBER> --body "$(cat <<'EOF'
 ## Implementation Update
 
 **Status**: `processed` | `needs-review`
@@ -269,7 +269,7 @@ Post a structured comment on the issue using `~/.claude/scripts/git_ops.sh issue
 - **Review mode**: `single-agent` | `independent-review`
 - **Escalation reason**: [canonical risk condition, or `not-applicable`]
 - **Applicable checks**: [exact command/result records, or `unavailable_reason`]
-- **Independent-review consensus**: [X]% or `not-applicable`
+- **Independent-review evidence**: [attributed findings and adjudication, or `not-applicable`]
 - **Disagreements**: [list any, or `not-applicable`]
 
 ### Follow-up Items
@@ -300,13 +300,13 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 1. **Ensure the `follow-up` label exists**:
 
    ```bash
-   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Spawned from another issue during implementation" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
+   gh label create "follow-up" --description "Spawned from another issue during implementation" --color "D4C5F9" --force -R {owner}/{repo}
    ```
 
 2. **Create each follow-up issue** using the standardized template:
 
    ```bash
-   ~/.claude/scripts/git_ops.sh issue-create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
+   gh issue create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
    <!-- follow-up-from: #<PARENT_NUMBER> -->
    ## Follow-up from #<PARENT_NUMBER>
 
@@ -332,7 +332,7 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 3. **Post a summary comment on the parent issue** listing all created follow-up issues:
 
    ```bash
-   ~/.claude/scripts/git_ops.sh issue-comment <PARENT_NUMBER> --body "$(cat <<'EOF'
+   gh issue comment <PARENT_NUMBER> --body "$(cat <<'EOF'
    ### Follow-up Issues Created
 
    | # | Title | Origin |
@@ -348,18 +348,18 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 
 ```bash
 # Add the status label
-~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "done" -R {owner}/{repo}
+gh issue edit <ISSUE_NUMBER> --add-label "done" -R {owner}/{repo}
 # OR
-~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "needs-review" -R {owner}/{repo}
+gh issue edit <ISSUE_NUMBER> --add-label "needs-review" -R {owner}/{repo}
 ```
 
 If the label does not yet exist in the repository, create it first:
 
 ```bash
-# Create labels if they don't exist (idempotent — gh will error silently if label exists)
+# Create labels if they do not exist.
 # Labels defined in .claude/config/labels.yml — use 'done' instead of deprecated 'processed'
-~/.claude/scripts/git_ops.sh label-create "done" --description "Implementation complete and validated" --color "0E8A16" -R {owner}/{repo} 2>/dev/null || true
-~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Requires human review before completion" --color "E3A21A" -R {owner}/{repo} 2>/dev/null || true
+gh label create "done" --description "Implementation complete and validated" --color "0E8A16" --force -R {owner}/{repo}
+gh label create "needs-review" --description "Requires human review before completion" --color "E3A21A" --force -R {owner}/{repo}
 ```
 
 #### 5h. Commit changes (if status is "processed")

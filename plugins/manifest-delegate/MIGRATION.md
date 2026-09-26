@@ -76,3 +76,57 @@ If `manifest-delegate` is ever published to a marketplace external to this
 repo, Principle VII (constitution: external-distribution obligations) applies
 and must be re-evaluated at that time — it is inactive while the plugin is
 repo-local.
+
+## Retired `parallel-agent` workflow
+
+`parallel-agent` is retired as an execution surface. Historical artifacts and
+negative regression guards remain; neither the old skill nor a replacement
+batch scheduler is installed for compatibility.
+
+| Retired parallel-agent use | Replacement |
+|---|---|
+| Parallel analysis of independent tracks | Current-host native workers, or native `delegate-runner` fan-out for an explicitly selected external backend |
+| Cross-provider review | Independent read-only `delegate.py review` jobs; parent evidence validation |
+| Cross-check a prior finding | `delegate.py task --second-opinion --of JOB_ID` with freshly submitted task text |
+| Improve or apply recommendations | Parent selects verified work; an explicit authorized task and serialized writer/integration |
+| Validate results | Existing repository checks plus parent verification; no fabricated consensus score |
+| Old parallel reports and metrics | Retained historical artifacts; no new execution dependency or delegate job-schema migration |
+
+OMP owns native `task`/`hub` concurrency. Claude Code owns native Agent and
+background-agent collection. The parent owns decomposition, fully composed
+dispatcher commands, lifecycle choices, evidence validation, and any separately
+labeled aggregation. `delegate-runner` only relays one parent-authorized
+external command; it is not a scheduler, coordinator, consensus engine, or
+general child-redispatch permission.
+
+For native delivery, register the Manifest marketplace first. Install or update
+OMP with `omp plugin install manifest-delegate@manifest`; install or update
+Claude Code through its native marketplace/plugin interface, then reload each
+host and verify the discovered skill and runner separately. Their inventories
+are independent. Backend readiness alone does not prove runner discovery or a
+usable native model.
+
+Only one Claude Stop review gate may own a workspace. `manifest-delegate` keeps
+its gate default-off; consult the existing exclusivity instructions above before
+enabling it. OMP manual task/review/job control is supported, but automatic
+Claude-style hook parity is not claimed. Retire managed stale installations only
+through their owning receipt or native uninstall/update mechanism after checking
+ownership; preserve unknown or user-modified files.
+
+## Native-host smoke procedure
+
+Run this after installing the plugin through each host's native mechanism, from
+the installed package rather than a source checkout. Resolve the runner in the
+host's discovered roster, compose two independent read-only `delegate.py` task
+or review calls against controlled stub backends, and collect both native-child
+and external job results. The parent report records host version, discovered
+runner name and model, installed dispatcher path, native child IDs, delegate job
+IDs, backend identities, outcomes, and evidence that no nested native dispatch
+occurred. It presents any parent aggregation separately from the raw attributed
+envelopes.
+
+An authenticated real-backend smoke is additional evidence, not a replacement
+for controlled orchestration coverage. Missing plugin discovery, a usable host
+model, or backend authentication is `unverified/DEGRADED`, never PASS. Do not
+repair a stale managed installation by editing its cache; use the owning native
+update or uninstall mechanism after confirming ownership.

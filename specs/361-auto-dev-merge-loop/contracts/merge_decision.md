@@ -11,7 +11,6 @@ The safety-critical decision logic, isolated from all I/O so it is fully bats-te
   "checks": "PASS|PENDING|FAIL|NO_CHECKS",
   "review_block": false,
   "pr_review_disposition": "merge|needs-rebase|close|keep",
-  "verify": "pass|fail-blocking|warn",
   "gate_tier1": "pass|fail",
   "consensus": 0.86,
   "mergeable": "MERGEABLE|CONFLICTING|UNKNOWN",
@@ -35,7 +34,7 @@ The safety-critical decision logic, isolated from all I/O so it is fully bats-te
 | `hold` or `review_block` (human block) | `hand-human` | `needs-human` |
 | `mergeable=="CONFLICTING"` or `merge_state=="DIRTY"` | `hand-human` | `needs-human` |
 | `merge_state=="BEHIND"` (clean, just stale) | `update-branch` | — |
-| `checks=="FAIL"` or `verify=="fail-blocking"` and `revisions_used < max` | `revise` | — |
+| `checks=="FAIL"` and `revisions_used < max` | `revise` | — |
 | `checks=="PENDING"` or `mergeable=="UNKNOWN"` or `merge_state ∈ {UNSTABLE,UNKNOWN}` | `wait` | — |
 | not clear and `revisions_used >= max` | `hand-human` | `needs-human` |
 | `checks=="NO_CHECKS"` | `hand-human` | `needs-human` |

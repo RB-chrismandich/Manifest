@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for configs/claude/scripts/linear_ops.sh
-# Authentication fallback, subcommand routing, error handling
+# Tests for plugins/manifest-forge/runtime/bin/linear_ops.sh
+# Authentication (LINEAR_API_KEY only), subcommand routing, error handling
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/linear_ops.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/linear_ops.sh"
 
 setup() {
     # Create a temporary directory for each test
@@ -25,6 +25,10 @@ setup() {
 
     # Create stub for jq (used throughout)
     create_stub_jq
+
+    # Forge auth is env-only: LINEAR_API_KEY authenticates every test; tests
+    # exercising the no-auth path set LINEAR_API_KEY="" on the run line.
+    export LINEAR_API_KEY="test-token"
 }
 
 teardown() {
@@ -105,16 +109,13 @@ STUB
 # --- Unknown subcommand tests ---
 
 @test "fails on unknown subcommand" {
-    # Provide auth so we get past check_auth
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
-
     run bash "$SCRIPT_UNDER_TEST" unknown-cmd
     assert_failure
     assert_output --partial "Unknown subcommand: unknown-cmd"
 }
 
 # --- check_auth tests (issue #312) ---
+# Forge auth is LINEAR_API_KEY-only (env); there is no token-file path.
 
 @test "MCP registry entry alone does not authenticate (issue #312)" {
     # The script talks to the API via curl — an MCP registration provides no
@@ -125,14 +126,13 @@ linear:
   url: https://linear.app
 EOF
 
-    run bash "$SCRIPT_UNDER_TEST" team-list
+    LINEAR_API_KEY="" run bash "$SCRIPT_UNDER_TEST" team-list
     assert_failure
     assert_output --partial "Linear authentication required"
 }
 
 @test "check_auth fails when nothing is configured" {
-    # No token file, no env var
-    run bash "$SCRIPT_UNDER_TEST" team-list
+    LINEAR_API_KEY="" run bash "$SCRIPT_UNDER_TEST" team-list
     assert_failure
     assert_output --partial "Linear authentication required"
 }
@@ -142,28 +142,16 @@ EOF
     refute_output --partial "Linear authentication required"
 }
 
-@test "check_auth succeeds via token file" {
-    mkdir -p "$HOME/.config/linear"
-    echo "lin_api_test_token_123" > "$HOME/.config/linear/token"
-
-    run bash "$SCRIPT_UNDER_TEST" team-list
-    refute_output --partial "Linear authentication required"
-}
-
-@test "check_auth rejects an empty token file" {
-    mkdir -p "$HOME/.config/linear"
-    : > "$HOME/.config/linear/token"
-
-    run bash "$SCRIPT_UNDER_TEST" team-list
+@test "check_auth rejects an empty LINEAR_API_KEY" {
+    LINEAR_API_KEY="" run bash "$SCRIPT_UNDER_TEST" team-list
     assert_failure
     assert_output --partial "Linear authentication required"
 }
 
 @test "check_auth error message mentions setup options" {
-    run bash "$SCRIPT_UNDER_TEST" team-list
+    LINEAR_API_KEY="" run bash "$SCRIPT_UNDER_TEST" team-list
     assert_failure
     assert_output --partial "LINEAR_API_KEY"
-    assert_output --partial "linear/token"
     assert_output --partial "linear.app/settings/api"
 }
 
@@ -173,8 +161,6 @@ EOF
 # The actual GraphQL responses are mocked, so we focus on routing.
 
 @test "routes team-list subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" team-list
     # Should attempt to call curl (our stub) for GraphQL
@@ -183,40 +169,30 @@ EOF
 }
 
 @test "routes team-states subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" team-states ENG
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes issue-list subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-list
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes issue-view subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-view ENG-123
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes issue-create subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-create --team ENG --title "New issue"
     refute_output --partial "Unknown subcommand"
 }
 
 @test "issue-create fails without --team" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-create --title "New issue"
     assert_failure
@@ -224,8 +200,6 @@ EOF
 }
 
 @test "issue-create fails without --title" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-create --team ENG
     assert_failure
@@ -233,88 +207,103 @@ EOF
 }
 
 @test "routes issue-update subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-update ENG-123 --priority 1
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes issue-comment subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-comment ENG-123 --body "Test comment"
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes issue-close subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-close ENG-123
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes issue-mark-duplicate subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-mark-duplicate ENG-123 --duplicate-of ENG-100
     refute_output --partial "Unknown subcommand"
 }
 
+# --- F-6: identifier argument must be validated before use ---
+
+@test "issue-view requires IDENTIFIER" {
+    run bash "$SCRIPT_UNDER_TEST" issue-view
+    assert_equal "$status" 1
+    assert_output --partial "Usage: issue-view IDENTIFIER"
+    refute_output --partial "unbound variable"
+}
+
+@test "issue-update requires IDENTIFIER" {
+    run bash "$SCRIPT_UNDER_TEST" issue-update
+    assert_equal "$status" 1
+    assert_output --partial "Usage: issue-update IDENTIFIER"
+    refute_output --partial "unbound variable"
+}
+
+@test "issue-comment requires IDENTIFIER" {
+    run bash "$SCRIPT_UNDER_TEST" issue-comment
+    assert_equal "$status" 1
+    assert_output --partial "Usage: issue-comment IDENTIFIER"
+    refute_output --partial "unbound variable"
+}
+
+@test "issue-close requires IDENTIFIER" {
+    run bash "$SCRIPT_UNDER_TEST" issue-close
+    assert_equal "$status" 1
+    assert_output --partial "Usage: issue-close IDENTIFIER"
+    refute_output --partial "unbound variable"
+}
+
+@test "issue-mark-duplicate requires IDENTIFIER" {
+    run bash "$SCRIPT_UNDER_TEST" issue-mark-duplicate
+    assert_equal "$status" 1
+    assert_output --partial "Usage: issue-mark-duplicate IDENTIFIER"
+    refute_output --partial "unbound variable"
+}
+
 @test "routes create-sub-issue subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" create-sub-issue --parent ENG-123 --title "Sub task"
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes list-cycles subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" list-cycles --team ENG
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes add-comment subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" add-comment --identifier ENG-123 --body "New comment"
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes transition-state subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" transition-state --identifier ENG-123 --state "In Progress"
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes label-list subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" label-list
     refute_output --partial "Unknown subcommand"
 }
 
 @test "routes label-create subcommand" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" label-create --name "test-label" --color "FF0000"
     refute_output --partial "Unknown subcommand"
 }
 
 @test "label-create fails without --name" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" label-create --color "FF0000"
     assert_failure
@@ -322,8 +311,6 @@ EOF
 }
 
 @test "label-create fails without --color" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" label-create --name "test-label"
     assert_failure
@@ -331,8 +318,6 @@ EOF
 }
 
 @test "label-create accepts positional name" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" label-create "my-label" --color "1D76DB"
     refute_output --partial "Unknown subcommand"
@@ -347,8 +332,6 @@ EOF
 # --- API call construction tests ---
 
 @test "graphql_query passes Authorization header with token" {
-    mkdir -p "$HOME/.config/linear"
-    echo "my-secret-token" > "$HOME/.config/linear/token"
 
     # Replace curl stub with one that records all arguments
     cat > "$MOCK_BIN/curl" << 'STUB'
@@ -358,13 +341,11 @@ echo '{"data":{"teams":{"nodes":[]}}}'
 STUB
     chmod +x "$MOCK_BIN/curl"
 
-    run bash "$SCRIPT_UNDER_TEST" team-list
+    LINEAR_API_KEY="my-secret-token" run bash "$SCRIPT_UNDER_TEST" team-list
     assert_output --partial "Bearer my-secret-token"
 }
 
 @test "graphql_query posts to api.linear.app/graphql" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     cat > "$MOCK_BIN/curl" << 'STUB'
 #!/usr/bin/env bash
@@ -378,8 +359,6 @@ STUB
 }
 
 @test "graphql_query uses POST method" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     cat > "$MOCK_BIN/curl" << 'STUB'
 #!/usr/bin/env bash
@@ -395,8 +374,6 @@ STUB
 # --- Option parsing tests ---
 
 @test "team-list accepts --json flag" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     # Stub curl to return valid JSON
     cat > "$MOCK_BIN/curl" << 'STUB'
@@ -410,32 +387,24 @@ STUB
 }
 
 @test "issue-list accepts --team flag" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-list --team ENG
     refute_output --partial "Unknown option: --team"
 }
 
 @test "issue-list accepts --limit flag" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-list --limit 10
     refute_output --partial "Unknown option: --limit"
 }
 
 @test "issue-list accepts --state flag" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-list --state started
     refute_output --partial "Unknown option: --state"
 }
 
 @test "issue-list accepts --priority flag" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-list --priority 1
     refute_output --partial "Unknown option: --priority"
@@ -444,8 +413,6 @@ STUB
 # --- Error handling for missing required options ---
 
 @test "issue-comment fails without --body" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     # Stub curl to return issue data for the view call
     cat > "$MOCK_BIN/curl" << 'STUB'
@@ -460,8 +427,6 @@ STUB
 }
 
 @test "issue-mark-duplicate fails without --duplicate-of" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" issue-mark-duplicate ENG-123
     assert_failure
@@ -469,8 +434,6 @@ STUB
 }
 
 @test "create-sub-issue fails without --parent" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" create-sub-issue --title "Test"
     assert_failure
@@ -478,8 +441,6 @@ STUB
 }
 
 @test "create-sub-issue fails without --title" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" create-sub-issue --parent ENG-123
     assert_failure
@@ -487,8 +448,6 @@ STUB
 }
 
 @test "list-cycles fails without --team" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" list-cycles
     assert_failure
@@ -496,8 +455,6 @@ STUB
 }
 
 @test "add-comment fails without --identifier" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" add-comment --body "Hello"
     assert_failure
@@ -505,8 +462,6 @@ STUB
 }
 
 @test "add-comment fails without --body" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" add-comment --identifier ENG-123
     assert_failure
@@ -514,8 +469,6 @@ STUB
 }
 
 @test "transition-state fails without --identifier" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" transition-state --state "In Progress"
     assert_failure
@@ -523,8 +476,6 @@ STUB
 }
 
 @test "transition-state fails without --state" {
-    mkdir -p "$HOME/.config/linear"
-    echo "test-token" > "$HOME/.config/linear/token"
 
     run bash "$SCRIPT_UNDER_TEST" transition-state --identifier ENG-123
     assert_failure

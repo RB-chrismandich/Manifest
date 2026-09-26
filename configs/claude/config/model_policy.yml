@@ -1,4 +1,4 @@
-# Single-provider CLI routing policy. Interactive subagents use OMP task/hub.
+# Single-provider CLI routing policy. Interactive subagents use current-host native dispatch.
 provider_order:
   - antigravity
   - cursor
