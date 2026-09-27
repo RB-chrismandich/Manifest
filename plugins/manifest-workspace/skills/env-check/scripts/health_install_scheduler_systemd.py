@@ -50,6 +50,7 @@ def _activate_persistent_systemd(
             "systemd timer enable",
             timeout=30.0,
         )
+    # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
     except BaseException:
         if started:
             with suppress(OSError, subprocess.SubprocessError, InstallError):
