@@ -45,6 +45,26 @@ def test_runtime_path_gate_accepts_checked_in_portable_bundles() -> None:
     )
 
 
+def test_runtime_path_gate_ignores_evaluation_fixtures(tmp_path: Path) -> None:
+    """Eval prompts describe failure modes; they are not installed runtime."""
+    checker = _checker_module()
+    bundle = tmp_path / "plugins/manifest-docs"
+    prompt = bundle / "evals/case/prompt.md"
+    prompt.parent.mkdir(parents=True)
+    prompt.write_text("Run bootstrap.sh now.\n")
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0}\n"
+        "components: {skills: {root: skills}, agents: [], hooks: [], runtime: [], guidance: []}\n",
+        encoding="utf-8",
+    )
+
+    assert not [
+        violation
+        for violation in checker.scan(tmp_path).violations
+        if violation.path == prompt
+    ]
+
+
 def test_runtime_path_gate_reports_forbidden_instruction_dependency(
     tmp_path: Path,
 ) -> None:

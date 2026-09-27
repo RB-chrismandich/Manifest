@@ -94,8 +94,11 @@ ILLUSTRATIVE_FILE_ALLOWLIST: frozenset[str] = frozenset(
     }
 )
 
-# Directories inside a bundle that ship but are not authored here.
-_UNSCANNED_DIRS = frozenset({"vendor", "dist", "node_modules", "__pycache__", ".git"})
+# Directories containing authored evaluation fixtures, rather than installed
+# runtime surfaces, plus generated or third-party artifacts.
+_UNSCANNED_DIRS = frozenset(
+    {"evals", "vendor", "dist", "node_modules", "__pycache__", ".git"}
+)
 
 _TEXT_SUFFIXES = {".md", ".json", ".py", ".sh", ".mjs", ".js", ".yml", ".yaml"}
 _SHELL_BUILTINS = frozenset(
