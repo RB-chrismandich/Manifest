@@ -4,4 +4,5 @@ tool: Skill
 input_match: process-diagnose-stall
 min: 0
 max: 0
+arm: both
 ---

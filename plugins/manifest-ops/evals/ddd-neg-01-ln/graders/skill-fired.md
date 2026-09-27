@@ -4,4 +4,5 @@ tool: Skill
 input_match: deploy-diagnose-drift
 min: 0
 max: 0
+arm: both
 ---
