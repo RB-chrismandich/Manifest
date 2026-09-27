@@ -46,6 +46,9 @@ class RuntimePaths:
         state_home = Path(
             environment.get("XDG_STATE_HOME") or home / ".local/state"
         ).expanduser()
+        claude_root = Path(
+            environment.get("CLAUDE_CONFIG_DIR") or home / ".claude"
+        ).expanduser()
         omp_agent = Path(
             environment.get("PI_CODING_AGENT_DIR")
             or environment.get("OMP_AGENT_DIR")
@@ -54,9 +57,13 @@ class RuntimePaths:
         return cls(
             home=home,
             state_dir=(state_dir or state_home / "manifest/health").expanduser(),
-            claude_config=home / ".claude.json",
-            claude_settings=home / ".claude/settings.json",
-            plugin_index=home / ".claude/plugins/installed_plugins.json",
+            claude_config=(
+                claude_root / ".claude.json"
+                if "CLAUDE_CONFIG_DIR" in environment
+                else home / ".claude.json"
+            ),
+            claude_settings=claude_root / "settings.json",
+            plugin_index=claude_root / "plugins/installed_plugins.json",
             omp_agent_dir=omp_agent,
         )
 

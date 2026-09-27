@@ -55,6 +55,20 @@ def _runtime_paths(module, tmp_path: Path, home: Path):
     )
 
 
+def test_runtime_paths_use_active_claude_config_root(
+    expectations_module, tmp_path: Path
+) -> None:
+    profile = tmp_path / "claude-profile"
+
+    paths = expectations_module.RuntimePaths.from_environment(
+        {"HOME": str(tmp_path / "home"), "CLAUDE_CONFIG_DIR": str(profile)}
+    )
+
+    assert paths.claude_config == profile / ".claude.json"
+    assert paths.claude_settings == profile / "settings.json"
+    assert paths.plugin_index == profile / "plugins/installed_plugins.json"
+
+
 def _write_claude_config(home: Path, payload: dict) -> None:
     home.mkdir(parents=True, exist_ok=True)
     (home / ".claude.json").write_text(json.dumps(payload), encoding="utf-8")
