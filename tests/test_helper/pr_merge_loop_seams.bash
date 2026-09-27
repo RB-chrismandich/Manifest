@@ -10,7 +10,9 @@
 # Sourced by bats modules; not executable on its own.
 # help-coverage: exempt — test helper library, no user-facing entry point.
 
+# shellcheck disable=SC2034 # consumed by Bats modules that source this helper.
 SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/pr_merge_loop.sh"
+# shellcheck disable=SC2034 # consumed by Bats modules that source this helper.
 DECIDE="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/merge_decision.sh"
 
 pr_merge_loop_setup() {
