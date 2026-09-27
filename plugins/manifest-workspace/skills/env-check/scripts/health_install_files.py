@@ -347,6 +347,7 @@ def _plist_payload(
         ],
         "EnvironmentVariables": {
             "HOME": str(paths.home),
+            "OMP_AGENT_DIR": str(paths.agent_root),
             "PATH": environment.get("PATH") or os.defpath,
             "XDG_CONFIG_HOME": str(paths.config_home),
             "XDG_DATA_HOME": str(paths.data_home),
