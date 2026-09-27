@@ -35,7 +35,10 @@ def _write_atomic(path: Path, content: bytes) -> None:
 
 
 def _guidance(skill: bytes) -> bytes:
-    text = skill.decode("utf-8")
+    try:
+        text = skill.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise GenerationError("canonical skill is not valid UTF-8") from error
     if text.startswith("---\n"):
         end = text.find("\n---\n", 4)
         if end < 0:
@@ -55,11 +58,22 @@ def generated_files(bundle: Path) -> dict[Path, bytes]:
     return dict.fromkeys(GENERATED_PATHS, guidance)
 
 
+def _is_current(bundle: Path, path: Path, expected: bytes) -> bool:
+    target = bundle / path
+    # A symlink is never a bundle-owned file, even when its target's bytes match.
+    if target.is_symlink() or not target.is_file():
+        return False
+    try:
+        return target.read_bytes() == expected
+    except OSError as error:
+        raise GenerationError(f"unable to read generated file: {path}") from error
+
+
 def drifted_files(bundle: Path) -> tuple[Path, ...]:
     return tuple(
         path
         for path, expected in generated_files(bundle).items()
-        if not (target := bundle / path).is_file() or target.read_bytes() != expected
+        if not _is_current(bundle, path, expected)
     )
 
 
@@ -67,7 +81,10 @@ def generate(bundle: Path) -> tuple[Path, ...]:
     drifted = drifted_files(bundle)
     expected = generated_files(bundle)
     for path in drifted:
-        _write_atomic(bundle / path, expected[path])
+        try:
+            _write_atomic(bundle / path, expected[path])
+        except OSError as error:
+            raise GenerationError(f"unable to write generated file: {path}") from error
     return drifted
 
 
