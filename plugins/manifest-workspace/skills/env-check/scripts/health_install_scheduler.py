@@ -80,7 +80,11 @@ def _run_best_effort(
 
 
 def _scheduler_kind(platform: object) -> str:
-    return "launchd" if platform == "darwin" else "systemd"
+    if platform == "darwin":
+        return "launchd"
+    if platform == "linux":
+        return "systemd"
+    raise InstallError(f"unsupported scheduler platform: {platform}")
 
 
 def _receipt_scheduler_kind(receipt: dict | None) -> str:

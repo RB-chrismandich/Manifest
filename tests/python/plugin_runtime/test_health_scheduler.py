@@ -80,6 +80,13 @@ def test_linux_scheduler_uses_systemd_user_timer(
     assert f"--setenv=OMP_AGENT_DIR={files._paths(environment).agent_root}" in argv
 
 
+def test_unsupported_platform_refuses_scheduler() -> None:
+    with pytest.raises(
+        files.InstallError, match="unsupported scheduler platform: win32"
+    ):
+        schedulers._scheduler_kind("win32")
+
+
 def test_launchd_bootout_failure_is_fatal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -102,6 +109,33 @@ def test_launchd_bootout_failure_is_fatal(
     )
 
     with pytest.raises(files.InstallError, match="launchd bootout failed"):
+        schedulers._stop_scheduler_job(scheduler, environment)
+
+
+def test_systemd_state_probe_failure_is_fatal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    scheduler = schedulers._Scheduler(
+        kind="systemd",
+        domain="",
+        service="",
+        unit="manifest-health-report",
+        launchctl="",
+        plutil="",
+        systemd_run="",
+        systemctl="/bin/systemctl",
+        payload=b"",
+    )
+    monkeypatch.setattr(
+        schedulers,
+        "_run_quiet",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
+    )
+
+    with pytest.raises(
+        files.InstallError, match="systemd unit state could not be verified"
+    ):
         schedulers._stop_scheduler_job(scheduler, environment)
 
 
