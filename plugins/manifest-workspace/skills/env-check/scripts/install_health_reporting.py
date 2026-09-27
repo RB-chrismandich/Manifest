@@ -25,6 +25,7 @@ from health_install_files import (  # noqa: E402
     InstallPaths,
     _assert_destination_owned,
     _assert_plist_owned,
+    _assert_systemd_unit_owned,
     _atomic_write,
     _installation_lock,
     _json_bytes,
@@ -57,6 +58,7 @@ from health_install_scheduler import (  # noqa: E402
     _receipt_scheduler_kind,
     _recorded_scheduler,
     _resolve_scheduler,
+    _run_best_effort,
     _scheduler_kind,
     _scheduler_reactivate,
     _stop_scheduler_job,
@@ -105,14 +107,20 @@ def _source_payloads(
 def _preflight_destinations(
     receipt: dict | None,
     paths: InstallPaths,
+    runtime: Mapping[str, tuple[Path, bytes]] | None = None,
+    extension_payload: bytes | None = None,
+    wrapper_payload: bytes | None = None,
     scheduler_kind: str = "launchd",
 ) -> None:
     files = receipt.get("files", {}) if receipt else {}
+    payloads = runtime if isinstance(runtime, Mapping) else {}
     for name in RUNTIME_SOURCES:
+        payload = payloads[name][1] if name in payloads else None
         _assert_destination_owned(
             paths.runtime_root / name,
             files.get(name) if isinstance(files, dict) else None,
             f"runtime file {name}",
+            payload,
         )
     if isinstance(files, dict):
         for name in RETIRED_RUNTIME_SOURCES:
@@ -125,17 +133,29 @@ def _preflight_destinations(
         paths.extension,
         receipt.get("omp_extension") if receipt else None,
         "OMP extension",
+        extension_payload,
     )
     _assert_destination_owned(
         paths.wrapper,
         receipt.get("claude_wrapper") if receipt else None,
         "Claude wrapper",
+        wrapper_payload,
     )
     if scheduler_kind == "launchd":
         _assert_plist_owned(
             paths.plist,
             receipt.get("launchd_plist") if receipt else None,
         )
+    elif scheduler_kind == "systemd":
+        for key, destination, description in (
+            ("systemd_timer", paths.systemd_timer, "systemd timer unit"),
+            ("systemd_service", paths.systemd_service, "systemd service unit"),
+        ):
+            _assert_systemd_unit_owned(
+                destination,
+                receipt.get(key) if receipt else None,
+                description,
+            )
 
 
 def install_omp_extension(source_root: Path, agent_root: Path, ownership: dict) -> None:
@@ -157,7 +177,14 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
     hook_command = str(paths.wrapper.resolve(strict=False))
     updated_settings = _rewrite_health_hook(settings, hook_command, install=True)
 
-    _preflight_destinations(receipt, paths, scheduler.kind)
+    _preflight_destinations(
+        receipt,
+        paths,
+        runtime,
+        extension_payload,
+        wrapper_payload,
+        scheduler.kind,
+    )
     managed_names = set(RUNTIME_SOURCES)
     if receipt and isinstance(receipt.get("files"), dict):
         managed_names.update(
@@ -167,6 +194,12 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
         _snapshot(path)
         for path in _managed_paths(paths, sorted(managed_names), scheduler.kind)
     ]
+    if receipt is not None and _receipt_scheduler_kind(receipt) == "systemd":
+        # Stale unit files from the recorded install may be removed when the
+        # scheduler kind changes; keep them rollback-able.
+        snapshots.extend(
+            (_snapshot(paths.systemd_timer), _snapshot(paths.systemd_service))
+        )
     snapshots.extend((_snapshot(settings_target), _snapshot(paths.receipt)))
     return _InstallPlan(
         source_root=source_root,
@@ -217,7 +250,7 @@ def _uninstall(environment: Mapping[str, str]) -> None:
         return
     _validate_receipt(receipt, paths)
     recorded_kind = _receipt_scheduler_kind(receipt)
-    _preflight_destinations(receipt, paths, recorded_kind)
+    _preflight_destinations(receipt, paths, scheduler_kind=recorded_kind)
     hook_command = str(paths.wrapper.resolve(strict=False))
     updated_settings = _rewrite_health_hook(settings, hook_command, install=False)
 
@@ -235,6 +268,12 @@ def _uninstall(environment: Mapping[str, str]) -> None:
                 path.unlink()
         if _path_present(paths.receipt):
             paths.receipt.unlink()
+        if recorded.kind == "systemd":
+            # Forget the removed unit definitions; failures only leave a stale
+            # in-memory copy of units whose files and enablement are gone.
+            _run_best_effort(
+                [recorded.systemctl, "--user", "daemon-reload"], environment
+            )
     except BaseException:
         try:
             _restore_snapshots(snapshots)
@@ -249,6 +288,8 @@ def _uninstall(environment: Mapping[str, str]) -> None:
 
     _remove_empty_directory(paths.runtime_root)
     _remove_empty_directory(paths.state_root)
+    _remove_empty_directory(paths.systemd_timer.parent)
+    _remove_empty_directory(paths.systemd_timer.parent.parent)
 
 
 def uninstall(source_root: Path, environment: Mapping[str, str]) -> None:

@@ -74,6 +74,7 @@ EXPECTED_RUNTIME_FILES = frozenset(
         "mcp_health_runtime.py",
         "health_install_files.py",
         "health_install_reconcile.py",
+        "health_install_scheduler.py",
         "env_check.py",
         "hook_smoke.py",
         "hook_smoke_support.py",

@@ -20,6 +20,8 @@ from pathlib import Path
 from health_install_files import (
     LAUNCHD_LABEL,
     OWNERSHIP_MARKER,
+    SYSTEMD_UNIT_MARKER,
+    SYSTEMD_UNIT_NAME,
     InstallError,
     InstallPaths,
     _atomic_write,
@@ -27,34 +29,36 @@ from health_install_files import (
     _plist_payload,
 )
 
-SYSTEMD_UNIT_NAME = "manifest-health-report"
 SYSTEMD_ON_CALENDAR = "Mon *-*-* 09:00:00"
+_INACTIVE_UNIT_STATES = frozenset({"inactive", "failed"})
 
 
 def _resolve_executable(name: str) -> str:
     candidate = shutil.which(name)
-    if not candidate:
-        raise InstallError(f"required executable is unavailable: {name}")
+    if candidate is None:
+        raise InstallError(f"required executable not found on PATH: {name}")
     resolved = Path(candidate).resolve(strict=False)
     if not resolved.is_file() or not os.access(resolved, os.X_OK):
         raise InstallError(f"required executable is not runnable: {name}")
     return str(resolved)
 
 
+def _find_executable(name: str) -> str:
+    try:
+        return _resolve_executable(name)
+    except InstallError:
+        return ""
+
+
 def _run_quiet(
-    argv: Sequence[str],
-    environment: Mapping[str, str],
-    timeout: float,
+    argv: Sequence[str], environment: Mapping[str, str], timeout: float = 10.0
 ) -> subprocess.CompletedProcess:
     return subprocess.run(
         list(argv),
         env=dict(environment),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=timeout,
+        capture_output=True,
         check=False,
-        start_new_session=True,
+        timeout=timeout,
     )
 
 
@@ -65,10 +69,10 @@ def _run_required(
     timeout: float = 10.0,
 ) -> None:
     try:
-        result = _run_quiet(argv, environment, timeout)
+        completed = _run_quiet(argv, environment, timeout)
     except (OSError, subprocess.SubprocessError) as error:
-        raise InstallError(f"{description} could not be executed") from error
-    if result.returncode != 0:
+        raise InstallError(f"{description} failed") from error
+    if completed.returncode != 0:
         raise InstallError(f"{description} failed")
 
 
@@ -91,15 +95,20 @@ def _receipt_scheduler_kind(receipt: dict | None) -> str:
     """Read the recorded scheduler kind; receipts without one predate systemd."""
     if isinstance(receipt, dict):
         scheduler = receipt.get("scheduler")
-        if isinstance(scheduler, dict) and scheduler.get("kind") == "systemd":
-            return "systemd"
+        if isinstance(scheduler, dict) and scheduler.get("kind") in (
+            "none",
+            "systemd",
+        ):
+            return scheduler["kind"]
     return "launchd"
 
 
-def _systemd_environment(
+def _report_environment(
     paths: InstallPaths, environment: Mapping[str, str]
 ) -> dict[str, str]:
+    """Environment shared by the launchd and systemd scheduled reports."""
     return {
+        "CLAUDE_CONFIG_DIR": str(paths.claude_root),
         "HOME": str(paths.home),
         "OMP_AGENT_DIR": str(paths.agent_root),
         "PATH": environment.get("PATH") or os.defpath,
@@ -107,6 +116,81 @@ def _systemd_environment(
         "XDG_DATA_HOME": str(paths.data_home),
         "XDG_STATE_HOME": str(paths.state_home),
     }
+
+
+def _report_argv(paths: InstallPaths, python: str) -> list[str]:
+    report = (paths.runtime_root / "health_report.py").resolve(strict=False)
+    return [
+        python,
+        str(report),
+        "--json",
+        "--harness",
+        "claude",
+        "--harness",
+        "omp",
+        "--out-dir",
+        str(paths.report_root.resolve(strict=False)),
+    ]
+
+
+def _systemd_quote(value: str) -> str:
+    """Quote one systemd directive value; unit files parse \\ and " escapes."""
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _systemd_unit_payloads(
+    paths: InstallPaths, python: str, environment: Mapping[str, str]
+) -> tuple[bytes, bytes]:
+    """(timer, service) payloads carrying the ownership marker comment."""
+    environment_lines = [
+        f"Environment={_systemd_quote(f'{key}={value}')}"
+        for key, value in sorted(_report_environment(paths, environment).items())
+    ]
+    service = "\n".join(
+        [
+            SYSTEMD_UNIT_MARKER,
+            "[Unit]",
+            f"Description={OWNERSHIP_MARKER} weekly health report",
+            "",
+            "[Service]",
+            "Type=oneshot",
+            *environment_lines,
+            "ExecStart="
+            + " ".join(_systemd_quote(arg) for arg in _report_argv(paths, python)),
+            "",
+        ]
+    ).encode("utf-8")
+    timer = "\n".join(
+        [
+            SYSTEMD_UNIT_MARKER,
+            "[Unit]",
+            f"Description={OWNERSHIP_MARKER} weekly health report timer",
+            "",
+            "[Timer]",
+            f"OnCalendar={SYSTEMD_ON_CALENDAR}",
+            "AccuracySec=1min",
+            "Persistent=true",
+            f"Unit={SYSTEMD_UNIT_NAME}.service",
+            "",
+            "[Install]",
+            "WantedBy=timers.target",
+            "",
+        ]
+    ).encode("utf-8")
+    return timer, service
+
+
+def _systemd_manager_usable(systemctl: str, environment: Mapping[str, str]) -> bool:
+    """Probe the systemd user manager; an unreachable bus means no manager."""
+    if not systemctl:
+        return False
+    try:
+        completed = _run_quiet(
+            [systemctl, "--user", "show-environment"], environment, 10.0
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return completed.returncode == 0
 
 
 @dataclass(frozen=True)
@@ -122,6 +206,9 @@ class _Scheduler:
     systemd_run: str
     systemctl: str
     payload: bytes
+    timer_payload: bytes = b""
+    service_payload: bytes = b""
+    persistent: bool = False
 
     def systemd_argv(
         self,
@@ -129,8 +216,8 @@ class _Scheduler:
         python: str,
         environment: Mapping[str, str],
     ) -> list[str]:
-        report = (paths.runtime_root / "health_report.py").resolve(strict=False)
-        environment_pairs = _systemd_environment(paths, environment)
+        """Transient systemd-run argv retained to re-arm legacy receipts."""
+        environment_pairs = _report_environment(paths, environment)
         return [
             self.systemd_run,
             "--user",
@@ -142,15 +229,7 @@ class _Scheduler:
                 f"--setenv={key}={value}"
                 for key, value in sorted(environment_pairs.items())
             ),
-            python,
-            str(report),
-            "--json",
-            "--harness",
-            "claude",
-            "--harness",
-            "omp",
-            "--out-dir",
-            str(paths.report_root.resolve(strict=False)),
+            *_report_argv(paths, python),
         ]
 
     def metadata(self) -> dict[str, object]:
@@ -162,6 +241,8 @@ class _Scheduler:
                 "label": LAUNCHD_LABEL,
                 "domain": self.domain,
             }
+        if self.kind == "none":
+            return {"kind": "none", "managed_by": OWNERSHIP_MARKER}
         return {
             "kind": "systemd",
             "managed_by": OWNERSHIP_MARKER,
@@ -188,6 +269,23 @@ def _resolve_scheduler(
             systemctl="",
             payload=_plist_payload(paths, python, environment),
         )
+    systemctl = _find_executable("systemctl")
+    if not _systemd_manager_usable(systemctl, environment):
+        # Linux hosts without a usable systemd user manager (containers, WSL,
+        # headless sessions) install the runtime without a scheduled job rather
+        # than failing midway through the transaction.
+        return _Scheduler(
+            kind="none",
+            domain="",
+            service="",
+            unit="",
+            launchctl="",
+            plutil="",
+            systemd_run="",
+            systemctl=systemctl,
+            payload=b"",
+        )
+    timer_payload, service_payload = _systemd_unit_payloads(paths, python, environment)
     return _Scheduler(
         kind=kind,
         domain="",
@@ -195,15 +293,31 @@ def _resolve_scheduler(
         unit=SYSTEMD_UNIT_NAME,
         launchctl="",
         plutil="",
-        systemd_run=_resolve_executable("systemd-run"),
-        systemctl=_resolve_executable("systemctl"),
+        systemd_run=_find_executable("systemd-run"),
+        systemctl=systemctl,
         payload=b"",
+        timer_payload=timer_payload,
+        service_payload=service_payload,
+        persistent=True,
     )
 
 
 def _recorded_scheduler(receipt: dict, environment: Mapping[str, str]) -> _Scheduler:
     """Rebuild the scheduler recorded in the receipt for stop/replacement."""
-    if _receipt_scheduler_kind(receipt) == "launchd":
+    recorded = _receipt_scheduler_kind(receipt)
+    if recorded == "none":
+        return _Scheduler(
+            kind="none",
+            domain="",
+            service="",
+            unit="",
+            launchctl="",
+            plutil="",
+            systemd_run="",
+            systemctl=_find_executable("systemctl"),
+            payload=b"",
+        )
+    if recorded == "launchd":
         domain = f"gui/{os.getuid()}"
         return _Scheduler(
             kind="launchd",
@@ -223,10 +337,20 @@ def _recorded_scheduler(receipt: dict, environment: Mapping[str, str]) -> _Sched
         unit=SYSTEMD_UNIT_NAME,
         launchctl="",
         plutil="",
-        systemd_run=_resolve_executable("systemd-run"),
+        systemd_run=_find_executable("systemd-run"),
         systemctl=_resolve_executable("systemctl"),
         payload=b"",
+        # Receipt rows exist only for persistent unit installations; older
+        # receipts armed a transient systemd-run timer instead.
+        persistent=isinstance(receipt, dict)
+        and receipt.get("systemd_timer") is not None,
     )
+
+
+def _verified_inactive(states: object) -> bool:
+    if not isinstance(states, list) or len(states) != 2:
+        return False
+    return all(state in _INACTIVE_UNIT_STATES for state in states)
 
 
 def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -> None:
@@ -238,24 +362,45 @@ def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -
             "launchd bootout",
         )
         return
+    if scheduler.kind == "none":
+        return
     timer = f"{scheduler.unit}.timer"
     service = f"{scheduler.unit}.service"
     _run_best_effort(
         [scheduler.systemctl, "--user", "reset-failed", timer, service], environment
     )
-    _run_best_effort(
-        [scheduler.systemctl, "--user", "stop", timer, service], environment
-    )
+    if scheduler.persistent:
+        _run_required(
+            [scheduler.systemctl, "--user", "disable", timer],
+            environment,
+            "systemd timer disable",
+        )
     try:
-        active = _run_quiet(
+        _run_quiet(
+            [scheduler.systemctl, "--user", "stop", timer, service],
+            environment,
+            10.0,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise InstallError("systemd unit stop failed") from error
+    try:
+        probe = _run_quiet(
             [scheduler.systemctl, "--user", "is-active", timer, service],
             environment,
             10.0,
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise InstallError("systemd unit state could not be verified") from error
-    if active.returncode == 0:
+    states = probe.stdout.decode("utf-8", "replace").split() if probe.stdout else []
+    if probe.returncode == 0:
+        # At least one unit is still active; never delete an armed job.
         raise InstallError("systemd unit stop failed")
+    if not _verified_inactive(states):
+        # A nonzero is-active status is only proof of inactivity when every
+        # unit reports inactive/failed; a bus error or unknown state is fatal.
+        raise InstallError("systemd unit state could not be verified")
+    # A failed stop with a verified-inactive outcome (for example units already
+    # unloaded after a reboot) leaves nothing armed, so deletion is safe.
 
 
 def _scheduler_reactivate(
@@ -272,7 +417,25 @@ def _scheduler_reactivate(
                 environment,
             )
         return
-    _run_best_effort(scheduler.systemd_argv(paths, python, environment), environment)
+    if scheduler.kind == "none":
+        return
+    if _path_present(paths.systemd_timer) and _path_present(paths.systemd_service):
+        _run_best_effort([scheduler.systemctl, "--user", "daemon-reload"], environment)
+        _run_best_effort(
+            [
+                scheduler.systemctl,
+                "--user",
+                "enable",
+                "--now",
+                f"{scheduler.unit}.timer",
+            ],
+            environment,
+        )
+        return
+    if scheduler.systemd_run:
+        _run_best_effort(
+            scheduler.systemd_argv(paths, python, environment), environment
+        )
 
 
 def _activate_scheduler_job(
@@ -291,6 +454,14 @@ def _activate_scheduler_job(
     """
     if prior is not None:
         _stop_scheduler_job(prior, environment)
+        if prior.kind == "systemd" and prior.persistent and scheduler.kind != "systemd":
+            # The new scheduler does not own unit files; drop the recorded ones
+            # so a disabled-but-present unit cannot linger (snapshots restore
+            # them if the transaction rolls back).
+            for unit_path in (paths.systemd_timer, paths.systemd_service):
+                if _path_present(unit_path):
+                    unit_path.unlink()
+            _run_best_effort([prior.systemctl, "--user", "daemon-reload"], environment)
     if scheduler.kind == "launchd":
         _atomic_write(paths.plist, scheduler.payload, 0o600)
         _run_required(
@@ -298,6 +469,9 @@ def _activate_scheduler_job(
             environment,
             "launchd plist lint",
         )
+    elif scheduler.kind == "systemd":
+        _atomic_write(paths.systemd_timer, scheduler.timer_payload, 0o600)
+        _atomic_write(paths.systemd_service, scheduler.service_payload, 0o600)
     _atomic_write(paths.receipt, receipt_payload, 0o600)
     scheduler_started = False
     try:
@@ -313,14 +487,25 @@ def _activate_scheduler_job(
                 environment,
                 "launchd kickstart",
             )
-        else:
+        elif scheduler.kind == "systemd":
             _run_required(
-                scheduler.systemd_argv(paths, python, environment),
+                [scheduler.systemctl, "--user", "daemon-reload"],
                 environment,
-                "systemd timer creation",
-                timeout=30.0,
+                "systemd daemon reload",
             )
             scheduler_started = True
+            _run_required(
+                [
+                    scheduler.systemctl,
+                    "--user",
+                    "enable",
+                    "--now",
+                    f"{scheduler.unit}.timer",
+                ],
+                environment,
+                "systemd timer enable",
+                timeout=30.0,
+            )
     except BaseException:
         if scheduler_started:
             with suppress(OSError, subprocess.SubprocessError, InstallError):

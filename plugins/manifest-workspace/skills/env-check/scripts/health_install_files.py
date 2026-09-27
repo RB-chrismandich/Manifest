@@ -18,6 +18,8 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 LAUNCHD_LABEL = "com.manifest.health-report"
 PLIST_NAME = f"{LAUNCHD_LABEL}.plist"
+SYSTEMD_UNIT_NAME = "manifest-health-report"
+SYSTEMD_UNIT_MARKER = "# managed-by: manifest-health-reporting"
 INSTALL_LOCK_NAME = "install.lock"
 RETIRED_RUNTIME_SOURCES = frozenset({"plugin_reconcile.py"})
 OWNERSHIP_MARKER = "manifest-health-reporting"
@@ -35,6 +37,7 @@ class InstallPaths:
     state_home: Path
     data_home: Path
     config_home: Path
+    claude_root: Path
     runtime_root: Path
     state_root: Path
     report_root: Path
@@ -43,6 +46,8 @@ class InstallPaths:
     wrapper: Path
     settings: Path
     plist: Path
+    systemd_timer: Path
+    systemd_service: Path
     receipt: Path
 
 
@@ -82,6 +87,7 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
         state_home=state_home,
         data_home=data_home,
         config_home=config_home,
+        claude_root=claude_root,
         runtime_root=runtime_root,
         state_root=state_root,
         report_root=state_home / "manifest" / "reports",
@@ -90,6 +96,10 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
         wrapper=claude_root / "scripts" / "mcp_health_check.sh",
         settings=claude_root / "settings.json",
         plist=home / "Library" / "LaunchAgents" / PLIST_NAME,
+        systemd_timer=(config_home / "systemd" / "user" / f"{SYSTEMD_UNIT_NAME}.timer"),
+        systemd_service=(
+            config_home / "systemd" / "user" / f"{SYSTEMD_UNIT_NAME}.service"
+        ),
         receipt=state_root / "installation.json",
     )
 
@@ -303,10 +313,20 @@ def _valid_row(row: object, destination: Path) -> bool:
     return recorded == destination.resolve(strict=False)
 
 
-def _assert_destination_owned(destination: Path, row: object, description: str) -> None:
+def _assert_destination_owned(
+    destination: Path,
+    row: object,
+    description: str,
+    payload: bytes | None = None,
+) -> None:
     if not _path_present(destination):
         return
     if not _valid_row(row, destination):
+        if payload is not None and _file_digest(destination) == _digest(payload):
+            # An unrecorded byte-identical file is an earlier deployment's
+            # copy of this payload, not operator data: adopt it into the
+            # receipt instead of refusing a routine redeploy.
+            return
         raise InstallError(f"refusing to replace unowned {description}: {destination}")
     assert isinstance(row, dict)
     observed = _file_digest(destination)
@@ -349,6 +369,7 @@ def _plist_payload(
             str(paths.report_root.resolve(strict=False)),
         ],
         "EnvironmentVariables": {
+            "CLAUDE_CONFIG_DIR": str(paths.claude_root),
             "HOME": str(paths.home),
             "OMP_AGENT_DIR": str(paths.agent_root),
             "PATH": environment.get("PATH") or os.defpath,
@@ -377,6 +398,20 @@ def _assert_plist_owned(path: Path, row: object) -> None:
         or document.get("ManifestManagedBy") != OWNERSHIP_MARKER
     ):
         raise InstallError("launchd plist does not carry the Manifest ownership marker")
+
+
+def _assert_systemd_unit_owned(path: Path, row: object, description: str) -> None:
+    _assert_destination_owned(path, row, description)
+    if not _path_present(path):
+        return
+    try:
+        contents = path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise InstallError(f"owned {description} is malformed") from error
+    if SYSTEMD_UNIT_MARKER not in contents.splitlines():
+        raise InstallError(
+            f"{description} does not carry the Manifest ownership marker"
+        )
 
 
 def _remove_empty_directory(path: Path) -> None:

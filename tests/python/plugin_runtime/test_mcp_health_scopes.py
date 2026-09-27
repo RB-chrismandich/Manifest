@@ -69,6 +69,22 @@ def test_runtime_paths_use_active_claude_config_root(
     assert paths.plugin_index == profile / "plugins/installed_plugins.json"
 
 
+def test_runtime_paths_treat_empty_claude_config_dir_as_unset(
+    expectations_module, tmp_path: Path
+) -> None:
+    home = tmp_path / "home"
+
+    paths = expectations_module.RuntimePaths.from_environment(
+        {"HOME": str(home), "CLAUDE_CONFIG_DIR": ""}
+    )
+
+    assert paths.claude_config == home / ".claude.json"
+    assert paths.claude_settings == home / ".claude" / "settings.json"
+    assert paths.plugin_index == (
+        home / ".claude" / "plugins" / "installed_plugins.json"
+    )
+
+
 def _write_claude_config(home: Path, payload: dict) -> None:
     home.mkdir(parents=True, exist_ok=True)
     (home / ".claude.json").write_text(json.dumps(payload), encoding="utf-8")
@@ -131,6 +147,78 @@ def test_local_scope_servers_become_expectations(
         "local-server": False,
         "local-disabled": True,
     }
+
+
+def test_project_scope_overrides_user_scope_disabled_state(
+    expectations_module, tmp_path: Path
+) -> None:
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    project.mkdir(parents=True)
+    _write_claude_config(home, {"mcpServers": {"shared-server": {"disabled": True}}})
+    (project / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"shared-server": {}}}), encoding="utf-8"
+    )
+    paths = _runtime_paths(expectations_module, tmp_path, home)
+
+    expectations = expectations_module.load_claude_expectations(
+        paths, required=True, project_dir=project
+    )
+
+    assert expectations.errors == set()
+    assert expectations.disabled["shared-server"] is False
+
+
+def test_local_scope_overrides_project_and_user_scope(
+    expectations_module, tmp_path: Path
+) -> None:
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    project.mkdir(parents=True)
+    _write_claude_config(
+        home,
+        {
+            "mcpServers": {"shared-server": {}},
+            "projects": {
+                str(project): {"mcpServers": {"shared-server": {"disabled": True}}}
+            },
+        },
+    )
+    (project / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"shared-server": {}}}), encoding="utf-8"
+    )
+    paths = _runtime_paths(expectations_module, tmp_path, home)
+
+    expectations = expectations_module.load_claude_expectations(
+        paths, required=True, project_dir=project
+    )
+
+    assert expectations.errors == set()
+    assert expectations.disabled["shared-server"] is True
+
+
+def test_nearest_project_manifest_overrides_ancestors(
+    expectations_module, tmp_path: Path
+) -> None:
+    home = tmp_path / "home"
+    project = tmp_path / "repo" / "subdir"
+    project.mkdir(parents=True)
+    _write_claude_config(home, {"mcpServers": {"user-server": {}}})
+    (tmp_path / "repo" / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"shared-server": {"disabled": True}}}),
+        encoding="utf-8",
+    )
+    (project / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"shared-server": {}}}), encoding="utf-8"
+    )
+    paths = _runtime_paths(expectations_module, tmp_path, home)
+
+    expectations = expectations_module.load_claude_expectations(
+        paths, required=True, project_dir=project
+    )
+
+    assert expectations.errors == set()
+    assert expectations.disabled["shared-server"] is False
 
 
 def test_project_scopes_are_excluded_from_omp_import(

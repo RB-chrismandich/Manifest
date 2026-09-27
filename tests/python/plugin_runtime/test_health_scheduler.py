@@ -29,7 +29,6 @@ def _write_fake_tools(tmp_path: Path, environment: dict[str, str]) -> Path:
         "manifest",
         "launchctl",
         "plutil",
-        "systemctl",
         "systemd-run",
     ):
         executable = binary_dir / name
@@ -46,6 +45,31 @@ def _write_fake_tools(tmp_path: Path, environment: dict[str, str]) -> Path:
             encoding="utf-8",
         )
         executable.chmod(0o755)
+    systemctl = binary_dir / "systemctl"
+    systemctl.write_text(
+        "#!/bin/sh\n"
+        'printf \'%s %s\\n\' "systemctl" "$*" >> "$MANIFEST_TEST_COMMAND_LOG"\n'
+        'verb=""\n'
+        'for arg in "$@"; do\n'
+        '  case "$arg" in -*) ;; *) verb="$arg"; break;; esac\n'
+        "done\n"
+        'case "$verb" in\n'
+        "  is-active)\n"
+        '    if [ "${MANIFEST_TEST_SYSTEMD_ACTIVE:-}" = "1" ]; then\n'
+        '      printf "active\\nactive\\n"; exit 0\n'
+        "    fi\n"
+        '    printf "inactive\\ninactive\\n"; exit 3;;\n'
+        '  show-environment) exit "${MANIFEST_TEST_SHOW_ENV_STATUS:-0}";;\n'
+        '  daemon-reload) exit "${MANIFEST_TEST_DAEMON_RELOAD_STATUS:-0}";;\n'
+        '  enable) exit "${MANIFEST_TEST_ENABLE_STATUS:-0}";;\n'
+        '  disable) exit "${MANIFEST_TEST_DISABLE_STATUS:-0}";;\n'
+        '  stop) exit "${MANIFEST_TEST_STOP_STATUS:-0}";;\n'
+        "  reset-failed) exit 0;;\n"
+        "  *) exit 0;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    systemctl.chmod(0o755)
     environment["PATH"] = f"{binary_dir}:{environment.get('PATH', '')}"
     environment["MANIFEST_TEST_COMMAND_LOG"] = str(log_path)
     return log_path
@@ -82,18 +106,54 @@ def test_linux_scheduler_uses_systemd_user_timer(
     environment = isolated_env(tmp_path)
     monkeypatch.setattr(schedulers.sys, "platform", "linux")
     monkeypatch.setattr(schedulers, "_resolve_executable", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(
+        schedulers,
+        "_run_quiet",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0),
+    )
+
+    paths = files._paths(environment)
+    scheduler = schedulers._resolve_scheduler(paths, environment, sys.executable)
+
+    assert scheduler.kind == "systemd"
+    assert scheduler.persistent
+    assert b"OnCalendar=" in scheduler.timer_payload
+    assert b"Persistent=true" in scheduler.timer_payload
+    assert b"WantedBy=timers.target" in scheduler.timer_payload
+    assert f"CLAUDE_CONFIG_DIR={paths.claude_root}".encode() in (
+        scheduler.service_payload
+    )
+    assert files.SYSTEMD_UNIT_MARKER.encode() in scheduler.timer_payload
+    argv = scheduler.systemd_argv(paths, sys.executable, environment)
+
+    assert argv[:3] == ["/bin/systemd-run", "--user", "--unit=manifest-health-report"]
+    assert any(argument.startswith("--on-calendar=") for argument in argv)
+    assert f"--setenv=OMP_AGENT_DIR={paths.agent_root}" in argv
+
+
+def test_linux_without_user_manager_installs_unscheduled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    monkeypatch.setattr(schedulers, "_resolve_executable", lambda name: f"/bin/{name}")
+
+    def refuse_probe(*_args, **_kwargs):
+        raise OSError("Failed to connect to bus")
+
+    monkeypatch.setattr(schedulers, "_run_quiet", refuse_probe)
 
     scheduler = schedulers._resolve_scheduler(
         files._paths(environment), environment, sys.executable
     )
-    argv = scheduler.systemd_argv(
-        files._paths(environment), sys.executable, environment
-    )
 
-    assert scheduler.kind == "systemd"
-    assert argv[:3] == ["/bin/systemd-run", "--user", "--unit=manifest-health-report"]
-    assert any(argument.startswith("--on-calendar=") for argument in argv)
-    assert f"--setenv=OMP_AGENT_DIR={files._paths(environment).agent_root}" in argv
+    assert scheduler.kind == "none"
+    assert scheduler.metadata() == {
+        "kind": "none",
+        "managed_by": files.OWNERSHIP_MARKER,
+    }
+    # An unscheduled install is fully removable: stop is a no-op.
+    schedulers._stop_scheduler_job(scheduler, environment)
 
 
 def test_unsupported_platform_refuses_scheduler() -> None:
@@ -143,11 +203,13 @@ def test_systemd_state_probe_failure_is_fatal(
         systemctl="/bin/systemctl",
         payload=b"",
     )
-    monkeypatch.setattr(
-        schedulers,
-        "_run_quiet",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
-    )
+
+    def fail_probe(argv, *_args, **_kwargs):
+        if "is-active" in argv:
+            raise OSError("unavailable")
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(schedulers, "_run_quiet", fail_probe)
 
     with pytest.raises(
         files.InstallError, match="systemd unit state could not be verified"
@@ -165,15 +227,17 @@ def test_linux_install_arms_recorded_systemd_timer(
 
     installer.install(repo_root(), environment)
 
-    receipt = json.loads(
-        (
-            Path(environment["XDG_STATE_HOME"]) / "manifest/health/installation.json"
-        ).read_text(encoding="utf-8")
-    )
+    paths = files._paths(environment)
+    receipt = json.loads(paths.receipt.read_text(encoding="utf-8"))
     assert receipt["scheduler"]["kind"] == "systemd"
-    assert "systemd-run --user --unit=manifest-health-report" in command_log.read_text(
-        encoding="utf-8"
-    )
+    assert receipt["systemd_timer"]["destination"] == str(paths.systemd_timer)
+    assert receipt["systemd_service"]["destination"] == str(paths.systemd_service)
+    assert paths.systemd_timer.is_file()
+    assert paths.systemd_service.is_file()
+    log = command_log.read_text(encoding="utf-8")
+    assert "systemctl --user daemon-reload" in log
+    assert "systemctl --user enable --now manifest-health-report.timer" in log
+    assert "systemd-run --user" not in log
 
 
 def test_uninstall_preserves_owned_files_when_launchd_bootout_fails(
@@ -196,22 +260,102 @@ def test_uninstall_preserves_owned_files_when_launchd_bootout_fails(
     assert wrapper.is_file()
 
 
-def test_failed_systemd_creation_does_not_stop_an_unowned_unit(
+def test_failed_systemd_enable_cleans_up_partially_armed_timer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     environment = isolated_env(tmp_path)
     command_log = _write_fake_tools(tmp_path, environment)
-    environment["MANIFEST_TEST_SYSTEMD_RUN_STATUS"] = "36"
+    environment["MANIFEST_TEST_ENABLE_STATUS"] = "36"
     monkeypatch.setenv("PATH", environment["PATH"])
     monkeypatch.setattr(schedulers.sys, "platform", "linux")
     paths = files._paths(environment)
     scheduler = schedulers._resolve_scheduler(paths, environment, sys.executable)
 
-    with pytest.raises(files.InstallError, match="systemd timer creation failed"):
+    with pytest.raises(files.InstallError, match="systemd timer enable failed"):
         schedulers._activate_scheduler_job(
             scheduler, None, paths, sys.executable, b"{}", environment
         )
 
     log_lines = command_log.read_text(encoding="utf-8").splitlines()
-    assert any(line.startswith("systemd-run --user") for line in log_lines)
-    assert not any(line.startswith("systemctl --user stop") for line in log_lines)
+    assert any(line.startswith("systemctl --user enable --now") for line in log_lines)
+    assert any(line.startswith("systemctl --user disable") for line in log_lines)
+    assert any(line.startswith("systemctl --user stop") for line in log_lines)
+
+
+def test_linux_install_without_user_manager_records_unscheduled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    command_log = _write_fake_tools(tmp_path, environment)
+    environment["MANIFEST_TEST_SHOW_ENV_STATUS"] = "1"
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+
+    installer.install(repo_root(), environment)
+
+    paths = files._paths(environment)
+    receipt = json.loads(paths.receipt.read_text(encoding="utf-8"))
+    assert receipt["scheduler"]["kind"] == "none"
+    assert "systemd_timer" not in receipt
+    assert not paths.systemd_timer.exists()
+    assert paths.wrapper.is_file()
+    log = command_log.read_text(encoding="utf-8")
+    assert "systemctl --user enable" not in log
+    assert "systemd-run" not in log
+
+
+def test_reinstall_after_manager_returns_replaces_unscheduled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    _write_fake_tools(tmp_path, environment)
+    environment["MANIFEST_TEST_SHOW_ENV_STATUS"] = "1"
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    installer.install(repo_root(), environment)
+
+    environment["MANIFEST_TEST_SHOW_ENV_STATUS"] = "0"
+    installer.install(repo_root(), environment)
+
+    paths = files._paths(environment)
+    receipt = json.loads(paths.receipt.read_text(encoding="utf-8"))
+    assert receipt["scheduler"]["kind"] == "systemd"
+    assert paths.systemd_timer.is_file()
+
+
+def test_uninstall_keeps_files_when_systemd_unit_stays_active(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    _write_fake_tools(tmp_path, environment)
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    installer.install(repo_root(), environment)
+    paths = files._paths(environment)
+    environment["MANIFEST_TEST_SYSTEMD_ACTIVE"] = "1"
+
+    with pytest.raises(files.InstallError, match="systemd unit stop failed"):
+        installer.uninstall(repo_root(), environment)
+
+    assert paths.receipt.is_file()
+    assert paths.systemd_timer.is_file()
+    assert paths.wrapper.is_file()
+
+
+def test_uninstall_with_failed_stop_and_inactive_units_proceeds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    _write_fake_tools(tmp_path, environment)
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    installer.install(repo_root(), environment)
+    paths = files._paths(environment)
+    environment["MANIFEST_TEST_STOP_STATUS"] = "1"
+
+    installer.uninstall(repo_root(), environment)
+
+    assert not paths.receipt.exists()
+    assert not paths.systemd_timer.exists()
+    assert not paths.systemd_service.exists()
+    assert not paths.wrapper.exists()

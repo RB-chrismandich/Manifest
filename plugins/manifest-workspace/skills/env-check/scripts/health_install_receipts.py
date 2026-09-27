@@ -208,6 +208,7 @@ def _validate_receipt_scheduler(receipt: dict, paths: InstallPaths) -> None:
         return
     if not isinstance(scheduler, dict) or scheduler.get("kind") not in (
         "launchd",
+        "none",
         "systemd",
     ):
         raise InstallError("health installation manifest has an invalid scheduler")
@@ -228,6 +229,8 @@ def _validate_receipt_scheduler(receipt: dict, paths: InstallPaths) -> None:
                 "health installation manifest has an invalid launchd_plist row"
             )
         return
+    if scheduler.get("kind") == "none":
+        return
     if (
         scheduler.get("unit") != SYSTEMD_UNIT_NAME
         or scheduler.get("timer") != f"{SYSTEMD_UNIT_NAME}.timer"
@@ -236,6 +239,18 @@ def _validate_receipt_scheduler(receipt: dict, paths: InstallPaths) -> None:
         raise InstallError(
             "health installation manifest has an invalid systemd identity"
         )
+    # Unit rows exist only for persistent installations; older receipts armed a
+    # transient systemd-run timer, so rows are valid only when both recorded.
+    unit_rows = (
+        ("systemd_timer", paths.systemd_timer),
+        ("systemd_service", paths.systemd_service),
+    )
+    if any(receipt.get(key) is not None for key, _path in unit_rows):
+        for key, destination in unit_rows:
+            if not _valid_row(receipt.get(key), destination):
+                raise InstallError(
+                    "health installation manifest has an invalid systemd unit row"
+                )
 
 
 def _validate_receipt_files(files: object, runtime_root: Path) -> None:
@@ -257,6 +272,9 @@ def _validate_receipt_files(files: object, runtime_root: Path) -> None:
             "health installation manifest has an invalid runtime inventory"
         )
     for name in RUNTIME_SOURCES:
+        if name in _SPLIT_RUNTIME_EXEMPT and name not in files:
+            # Pre-split receipts carry no row for the split runtime file.
+            continue
         if not _valid_row(files.get(name), runtime_root / name):
             raise InstallError(
                 "health installation manifest has an invalid runtime row"

@@ -59,7 +59,7 @@ class RuntimePaths:
             state_dir=(state_dir or state_home / "manifest/health").expanduser(),
             claude_config=(
                 claude_root / ".claude.json"
-                if "CLAUDE_CONFIG_DIR" in environment
+                if environment.get("CLAUDE_CONFIG_DIR")
                 else home / ".claude.json"
             ),
             claude_settings=claude_root / "settings.json",
@@ -250,7 +250,7 @@ def _add_manifest_servers(
             expectations.errors.add("unparseable")
             continue
         disabled = server.get("disabled") is True or server.get("enabled") is False
-        expectations.add(name, disabled=disabled)
+        expectations.add(name, disabled=disabled, overwrite=True)
 
 
 def _project_manifest_paths(project_dir: Path) -> list[Path]:
@@ -267,7 +267,9 @@ def _project_mcp_expectations(
     project_dir: Path,
     expectations: Expectations,
 ) -> None:
-    for manifest_path in _project_manifest_paths(project_dir):
+    # Nearest manifest wins: iterate farthest-first so the closest record is
+    # applied last and overwrites ancestor project-scope entries.
+    for manifest_path in reversed(_project_manifest_paths(project_dir)):
         manifest, error = _read_json_object(manifest_path, required=True)
         if error or manifest is None:
             expectations.errors.add(error or "unparseable")
@@ -310,7 +312,7 @@ def _local_mcp_expectations(
                 expectations.errors.add("unparseable")
                 continue
             disabled = server.get("disabled") is True or server.get("enabled") is False
-            expectations.add(name, disabled=disabled)
+            expectations.add(name, disabled=disabled, overwrite=True)
 
 
 def load_claude_expectations(

@@ -106,11 +106,13 @@ allow = {a.lower().replace("[bot]", "") for a in (cfg.get("authors") or [])}
 out = []
 for p in prs:
     a = (p.get("author") or {})
-    login = (a.get("login") if isinstance(a, dict) else str(a)) or ""
+    # github `gh pr list` gives author.login + __typename; gitlab
+    # `glab mr list -F json` gives author.username and no typename.
+    login = ((a.get("login") or a.get("username")) if isinstance(a, dict) else str(a)) or ""
     key = login.lower().replace("[bot]", "")
     is_bot = isinstance(a, dict) and (a.get("is_bot") or a.get("__typename") == "Bot")
     if key in allow or (cfg.get("trust_bot_typename") and is_bot):
-        out.append({"number": p.get("number"), "author": login})
+        out.append({"number": p.get("number") or p.get("iid"), "author": login})
 print(json.dumps(out))
 '
 
@@ -120,26 +122,63 @@ cmd_list_managed() {
     printf '%s' "$raw" | python3 -c "${LIST_MANAGED_PY}" "$AUTHORS_FILE"
 }
 
+# FR-018a, scoped + serialized: the consecutive-empty counter is per
+# REPOSITORY — STATE_DIR defaults to a shared XDG dir, so an unscoped file
+# would let one repo's idle passes stop another repo's loop. The filename is
+# keyed on the same scope hash FINGERPRINT_PY computes (host\0owner_repo).
+# Read-modify-write runs under an exclusive fcntl.flock on the counter file
+# itself (the flock layer of the loop_lock.sh pattern, portable via python3 —
+# macOS ships no flock(1)), so concurrent `run` processes can neither split an
+# incr nor observe a torn counter. Scope unresolvable (gitlab / no remote) ->
+# fail closed, never touch a shared file.
+EMPTY_RUN_PY='
+import fcntl
+import hashlib
+import json
+import os
+import sys
+
+state_dir, scope_json, op = sys.argv[1:4]
+scope = json.loads(scope_json)
+host = scope["host"].lower().rstrip(".")
+owner_repo = scope["owner_repo"]
+scope_hash = hashlib.sha256((host + "\0" + owner_repo).encode()).hexdigest()
+path = os.path.join(state_dir, "empty_count_" + scope_hash)
+fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+try:
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    raw = os.read(fd, 64).decode("ascii", "replace").strip()
+    n = int(raw) if raw.isdigit() else 0
+    if op == "incr":
+        n += 1
+    elif op == "reset":
+        n = 0
+    if op != "get":
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.ftruncate(fd, 0)
+        os.write(fd, str(n).encode("ascii"))
+        os.fsync(fd)
+finally:
+    os.close(fd)
+print(n)
+'
+
 cmd_empty_run() {
-    mkdir -p "$STATE_DIR" 2> /dev/null || true
-    local f="${STATE_DIR}/empty_count" n
-    n=$([[ -f "$f" ]] && cat "$f" || echo 0)
-    case "${1:-get}" in
-        get) echo "$n" ;;
-        incr)
-            n=$((n + 1))
-            echo "$n" > "$f"
-            echo "$n"
-            ;;
-        reset)
-            echo 0 > "$f"
-            echo 0
-            ;;
-        *)
-            err "empty-run: get|incr|reset"
-            return 64
-            ;;
+    local op="${1:-get}" scope
+    case "$op" in get | incr | reset) ;; *)
+        err "empty-run: get|incr|reset"
+        return 64
+        ;;
     esac
+    mkdir -p "$STATE_DIR" 2> /dev/null || true
+    scope="$(gh_op fp-scope)" || {
+        err "empty-run: cannot resolve repository scope — fail closed"
+        return 13
+    }
+    python3 -c "${EMPTY_RUN_PY}" "$STATE_DIR" "$scope" "$op" || {
+        err "empty-run: counter update failed"
+        return 13
+    }
 }
 
 # --- live orchestration (integration paths; seam-overridable) ---

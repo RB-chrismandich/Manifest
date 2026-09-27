@@ -82,6 +82,67 @@ def merge_permissions(source: dict, target: dict) -> None:
     permissions["allow"] = allow
 
 
+def _health_receipt_command() -> str | None:
+    """Return the hook command recorded by the owned health installer.
+
+    install_health_reporting.py records its canonical SessionStart command in
+    the state receipt. A missing, unreadable, or malformed receipt means no
+    owned installation manages the hook — the same refusal the installer
+    itself applies, and the signal to retire any bootstrap-registered copy.
+    """
+    state_home = os.environ.get("XDG_STATE_HOME")
+    receipt_path = (
+        (
+            Path(state_home).expanduser()
+            if state_home
+            else Path.home() / ".local" / "state"
+        )
+        / "manifest"
+        / "health"
+        / "installation.json"
+    )
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    hook = receipt.get("claude_hook")
+    command = hook.get("command") if isinstance(hook, dict) else None
+    return command if isinstance(command, str) else None
+
+
+def _hook_targets_health_wrapper(command: object, directory: Path) -> bool:
+    """Match the retired bootstrap health hook in any written form.
+
+    Until install_health_reporting.py took ownership, bootstrap shipped a
+    SessionStart hook for ~/.claude/scripts/mcp_health_check.sh while the
+    helper it invokes is only ever installed by that owned installer — a
+    bootstrap-registered copy degrades on every session start. The command
+    may appear as the literal tilde form, an expanded absolute path, or —
+    on hosts with a custom CLAUDE_CONFIG_DIR — a path resolving into this
+    settings file's own scripts/ directory.
+    """
+    if not isinstance(command, str):
+        return False
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        words = command.split()
+    if not words:
+        return False
+    program = words[0]
+    if program == "~/.claude/scripts/mcp_health_check.sh" or program.endswith(
+        "/.claude/scripts/mcp_health_check.sh"
+    ):
+        return True
+    try:
+        resolved = Path(program).expanduser().resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return resolved == (directory / "scripts" / "mcp_health_check.sh").resolve(
+        strict=False
+    )
+
+
 def merge_hooks(source: dict, target: dict, directory: Path) -> None:
     """Resolve shipped commands at the target, preserving arbitrary user hooks."""
     hooks = target.setdefault("hooks", {})
@@ -90,6 +151,10 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
         str(directory / "scripts/subagent_model_default.py"),
         shlex.quote(str(directory / "scripts/subagent_model_default.py")),
     }
+    # Retire the bootstrap-registered health hook only when the owned
+    # installer does not already manage it — otherwise bootstrap would
+    # deregister a live, working hook on every deploy.
+    managed_health_command = _health_receipt_command()
     for event, entries in hooks.items():
         retained = []
         for entry in entries:
@@ -101,6 +166,10 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
                     and (
                         h["command"] == "~/.claude/scripts/version_pin_hook.sh"
                         or h["command"].endswith("/.claude/scripts/version_pin_hook.sh")
+                        or (
+                            _hook_targets_health_wrapper(h["command"], directory)
+                            and h["command"] != managed_health_command
+                        )
                         or (
                             event == "PreToolUse"
                             and entry.get("matcher") == "Agent"

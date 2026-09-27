@@ -208,6 +208,21 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 PY
 }
 
+# The consecutive-empty counter is keyed on the derived repository scope
+# (empty_count_<sha256(host\0owner_repo)>) — and the `empty-run` CLI itself
+# fails closed on gitlab (no fp-scope), so the gitlab monitor tests read the
+# file cmd_run_monitor maintains directly.
+gitlab_scope_count_path() {
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+import hashlib
+import os
+import sys
+
+h = hashlib.sha256("gitlab.com\0acme/widgets".encode()).hexdigest()
+print(os.path.join(sys.argv[1], "empty_count_" + h))
+PY
+}
+
 fingerprint_state() {
     python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
 import glob
@@ -232,6 +247,7 @@ case "$op" in
     printf '0\t%s\n' "$newest" ;;
   add)
     cp "${RACE_STATE:?}" "${RACE_DEST:?}"
+    [[ -z "${RACE_HEAD:-}" ]] || printf '%s\n' "$RACE_HEAD" > "${SEAM_HEAD_DIR:?}/$pr"
     : > "$pd/$owner" ;;
   remove) rm -f "$pd/$owner" ;;
 esac
@@ -248,6 +264,36 @@ EOF
     run "$SCRIPT" empty-run incr;  [ "$output" = "2" ]
     run "$SCRIPT" empty-run reset; [ "$output" = "0" ]
     run "$SCRIPT" empty-run get;   [ "$output" = "0" ]
+}
+
+@test "empty-run counter is scoped per repository" {
+    # STATE_DIR is shared across repositories (XDG default), so the counter
+    # file must be keyed on the repository scope — acme/one's empty passes must
+    # never advance acme/two's counter, and two scopes sharing one state dir
+    # must keep independent counts.
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/one"}'
+    run "$SCRIPT" empty-run incr; [ "$output" = "1" ]
+    run "$SCRIPT" empty-run incr; [ "$output" = "2" ]
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/two"}'
+    run "$SCRIPT" empty-run get;  [ "$output" = "0" ]
+    run "$SCRIPT" empty-run incr; [ "$output" = "1" ]
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/one"}'
+    run "$SCRIPT" empty-run get;  [ "$output" = "2" ]
+    run "$SCRIPT" empty-run reset; [ "$output" = "0" ]
+}
+
+@test "empty-run serializes concurrent incr/reset under an exclusive lock" {
+    # Read-modify-write runs under fcntl.flock on the counter file, so N
+    # concurrent incr processes lose no updates and a reset cannot interleave
+    # between another process's read and write. 60 parallel incr must yield
+    # exactly 60 (a bare cat/echo counter drops increments under load).
+    export SEAM_SCOPE='{"host":"github.com","owner_repo":"acme/widgets"}'
+    for _ in $(seq 60); do "$SCRIPT" empty-run incr > /dev/null & done
+    wait
+    run "$SCRIPT" empty-run get; [ "$output" = "60" ]
+    "$SCRIPT" empty-run reset > /dev/null &
+    wait
+    run "$SCRIPT" empty-run get; [ "$output" = "0" ]
 }
 
 # --- list-managed allowlist filter (FR-013) ---
@@ -747,6 +793,81 @@ EOF
     [ "$status" -eq 13 ] && [[ "$output" == *"review-thread"* ]]
 }
 
+@test "gitlab: run keeps bounded queue monitoring when fingerprinting is unsupported" {
+    # PR #992: cmd_run must not die at the fp-scope probe on gitlab — auto-merge
+    # is unsupported there (and hard-gated here anyway), but bounded
+    # monitoring/listing still applies. A managed MR must reset the empty
+    # counter (pending work, never an empty pass) and the loop stays bounded
+    # by the ceiling. Runs inside a real git repo with a gitlab origin remote:
+    # the monitor derives its counter scope from the remote URL since gh_op
+    # fp-scope refuses on gitlab. The now-seam returns 0 twice then huge:
+    # pass 1 lists the queue once, the pre-sleep check lands on the deadline.
+    cat > "$TMP/glab" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1 $2" == "mr list" ]]; then
+  printf 'list\n' >> "${SEAM_CALL_LOG:?}"
+  echo '[{"iid":5,"author":{"username":"copilot"}}]'
+  exit 0
+fi
+echo '{}'
+EOF
+    chmod +x "$TMP/glab"
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+c="${TMP:?}/nowc"; n=$(( $( [ -f "$c" ] && cat "$c" || echo 0 ) + 1 )); echo "$n" > "$c"
+[ "$n" -le 2 ] && echo 0 || echo 999999
+EOF
+    chmod +x "$TMP/now.sh"
+    unset PR_MERGE_LOOP_GH_CMD
+    export PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh" PR_MERGE_LOOP_CEILING_SEC=10 PR_MERGE_LOOP_POLL_SEC=0
+    git init -q "$TMP/repo" && cd "$TMP/repo" || return 1
+    git remote add origin git@gitlab.com:acme/widgets.git
+    # Seed the counter file directly: the `empty-run` CLI fails closed on
+    # gitlab (fp-scope refuses), while the monitor maintains the same
+    # scope-keyed file via the origin-derived scope.
+    count_path="$(gitlab_scope_count_path)"
+    mkdir -p "$(dirname "$count_path")"
+    printf '2\n' > "$count_path"
+    PATH="$TMP:$PATH" PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [ "$(call_count list)" = "1" ]
+    # The managed MR counts as pending work: the seeded counter resets, never
+    # increments toward the 5-empty stop.
+    [ "$(cat "$count_path")" = "0" ]
+    [[ "$output" == *"managed queue pending (5)"* ]]
+}
+
+@test "gitlab: run's empty queue still stops at the 5-empty threshold" {
+    # The degraded monitor path keeps the FR-018a contract: with no managed
+    # MRs each pass increments the counter and the loop exits on the counter,
+    # not the clock.
+    cat > "$TMP/glab" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1 $2" == "mr list" ]]; then
+  printf 'list\n' >> "${SEAM_CALL_LOG:?}"
+  echo '[]'
+  exit 0
+fi
+echo '{}'
+EOF
+    chmod +x "$TMP/glab"
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 30 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    unset PR_MERGE_LOOP_GH_CMD
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    git init -q "$TMP/repo" && cd "$TMP/repo" || return 1
+    git remote add origin git@gitlab.com:acme/widgets.git
+    PATH="$TMP:$PATH" PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [ "$(cat "$(gitlab_scope_count_path)")" = "5" ]
+    [[ "$output" == *"5 consecutive empty passes"* ]]
+}
+
 # --- T026: run loop driver + hard ceiling ---
 @test "run: _net passes through and returns command output" {
     run "$SCRIPT" _net echo hi
@@ -825,6 +946,47 @@ EOF
     run "$SCRIPT" run
     [ "$status" -eq 0 ]
     [ "$("$SCRIPT" empty-run get)" = "0" ]
+}
+
+@test "run: racing worker's in-flight verdict is read from post-lease material" {
+    # Regression for PR #992 review thread PRRT_kwDOPe2ygc6mVlHk: cmd_run's
+    # pre-lease material is STALE when cmd_tick's `unchanged` verdict rested on
+    # its post-lease re-read (the racing worker persisted state for the NEW
+    # material mid-tick). Classifying under the stale fingerprint finds no
+    # recorded action, so a still-pending `wait` verdict looks settled and the
+    # empty counter advances toward the 5-empty stop instead of resetting.
+    # The fix re-observes material before the in-flight lookup.
+    export SEAM_BUCKETS="pending"
+    printf 'sha2\n' > "$SEAM_HEAD_DIR/5"
+    "$SCRIPT" tick 5 > /dev/null 2>&1   # persists fingerprint for sha2 with action=wait
+    state="$(fingerprint_state)"
+    cp "$state" "$TMP/raced-state"
+    # The racing worker persisted state for the sha2 material; cmd_run's
+    # per-PR observation happens first and must still see the OLD material, so
+    # the head reverts to sha1 until the lease-add seam flips it back to sha2.
+    rm "$state" "$SEAM_HEAD_DIR/5"
+    export RACE_STATE="$TMP/raced-state" RACE_DEST="$state" RACE_HEAD=sha2
+    make_race_lock_seam
+    : > "$SEAM_GATE_LOG"
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 100 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    LOOP_LOCK_LABEL_CMD="$TMP/race-lockseam.sh" run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    # sha2 material matches the raced-in `wait` state: the pass is in-flight, so
+    # the seeded counter resets to 0 — under the stale sha1 material it would
+    # have incremented to 3. No second pass races: the deadline lands on pass
+    # 2's per-PR clock check.
+    [ "$("$SCRIPT" empty-run get)" = "0" ]
+    [ "$(gate_count)" = "0" ]
 }
 
 @test "run: a waiting PR keeps the loop polling — the empty counter never starts" {
@@ -1111,7 +1273,9 @@ PY
     run "$VENDORED" run
     [ "$status" -eq 0 ] && [[ "$output" == *"5 consecutive empty passes"* ]]
     [ "$(gate_count)" = "1" ]
-    [ "$(call_count fp-view)" = "8" ]
+    # 13 = 3 transition fp-views (run + tick re-read + post-dispatch) + 5 idle
+    # passes × 2 (run collect + unchanged re-observe for the in-flight lookup).
+    [ "$(call_count fp-view)" = "13" ]
     [ "$("$VENDORED" empty-run get)" = "5" ]
 }
 

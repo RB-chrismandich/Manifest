@@ -90,7 +90,9 @@ def test_install_waits_for_exclusive_installation_lock(
         os.close(descriptor)
 
 
-def test_restore_snapshots_aggregates_failures(repo_root: Path, tmp_path: Path) -> None:
+def test_restore_snapshots_aggregates_failures(
+    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     files = _files_module(repo_root)
 
     good = tmp_path / "restored.py"
@@ -104,12 +106,16 @@ def test_restore_snapshots_aggregates_failures(repo_root: Path, tmp_path: Path) 
     broken.write_bytes(b"original\n")
     broken_snapshot = files._snapshot(broken)
 
-    os.chmod(broken_dir, 0o500)
-    try:
-        with pytest.raises(files.InstallError, match="rollback") as raised:
-            files._restore_snapshots([good_snapshot, broken_snapshot])
-    finally:
-        os.chmod(broken_dir, 0o700)
+    original_atomic_write = files._atomic_write
+
+    def fail_broken(path: Path, data: bytes, mode: int) -> None:
+        if path == broken:
+            raise OSError("injected restore failure")
+        original_atomic_write(path, data, mode)
+
+    monkeypatch.setattr(files, "_atomic_write", fail_broken)
+    with pytest.raises(files.InstallError, match="rollback") as raised:
+        files._restore_snapshots([good_snapshot, broken_snapshot])
 
     message = str(raised.value)
     assert str(broken) in message

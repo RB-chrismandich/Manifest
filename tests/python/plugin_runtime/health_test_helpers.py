@@ -194,6 +194,7 @@ def _runtime_file_rows(runtime_root: Path) -> dict[str, dict[str, str]]:
         "mcp_health_runtime.py",
         "health_install_files.py",
         "health_install_reconcile.py",
+        "health_install_scheduler.py",
         "env_check.py",
         "hook_smoke.py",
         "hook_smoke_support.py",

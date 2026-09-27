@@ -29,9 +29,9 @@ def repo_root() -> Path:
     return _repo_root()
 
 
-def test_health_installer_cleans_up_owned_retired_file_on_upgrade(
+def _installed_health(
     repo_root: Path, tmp_path: Path
-) -> None:
+) -> tuple[Path, dict[str, str], Path, Path]:
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)
@@ -39,6 +39,15 @@ def test_health_installer_cleans_up_owned_retired_file_on_upgrade(
     _install(source_root, env, tmp_path)
     runtime_root = Path(env["XDG_DATA_HOME"]) / "manifest/health"
     receipt_path = Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json"
+    return source_root, env, runtime_root, receipt_path
+
+
+def test_health_installer_cleans_up_owned_retired_file_on_upgrade(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    source_root, env, runtime_root, receipt_path = _installed_health(
+        repo_root, tmp_path
+    )
 
     retired_file = runtime_root / "plugin_reconcile.py"
     retired_content = b"# retired reconcile script\n"
@@ -60,13 +69,9 @@ def test_health_installer_cleans_up_owned_retired_file_on_upgrade(
 def test_health_installer_refuses_to_clean_up_modified_retired_file_on_upgrade(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    source_root = _copy_health_source(repo_root, tmp_path / "source")
-    env = isolated_env(tmp_path)
-    _write_health_tool_fakes(tmp_path, env)
-    _seed_claude_settings(env)
-    _install(source_root, env, tmp_path)
-    runtime_root = Path(env["XDG_DATA_HOME"]) / "manifest/health"
-    receipt_path = Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json"
+    source_root, env, runtime_root, receipt_path = _installed_health(
+        repo_root, tmp_path
+    )
 
     retired_file = runtime_root / "plugin_reconcile.py"
     retired_file.write_bytes(b"# modified locally\n")
@@ -94,3 +99,44 @@ def test_health_installer_refuses_to_clean_up_modified_retired_file_on_upgrade(
         or "destination" in result.stderr
     )
     assert retired_file.exists()
+
+
+def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """Pre-split receipts carry no health_install_scheduler.py row; upgrade must pass."""
+    source_root, env, runtime_root, receipt_path = _installed_health(
+        repo_root, tmp_path
+    )
+
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["files"].pop("health_install_scheduler.py")
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    _install(source_root, env, tmp_path)
+    assert (runtime_root / "health_install_scheduler.py").exists()
+
+
+def test_health_installer_uninstalls_receipt_missing_split_scheduler_file(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """Uninstall accepts the same pre-split receipt shape."""
+    source_root, env, runtime_root, receipt_path = _installed_health(
+        repo_root, tmp_path
+    )
+
+    (runtime_root / "health_install_scheduler.py").unlink()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["files"].pop("health_install_scheduler.py")
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    result = run_script(
+        _installer(source_root),
+        "--source-root",
+        str(source_root),
+        "--uninstall",
+        env=env,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not receipt_path.exists()

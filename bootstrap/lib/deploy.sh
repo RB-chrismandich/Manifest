@@ -305,7 +305,11 @@ deploy_configs() {
                     # symlink (deployed separately below, never copied verbatim),
                     # and agents/agents-devpanel plus their delegation docs are
                     # owned by the gate_* toggles.
-                    rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
+                    # scripts/mcp_health_check.sh is deliberately excluded: the
+                    # health installer (install_health_reporting.py) owns that
+                    # path and its settings.json hook — bootstrap copying it
+                    # would create an unowned file the installer must adopt.
+                    rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' --exclude '/scripts/mcp_health_check.sh' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
@@ -384,7 +388,9 @@ deploy_configs() {
     # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008),
     # and agents-devpanel/ (same rationale, gate_devpanel_agents, independent toggle).
     # CLAUDE.md is excluded too when Claude is disabled (see claude_md_exclude above).
-    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
+    # scripts/mcp_health_check.sh is excluded for the same reason as above:
+    # install_health_reporting.py owns that file and its SessionStart hook.
+    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' --exclude '/scripts/mcp_health_check.sh' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
 

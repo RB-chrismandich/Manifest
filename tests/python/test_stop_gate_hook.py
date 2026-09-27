@@ -68,6 +68,24 @@ def _run_shell(payload, home, extra_env=None):
     )
 
 
+def _path_without_jq(tmp_path):
+    """Return a PATH that resolves every tool the launcher needs except jq."""
+    shim = tmp_path / "no-jq-path"
+    shim.mkdir()
+    seen = {"jq"}
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry or not os.path.isdir(entry):
+            continue
+        for name in os.listdir(entry):
+            if name in seen:
+                continue
+            source = os.path.join(entry, name)
+            if os.path.isfile(source) and os.access(source, os.X_OK):
+                seen.add(name)
+                os.symlink(source, shim / name)
+    return str(shim)
+
+
 def test_help_exits_zero_within_15_lines():
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--help"],
@@ -322,17 +340,61 @@ def test_unparseable_json_config_fails_closed(tmp_path):
     assert "config_unparseable" in decision["reason"]
 
 
-def test_missing_jq_is_a_hard_refusal(tmp_path):
-    empty_path = tmp_path / "empty-path"
-    empty_path.mkdir()
+def test_missing_jq_approves_guarded_followup_without_config(tmp_path):
+    """Loop safety cannot depend on jq: a guarded follow-up approves even when
+    jq is absent, before the disabled-gate config is ever consulted."""
+    no_jq_path = _path_without_jq(tmp_path)
     result = _run_shell(
         {"stop_hook_active": True},
         tmp_path,
-        {"PATH": str(empty_path)},
+        {"PATH": no_jq_path},
     )
-    decision = _decision(result)
-    assert decision["decision"] == "block"
-    assert "jq_unavailable" in decision["reason"]
+    assert _decision(result) == {
+        "decision": "approve",
+        "reason": "stop-hook-active",
+    }
+
+
+def test_missing_jq_disabled_gate_fails_open(tmp_path):
+    """jq is an optional bootstrap dependency: without it, the default-disabled
+    gate approves rather than trapping the session in a block loop."""
+    no_jq_path = _path_without_jq(tmp_path)
+    for payload in (
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        {"stop_hook_active": False, "hook_event_name": "Stop"},
+    ):
+        result = _run_shell(payload, tmp_path, {"PATH": no_jq_path})
+        assert _decision(result) == {
+            "decision": "approve",
+            "reason": "gate disabled",
+        }
+
+
+def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_path):
+    """A configured gate stays fail-closed when jq is missing, but exactly one
+    block — the lexical recursion guard approves the follow-up so the session
+    is never trapped, matching the interpreter_unavailable contract."""
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        json.dumps({"review_gate": {"enabled": True}}), encoding="utf-8"
+    )
+    env = {"PATH": _path_without_jq(tmp_path), "MANIFEST_CONFIG_DIR": str(config_dir)}
+
+    first = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        env,
+    )
+    first_decision = _decision(first)
+    assert first_decision["decision"] == "block"
+    assert "jq_unavailable" in first_decision["reason"]
+
+    followup = _run_shell({"stop_hook_active": True}, tmp_path, env)
+    assert _decision(followup) == {
+        "decision": "approve",
+        "reason": "stop-hook-active",
+    }
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")

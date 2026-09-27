@@ -1,5 +1,7 @@
 #!/bin/sh
-# Fail-closed boundary for the manifest-delegate Stop review gate.
+# Fail-closed boundary for the manifest-delegate Stop review gate. Two paths
+# fail open by design: the recursion guard (loop safety outranks review) and
+# the default-disabled gate when the optional jq dependency is absent.
 
 set -u
 umask 077
@@ -9,10 +11,6 @@ block() {
 }
 
 JQ=$(command -v jq 2> /dev/null || true)
-if [ -z "$JQ" ]; then
-    block "jq_unavailable"
-    exit 0
-fi
 
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/manifest-stop-gate.XXXXXX" 2> /dev/null || true)
 if [ -z "$WORK_DIR" ] || [ ! -d "$WORK_DIR" ]; then
@@ -68,15 +66,65 @@ if [ "$INPUT_BYTES" -gt 1048576 ]; then
     exit 0
 fi
 
-# Loop safety must work even when the managed Python runtime is broken. The
-# recursion guard runs FIRST, before the generic object-shape check: a guarded
-# follow-up must never be mistaken for invalid input, and the guard's own jq
-# projection is type-guarded so non-object payloads (arrays, scalars, strings)
-# can never satisfy it — on some jq builds `.<field>` on a non-object coerces
-# rather than errors, which would be a false approve.
-if "$JQ" -e -s 'length == 1 and (.[0] | type == "object" and .stop_hook_active == true)' \
-    "$INPUT_FILE" > /dev/null 2>&1; then
+# Loop safety must work even when the managed Python runtime is broken — and
+# even when jq itself is absent, since a missed guard would block every
+# follow-up Stop and trap the session in a block loop. The recursion guard
+# therefore runs FIRST, before the jq requirement and the generic object-shape
+# check: a guarded follow-up must never be mistaken for invalid input. With
+# jq the projection is type-guarded so non-object payloads (arrays, scalars,
+# strings) can never satisfy it — on some jq builds `.<field>` on a
+# non-object coerces rather than errors, which would be a false approve.
+# Without jq a bounded lexical fallback still matches only the exact
+# `"stop_hook_active": true` boolean form.
+if [ -n "$JQ" ]; then
+    if "$JQ" -e -s 'length == 1 and (.[0] | type == "object" and .stop_hook_active == true)' \
+        "$INPUT_FILE" > /dev/null 2>&1; then
+        printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+        exit 0
+    fi
+elif grep -Eq '"stop_hook_active"[[:space:]]*:[[:space:]]*true([^[:alnum:]_]|$)' \
+    "$INPUT_FILE" 2> /dev/null; then
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+    exit 0
+fi
+
+# A disabled review gate approves without jq or the managed runtime, so
+# plugin-only installs (no bootstrap-installed jq, no ~/.claude/.venv) never
+# hit a spurious block. Config precedence mirrors
+# manifest_delegate/config.py: MANIFEST_CONFIG_DIR, then
+# $XDG_CONFIG_HOME/manifest, then the legacy ~/.claude/config. Only a JSON
+# delegation file can be evaluated here; a winning delegation.yml or an
+# unparseable file falls through to the managed runtime, which fails closed.
+find_delegation_file() {
+    for _dir in "$@"; do
+        [ -n "$_dir" ] || continue
+        if [ -f "$_dir/delegation.json" ]; then
+            printf '%s\n' "$_dir/delegation.json"
+            return 0
+        fi
+        if [ -f "$_dir/delegation.yml" ]; then
+            printf '%s\n' "$_dir/delegation.yml"
+            return 0
+        fi
+    done
+    return 1
+}
+
+DELEGATION_FILE=$(find_delegation_file \
+    "${MANIFEST_CONFIG_DIR:-}" \
+    "${XDG_CONFIG_HOME:-${HOME:-}/.config}/manifest" \
+    "${HOME:-}/.claude/config" || true)
+
+# jq is an optional bootstrap dependency: without it the gate can neither read
+# the payload nor evaluate config, so the default-disabled gate fails open. A
+# configured gate still blocks once — the guarded follow-up above then frees
+# the session, matching the interpreter_unavailable contract.
+if [ -z "$JQ" ]; then
+    if [ -z "$DELEGATION_FILE" ]; then
+        printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+    else
+        block "jq_unavailable"
+    fi
     exit 0
 fi
 
@@ -101,32 +149,6 @@ if ! "$JQ" -e -s 'length == 1 and (.[0] | .transcript_path | type == "string" an
     block "missing_transcript"
     exit 0
 fi
-
-# A disabled review gate approves without the managed runtime, so plugin-only
-# installs (no bootstrap-created ~/.claude/.venv) never hit a spurious block.
-# Config precedence mirrors manifest_delegate/config.py: MANIFEST_CONFIG_DIR,
-# then $XDG_CONFIG_HOME/manifest, then the legacy ~/.claude/config. Only a JSON
-# delegation file can be evaluated here; a winning delegation.yml or an
-# unparseable file falls through to the managed runtime, which fails closed.
-find_delegation_file() {
-    for _dir in "$@"; do
-        [ -n "$_dir" ] || continue
-        if [ -f "$_dir/delegation.json" ]; then
-            printf '%s\n' "$_dir/delegation.json"
-            return 0
-        fi
-        if [ -f "$_dir/delegation.yml" ]; then
-            printf '%s\n' "$_dir/delegation.yml"
-            return 0
-        fi
-    done
-    return 1
-}
-
-DELEGATION_FILE=$(find_delegation_file \
-    "${MANIFEST_CONFIG_DIR:-}" \
-    "${XDG_CONFIG_HOME:-${HOME:-}/.config}/manifest" \
-    "${HOME:-}/.claude/config" || true)
 
 case "$DELEGATION_FILE" in
     "")

@@ -397,20 +397,11 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 PY
 }
 
-cmd_run() {
-    local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
-    local start deadline now managed_json managed pr act rc changed inflight complete n material
-    gh_op fp-scope > /dev/null || {
-        err "material fingerprinting unsupported for this repository/provider"
-        return 13
-    }
-    start="$(_now)"
-    deadline=$((start + ceiling))
-    while :; do
-        now="$(_now)"
-        ((now < deadline)) || break
-        managed_json="$(cmd_list_managed)" || return $?
-        managed="$(printf '%s' "$managed_json" | python3 -c '
+# _managed_numbers <managed-json> — validate the cmd_list_managed payload and
+# print the PR numbers space-joined (empty output for an empty queue). Shared
+# by cmd_run's per-PR loop and the degraded provider-monitor path.
+_managed_numbers() {
+    printf '%s' "$1" | python3 -c '
 import json,sys
 items=json.load(sys.stdin)
 if not isinstance(items,list):
@@ -421,7 +412,87 @@ for item in items:
     if not isinstance(number,int) or number < 1:
         raise ValueError("managed PR number")
     numbers.append(str(number))
-print(" ".join(numbers))' 2> /dev/null)" || {
+print(" ".join(numbers))' 2> /dev/null
+}
+
+# cmd_run_monitor — the bounded loop for providers where material
+# fingerprinting is unsupported (gitlab today: fp-scope/fp-view/fp-checks/
+# fp-threads all refuse via gh_op). Auto-merge is hard-gated bundle-wide and
+# per-PR tick handling is impossible without fingerprints, so this loop keeps
+# only the OBSERVATION half of the contract: poll the managed queue under the
+# same ceiling + 5-empty stop. A non-empty queue is pending work (the
+# in-flight analogue — never counted as empty); an empty queue increments the
+# consecutive-empty counter exactly like the full path.
+#
+# The counter itself stays per-repository and flock-serialized (EMPTY_RUN_PY),
+# but scope cannot come from gh_op fp-scope here — that op is exactly what the
+# provider refuses. _repository_scope_json derives the identical {host,
+# owner_repo} scope from the origin remote URL, so the monitor and the full
+# path share the same empty_count_<scope_hash> file for a repo.
+_monitor_empty_run() {
+    local scope
+    mkdir -p "$STATE_DIR" 2> /dev/null || true
+    scope="$(_repository_scope_json)" || {
+        err "monitor: cannot resolve repository scope — fail closed"
+        return 13
+    }
+    python3 -c "${EMPTY_RUN_PY}" "$STATE_DIR" "$scope" "$1" || {
+        err "monitor: counter update failed"
+        return 13
+    }
+}
+
+cmd_run_monitor() {
+    local ceiling="$1" poll="$2"
+    local deadline now managed_json managed n
+    deadline="$(($(_now) + ceiling))"
+    while :; do
+        now="$(_now)"
+        ((now < deadline)) || break
+        managed_json="$(cmd_list_managed)" || return $?
+        managed="$(_managed_numbers "$managed_json")" || {
+            err "managed-PR observation was malformed"
+            return 13
+        }
+        if [[ -n "$managed" ]]; then
+            err "monitor: managed queue pending (${managed}) — auto-merge unsupported on this provider; human action required"
+            _monitor_empty_run reset > /dev/null || return $?
+        else
+            n="$(_monitor_empty_run incr)" || return $?
+            if ((n >= 5)); then
+                err "5 consecutive empty passes — stopping"
+                break
+            fi
+        fi
+        now="$(_now)"
+        ((now < deadline)) || break
+        [[ "$poll" -gt 0 ]] && sleep "$poll"
+    done
+    return 0
+}
+
+cmd_run() {
+    local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
+    local start deadline now managed_json managed pr act rc changed inflight complete n material scope_rc=0
+    gh_op fp-scope > /dev/null || scope_rc=$?
+    if [[ $scope_rc -ne 0 ]]; then
+        if [[ $scope_rc -eq 13 ]]; then
+            # Provider-declared unsupported (gitlab's fp-* ops refuse with 13):
+            # keep bounded queue monitoring instead of dying at the probe.
+            err "material fingerprinting unsupported — monitoring managed queue only (ceiling ${ceiling}s, 5-empty stop)"
+            cmd_run_monitor "$ceiling" "$poll"
+            return $?
+        fi
+        err "material fingerprinting unsupported for this repository/provider"
+        return 13
+    fi
+    start="$(_now)"
+    deadline=$((start + ceiling))
+    while :; do
+        now="$(_now)"
+        ((now < deadline)) || break
+        managed_json="$(cmd_list_managed)" || return $?
+        managed="$(_managed_numbers "$managed_json")" || {
             err "managed-PR observation was malformed"
             return 13
         }
@@ -435,8 +506,9 @@ print(" ".join(numbers))' 2> /dev/null)" || {
                 complete=0
                 break
             fi
-            # Observed once per PR per pass: feeds both cmd_tick's cheap-path
-            # match and, on `unchanged`, the in-flight check below.
+            # Observed once per PR per pass: feeds cmd_tick's cheap-path match.
+            # The `unchanged` in-flight check below re-observes — the tick's
+            # verdict can rest on its post-lease re-read, not this material.
             material="$(collect_fingerprint_material "$pr")" || return 13
             rc=0
             act="$(cmd_tick "$pr" "$material")" || rc=$?
@@ -447,6 +519,14 @@ print(" ".join(numbers))' 2> /dev/null)" || {
                     return 11
                     ;;
                 unchanged)
+                    # `unchanged` may be decided on cmd_tick's post-lease re-read:
+                    # a racing worker can persist state for NEW material while
+                    # this tick waits on the lock, leaving the caller's pre-lease
+                    # observation stale. Re-observe before reading the recorded
+                    # action — under the stale fingerprint the lookup is empty and
+                    # an in-flight PR (wait/revise/update-branch) looks settled,
+                    # letting the empty counter advance toward a premature stop.
+                    material="$(collect_fingerprint_material "$pr")" || return 13
                     case "$(fingerprint_recorded_action "$pr" "$material")" in
                         wait | revise | update-branch) inflight=1 ;;
                     esac

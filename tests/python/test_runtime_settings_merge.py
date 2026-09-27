@@ -297,3 +297,95 @@ def test_failed_downgrade_keeps_prior_ownership(deployment, monkeypatch):
         )
     assert merge(deployment, "2.1.263", "--rollback-default").returncode == 0
     assert "CLAUDE_CODE_SUBAGENT_MODEL" not in json.loads(deployment.read_text())["env"]
+
+
+def _session_hooks(settings: dict) -> list[dict]:
+    return [
+        hook
+        for entry in settings.get("hooks", {}).get("SessionStart", [])
+        for hook in entry.get("hooks", [])
+    ]
+
+
+def test_retired_health_hook_is_removed_without_a_receipt(
+    deployment, monkeypatch, tmp_path
+):
+    """Bootstrap's stale SessionStart health hook is retired unless owned."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    # Space-free command path: the merge tokenizes commands before matching.
+    stale_absolute = str(
+        tmp_path / "home" / ".claude" / "scripts" / "mcp_health_check.sh"
+    )
+    deployment.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "~/.claude/scripts/mcp_health_check.sh",
+                                    "timeout": 30,
+                                },
+                                {
+                                    "type": "command",
+                                    "command": stale_absolute,
+                                },
+                                {
+                                    "type": "command",
+                                    "command": "/usr/local/bin/keep-me.sh",
+                                },
+                            ]
+                        }
+                    ]
+                }
+            }
+        )
+    )
+    assert merge(deployment).returncode == 0
+    commands = [
+        hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
+    ]
+    assert "mcp_health_check.sh" not in "\n".join(commands)
+    assert "/usr/local/bin/keep-me.sh" in commands
+    assert any("deploy_stamp_check.sh" in command for command in commands)
+
+
+def test_installer_owned_health_hook_survives_the_merge(
+    deployment, monkeypatch, tmp_path
+):
+    """A hook matching the installer receipt is installer-managed, not stale."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    command = str(tmp_path / "home" / ".claude" / "scripts" / "mcp_health_check.sh")
+    receipt_path = tmp_path / "state" / "manifest" / "health" / "installation.json"
+    receipt_path.parent.mkdir(parents=True)
+    receipt_path.write_text(
+        json.dumps({"claude_hook": {"command": command, "timeout": 30}}),
+        encoding="utf-8",
+    )
+    deployment.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "hooks": [
+                                {"type": "command", "command": command},
+                                {
+                                    "type": "command",
+                                    "command": "~/.claude/scripts/mcp_health_check.sh",
+                                },
+                            ]
+                        }
+                    ]
+                }
+            }
+        )
+    )
+    assert merge(deployment).returncode == 0
+    commands = [
+        hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
+    ]
+    assert commands.count(command) == 1
+    assert "~/.claude/scripts/mcp_health_check.sh" not in commands

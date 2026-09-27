@@ -29,6 +29,7 @@ from health_install_files import (
     _restore_snapshots,
 )
 from health_install_scheduler import (
+    SYSTEMD_UNIT_NAME,
     _activate_scheduler_job,
     _recorded_scheduler,
     _resolve_executable,
@@ -80,6 +81,26 @@ def _uninstalled_entries(updated: dict) -> tuple[dict, list] | None:
     return hooks_value, entries_value
 
 
+def _split_wrapper_hooks(
+    hooks: list, canonical: Path, command: str, desired: dict
+) -> tuple[list, bool]:
+    retained: list[object] = []
+    removed = False
+    for hook in hooks:
+        if not _hook_targets_wrapper(hook, canonical):
+            retained.append(hook)
+            continue
+        if hook != desired:
+            equivalent = dict(hook)
+            equivalent["command"] = command
+            if equivalent != desired:
+                raise InstallError(
+                    "Claude health hook registration was externally edited"
+                )
+        removed = True
+    return retained, removed
+
+
 def _rewrite_health_hook(settings: dict, command: str, *, install: bool) -> dict:
     updated = copy.deepcopy(settings)
     if install:
@@ -96,20 +117,9 @@ def _rewrite_health_hook(settings: dict, command: str, *, install: bool) -> dict
         if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
             rewritten.append(entry)
             continue
-        retained: list[object] = []
-        removed = False
-        for hook in entry["hooks"]:
-            if _hook_targets_wrapper(hook, canonical):
-                if hook != desired:
-                    equivalent = dict(hook)
-                    equivalent["command"] = command
-                    if equivalent != desired:
-                        raise InstallError(
-                            "Claude health hook registration was externally edited"
-                        )
-                removed = True
-                continue
-            retained.append(hook)
+        retained, removed = _split_wrapper_hooks(
+            entry["hooks"], canonical, command, desired
+        )
         if retained:
             item = copy.deepcopy(entry)
             item["hooks"] = retained
@@ -179,6 +189,8 @@ def _managed_paths(
     ]
     if scheduler_kind == "launchd":
         managed.append(paths.plist)
+    elif scheduler_kind == "systemd":
+        managed.extend((paths.systemd_timer, paths.systemd_service))
     return managed
 
 
@@ -255,6 +267,17 @@ def _build_receipt(plan: _InstallPlan) -> dict[str, object]:
         receipt["launchd_plist"] = _owned_row(
             f"generated:{LAUNCHD_LABEL}", plan.paths.plist, plan.scheduler.payload
         )
+    elif plan.scheduler.kind == "systemd":
+        receipt["systemd_timer"] = _owned_row(
+            f"generated:{SYSTEMD_UNIT_NAME}.timer",
+            plan.paths.systemd_timer,
+            plan.scheduler.timer_payload,
+        )
+        receipt["systemd_service"] = _owned_row(
+            f"generated:{SYSTEMD_UNIT_NAME}.service",
+            plan.paths.systemd_service,
+            plan.scheduler.service_payload,
+        )
     return receipt
 
 
@@ -263,7 +286,10 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
     prior: _Scheduler | None = None
     if plan.job_was_replaced:
         prior = _recorded_scheduler(plan.receipt or {}, environment)
-        if prior.kind != scheduler.kind:
+        if prior.kind != scheduler.kind and not {prior.kind, scheduler.kind} <= {
+            "systemd",
+            "none",
+        }:
             raise InstallError(
                 f"recorded {prior.kind} scheduler cannot be managed on this platform"
             )
@@ -296,6 +322,7 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
             _json_bytes(_build_receipt(plan)),
             environment,
         )
+    # BaseException is deliberate: rollback must run even on KeyboardInterrupt.
     except BaseException:
         try:
             _restore_snapshots(plan.snapshots)
