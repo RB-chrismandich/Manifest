@@ -36,6 +36,9 @@ def _write_fake_tools(tmp_path: Path, environment: dict[str, str]) -> Path:
         executable.write_text(
             "#!/bin/sh\n"
             'printf \'%s %s\\n\' "$(basename "$0")" "$*" >> "$MANIFEST_TEST_COMMAND_LOG"\n'
+            'if [ "$(basename "$0")" = systemd-run ]; then\n'
+            '  exit "${MANIFEST_TEST_SYSTEMD_RUN_STATUS:-0}"\n'
+            "fi\n"
             'if [ "$(basename "$0")" = launchctl ] && [ "$1" = bootout ]; then\n'
             '  exit "${MANIFEST_TEST_BOOTOUT_STATUS:-0}"\n'
             "fi\n"
@@ -191,3 +194,24 @@ def test_uninstall_preserves_owned_files_when_launchd_bootout_fails(
 
     assert receipt.is_file()
     assert wrapper.is_file()
+
+
+def test_failed_systemd_creation_does_not_stop_an_unowned_unit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    command_log = _write_fake_tools(tmp_path, environment)
+    environment["MANIFEST_TEST_SYSTEMD_RUN_STATUS"] = "36"
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    paths = files._paths(environment)
+    scheduler = schedulers._resolve_scheduler(paths, environment, sys.executable)
+
+    with pytest.raises(files.InstallError, match="systemd timer creation failed"):
+        schedulers._activate_scheduler_job(
+            scheduler, None, paths, sys.executable, b"{}", environment
+        )
+
+    log_lines = command_log.read_text(encoding="utf-8").splitlines()
+    assert any(line.startswith("systemd-run --user") for line in log_lines)
+    assert not any(line.startswith("systemctl --user stop") for line in log_lines)
