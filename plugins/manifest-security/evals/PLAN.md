@@ -138,8 +138,10 @@ measures whether the skill still delivers the right answer on pasted input (pilo
 
 ## Plugin follow-ups surfaced by the pilot
 - **docker-audit-firewall SKILL.md step 2** example inserts `-I … RETURN` then `-I … DROP`, which
-  leaves DROP above RETURN (blocks everything) — contradicting its own ordering rule. daf-04
-  answers reproduce this bug; the grader correctly fails them.
+  leaves DROP above RETURN (blocks everything) — contradicting its own ordering rule. daf-01 and
+  daf-04 answers reproduce this bug in all 3 runs of BOTH arms (the base model makes the same
+  mistake, so the skill's buggy example reinforces rather than corrects it); the grader correctly
+  fails them. The 1-run pilot passed daf-01 only because that judge missed the ordering.
 - **security-harden-proxy step 2** claims urllib exceptions carry the Authorization header in their
   traceback; they don't (HTTPError holds URL/status/response headers). shp graders now grade
   observable exposure (response body, logs, echoed exception/URL) instead.
