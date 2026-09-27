@@ -78,7 +78,7 @@ def _write_health_tool_fakes(tmp_path: Path, env: dict[str, str]) -> Path:
         executable.write_text(
             "#!/bin/sh\n"
             f'printf "%s\\n" "{name} $*" >> "$MANIFEST_TEST_COMMAND_LOG"\n'
-            'if [ "$(basename "$0")" = systemctl ] && [ "$3" = is-active ]; then\n'
+            'if [ "$(basename "$0")" = systemctl ] && [ "$2" = is-active ]; then\n'
             "  exit 3\n"
             "fi\n"
             "exit 0\n",
