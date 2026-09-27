@@ -8,10 +8,10 @@ import json
 import math
 import os
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -119,13 +119,13 @@ MAX_TIMEOUT_SECONDS = 20.0
 class ProbeContext:
     """Typed inputs controlling one harness health collection."""
 
-    harness: str
+    harness: Literal["claude", "omp"]
     probe: bool
     timeout_seconds: float
     paths: RuntimePaths
     environment: Mapping[str, str]
     inventory_observed: bool
-    observed_servers: Sequence[str]
+    observed_servers: tuple[str, ...]
     runner: Runner = run_bounded
     clock: Clock = utc_now
 
@@ -281,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
             paths=paths,
             environment=environment,
             inventory_observed=args.inventory_observed,
-            observed_servers=args.observed_server,
+            observed_servers=tuple(args.observed_server),
         )
     )
     if args.json:
