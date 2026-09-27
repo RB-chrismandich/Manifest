@@ -26,20 +26,23 @@ from health_install_files import (  # noqa: E402
     _assert_destination_owned,
     _assert_plist_owned,
     _atomic_write,
-    _digest,
     _installation_lock,
-    _is_digest,
     _json_bytes,
     _load_receipt,
     _path_present,
     _paths,
-    _plist_payload,
     _read_regular,
     _read_settings,
     _remove_empty_directory,
     _restore_snapshots,
     _snapshot,
-    _valid_row,
+)
+from health_install_receipts import (  # noqa: E402
+    CLAUDE_WRAPPER_SOURCE,
+    OMP_EXTENSION_SOURCE,
+    RUNTIME_SOURCES,
+    _hook_hashes,
+    _validate_receipt,
 )
 from health_install_reconcile import (  # noqa: E402
     _apply_install,
@@ -48,9 +51,15 @@ from health_install_reconcile import (  # noqa: E402
     _install_omp_extension,
     _InstallPlan,
     _managed_paths,
-    _resolve_executable,
     _rewrite_health_hook,
-    _run_best_effort,
+)
+from health_install_scheduler import (  # noqa: E402
+    _receipt_scheduler_kind,
+    _recorded_scheduler,
+    _resolve_scheduler,
+    _scheduler_kind,
+    _scheduler_reactivate,
+    _stop_scheduler_job,
 )
 
 __all__ = [
@@ -70,189 +79,6 @@ __all__ = [
     "main",
     "uninstall",
 ]
-
-RUNTIME_SOURCES = {
-    "env_check.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "env_check.py",
-    ),
-    "health_report.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_report.py",
-    ),
-    "health_report_collect.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_report_collect.py",
-    ),
-    "health_report_common.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_report_common.py",
-    ),
-    "health_report_inspect.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_report_inspect.py",
-    ),
-    "health_report_sanitize.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_report_sanitize.py",
-    ),
-    "health_install_files.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_install_files.py",
-    ),
-    "health_install_reconcile.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "health_install_reconcile.py",
-    ),
-    "mcp_health_expectations.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "mcp_health_expectations.py",
-    ),
-    "mcp_health_report.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "mcp_health_report.py",
-    ),
-    "mcp_health_runtime.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "mcp_health_runtime.py",
-    ),
-    "hook_smoke.py": Path("configs", "claude", "scripts", "hook_smoke.py"),
-    "hook_smoke_support.py": Path(
-        "configs", "claude", "scripts", "hook_smoke_support.py"
-    ),
-    "mcp_health.py": Path(
-        "plugins",
-        "manifest-workspace",
-        "skills",
-        "env-check",
-        "scripts",
-        "mcp_health.py",
-    ),
-}
-OMP_EXTENSION_SOURCE = Path("configs", "omp", "extensions", "manifest-health.ts")
-CLAUDE_WRAPPER_SOURCE = Path("configs", "claude", "scripts", "mcp_health_check.sh")
-HOOK_HASH_SOURCES = {
-    "delegate.py": Path("plugins", "manifest-delegate", "scripts", "delegate.py"),
-    "hooks.json": Path("plugins", "manifest-delegate", "hooks", "hooks.json"),
-    "stop_gate_hook.py": Path(
-        "plugins", "manifest-delegate", "scripts", "stop_gate_hook.py"
-    ),
-    "stop_gate_hook.sh": Path(
-        "plugins", "manifest-delegate", "scripts", "stop_gate_hook.sh"
-    ),
-}
-
-
-def _validate_receipt(receipt: dict, paths: InstallPaths) -> None:
-    source_root = receipt.get("source_root")
-    if not isinstance(source_root, str) or not Path(source_root).is_absolute():
-        raise InstallError("health installation manifest has an invalid source root")
-    executables = receipt.get("executables")
-    if not isinstance(executables, dict) or set(executables) != {
-        "python",
-        "omp",
-        "claude",
-        "coordinator",
-    }:
-        raise InstallError("health installation manifest has invalid executables")
-    if any(
-        not isinstance(value, str) or not Path(value).is_absolute()
-        for value in executables.values()
-    ):
-        raise InstallError("health installation manifest has non-absolute executables")
-    _validate_receipt_files(receipt.get("files"), paths.runtime_root)
-    for key, destination in (
-        ("omp_extension", paths.extension),
-        ("claude_wrapper", paths.wrapper),
-        ("launchd_plist", paths.plist),
-    ):
-        if not _valid_row(receipt.get(key), destination):
-            raise InstallError(f"health installation manifest has an invalid {key} row")
-    expected_hook = {
-        "command": str(paths.wrapper.resolve(strict=False)),
-        "timeout": SESSION_TIMEOUT_SECONDS,
-    }
-    if receipt.get("claude_hook") != expected_hook:
-        raise InstallError(
-            "health installation manifest has an invalid Claude hook row"
-        )
-    hashes = receipt.get("hook_hashes")
-    if (
-        not isinstance(hashes, dict)
-        or set(hashes) != set(HOOK_HASH_SOURCES)
-        or any(not _is_digest(value) for value in hashes.values())
-    ):
-        raise InstallError("health installation manifest has invalid hook hashes")
-
-
-def _validate_receipt_files(files: object, runtime_root: Path) -> None:
-    if not isinstance(files, dict):
-        raise InstallError(
-            "health installation manifest has an invalid runtime inventory"
-        )
-    valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (
-        set(RUNTIME_SOURCES) | RETIRED_RUNTIME_SOURCES
-    )
-    if not valid_keys:
-        raise InstallError(
-            "health installation manifest has an invalid runtime inventory"
-        )
-    for name in RUNTIME_SOURCES:
-        if not _valid_row(files.get(name), runtime_root / name):
-            raise InstallError(
-                "health installation manifest has an invalid runtime row"
-            )
-    for name in RETIRED_RUNTIME_SOURCES:
-        if name in files:
-            dest = runtime_root / name
-            if _path_present(dest) and not _valid_row(files.get(name), dest):
-                raise InstallError(
-                    f"health installation manifest has an invalid runtime row for {name}"
-                )
 
 
 def _source_payloads(
@@ -276,14 +102,11 @@ def _source_payloads(
     return runtime, extension, wrapper
 
 
-def _hook_hashes(source_root: Path) -> dict[str, str]:
-    return {
-        name: _digest(_read_regular(source_root / relative, f"hook source {name}"))
-        for name, relative in HOOK_HASH_SOURCES.items()
-    }
-
-
-def _preflight_destinations(receipt: dict | None, paths: InstallPaths) -> None:
+def _preflight_destinations(
+    receipt: dict | None,
+    paths: InstallPaths,
+    scheduler_kind: str = "launchd",
+) -> None:
     files = receipt.get("files", {}) if receipt else {}
     for name in RUNTIME_SOURCES:
         _assert_destination_owned(
@@ -308,10 +131,11 @@ def _preflight_destinations(receipt: dict | None, paths: InstallPaths) -> None:
         receipt.get("claude_wrapper") if receipt else None,
         "Claude wrapper",
     )
-    _assert_plist_owned(
-        paths.plist,
-        receipt.get("launchd_plist") if receipt else None,
-    )
+    if scheduler_kind == "launchd":
+        _assert_plist_owned(
+            paths.plist,
+            receipt.get("launchd_plist") if receipt else None,
+        )
 
 
 def install_omp_extension(source_root: Path, agent_root: Path, ownership: dict) -> None:
@@ -328,18 +152,20 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
 
     runtime, extension_payload, wrapper_payload = _source_payloads(source_root)
     executables = _executables()
+    scheduler = _resolve_scheduler(paths, environment, executables["python"])
     settings_target, settings = _read_settings(paths.settings)
     hook_command = str(paths.wrapper.resolve(strict=False))
     updated_settings = _rewrite_health_hook(settings, hook_command, install=True)
 
-    _preflight_destinations(receipt, paths)
+    _preflight_destinations(receipt, paths, scheduler.kind)
     managed_names = set(RUNTIME_SOURCES)
     if receipt and isinstance(receipt.get("files"), dict):
         managed_names.update(
             name for name in receipt["files"] if name in RETIRED_RUNTIME_SOURCES
         )
     snapshots = [
-        _snapshot(path) for path in _managed_paths(paths, sorted(managed_names))
+        _snapshot(path)
+        for path in _managed_paths(paths, sorted(managed_names), scheduler.kind)
     ]
     snapshots.extend((_snapshot(settings_target), _snapshot(paths.receipt)))
     return _InstallPlan(
@@ -351,15 +177,13 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
         extension_payload=extension_payload,
         wrapper_source=source_root / CLAUDE_WRAPPER_SOURCE,
         wrapper_payload=wrapper_payload,
-        plist_payload=_plist_payload(paths, executables["python"], environment),
+        scheduler=scheduler,
         executables=executables,
         hook_hashes=_hook_hashes(source_root),
-        launchctl=_resolve_executable("launchctl"),
-        plutil=_resolve_executable("plutil"),
         settings_target=settings_target,
         updated_settings=updated_settings,
         snapshots=snapshots,
-        job_was_replaced=_path_present(paths.plist),
+        job_was_replaced=receipt is not None,
     )
 
 
@@ -375,9 +199,7 @@ def _retired_runtime_names(receipt: dict) -> list[str]:
     files = receipt.get("files")
     if not isinstance(files, dict):
         return []
-    return sorted(
-        name for name in files if name in RETIRED_RUNTIME_SOURCES
-    )
+    return sorted(name for name in files if name in RETIRED_RUNTIME_SOURCES)
 
 
 def _uninstall(environment: Mapping[str, str]) -> None:
@@ -387,25 +209,25 @@ def _uninstall(environment: Mapping[str, str]) -> None:
     retired_names = _retired_runtime_names(receipt) if receipt else []
     if receipt is None:
         _assert_no_unowned_install(
-            paths, settings, [*RUNTIME_SOURCES, *RETIRED_RUNTIME_SOURCES]
+            paths,
+            settings,
+            [*RUNTIME_SOURCES, *RETIRED_RUNTIME_SOURCES],
+            _scheduler_kind(sys.platform),
         )
         return
     _validate_receipt(receipt, paths)
-    _preflight_destinations(receipt, paths)
+    recorded_kind = _receipt_scheduler_kind(receipt)
+    _preflight_destinations(receipt, paths, recorded_kind)
     hook_command = str(paths.wrapper.resolve(strict=False))
     updated_settings = _rewrite_health_hook(settings, hook_command, install=False)
 
-    managed = _managed_paths(paths, [*RUNTIME_SOURCES, *retired_names])
+    managed = _managed_paths(paths, [*RUNTIME_SOURCES, *retired_names], recorded_kind)
     snapshots = [_snapshot(path) for path in managed]
     snapshots.extend((_snapshot(settings_target), _snapshot(paths.receipt)))
-    launchctl = _resolve_executable("launchctl")
-    domain = f"gui/{os.getuid()}"
-    service = f"{domain}/{LAUNCHD_LABEL}"
-    had_plist = _path_present(paths.plist)
+    recorded = _recorded_scheduler(receipt, environment)
 
     try:
-        if had_plist:
-            _run_best_effort([launchctl, "bootout", service], environment)
+        _stop_scheduler_job(recorded, environment)
         if updated_settings != settings:
             _atomic_write(settings_target, _json_bytes(updated_settings), 0o600)
         for path in managed:
@@ -417,10 +239,12 @@ def _uninstall(environment: Mapping[str, str]) -> None:
         try:
             _restore_snapshots(snapshots)
         finally:
-            if had_plist and _path_present(paths.plist):
-                _run_best_effort(
-                    [launchctl, "bootstrap", domain, str(paths.plist)], environment
-                )
+            _scheduler_reactivate(
+                recorded,
+                paths,
+                str(Path(sys.executable).resolve(strict=False)),
+                environment,
+            )
         raise
 
     _remove_empty_directory(paths.runtime_root)

@@ -41,6 +41,8 @@ def _copy_health_source(repo_root: Path, destination: Path) -> Path:
         "plugins/manifest-workspace/skills/env-check/scripts/health_install_files.py",
         "plugins/manifest-workspace/skills/env-check/scripts/health_install_reconcile.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health_expectations.py",
+        "plugins/manifest-workspace/skills/env-check/scripts/health_install_receipts.py",
+        "plugins/manifest-workspace/skills/env-check/scripts/health_install_scheduler.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health_report.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health_runtime.py",
         "plugins/manifest-workspace/skills/env-check/scripts/install_health_reporting.py",
@@ -157,6 +159,7 @@ def _assert_installation_manifest(source_root: Path, env: dict[str, str]) -> Pat
         "health_report_sanitize.py",
         "health_install_files.py",
         "health_install_reconcile.py",
+        "health_install_scheduler.py",
         "hook_smoke.py",
         "hook_smoke_support.py",
         "mcp_health.py",
@@ -235,6 +238,7 @@ def _assert_launchd_plist(env: dict[str, str], runtime_root: Path) -> None:
     assert plist["ManifestManagedBy"] == "manifest-health-reporting"
     assert plist["EnvironmentVariables"] == {
         "HOME": str(Path(env["HOME"]).resolve()),
+        "OMP_AGENT_DIR": str(Path(env["OMP_AGENT_DIR"]).resolve()),
         "PATH": env["PATH"],
         "XDG_CONFIG_HOME": str(Path(env["XDG_CONFIG_HOME"]).resolve()),
         "XDG_DATA_HOME": str(Path(env["XDG_DATA_HOME"]).resolve()),
