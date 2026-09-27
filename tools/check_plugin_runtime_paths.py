@@ -4,8 +4,9 @@
 The coordinator may use bootstrap-era paths while migrating a home.  A released
 bundle may not: this gate intentionally starts from each portable contract, then
 examines every declared runtime component and every ``SKILL.md`` instruction.
-It does not suppress whole trees; the only native-home exception is the precise
-Claude hook settings file below, which is a harness-owned registration surface.
+It excludes only top-level ``evals/`` fixture trees, which do not ship as runtime
+surfaces; the only native-home exception is the precise Claude hook settings
+file below, which is a harness-owned registration surface.
 """
 
 from __future__ import annotations
@@ -94,11 +95,8 @@ ILLUSTRATIVE_FILE_ALLOWLIST: frozenset[str] = frozenset(
     }
 )
 
-# Directories containing authored evaluation fixtures, rather than installed
-# runtime surfaces, plus generated or third-party artifacts.
-_UNSCANNED_DIRS = frozenset(
-    {"evals", "vendor", "dist", "node_modules", "__pycache__", ".git"}
-)
+# Generated or third-party artifacts inside a bundle.
+_UNSCANNED_DIRS = frozenset({"vendor", "dist", "node_modules", "__pycache__", ".git"})
 
 _TEXT_SUFFIXES = {".md", ".json", ".py", ".sh", ".mjs", ".js", ".yml", ".yaml"}
 _SHELL_BUILTINS = frozenset(
@@ -315,7 +313,10 @@ def _component_paths(
             continue
         if candidate in declared:
             continue
-        if _UNSCANNED_DIRS & set(candidate.relative_to(bundle_root).parts):
+        relative = candidate.relative_to(bundle_root)
+        # Eval fixtures describe adversarial inputs; a nested directory named
+        # evals in a shipped component remains part of the runtime surface.
+        if relative.parts[0] == "evals" or _UNSCANNED_DIRS & set(relative.parts):
             continue
         yield candidate, "undeclared", None
 

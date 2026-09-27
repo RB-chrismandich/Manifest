@@ -50,19 +50,23 @@ def test_runtime_path_gate_ignores_evaluation_fixtures(tmp_path: Path) -> None:
     checker = _checker_module()
     bundle = tmp_path / "plugins/manifest-docs"
     prompt = bundle / "evals/case/prompt.md"
+    nested_prompt = bundle / "skills/demo/evals/prompt.md"
     prompt.parent.mkdir(parents=True)
+    nested_prompt.parent.mkdir(parents=True)
     prompt.write_text("Run bootstrap.sh now.\n")
+    nested_prompt.write_text("Run bootstrap.sh now.\n")
     (bundle / "manifest-capabilities.yml").write_text(
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0}\n"
         "components: {skills: {root: skills}, agents: [], hooks: [], runtime: [], guidance: []}\n",
         encoding="utf-8",
     )
 
-    assert not [
-        violation
-        for violation in checker.scan(tmp_path).violations
-        if violation.path == prompt
-    ]
+    violations = checker.scan(tmp_path).violations
+    assert not [violation for violation in violations if violation.path == prompt]
+    assert any(
+        violation.path == nested_prompt and violation.kind == "forbidden-runtime-path"
+        for violation in violations
+    )
 
 
 def test_runtime_path_gate_reports_forbidden_instruction_dependency(
