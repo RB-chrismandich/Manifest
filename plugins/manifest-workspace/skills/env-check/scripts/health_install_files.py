@@ -67,6 +67,9 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
         environment.get("XDG_DATA_HOME") or home / ".local" / "share"
     )
     config_home = _resolved_path(environment.get("XDG_CONFIG_HOME") or home / ".config")
+    claude_root = _resolved_path(
+        environment.get("CLAUDE_CONFIG_DIR") or home / ".claude"
+    )
     runtime_root = data_home / "manifest" / "health"
     state_root = state_home / "manifest" / "health"
     agent_root = _resolved_path(
@@ -84,8 +87,8 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
         report_root=state_home / "manifest" / "reports",
         agent_root=agent_root,
         extension=agent_root / "extensions" / "manifest-health.ts",
-        wrapper=home / ".claude" / "scripts" / "mcp_health_check.sh",
-        settings=home / ".claude" / "settings.json",
+        wrapper=claude_root / "scripts" / "mcp_health_check.sh",
+        settings=claude_root / "settings.json",
         plist=home / "Library" / "LaunchAgents" / PLIST_NAME,
         receipt=state_root / "installation.json",
     )

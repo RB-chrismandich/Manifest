@@ -60,6 +60,19 @@ def test_launchd_payload_preserves_resolved_omp_root(tmp_path: Path) -> None:
     assert str((tmp_path / "custom-omp").resolve()).encode() in payload
 
 
+def test_paths_use_active_claude_config_root(tmp_path: Path) -> None:
+    environment = isolated_env(tmp_path)
+    environment["CLAUDE_CONFIG_DIR"] = str(tmp_path / "claude-profile")
+
+    paths = files._paths(environment)
+
+    assert paths.settings == (tmp_path / "claude-profile/settings.json").resolve()
+    assert (
+        paths.wrapper
+        == (tmp_path / "claude-profile/scripts/mcp_health_check.sh").resolve()
+    )
+
+
 def test_linux_scheduler_uses_systemd_user_timer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
