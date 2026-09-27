@@ -172,7 +172,7 @@ def test_uninstall_removes_hook_in_tilde_form(reconcile, tmp_path, monkeypatch):
         ]
     )
     updated = reconcile._rewrite_health_hook(settings, canonical, install=False)
-
+    assert _commands(updated) == ["/custom/session"]
 
 def test_health_installer_adopts_an_identical_bootstrap_wrapper(
     repo_root: Path, tmp_path: Path
@@ -237,4 +237,3 @@ def test_health_installer_refuses_a_divergent_unowned_wrapper(
     assert result.returncode == 1
     assert wrapper_path.read_text(encoding="utf-8") == "# operator-local wrapper\n"
     _no_installation(env)
-

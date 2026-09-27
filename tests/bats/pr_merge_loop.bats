@@ -276,4 +276,3 @@ EOF
     run "$SCRIPT" _lifecycle_gate 42
     [ "$status" -eq 1 ]
 }
-

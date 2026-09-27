@@ -34,7 +34,7 @@ pr_merge_loop_setup() {
 
     # Host seam: <op> <pr>. Fingerprint observations are complete by default and
     # can be replaced independently to model a single material transition.
-    cat > "$TMP/seam.sh" <<'EOF'
+    cat > "$TMP/seam.sh" << 'EOF'
 #!/usr/bin/env bash
 op="$1"; pr="${2:-}"
 printf '%s %s\n' "$op" "$pr" >> "${SEAM_CALL_LOG:?}"
@@ -127,7 +127,7 @@ EOF
     chmod +x "$TMP/seam.sh"
     export PR_MERGE_LOOP_GH_CMD="$TMP/seam.sh"
     export PR_MERGE_LOOP_CLOCK_CMD="$TMP/clock.sh"
-    cat > "$TMP/clock.sh" <<'EOF'
+    cat > "$TMP/clock.sh" << 'EOF'
 #!/usr/bin/env bash
 echo "2026-09-19T00:00:00Z"
 EOF
@@ -138,14 +138,14 @@ EOF
     export LOOP_LOCK_SETTLE_SEC=0.01 # this suite doesn't exercise the race window itself
     # post-merge-check seam: main CI green by default so cmd_signals reports
     # main_ci=green (a red seam is exported per-test to exercise halt).
-    cat > "$TMP/pmc-green.sh" <<'EOF'
+    cat > "$TMP/pmc-green.sh" << 'EOF'
 #!/usr/bin/env bash
 echo '["success"]'
 EOF
     chmod +x "$TMP/pmc-green.sh"
     export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc-green.sh"
     export SEAM_STATE="$TMP/labels"
-    cat > "$TMP/lockseam.sh" <<'EOF'
+    cat > "$TMP/lockseam.sh" << 'EOF'
 #!/usr/bin/env bash
 d="${SEAM_STATE:?}"; op="$1"; pr="$2"; owner="${3:-}"
 pd="$d/$pr"; mkdir -p "$pd"
@@ -163,9 +163,10 @@ case "$op" in
   remove) [ -n "$owner" ] && rm -f "$pd/$owner"; exit 0 ;;
 esac
 EOF
-    chmod +x "$TMP/lockseam.sh"; export LOOP_LOCK_LABEL_CMD="$TMP/lockseam.sh"
+    chmod +x "$TMP/lockseam.sh"
+    export LOOP_LOCK_LABEL_CMD="$TMP/lockseam.sh"
 
-    cat > "$TMP/lockseam_degraded.sh" <<'EOF'
+    cat > "$TMP/lockseam_degraded.sh" << 'EOF'
 #!/usr/bin/env bash
 case "$1" in
   has) exit 1 ;;
@@ -177,7 +178,7 @@ EOF
 
     # Verification-gate seam. It can fail or change the observed head during
     # dispatch, which exercises the post-dispatch external-transition guard.
-    cat > "$TMP/gateseam.sh" <<'EOF'
+    cat > "$TMP/gateseam.sh" << 'EOF'
 #!/usr/bin/env bash
 printf 'gate\n' >> "${SEAM_GATE_LOG:?}"
 if [[ -n "${SEAM_GATE_NEW_HEAD:-}" ]]; then
@@ -187,14 +188,15 @@ fi
 _d='{"tier1":{"passed":true},"tier2":{"concerns":[]},"verdict":"APPROVED"}'
 echo "${SEAM_GATE:-$_d}"
 EOF
-    chmod +x "$TMP/gateseam.sh"; export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
+    chmod +x "$TMP/gateseam.sh"
+    export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
 }
 
 pr_merge_loop_teardown() { [[ -n "${TMP:-}" && -d "$TMP" ]] && rm -rf "$TMP"; }
 field() { python3 -c "import json,sys;print(json.load(sys.stdin)[\"$1\"])"; }
 action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
 call_count() {
-    python3 - "$1" "$SEAM_CALL_LOG" <<'PY'
+    python3 - "$1" "$SEAM_CALL_LOG" << 'PY'
 import sys
 
 op, path = sys.argv[1:3]
@@ -204,7 +206,7 @@ PY
 }
 
 gate_count() {
-    python3 - "$SEAM_GATE_LOG" <<'PY'
+    python3 - "$SEAM_GATE_LOG" << 'PY'
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
@@ -217,7 +219,7 @@ PY
 # fails closed on gitlab (no fp-scope), so the gitlab monitor tests read the
 # file cmd_run_monitor maintains directly.
 gitlab_scope_count_path() {
-    python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" << 'PY'
 import hashlib
 import os
 import sys
@@ -228,7 +230,7 @@ PY
 }
 
 fingerprint_state() {
-    python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" << 'PY'
 import glob
 import os
 import sys
@@ -240,7 +242,7 @@ PY
 }
 
 make_race_lock_seam() {
-    cat > "$TMP/race-lockseam.sh" <<'EOF'
+    cat > "$TMP/race-lockseam.sh" << 'EOF'
 #!/usr/bin/env bash
 d="${SEAM_STATE:?}"; op="$1"; pr="$2"; owner="${3:-}"; pd="$d/$pr"; mkdir -p "$pd"
 case "$op" in
@@ -258,4 +260,3 @@ esac
 EOF
     chmod +x "$TMP/race-lockseam.sh"
 }
-
