@@ -103,6 +103,14 @@ RUNTIME_SOURCES = {
         "scripts",
         "health_install_scheduler.py",
     ),
+    "health_install_scheduler_systemd.py": Path(
+        "plugins",
+        "manifest-workspace",
+        "skills",
+        "env-check",
+        "scripts",
+        "health_install_scheduler_systemd.py",
+    ),
     "mcp_health_expectations.py": Path(
         "plugins",
         "manifest-workspace",

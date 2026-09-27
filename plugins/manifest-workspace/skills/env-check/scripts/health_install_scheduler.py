@@ -488,24 +488,10 @@ def _activate_scheduler_job(
                 "launchd kickstart",
             )
         elif scheduler.kind == "systemd":
-            _run_required(
-                [scheduler.systemctl, "--user", "daemon-reload"],
-                environment,
-                "systemd daemon reload",
-            )
-            scheduler_started = True
-            _run_required(
-                [
-                    scheduler.systemctl,
-                    "--user",
-                    "enable",
-                    "--now",
-                    f"{scheduler.unit}.timer",
-                ],
-                environment,
-                "systemd timer enable",
-                timeout=30.0,
-            )
+            # Deferred import: the sibling imports this module for its helpers.
+            import health_install_scheduler_systemd as systemd_activation
+
+            systemd_activation._activate_persistent_systemd(scheduler, environment)
     except BaseException:
         if scheduler_started:
             with suppress(OSError, subprocess.SubprocessError, InstallError):

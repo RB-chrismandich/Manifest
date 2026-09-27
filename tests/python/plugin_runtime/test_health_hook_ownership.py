@@ -1,17 +1,38 @@
-"""Focused tests for canonical health-hook matching in the installer reconcile path."""
+"""Focused tests for canonical health-hook matching and wrapper ownership."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
+from pathlib import Path
 
 import pytest
 
 from tests.python.plugin_runtime.health_test_helpers import (
+    isolated_env,
     load_runtime_module,
-    repo_root,
+    run_script,
+)
+from tests.python.plugin_runtime.health_test_helpers import (
+    repo_root as _repo_root,
+)
+from tests.python.plugin_runtime.test_health_installer import (
+    _copy_health_source,
+    _install,
+    _installer,
+    _no_installation,
+    _seed_claude_settings,
+    _session_start_commands,
+    _write_health_tool_fakes,
 )
 
-_SCRIPTS = repo_root() / "plugins/manifest-workspace/skills/env-check/scripts"
+_SCRIPTS = _repo_root() / "plugins/manifest-workspace/skills/env-check/scripts"
+
+
+@pytest.fixture
+def repo_root() -> Path:
+    return _repo_root()
 
 
 @pytest.fixture(scope="module")
@@ -151,4 +172,69 @@ def test_uninstall_removes_hook_in_tilde_form(reconcile, tmp_path, monkeypatch):
         ]
     )
     updated = reconcile._rewrite_health_hook(settings, canonical, install=False)
-    assert _commands(updated) == ["/custom/session"]
+
+
+def test_health_installer_adopts_an_identical_bootstrap_wrapper(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """A routine bootstrap redeploy leaves an identical wrapper the installer
+    must adopt, not reject — plus the legacy hook bootstrap registered."""
+    source_root = _copy_health_source(repo_root, tmp_path / "source")
+    env = isolated_env(tmp_path)
+    _write_health_tool_fakes(tmp_path, env)
+    settings_path = _seed_claude_settings(env)
+    wrapper_path = Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh"
+    wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+    wrapper_path.write_bytes(
+        (source_root / "configs/claude/scripts/mcp_health_check.sh").read_bytes()
+    )
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["hooks"]["SessionStart"][0]["hooks"].append(
+        {
+            "type": "command",
+            "command": "~/.claude/scripts/mcp_health_check.sh",
+            "timeout": 30,
+        }
+    )
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+
+    _install(source_root, env, tmp_path)
+
+    receipt_path = Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert (
+        receipt["claude_wrapper"]["destination_sha256"]
+        == hashlib.sha256(wrapper_path.read_bytes()).hexdigest()
+    )
+    commands = _session_start_commands(
+        json.loads(settings_path.read_text(encoding="utf-8"))
+    )
+    assert commands.count(str(wrapper_path)) == 1
+    assert commands.count("/custom/session") == 1
+    assert "~/.claude/scripts/mcp_health_check.sh" not in commands
+
+
+def test_health_installer_refuses_a_divergent_unowned_wrapper(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """Only identical content is adopted; a divergent wrapper still refuses."""
+    source_root = _copy_health_source(repo_root, tmp_path / "source")
+    env = isolated_env(tmp_path)
+    _write_health_tool_fakes(tmp_path, env)
+    wrapper_path = Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh"
+    wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+    wrapper_path.write_text("# operator-local wrapper\n", encoding="utf-8")
+
+    result = run_script(
+        _installer(source_root),
+        "--source-root",
+        str(source_root),
+        "--install",
+        env=env,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 1
+    assert wrapper_path.read_text(encoding="utf-8") == "# operator-local wrapper\n"
+    _no_installation(env)
+

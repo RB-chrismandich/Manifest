@@ -90,11 +90,24 @@ source "${SCRIPT_DIR}/lib/pr_merge_loop_gh.sh"
 
 # --- observation & transition-state layer: split out of this file into
 # lib/pr_merge_loop_fp.sh (C-SIZE/CON-002 — see that file's header for the
-# seam rationale). Provides cmd_signals, cmd_list_managed, cmd_empty_run,
-# cmd_address_cycle, cmd_set_disposition, cmd_post_merge_check, _jget, and the
+# seam rationale). Provides cmd_signals, cmd_list_managed, cmd_address_cycle,
+# cmd_set_disposition, cmd_post_merge_check, _jget, and the
 # collect_fingerprint_material / fingerprint_state_* machinery.
 # shellcheck source=lib/pr_merge_loop_fp.sh disable=SC1091
 source "${SCRIPT_DIR}/lib/pr_merge_loop_fp.sh"
+
+# --- repository-scoped empty-run counter: split out of this file into
+# lib/pr_merge_loop_empty_run.sh (C-SIZE/CON-002 — see that file's header for
+# the seam rationale). Provides EMPTY_RUN_PY, cmd_empty_run, and
+# _monitor_empty_run.
+# shellcheck source=lib/pr_merge_loop_empty_run.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_empty_run.sh"
+
+# --- degraded provider monitor loop: split out of this file into
+# lib/pr_merge_loop_monitor.sh (C-SIZE/CON-002 — see that file's header for
+# the seam rationale). Provides cmd_run_monitor.
+# shellcheck source=lib/pr_merge_loop_monitor.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_monitor.sh"
 
 # --- merge path (T019) + dispatch (T021) ---
 APPLY="${PR_MERGE_LOOP_APPLY:-0}"
@@ -413,62 +426,6 @@ for item in items:
         raise ValueError("managed PR number")
     numbers.append(str(number))
 print(" ".join(numbers))' 2> /dev/null
-}
-
-# cmd_run_monitor — the bounded loop for providers where material
-# fingerprinting is unsupported (gitlab today: fp-scope/fp-view/fp-checks/
-# fp-threads all refuse via gh_op). Auto-merge is hard-gated bundle-wide and
-# per-PR tick handling is impossible without fingerprints, so this loop keeps
-# only the OBSERVATION half of the contract: poll the managed queue under the
-# same ceiling + 5-empty stop. A non-empty queue is pending work (the
-# in-flight analogue — never counted as empty); an empty queue increments the
-# consecutive-empty counter exactly like the full path.
-#
-# The counter itself stays per-repository and flock-serialized (EMPTY_RUN_PY),
-# but scope cannot come from gh_op fp-scope here — that op is exactly what the
-# provider refuses. _repository_scope_json derives the identical {host,
-# owner_repo} scope from the origin remote URL, so the monitor and the full
-# path share the same empty_count_<scope_hash> file for a repo.
-_monitor_empty_run() {
-    local scope
-    mkdir -p "$STATE_DIR" 2> /dev/null || true
-    scope="$(_repository_scope_json)" || {
-        err "monitor: cannot resolve repository scope — fail closed"
-        return 13
-    }
-    python3 -c "${EMPTY_RUN_PY}" "$STATE_DIR" "$scope" "$1" || {
-        err "monitor: counter update failed"
-        return 13
-    }
-}
-
-cmd_run_monitor() {
-    local ceiling="$1" poll="$2"
-    local deadline now managed_json managed n
-    deadline="$(($(_now) + ceiling))"
-    while :; do
-        now="$(_now)"
-        ((now < deadline)) || break
-        managed_json="$(cmd_list_managed)" || return $?
-        managed="$(_managed_numbers "$managed_json")" || {
-            err "managed-PR observation was malformed"
-            return 13
-        }
-        if [[ -n "$managed" ]]; then
-            err "monitor: managed queue pending (${managed}) — auto-merge unsupported on this provider; human action required"
-            _monitor_empty_run reset > /dev/null || return $?
-        else
-            n="$(_monitor_empty_run incr)" || return $?
-            if ((n >= 5)); then
-                err "5 consecutive empty passes — stopping"
-                break
-            fi
-        fi
-        now="$(_now)"
-        ((now < deadline)) || break
-        [[ "$poll" -gt 0 ]] && sleep "$poll"
-    done
-    return 0
 }
 
 cmd_run() {
