@@ -51,7 +51,6 @@ configs/                             # Deployment source configs (deployed to ~/
 
 .claude/                             # Repo-specific config only (does NOT override active sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
-├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
 .claude-plugin/marketplace.json      # this repo IS the "manifest" plugin marketplace
@@ -225,13 +224,3 @@ tools. It is not an interactive sub-agent dispatcher.
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
 - [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) - Per-language coding standards and enforcement layers
 - [docs/MODEL-POLICY.md](docs/MODEL-POLICY.md) - Which model runs a session/sub-agent/turn, measured
-
-<!-- SPECKIT START -->
-## Active Spec Kit Feature
-
-- **`675-multi-agent-delegation`** — Implementation in progress via CDDL;
-  `plugins/manifest-delegate` bundle landed, remaining: verification gates.
-  [plan.md](specs/675-multi-agent-delegation/plan.md) (+ research, data-model,
-  contracts/, quickstart).
-- `674-plugin-architecture` — complete ([record](specs/674-plugin-architecture/cutover-plan.md)).
-<!-- SPECKIT END -->

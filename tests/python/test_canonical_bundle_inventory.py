@@ -1,6 +1,6 @@
 """Every hardcoded domain-bundle inventory must match the canonical set.
 
-Spec: `docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`
+Spec: `docs/design/specs/2026-08-19-marketplace-restructure-design.md`
 section 9a -- "Add a CI assertion that every hardcoded inventory and workflow
 trigger matches the canonical domain set, so this list cannot drift again."
 

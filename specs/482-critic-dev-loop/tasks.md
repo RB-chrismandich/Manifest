@@ -113,23 +113,23 @@ gate passes, and persists the operator's answers into the run context used by la
 
 ---
 
-## Phase 5: User Story 3 - Same loop over a superpowers doc pair (Priority: P3)
+## Phase 5: User Story 3 - Same loop over a design-doc doc pair (Priority: P3)
 
-**Goal**: The same command resolves a superpowers design doc + paired plan and behaves
+**Goal**: The same command resolves a design-doc design doc + paired plan and behaves
 identically, never demanding a tasks artifact.
 
-**Independent Test**: Run the loop against a fixture superpowers design doc with a paired
+**Independent Test**: Run the loop against a fixture design-doc design doc with a paired
 plan. Verify the run resolves both artifacts, completes the same phases, and never reports
 a missing tasks artifact.
 
 ### Tests for User Story 3 (write first, must fail)
 
-- [X] T029 [US3] Extend `tests/python/cddl/test_context.py` with superpowers-layout tests: paired design/plan resolution via discovery precedence, embedded tasks never reported missing (FR-002), resolved layout recorded in the run log (spec edge case), neither-layout target → pre-flight refusal naming both supported layouts with zero model calls and zero state mutation (US3 scenario 3)
+- [X] T029 [US3] Extend `tests/python/cddl/test_context.py` with design-doc-layout tests: paired design/plan resolution via discovery precedence, embedded tasks never reported missing (FR-002), resolved layout recorded in the run log (spec edge case), neither-layout target → pre-flight refusal naming both supported layouts with zero model calls and zero state mutation (US3 scenario 3)
 
 ### Implementation for User Story 3
 
-- [X] T030 [US3] Complete superpowers handling in `configs/claude/scripts/cddl/context.py`: layout-type propagation from the discovery seam, unresolvable-target actionable refusal (exit 6), resolved-layout entry in the run record
-- [X] T031 [US3] Extend `tests/bats/cddl_loop.bats` with a superpowers fixture discovery case and an unresolvable-target refusal case
+- [X] T030 [US3] Complete design-doc handling in `configs/claude/scripts/cddl/context.py`: layout-type propagation from the discovery seam, unresolvable-target actionable refusal (exit 6), resolved-layout entry in the run record
+- [X] T031 [US3] Extend `tests/bats/cddl_loop.bats` with a design-doc fixture discovery case and an unresolvable-target refusal case
 
 **Checkpoint**: Both supported layouts run identically through the same entry point.
 
@@ -232,7 +232,7 @@ Task: "T018 candidate.py"  Task: "T019 gitops.py"  Task: "T020 verify.py"
 
 1. US1 (MVP: adversarially reviewed implementation) → validate.
 2. US2 (clarification gate — the interactive touchpoint) → validate.
-3. US3 (superpowers parity) and US4 (diagnosability) in either order or parallel.
+3. US3 (design-doc parity) and US4 (diagnosability) in either order or parallel.
 4. Polish: skill + registration + smoke + deployment-safety + gates — the feature ships only after T039/T040/T041 (constitution Verify gate + SC-008 + SC-007).
 
 ---

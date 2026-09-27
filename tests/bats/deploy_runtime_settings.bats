@@ -145,6 +145,38 @@ print('legacy-removed-unrelated-preserved')" "$target"
     assert_output "legacy-removed-unrelated-preserved"
 }
 
+@test "preserves block_silent_replace Stop hook without duplicating Stop" {
+    materialize_existing_home "$SANDBOX/settings.json"
+    merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+
+    run python3 - "$SANDBOX/settings.json" "$SRC" <<'PY'
+import json
+import sys
+
+merged = json.load(open(sys.argv[1]))
+source = json.load(open(sys.argv[2]))
+assert "Stop" not in source.get("hooks", {}), source.get("hooks", {})
+stop_entries = merged["hooks"].get("Stop", [])
+commands = [
+    hook.get("command")
+    for entry in stop_entries
+    for hook in entry.get("hooks", [])
+]
+expected = [
+    command
+    for command in commands
+    if isinstance(command, str) and command.endswith("/.claude/scripts/block_silent_replace.py")
+]
+assert len(stop_entries) == 1, stop_entries
+assert len(commands) == 1, commands
+assert len(expected) == 1, commands
+print("custom-stop-preserved-once")
+PY
+    assert_success
+    assert_output "custom-stop-preserved-once"
+}
+
 @test "is idempotent: a second run does not duplicate the entry" {
     merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"

@@ -139,13 +139,13 @@ import json, sys
 try:
     d = json.load(sys.stdin)
     required = {"tier1", "tier2", "verdict"}
-    allowed = required | {"reviewer_error"}
+    allowed = required | {"reviewer_error", "consensus_score"}
     valid = (
         isinstance(d, dict)
         and required <= set(d)
         and set(d) <= allowed
         and isinstance(d["tier1"], dict) and set(d["tier1"]) == {"passed"}
-        and d["tier1"]["passed"] is True
+        and isinstance(d["tier1"]["passed"], bool)
         and isinstance(d["tier2"], dict) and set(d["tier2"]) == {"concerns"}
         and isinstance(d["tier2"]["concerns"], list)
         and isinstance(d["verdict"], str)

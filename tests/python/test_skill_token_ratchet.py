@@ -1,6 +1,6 @@
 """No `[[skill:]]` token may reach a packaged file. The convention is retired.
 
-Spec: `docs/superpowers/specs/2026-08-19-marketplace-restructure-design.md`
+Spec: `docs/design/specs/2026-08-19-marketplace-restructure-design.md`
 §4 1.4 "Token gates", check 2 -- the packaged-artifact check, which asserts
 **zero** `[[skill:` sequences in every packaged file and records a baseline of
 106 occurrences across 45 files to drive to zero.

@@ -108,3 +108,19 @@ def test_bash_turn_with_clean_tree_still_allows(tmp_path, monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert '"decision": "block"' not in json.dumps(out)
     assert out.get("reason") == "no code edits" or "no code edits" in json.dumps(out)
+
+
+def test_bash_turn_blocks_when_working_tree_cannot_be_observed(
+    tmp_path, monkeypatch, capsys
+):
+    _gate_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        delegate.gate, "_working_tree_has_changes", lambda cwd=None: None
+    )
+
+    rc = _run_gate(_bash_transcript(tmp_path))
+
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["decision"] == "block"
+    assert "working_tree_unavailable" in out["reason"]

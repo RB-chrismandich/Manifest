@@ -41,15 +41,15 @@ teardown() {
     assert_output --partial "tasks	$SANDBOX/specs/001-feature/tasks.md"
 }
 
-@test "discover_artifacts finds superpowers design+plan (tasks embedded in plan)" {
-    mkdir -p "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
-    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+@test "discover_artifacts finds design-doc design+plan (tasks embedded in plan)" {
+    mkdir -p "$SANDBOX/docs/design/specs" "$SANDBOX/docs/design/plans"
+    : > "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     source "$SCRIPT"
     run discover_artifacts "$SANDBOX"
     assert_success
-    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    assert_output --partial "spec	$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     refute_output --partial "tasks	"
 }
 
@@ -59,20 +59,20 @@ teardown() {
     assert_output ""
 }
 
-@test "discover_artifacts pairs a superpowers design-doc FILE within its own tree" {
+@test "discover_artifacts pairs a design-doc FILE within its own tree" {
     # Mixed-layout repo: the co-existing speckit layout must NOT hijack the
     # explicit design doc's plan (feature 482 US3 / FR-001).
     mkdir -p "$SANDBOX/specs/001-feature" \
-        "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
+        "$SANDBOX/docs/design/specs" "$SANDBOX/docs/design/plans"
     : > "$SANDBOX/specs/001-feature/spec.md"
     : > "$SANDBOX/specs/001-feature/plan.md"
-    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    : > "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     source "$SCRIPT"
-    run discover_artifacts "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    run discover_artifacts "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
     assert_success
-    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    assert_output --partial "spec	$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     refute_output --partial "001-feature"
 }
 

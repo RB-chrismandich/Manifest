@@ -810,7 +810,9 @@ tests:
               exit 0
             fi
             sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
-            mkdir -p "$sb/repo"
+            mkdir -p "$sb/repo" "$sb/.claude"
+            ln -s "$HOME/.claude/.venv" "$sb/.claude/.venv"
+            ln -s "$HOME/.claude/scripts" "$sb/.claude/scripts"
             transcript="$sb/transcript.jsonl"
             printf '%s\n' \
               '{"role":"user","content":"fix the bug"}' \

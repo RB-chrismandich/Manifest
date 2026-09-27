@@ -95,11 +95,8 @@ repos:
         # touched them — and then failed on pre-existing upstream style
         # debt unrelated to the PR. Excluding them trades that coverage
         # for non-blocking edits to vendored content:
-        #   - specs/, docs/superpowers/ — spec-kit / brainstorming planning
+        #   - specs/, docs/design/ — spec-kit / brainstorming planning
         #     artifacts (long task lines, generated tables, embedded code).
-        #   - .specify/ — upstream spec-kit scaffold (templates, extensions).
-        #   - .claude/skills/speckit-* — vendored speckit skill docs mirrored
-        #     from spec-kit, not authored to this repo's markdown style.
         #   - .jules/ — Jules agent persona scaffold, same class as .Jules/.
         #   - node_modules/ — third-party deps (also globally excluded below;
         #     listed here too so this hook's scope is self-documenting).
@@ -120,7 +117,9 @@ repos:
         #     the canonical SKILL.md by tools/sync_i_have_adhd.py. --fix must
         #     not rewrite generated output; the generator's --check mode
         #     catches drift. The authored SKILL.md remains linted.
-        exclude: ^(\.Jules/|\.jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|\.specify/|\.claude/skills/speckit-[^/]+/|node_modules/|\.apm/skills/|plugins/stitch-design/|plugins/manifest-i-have-adhd/(guidance/|devin/))
+        # This keeps the changed-files CI gate (pre-commit run --files ...) from
+        # failing on generated files while preserving canonical skill coverage.
+        exclude: ^(\.Jules/|\.jules/|specs/|docs/design/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|node_modules/|\.apm/skills/|plugins/stitch-design/|plugins/manifest-i-have-adhd/(guidance/|devin/))
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
@@ -238,7 +237,7 @@ repos:
         language: system
         types: [shell]
         # identify tags .bats as shell; exclude them like the other shell hooks.
-        exclude: (^\.specify/|\.bats$)
+        exclude: \.bats$
 
       # Check for hardcoded credentials
       - id: check-credentials
@@ -310,17 +309,18 @@ repos:
           exit $found' --
         language: system
         types: [markdown]
-        # docs/superpowers/{plans,specs}/ are design docs that legitimately quote
+        # docs/design/{plans,specs}/ are design docs that legitimately quote
         # paths (plans embed bats fixtures writing a fake $FHOME/.claude/... path;
         # specs document stale paths being fixed) — excluded like tests/.
-        # specs/ (speckit layout) is the same category as docs/superpowers/specs/
+        # specs/ (speckit layout) is the same category as docs/design/specs/
         # and was missed when it was added: spec artifacts quote deployed paths
         # verbatim as evidence. Feature 522's decision-record.md embeds raw `apm
         # install` transcripts and apm.lock.yaml excerpts whose .claude/skills/…
         # paths live inside a throwaway isolated HOME, not this repo. Rewording
         # them to satisfy the grep would falsify recorded tool output, which is
-        # the one thing a decision record must not do.
-        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|specs/|docs/superpowers/plans/|docs/superpowers/specs/|docs/templates/)
+        # the one thing a decision record must not do. docs/decisions/ is the
+        # same class: records that name the paths they removed.
+        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|specs/|docs/design/plans/|docs/design/specs/|docs/templates/|docs/decisions/)
 
       # Rust format + lint — DORMANT/guarded (feature 366): only runs when .rs
       # files are staged AND a Cargo.toml exists. Avoids the unmaintained

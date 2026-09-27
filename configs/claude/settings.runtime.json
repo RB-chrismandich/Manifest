@@ -84,6 +84,15 @@
             "command": "~/.claude/scripts/deploy_stamp_check.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/mcp_health_check.sh",
+            "timeout": 30
+          }
+        ]
       }
     ]
   },
