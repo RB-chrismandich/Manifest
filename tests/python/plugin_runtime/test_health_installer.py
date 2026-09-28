@@ -343,7 +343,7 @@ def test_health_installer_is_owned_idempotent_updatable_and_uninstallable(
         assert any("plutil -lint " in line for line in log_lines)
         assert sum("kickstart -k gui/" in line for line in log_lines) == 3
     else:
-        assert sum("systemd-run --user" in line for line in log_lines) == 3
+        assert sum("systemctl --user enable --now" in line for line in log_lines) == 3
 
 
 def test_health_installer_refuses_unowned_or_edited_destinations(
