@@ -344,3 +344,11 @@ gh_op fp-checks 5
 ' _ "$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin" "$TMP/fragment-state"
     [ "$status" -ne 0 ]
 }
+
+@test "list-managed fails instead of treating malformed provider output as empty" {
+    export SEAM_LIST='not-json'
+
+    run "$SCRIPT" list-managed
+
+    [ "$status" -ne 0 ]
+}

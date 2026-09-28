@@ -93,12 +93,9 @@ cmd_signals() {
 # exclusively via stdin and parsed with `json.load`, never interpolated into source.
 LIST_MANAGED_PY='
 import json, sys
-try:
-    prs = json.load(sys.stdin)
-    if not isinstance(prs, list):
-        raise ValueError("prs not a list")
-except Exception:
-    prs = []
+prs = json.load(sys.stdin)
+if not isinstance(prs, list):
+    raise ValueError("prs not a list")
 try:
     cfg = json.load(open(sys.argv[1])) or {}
 except Exception:
