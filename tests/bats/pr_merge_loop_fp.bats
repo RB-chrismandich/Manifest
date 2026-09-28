@@ -346,9 +346,9 @@ gh_op fp-checks 5
 }
 
 @test "list-managed fails instead of treating malformed provider output as empty" {
-    export SEAM_LIST='not-json'
-
-    run "$SCRIPT" list-managed
-
-    [ "$status" -ne 0 ]
+    for SEAM_LIST in 'not-json' '{}'; do
+        export SEAM_LIST
+        run "$SCRIPT" list-managed
+        [ "$status" -ne 0 ]
+    done
 }
