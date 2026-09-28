@@ -105,6 +105,8 @@ def _health_receipt_command() -> str | None:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+    if not isinstance(receipt, dict):
+        return None
     hook = receipt.get("claude_hook")
     command = hook.get("command") if isinstance(hook, dict) else None
     return command if isinstance(command, str) else None

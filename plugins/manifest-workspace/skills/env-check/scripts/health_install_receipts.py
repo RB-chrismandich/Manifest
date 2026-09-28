@@ -26,9 +26,12 @@ from health_install_files import (
 )
 from health_install_scheduler import SYSTEMD_UNIT_NAME
 
-# `health_install_scheduler.py` was split out of `health_install_reconcile.py`;
-# receipts recorded before the split do not carry its file row.
-_SPLIT_RUNTIME_EXEMPT = {"health_install_scheduler.py"}
+# Receipts recorded before the scheduler modules were split out do not carry
+# either split runtime-file row.
+_SPLIT_RUNTIME_EXEMPT = {
+    "health_install_scheduler.py",
+    "health_install_scheduler_systemd.py",
+}
 
 RUNTIME_SOURCES = {
     "env_check.py": Path(
@@ -266,15 +269,15 @@ def _validate_receipt_files(files: object, runtime_root: Path) -> None:
         raise InstallError(
             "health installation manifest has an invalid runtime inventory"
         )
-    valid_keys = set(files) == set(RUNTIME_SOURCES) or set(files) == (
-        set(RUNTIME_SOURCES) | RETIRED_RUNTIME_SOURCES
+    file_keys = set(files)
+    retired_keys = file_keys & RETIRED_RUNTIME_SOURCES
+    runtime_keys = file_keys - RETIRED_RUNTIME_SOURCES
+    missing_runtime_keys = set(RUNTIME_SOURCES) - runtime_keys
+    valid_keys = (
+        retired_keys in (set(), RETIRED_RUNTIME_SOURCES)
+        and runtime_keys <= set(RUNTIME_SOURCES)
+        and missing_runtime_keys <= _SPLIT_RUNTIME_EXEMPT
     )
-    if not valid_keys and _SPLIT_RUNTIME_EXEMPT.isdisjoint(files):
-        valid_keys = (
-            set(files) == set(RUNTIME_SOURCES) - _SPLIT_RUNTIME_EXEMPT
-            or set(files)
-            == (set(RUNTIME_SOURCES) - _SPLIT_RUNTIME_EXEMPT) | RETIRED_RUNTIME_SOURCES
-        )
     if not valid_keys:
         raise InstallError(
             "health installation manifest has an invalid runtime inventory"

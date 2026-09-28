@@ -80,6 +80,7 @@ def _write_health_tool_fakes(tmp_path: Path, env: dict[str, str]) -> Path:
             "#!/bin/sh\n"
             f'printf "%s\\n" "{name} $*" >> "$MANIFEST_TEST_COMMAND_LOG"\n'
             'if [ "$(basename "$0")" = systemctl ] && [ "$2" = is-active ]; then\n'
+            '  printf "%s\\n" inactive inactive\n'
             "  exit 3\n"
             "fi\n"
             "exit 0\n",
@@ -255,12 +256,7 @@ def _assert_launchd_plist(env: dict[str, str], runtime_root: Path) -> None:
     assert plist["RunAtLoad"] is False
     assert plist["ProcessType"] == "Background"
     assert plist["ManifestManagedBy"] == "manifest-health-reporting"
-    assert plist["EnvironmentVariables"] == {
-        "CLAUDE_CONFIG_DIR": str(
-            Path(
-                env.get("CLAUDE_CONFIG_DIR") or Path(env["HOME"]) / ".claude"
-            ).resolve()
-        ),
+    expected_environment = {
         "HOME": str(Path(env["HOME"]).resolve()),
         "OMP_AGENT_DIR": str(Path(env["OMP_AGENT_DIR"]).resolve()),
         "PATH": env["PATH"],
@@ -268,6 +264,11 @@ def _assert_launchd_plist(env: dict[str, str], runtime_root: Path) -> None:
         "XDG_DATA_HOME": str(Path(env["XDG_DATA_HOME"]).resolve()),
         "XDG_STATE_HOME": str(Path(env["XDG_STATE_HOME"]).resolve()),
     }
+    if env.get("CLAUDE_CONFIG_DIR"):
+        expected_environment["CLAUDE_CONFIG_DIR"] = str(
+            Path(env["CLAUDE_CONFIG_DIR"]).resolve()
+        )
+    assert plist["EnvironmentVariables"] == expected_environment
     assert stat.S_IMODE(plist_path.stat().st_mode) == 0o600
 
 

@@ -318,11 +318,10 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
             scheduler,
             prior,
             plan.paths,
-            plan.executables["python"],
             _json_bytes(_build_receipt(plan)),
             environment,
         )
-    # BaseException is deliberate: rollback must run even on KeyboardInterrupt.
+    # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
     except BaseException:
         try:
             _restore_snapshots(plan.snapshots)

@@ -119,7 +119,7 @@ print(json.dumps(out))
 
 cmd_list_managed() {
     local raw
-    raw="$(gh_op list)"
+    raw="$(gh_op list)" || return $?
     printf '%s' "$raw" | python3 -c "${LIST_MANAGED_PY}" "$AUTHORS_FILE"
 }
 

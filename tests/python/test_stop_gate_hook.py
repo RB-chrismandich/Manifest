@@ -372,7 +372,7 @@ def test_missing_jq_disabled_gate_fails_open(tmp_path):
 
 def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_path):
     """A configured gate stays fail-closed when jq is missing, but exactly one
-    block — the lexical recursion guard approves the follow-up so the session
+    block — the parsed recursion guard approves the follow-up so the session
     is never trapped, matching the interpreter_unavailable contract."""
     config_dir = tmp_path / "delegate-config"
     config_dir.mkdir()
@@ -389,6 +389,11 @@ def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_pat
     first_decision = _decision(first)
     assert first_decision["decision"] == "block"
     assert "jq_unavailable" in first_decision["reason"]
+
+    nested = _run_shell({"metadata": {"stop_hook_active": True}}, tmp_path, env)
+    nested_decision = _decision(nested)
+    assert nested_decision["decision"] == "block"
+    assert "jq_unavailable" in nested_decision["reason"]
 
     followup = _run_shell({"stop_hook_active": True}, tmp_path, env)
     assert _decision(followup) == {

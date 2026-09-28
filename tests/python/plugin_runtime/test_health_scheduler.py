@@ -120,9 +120,7 @@ def test_linux_scheduler_uses_systemd_user_timer(
     assert b"OnCalendar=" in scheduler.timer_payload
     assert b"Persistent=true" in scheduler.timer_payload
     assert b"WantedBy=timers.target" in scheduler.timer_payload
-    assert f"CLAUDE_CONFIG_DIR={paths.claude_root}".encode() in (
-        scheduler.service_payload
-    )
+    assert b"CLAUDE_CONFIG_DIR=" not in scheduler.service_payload
     assert files.SYSTEMD_UNIT_MARKER.encode() in scheduler.timer_payload
     argv = scheduler.systemd_argv(paths, sys.executable, environment)
 
@@ -272,9 +270,7 @@ def test_failed_systemd_enable_cleans_up_partially_armed_timer(
     scheduler = schedulers._resolve_scheduler(paths, environment, sys.executable)
 
     with pytest.raises(files.InstallError, match="systemd timer enable failed"):
-        schedulers._activate_scheduler_job(
-            scheduler, None, paths, sys.executable, b"{}", environment
-        )
+        schedulers._activate_scheduler_job(scheduler, None, paths, b"{}", environment)
 
     log_lines = command_log.read_text(encoding="utf-8").splitlines()
     assert any(line.startswith("systemctl --user enable --now") for line in log_lines)

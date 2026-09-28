@@ -74,16 +74,24 @@ fi
 # jq the projection is type-guarded so non-object payloads (arrays, scalars,
 # strings) can never satisfy it — on some jq builds `.<field>` on a
 # non-object coerces rather than errors, which would be a false approve.
-# Without jq a bounded lexical fallback still matches only the exact
-# `"stop_hook_active": true` boolean form.
+# Without jq, only a complete JSON object with the exact top-level boolean
+# guard can bypass review. Parsing avoids nested-field and text false approves.
 if [ -n "$JQ" ]; then
     if "$JQ" -e -s 'length == 1 and (.[0] | type == "object" and .stop_hook_active == true)' \
         "$INPUT_FILE" > /dev/null 2>&1; then
         printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
         exit 0
     fi
-elif grep -Eq '"stop_hook_active"[[:space:]]*:[[:space:]]*true([^[:alnum:]_]|$)' \
-    "$INPUT_FILE" 2> /dev/null; then
+elif python3 - "$INPUT_FILE" <<'PY' > /dev/null 2>&1
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    value = json.load(handle)
+if not isinstance(value, dict) or value.get("stop_hook_active") is not True:
+    raise SystemExit(1)
+PY
+then
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
 fi

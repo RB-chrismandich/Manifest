@@ -107,8 +107,7 @@ def _report_environment(
     paths: InstallPaths, environment: Mapping[str, str]
 ) -> dict[str, str]:
     """Environment shared by the launchd and systemd scheduled reports."""
-    return {
-        "CLAUDE_CONFIG_DIR": str(paths.claude_root),
+    report_environment = {
         "HOME": str(paths.home),
         "OMP_AGENT_DIR": str(paths.agent_root),
         "PATH": environment.get("PATH") or os.defpath,
@@ -116,6 +115,9 @@ def _report_environment(
         "XDG_DATA_HOME": str(paths.data_home),
         "XDG_STATE_HOME": str(paths.state_home),
     }
+    if environment.get("CLAUDE_CONFIG_DIR"):
+        report_environment["CLAUDE_CONFIG_DIR"] = str(paths.claude_root)
+    return report_environment
 
 
 def _report_argv(paths: InstallPaths, python: str) -> list[str]:
@@ -253,6 +255,21 @@ class _Scheduler:
         }
 
 
+def _unscheduled_scheduler(systemctl: str) -> _Scheduler:
+    """Return the receipt representation for hosts without a usable scheduler."""
+    return _Scheduler(
+        kind="none",
+        domain="",
+        service="",
+        unit="",
+        launchctl="",
+        plutil="",
+        systemd_run="",
+        systemctl=systemctl,
+        payload=b"",
+    )
+
+
 def _resolve_scheduler(
     paths: InstallPaths, environment: Mapping[str, str], python: str
 ) -> _Scheduler:
@@ -274,17 +291,7 @@ def _resolve_scheduler(
         # Linux hosts without a usable systemd user manager (containers, WSL,
         # headless sessions) install the runtime without a scheduled job rather
         # than failing midway through the transaction.
-        return _Scheduler(
-            kind="none",
-            domain="",
-            service="",
-            unit="",
-            launchctl="",
-            plutil="",
-            systemd_run="",
-            systemctl=systemctl,
-            payload=b"",
-        )
+        return _unscheduled_scheduler(systemctl)
     timer_payload, service_payload = _systemd_unit_payloads(paths, python, environment)
     return _Scheduler(
         kind=kind,
@@ -306,17 +313,7 @@ def _recorded_scheduler(receipt: dict, environment: Mapping[str, str]) -> _Sched
     """Rebuild the scheduler recorded in the receipt for stop/replacement."""
     recorded = _receipt_scheduler_kind(receipt)
     if recorded == "none":
-        return _Scheduler(
-            kind="none",
-            domain="",
-            service="",
-            unit="",
-            launchctl="",
-            plutil="",
-            systemd_run="",
-            systemctl=_find_executable("systemctl"),
-            payload=b"",
-        )
+        return _unscheduled_scheduler(_find_executable("systemctl"))
     if recorded == "launchd":
         domain = f"gui/{os.getuid()}"
         return _Scheduler(
@@ -442,7 +439,6 @@ def _activate_scheduler_job(
     scheduler: _Scheduler,
     prior: _Scheduler | None,
     paths: InstallPaths,
-    python: str,
     receipt_payload: bytes,
     environment: Mapping[str, str],
 ) -> None:
@@ -492,6 +488,7 @@ def _activate_scheduler_job(
             import health_install_scheduler_systemd as systemd_activation
 
             systemd_activation._activate_persistent_systemd(scheduler, environment)
+    # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
     except BaseException:
         if scheduler_started:
             with suppress(OSError, subprocess.SubprocessError, InstallError):

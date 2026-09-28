@@ -354,6 +354,16 @@ def _plist_payload(
     python: str,
     environment: Mapping[str, str],
 ) -> bytes:
+    report_environment = {
+        "HOME": str(paths.home),
+        "OMP_AGENT_DIR": str(paths.agent_root),
+        "PATH": environment.get("PATH") or os.defpath,
+        "XDG_CONFIG_HOME": str(paths.config_home),
+        "XDG_DATA_HOME": str(paths.data_home),
+        "XDG_STATE_HOME": str(paths.state_home),
+    }
+    if environment.get("CLAUDE_CONFIG_DIR"):
+        report_environment["CLAUDE_CONFIG_DIR"] = str(paths.claude_root)
     document = {
         "Label": LAUNCHD_LABEL,
         "ManifestManagedBy": OWNERSHIP_MARKER,
@@ -368,15 +378,7 @@ def _plist_payload(
             "--out-dir",
             str(paths.report_root.resolve(strict=False)),
         ],
-        "EnvironmentVariables": {
-            "CLAUDE_CONFIG_DIR": str(paths.claude_root),
-            "HOME": str(paths.home),
-            "OMP_AGENT_DIR": str(paths.agent_root),
-            "PATH": environment.get("PATH") or os.defpath,
-            "XDG_CONFIG_HOME": str(paths.config_home),
-            "XDG_DATA_HOME": str(paths.data_home),
-            "XDG_STATE_HOME": str(paths.state_home),
-        },
+        "EnvironmentVariables": report_environment,
         "ProcessType": "Background",
         "RunAtLoad": False,
         "StartCalendarInterval": {"Weekday": 1, "Hour": 9, "Minute": 0},
