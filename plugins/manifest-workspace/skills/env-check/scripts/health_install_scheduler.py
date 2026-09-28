@@ -351,53 +351,10 @@ def _verified_inactive(states: object) -> bool:
 
 
 def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -> None:
-    """Stop the recorded job; any failure aborts before deletion proceeds."""
-    if scheduler.kind == "launchd":
-        _run_required(
-            [scheduler.launchctl, "bootout", scheduler.service],
-            environment,
-            "launchd bootout",
-        )
-        return
-    if scheduler.kind == "none":
-        return
-    timer = f"{scheduler.unit}.timer"
-    service = f"{scheduler.unit}.service"
-    _run_best_effort(
-        [scheduler.systemctl, "--user", "reset-failed", timer, service], environment
-    )
-    if scheduler.persistent:
-        _run_required(
-            [scheduler.systemctl, "--user", "disable", timer],
-            environment,
-            "systemd timer disable",
-        )
-    try:
-        _run_quiet(
-            [scheduler.systemctl, "--user", "stop", timer, service],
-            environment,
-            10.0,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise InstallError("systemd unit stop failed") from error
-    try:
-        probe = _run_quiet(
-            [scheduler.systemctl, "--user", "is-active", timer, service],
-            environment,
-            10.0,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise InstallError("systemd unit state could not be verified") from error
-    states = probe.stdout.decode("utf-8", "replace").split() if probe.stdout else []
-    if probe.returncode == 0:
-        # At least one unit is still active; never delete an armed job.
-        raise InstallError("systemd unit stop failed")
-    if not _verified_inactive(states):
-        # A nonzero is-active status is only proof of inactivity when every
-        # unit reports inactive/failed; a bus error or unknown state is fatal.
-        raise InstallError("systemd unit state could not be verified")
-    # A failed stop with a verified-inactive outcome (for example units already
-    # unloaded after a reboot) leaves nothing armed, so deletion is safe.
+    """Stop the recorded scheduler, including its platform-specific units."""
+    from health_install_scheduler_systemd import _stop_scheduler_job as stop_scheduler
+
+    stop_scheduler(scheduler, environment)
 
 
 def _scheduler_reactivate(
@@ -406,33 +363,10 @@ def _scheduler_reactivate(
     python: str,
     environment: Mapping[str, str],
 ) -> None:
-    """Best-effort re-arm of a previously running job after a failure."""
-    if scheduler.kind == "launchd":
-        if _path_present(paths.plist):
-            _run_best_effort(
-                [scheduler.launchctl, "bootstrap", scheduler.domain, str(paths.plist)],
-                environment,
-            )
-        return
-    if scheduler.kind == "none":
-        return
-    if _path_present(paths.systemd_timer) and _path_present(paths.systemd_service):
-        _run_best_effort([scheduler.systemctl, "--user", "daemon-reload"], environment)
-        _run_best_effort(
-            [
-                scheduler.systemctl,
-                "--user",
-                "enable",
-                "--now",
-                f"{scheduler.unit}.timer",
-            ],
-            environment,
-        )
-        return
-    if scheduler.systemd_run:
-        _run_best_effort(
-            scheduler.systemd_argv(paths, python, environment), environment
-        )
+    """Best-effort re-arm of a previously running scheduler after rollback."""
+    from health_install_scheduler_systemd import _scheduler_reactivate as reactivate
+
+    reactivate(scheduler, paths, python, environment)
 
 
 def _activate_scheduler_job(

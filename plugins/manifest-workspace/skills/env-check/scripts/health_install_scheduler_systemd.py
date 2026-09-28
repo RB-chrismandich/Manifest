@@ -56,3 +56,84 @@ def _activate_persistent_systemd(
             with suppress(OSError, subprocess.SubprocessError, InstallError):
                 _scheduler._stop_scheduler_job(scheduler, environment)
         raise
+
+
+def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -> None:
+    """Stop the recorded scheduler and verify both systemd units are inactive."""
+    if scheduler.kind == "launchd":
+        _scheduler._run_required(
+            [scheduler.launchctl, "bootout", scheduler.service],
+            environment,
+            "launchd bootout",
+        )
+        return
+    if scheduler.kind == "none":
+        return
+    timer, service = f"{scheduler.unit}.timer", f"{scheduler.unit}.service"
+    _scheduler._run_best_effort(
+        [scheduler.systemctl, "--user", "reset-failed", timer, service], environment
+    )
+    if scheduler.persistent:
+        _scheduler._run_required(
+            [scheduler.systemctl, "--user", "disable", timer],
+            environment,
+            "systemd timer disable",
+        )
+    try:
+        _scheduler._run_quiet(
+            [scheduler.systemctl, "--user", "stop", timer, service], environment, 10.0
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise InstallError("systemd unit stop failed") from error
+    try:
+        probe = _scheduler._run_quiet(
+            [scheduler.systemctl, "--user", "is-active", timer, service],
+            environment,
+            10.0,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise InstallError("systemd unit state could not be verified") from error
+    states = probe.stdout.decode("utf-8", "replace").split() if probe.stdout else []
+    if probe.returncode == 0:
+        raise InstallError("systemd unit stop failed")
+    if not _scheduler._verified_inactive(states):
+        raise InstallError("systemd unit state could not be verified")
+
+
+def _scheduler_reactivate(
+    scheduler: _Scheduler,
+    paths: _scheduler.InstallPaths,
+    python: str,
+    environment: Mapping[str, str],
+) -> None:
+    """Best-effort re-arm of a previously running scheduler after rollback."""
+    if scheduler.kind == "launchd":
+        if _scheduler._path_present(paths.plist):
+            _scheduler._run_best_effort(
+                [scheduler.launchctl, "bootstrap", scheduler.domain, str(paths.plist)],
+                environment,
+            )
+        return
+    if scheduler.kind == "none":
+        return
+    if _scheduler._path_present(paths.systemd_timer) and _scheduler._path_present(
+        paths.systemd_service
+    ):
+        _scheduler._run_best_effort(
+            [scheduler.systemctl, "--user", "daemon-reload"], environment
+        )
+        _scheduler._run_best_effort(
+            [
+                scheduler.systemctl,
+                "--user",
+                "enable",
+                "--now",
+                f"{scheduler.unit}.timer",
+            ],
+            environment,
+        )
+        return
+    if scheduler.systemd_run:
+        _scheduler._run_best_effort(
+            scheduler.systemd_argv(paths, python, environment), environment
+        )
