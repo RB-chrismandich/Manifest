@@ -113,16 +113,7 @@ def _health_receipt_command() -> str | None:
 
 
 def _hook_targets_health_wrapper(command: object, directory: Path) -> bool:
-    """Match the retired bootstrap health hook in any written form.
-
-    Until install_health_reporting.py took ownership, bootstrap shipped a
-    SessionStart hook for ~/.claude/scripts/mcp_health_check.sh while the
-    helper it invokes is only ever installed by that owned installer — a
-    bootstrap-registered copy degrades on every session start. The command
-    may appear as the literal tilde form, an expanded absolute path, or —
-    on hosts with a custom CLAUDE_CONFIG_DIR — a path resolving into this
-    settings file's own scripts/ directory.
-    """
+    """Match only the bootstrap hook or this installation's wrapper path."""
     if not isinstance(command, str):
         return False
     try:
@@ -132,17 +123,18 @@ def _hook_targets_health_wrapper(command: object, directory: Path) -> bool:
     if not words:
         return False
     program = words[0]
-    if program == "~/.claude/scripts/mcp_health_check.sh" or program.endswith(
-        "/.claude/scripts/mcp_health_check.sh"
-    ):
+    if program == "~/.claude/scripts/mcp_health_check.sh":
         return True
     try:
         resolved = Path(program).expanduser().resolve(strict=False)
     except (OSError, RuntimeError, ValueError):
         return False
-    return resolved == (directory / "scripts" / "mcp_health_check.sh").resolve(
-        strict=False
+    home = Path(os.environ.get("HOME") or Path.home()).expanduser()
+    known_wrappers = (
+        home / ".claude" / "scripts" / "mcp_health_check.sh",
+        directory / "scripts" / "mcp_health_check.sh",
     )
+    return any(resolved == wrapper.resolve(strict=False) for wrapper in known_wrappers)
 
 
 def merge_hooks(source: dict, target: dict, directory: Path) -> None:

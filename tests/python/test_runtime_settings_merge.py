@@ -312,6 +312,7 @@ def test_retired_health_hook_is_removed_without_a_receipt(
 ):
     """Bootstrap's stale SessionStart health hook is retired unless owned."""
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     # Space-free command path: the merge tokenizes commands before matching.
     stale_absolute = str(
         tmp_path / "home" / ".claude" / "scripts" / "mcp_health_check.sh"
