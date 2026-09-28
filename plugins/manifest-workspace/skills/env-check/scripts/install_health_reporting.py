@@ -7,6 +7,7 @@ import argparse
 import os
 import sys
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -83,6 +84,13 @@ __all__ = [
 ]
 
 
+@dataclass(frozen=True)
+class _SourcePayloads:
+    runtime: Mapping[str, tuple[Path, bytes]]
+    extension: bytes
+    wrapper: bytes
+
+
 def _source_payloads(
     source_root: Path,
 ) -> tuple[dict[str, tuple[Path, bytes]], bytes, bytes]:
@@ -107,15 +115,13 @@ def _source_payloads(
 def _preflight_destinations(
     receipt: dict | None,
     paths: InstallPaths,
-    runtime: Mapping[str, tuple[Path, bytes]] | None = None,
-    extension_payload: bytes | None = None,
-    wrapper_payload: bytes | None = None,
+    payloads: _SourcePayloads | None = None,
     scheduler_kind: str = "launchd",
 ) -> None:
     files = receipt.get("files", {}) if receipt else {}
-    payloads = runtime if isinstance(runtime, Mapping) else {}
+    runtime = payloads.runtime if payloads is not None else {}
     for name in RUNTIME_SOURCES:
-        payload = payloads[name][1] if name in payloads else None
+        payload = runtime[name][1] if name in runtime else None
         _assert_destination_owned(
             paths.runtime_root / name,
             files.get(name) if isinstance(files, dict) else None,
@@ -133,13 +139,13 @@ def _preflight_destinations(
         paths.extension,
         receipt.get("omp_extension") if receipt else None,
         "OMP extension",
-        extension_payload,
+        payloads.extension if payloads is not None else None,
     )
     _assert_destination_owned(
         paths.wrapper,
         receipt.get("claude_wrapper") if receipt else None,
         "Claude wrapper",
-        wrapper_payload,
+        payloads.wrapper if payloads is not None else None,
     )
     if scheduler_kind == "launchd":
         _assert_plist_owned(
@@ -180,9 +186,7 @@ def _prepare_install(source_root: Path, environment: Mapping[str, str]) -> _Inst
     _preflight_destinations(
         receipt,
         paths,
-        runtime,
-        extension_payload,
-        wrapper_payload,
+        _SourcePayloads(runtime, extension_payload, wrapper_payload),
         scheduler.kind,
     )
     managed_names = set(RUNTIME_SOURCES)
@@ -274,6 +278,7 @@ def _uninstall(environment: Mapping[str, str]) -> None:
             _run_best_effort(
                 [recorded.systemctl, "--user", "daemon-reload"], environment
             )
+    # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
     except BaseException:
         try:
             _restore_snapshots(snapshots)

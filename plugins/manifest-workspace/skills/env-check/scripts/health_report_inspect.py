@@ -217,6 +217,7 @@ def _check_package_pins(
             continue
         try:
             observed = package_version(name)
+        # constitution: exempt C-ERR — observation failures are mismatches.
         except Exception:
             observed = None
         matched = observed == expected

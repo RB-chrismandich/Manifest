@@ -319,15 +319,21 @@ def test_reinstall_after_manager_returns_replaces_unscheduled(
     assert paths.systemd_timer.is_file()
 
 
-def test_uninstall_keeps_files_when_systemd_unit_stays_active(
+def _installed_linux(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+) -> tuple[dict[str, str], files.InstallPaths]:
     environment = isolated_env(tmp_path)
     _write_fake_tools(tmp_path, environment)
     monkeypatch.setenv("PATH", environment["PATH"])
     monkeypatch.setattr(schedulers.sys, "platform", "linux")
     installer.install(repo_root(), environment)
-    paths = files._paths(environment)
+    return environment, files._paths(environment)
+
+
+def test_uninstall_keeps_files_when_systemd_unit_stays_active(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment, paths = _installed_linux(tmp_path, monkeypatch)
     environment["MANIFEST_TEST_SYSTEMD_ACTIVE"] = "1"
 
     with pytest.raises(files.InstallError, match="systemd unit stop failed"):
@@ -341,12 +347,7 @@ def test_uninstall_keeps_files_when_systemd_unit_stays_active(
 def test_uninstall_with_failed_stop_and_inactive_units_proceeds(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    environment = isolated_env(tmp_path)
-    _write_fake_tools(tmp_path, environment)
-    monkeypatch.setenv("PATH", environment["PATH"])
-    monkeypatch.setattr(schedulers.sys, "platform", "linux")
-    installer.install(repo_root(), environment)
-    paths = files._paths(environment)
+    environment, paths = _installed_linux(tmp_path, monkeypatch)
     environment["MANIFEST_TEST_STOP_STATUS"] = "1"
 
     installer.uninstall(repo_root(), environment)

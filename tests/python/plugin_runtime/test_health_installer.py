@@ -111,8 +111,8 @@ def _installer(source_root: Path) -> Path:
     )
 
 
-def _install(source_root: Path, env: dict[str, str], cwd: Path) -> None:
-    result = run_script(
+def _install_result(source_root: Path, env: dict[str, str], cwd: Path):
+    return run_script(
         _installer(source_root),
         "--source-root",
         str(source_root),
@@ -120,6 +120,10 @@ def _install(source_root: Path, env: dict[str, str], cwd: Path) -> None:
         env=env,
         cwd=cwd,
     )
+
+
+def _install(source_root: Path, env: dict[str, str], cwd: Path) -> None:
+    result = _install_result(source_root, env, cwd)
     assert result.returncode == 0, result.stderr
 
 
@@ -289,7 +293,6 @@ def _assert_uninstalled(env: dict[str, str], settings_path: Path) -> None:
 def test_health_installer_is_owned_idempotent_updatable_and_uninstallable(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """Install twice, mutate a source file, reinstall, then uninstall twice."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     command_log = _write_health_tool_fakes(tmp_path, env)
@@ -346,7 +349,6 @@ def test_health_installer_is_owned_idempotent_updatable_and_uninstallable(
 def test_health_installer_refuses_unowned_or_edited_destinations(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """A pre-existing operator file is never overwritten or claimed."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)
@@ -354,14 +356,7 @@ def test_health_installer_refuses_unowned_or_edited_destinations(
     extension.parent.mkdir(parents=True)
     extension.write_text("user-owned\n", encoding="utf-8")
 
-    result = run_script(
-        _installer(source_root),
-        "--source-root",
-        str(source_root),
-        "--install",
-        env=env,
-        cwd=tmp_path,
-    )
+    result = _install_result(source_root, env, tmp_path)
 
     assert result.returncode == 1
     assert extension.read_text(encoding="utf-8") == "user-owned\n"
@@ -374,7 +369,6 @@ def test_health_installer_refuses_unowned_or_edited_destinations(
 def test_health_installer_preserves_an_unowned_launchd_job(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """An existing operator-owned LaunchAgent with the same label is untouched."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)
@@ -390,14 +384,7 @@ def test_health_installer_preserves_an_unowned_launchd_job(
     )
     plist_path.write_bytes(original)
 
-    result = run_script(
-        _installer(source_root),
-        "--source-root",
-        str(source_root),
-        "--install",
-        env=env,
-        cwd=tmp_path,
-    )
+    result = _install_result(source_root, env, tmp_path)
 
     assert result.returncode == 1
     assert plist_path.read_bytes() == original
@@ -407,7 +394,6 @@ def test_health_installer_preserves_an_unowned_launchd_job(
 def test_health_installer_requires_one_explicit_action(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """Zero or conflicting actions are a usage error, not a partial install."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     installer = _installer(source_root)
@@ -437,7 +423,6 @@ def test_health_installer_requires_one_explicit_action(
 def test_health_installer_refuses_to_uninstall_edited_owned_files(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """Uninstall refuses to delete files that drifted from the recorded digest."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)

@@ -82,7 +82,7 @@ if [ -n "$JQ" ]; then
         printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
         exit 0
     fi
-elif python3 - "$INPUT_FILE" <<'PY' > /dev/null 2>&1
+elif python3 - "$INPUT_FILE" << 'PY' > /dev/null 2>&1; then
 import json
 import sys
 
@@ -91,7 +91,6 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 if not isinstance(value, dict) or value.get("stop_hook_active") is not True:
     raise SystemExit(1)
 PY
-then
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
 fi

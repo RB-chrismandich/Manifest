@@ -1,10 +1,4 @@
-"""Fail-closed Stop-hook wrapper and POSIX launcher contracts.
-
-Every infrastructure or decision-shape failure must emit one sanitized block
-decision with exit 0.  The one loop-safety exception is the exact boolean
-``stop_hook_active is True`` guard, which approves without starting Python or a
-review backend.
-"""
+"""Tests for the fail-closed Stop-hook wrapper and POSIX launcher."""
 
 import importlib.util
 import json
@@ -86,6 +80,23 @@ def _path_without_jq(tmp_path):
     return str(shim)
 
 
+def _run_launcher_raw(
+    stdin_text: str, home: pathlib.Path
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["/bin/sh", str(SHELL)],
+        input=stdin_text,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=dict(
+            os.environ,
+            HOME=str(home),
+            CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
+        ),
+    )
+
+
 def test_help_exits_zero_within_15_lines():
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--help"],
@@ -118,8 +129,6 @@ def test_empty_stdin_blocks_stop():
 
 
 def test_wrapper_timeout_outlasts_backend_budget_cap():
-    """The outer wrapper must outlast the backend cap so the gate can reap the
-    backend before the wrapper emits its fail-closed decision."""
     if str(PLUGIN_ROOT) not in sys.path:
         sys.path.insert(0, str(PLUGIN_ROOT))
     from manifest_delegate import config
@@ -137,7 +146,6 @@ def test_wrapper_timeout_outlasts_backend_budget_cap():
 
 
 def test_wrapper_timeout_stays_under_the_declared_hook_timeout():
-    """The harness deadline must leave time to emit the fail-closed decision."""
     mod = _load_module()
 
     hooks = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text())
@@ -407,21 +415,7 @@ def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_pat
     "raw", ["true", "false", "1", '"true"', "[]", "[true]", "null"]
 )
 def test_launcher_never_treats_non_object_payload_as_recursion_guard(tmp_path, raw):
-    # jq `.<field>` projections on non-objects can coerce rather than error on
-    # some builds; the recursion guard must be type-guarded so only the exact
-    # boolean object form approves — every other shape blocks invalid_input.
-    result = subprocess.run(
-        ["/bin/sh", str(SHELL)],
-        input=raw,
-        capture_output=True,
-        text=True,
-        timeout=30,
-        env=dict(
-            os.environ,
-            HOME=str(tmp_path),
-            CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
-        ),
-    )
+    result = _run_launcher_raw(raw, tmp_path)
     decision = _decision(result)
     assert decision["decision"] == "block"
     assert "invalid_input" in decision["reason"]
@@ -429,19 +423,7 @@ def test_launcher_never_treats_non_object_payload_as_recursion_guard(tmp_path, r
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
 def test_launcher_rejects_string_stop_hook_active_flag(tmp_path):
-    # The recursion guard fires only on the exact JSON boolean true.
-    result = subprocess.run(
-        ["/bin/sh", str(SHELL)],
-        input=json.dumps({"stop_hook_active": "true"}),
-        capture_output=True,
-        text=True,
-        timeout=30,
-        env=dict(
-            os.environ,
-            HOME=str(tmp_path),
-            CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
-        ),
-    )
+    result = _run_launcher_raw(json.dumps({"stop_hook_active": "true"}), tmp_path)
     decision = _decision(result)
     assert decision["decision"] == "block"
     assert decision["reason"] != "stop-hook-active"

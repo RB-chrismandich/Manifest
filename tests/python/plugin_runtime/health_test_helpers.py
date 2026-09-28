@@ -208,7 +208,6 @@ def _runtime_file_rows(runtime_root: Path) -> dict[str, dict[str, str]]:
 
 def _write_health_installation(
     env: dict[str, str],
-    tmp_path: Path,
     source_root: Path,
     runtime_root: Path,
     agent_root: Path,
@@ -230,9 +229,9 @@ def _write_health_installation(
                 "source_root": str(source_root),
                 "executables": {
                     "python": str(Path(sys.executable).resolve()),
-                    "omp": str(tmp_path / "bin/omp"),
-                    "claude": str(tmp_path / "bin/claude"),
-                    "coordinator": str(tmp_path / "bin/manifest"),
+                    "omp": str(agent_root.parent / "bin/omp"),
+                    "claude": str(agent_root.parent / "bin/claude"),
+                    "coordinator": str(agent_root.parent / "bin/manifest"),
                 },
                 "files": _runtime_file_rows(runtime_root),
                 "omp_extension": file_row(extension),
@@ -259,9 +258,7 @@ def write_report_fixture(
     _write_pin_lock(agent_root)
     runtime_root = tmp_path / "runtime"
     runtime_root.mkdir()
-    _write_health_installation(
-        env, tmp_path, source_root, runtime_root, agent_root, now
-    )
+    _write_health_installation(env, source_root, runtime_root, agent_root, now)
     return env, runtime_root, receipt
 
 
