@@ -13,18 +13,7 @@ REPO = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO / "configs/claude/scripts"
 MERGER = SCRIPTS / "merge_runtime_settings.py"
 
-ENV_CHECK_SCRIPTS = REPO / "plugins/manifest-workspace/skills/env-check/scripts"
-sys.path.insert(0, str(ENV_CHECK_SCRIPTS))
-from health_install_files import (
-    OWNERSHIP_MARKER,
-    SESSION_TIMEOUT_SECONDS,
-    _owned_row,
-    _paths,
-)
-from health_install_receipts import (
-    HOOK_HASH_SOURCES,
-    RUNTIME_SOURCES,
-)
+from tests.python.plugin_runtime.health_test_helpers import write_valid_health_receipt
 
 
 @pytest.fixture
@@ -366,51 +355,6 @@ def test_retired_health_hook_is_removed_without_a_receipt(
     assert any("deploy_stamp_check.sh" in command for command in commands)
 
 
-def _write_valid_health_receipt(
-    receipt_path: Path, source_root: Path, environment: dict[str, str]
-) -> str:
-    paths = _paths(environment)
-    payload = b"owned\n"
-    paths.runtime_root.mkdir(parents=True)
-    files = {}
-    for name, relative in RUNTIME_SOURCES.items():
-        destination = paths.runtime_root / name
-        destination.write_bytes(payload)
-        files[name] = _owned_row(str(source_root / relative), destination, payload)
-    paths.extension.parent.mkdir(parents=True)
-    paths.extension.write_bytes(payload)
-    paths.wrapper.parent.mkdir(parents=True)
-    paths.wrapper.write_bytes(payload)
-    command = str(paths.wrapper.resolve())
-    receipt_path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "source_root": str(source_root),
-                "executables": {
-                    name: str((source_root / "bin" / name).resolve())
-                    for name in ("python", "omp", "claude", "coordinator")
-                },
-                "files": files,
-                "omp_extension": _owned_row(
-                    str(source_root / "extension"), paths.extension, payload
-                ),
-                "claude_wrapper": _owned_row(
-                    str(source_root / "wrapper"), paths.wrapper, payload
-                ),
-                "scheduler": {"kind": "none", "managed_by": OWNERSHIP_MARKER},
-                "claude_hook": {
-                    "command": command,
-                    "timeout": SESSION_TIMEOUT_SECONDS,
-                },
-                "hook_hashes": dict.fromkeys(HOOK_HASH_SOURCES, "a" * 64),
-            }
-        ),
-        encoding="utf-8",
-    )
-    return command
-
-
 def test_incomplete_health_receipt_does_not_preserve_hook(
     deployment, monkeypatch, tmp_path
 ):
@@ -471,7 +415,7 @@ def test_canonical_health_receipt_preserves_owned_hook(
     source_root.mkdir()
     receipt_path = tmp_path / "state" / "manifest" / "health" / "installation.json"
     receipt_path.parent.mkdir(parents=True)
-    command = _write_valid_health_receipt(receipt_path, source_root, dict(os.environ))
+    command = write_valid_health_receipt(receipt_path, source_root, dict(os.environ))
     deployment.write_text(
         json.dumps(
             {
