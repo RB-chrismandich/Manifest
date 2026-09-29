@@ -431,6 +431,16 @@ def test_missing_parsers_reject_double_comma_payload(tmp_path):
     assert _decision(result)["reason"] == "gate disabled"
 
 
+
+def test_missing_parsers_reject_value_without_key(tmp_path):
+    no_parser_path = _path_without(tmp_path, "jq", "python3")
+    result = _run_launcher_raw(
+        '{:1,"stop_hook_active":true}',
+        tmp_path,
+        {"PATH": no_parser_path},
+    )
+    assert _decision(result)["reason"] == "gate disabled"
+
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
     """jq is an optional bootstrap dependency: without it, the default-disabled
     gate approves rather than trapping the session in a block loop."""

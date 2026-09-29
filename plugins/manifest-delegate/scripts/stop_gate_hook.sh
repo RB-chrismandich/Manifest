@@ -99,7 +99,7 @@ elif awk '
             value == "null" ||
             value ~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
     }
-    BEGIN { active = 0; complete = 0; invalid = 0; started = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
+    BEGIN { active = 0; complete = 0; have_key = 0; invalid = 0; started = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
     {
         for (i = 1; i <= length($0); i++) {
             character = substr($0, i, 1)
@@ -108,7 +108,7 @@ elif awk '
                 if (character == "\\") { escaped = 1; continue }
                 if (character == "\"") {
                     in_string = 0
-                    if (depth == 1 && want_key) key = text
+                    if (depth == 1 && want_key) { key = text; have_key = 1 }
                     else if (depth == 1) value = "STRING"
                     continue
                 }
@@ -136,13 +136,15 @@ elif awk '
             }
             if (depth == 0) { if (character !~ /[[:space:]]/) invalid = 1; continue }
             if (depth != 1) continue
-            if (character == ":" && want_key) { want_key = 0; value = ""; continue }
+            if (character == ":" && want_key && have_key) { want_key = 0; value = ""; continue }
+            if (character == ":" && want_key) { invalid = 1; continue }
             if (character == "," && want_key) { invalid = 1; continue }
             if (character == "," && !want_key) {
                 if (!valid_value(value)) invalid = 1
                 if (key == "stop_hook_active") active = (value == "true")
                 want_key = 1
                 key = ""
+                have_key = 0
                 value = ""
                 continue
             }
