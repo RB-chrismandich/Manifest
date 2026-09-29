@@ -119,13 +119,15 @@ def _health_receipt_command() -> str | None:
         return None
     sys.path.insert(0, str(installer_scripts))
     try:
-        from health_install_files import InstallError, _paths
-        from health_install_receipts import _validate_receipt
-
-        paths = _paths(os.environ)
-        _validate_receipt(receipt, paths)
-    except (ImportError, InstallError, OSError, ValueError):
-        return None
+        try:
+            from health_install_files import InstallError, _paths
+            from health_install_receipts import _validate_receipt
+        except ImportError:
+            return None
+        try:
+            _validate_receipt(receipt, _paths(os.environ))
+        except (InstallError, OSError, ValueError):
+            return None
     finally:
         sys.path.pop(0)
     hook = receipt.get("claude_hook")

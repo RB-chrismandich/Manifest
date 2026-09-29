@@ -463,6 +463,8 @@ def test_canonical_health_receipt_preserves_owned_hook(
     deployment, monkeypatch, tmp_path
 ):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("OMP_AGENT_DIR", str(tmp_path / "omp-agent"))
+    monkeypatch.delenv("PI_CODING_AGENT_DIR", raising=False)
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     source_root = tmp_path / "source"
