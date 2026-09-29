@@ -184,7 +184,8 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
                         h["command"] == "~/.claude/scripts/version_pin_hook.sh"
                         or h["command"].endswith("/.claude/scripts/version_pin_hook.sh")
                         or (
-                            _hook_targets_health_wrapper(h["command"], directory)
+                            event == "SessionStart"
+                            and _hook_targets_health_wrapper(h["command"], directory)
                             and h["command"] != managed_health_command
                         )
                         or (

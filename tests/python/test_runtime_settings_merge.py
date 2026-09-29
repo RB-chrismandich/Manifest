@@ -489,3 +489,25 @@ def test_canonical_health_receipt_preserves_owned_hook(
         hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
     ]
     assert commands.count(command) == 1
+
+
+def test_non_session_start_health_hook_is_preserved(deployment):
+    command = "~/.claude/scripts/mcp_health_check.sh"
+    deployment.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "PreToolUse": [{"hooks": [{"type": "command", "command": command}]}]
+                }
+            }
+        )
+    )
+
+    assert merge(deployment).returncode == 0
+    commands = [
+        hook["command"]
+        for hook in json.loads(deployment.read_text())["hooks"]["PreToolUse"][0][
+            "hooks"
+        ]
+    ]
+    assert command in commands
