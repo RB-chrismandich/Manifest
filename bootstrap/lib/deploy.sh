@@ -76,7 +76,7 @@ restore_runtime_state() {
         # exclude there is a delete, not a deferral — foreign_state_rules emits
         # the finer rules for both (and still excludes what the deploy owns).
         case "$base" in
-            skills | agents) continue ;;
+            skills | agents | scripts) continue ;;
         esac
         excludes+=("--exclude=/$base")
     done
@@ -89,6 +89,14 @@ restore_runtime_state() {
     # so a __pycache__ living inside one would otherwise match the include first
     # and walk straight back into the failure this exclude exists to prevent.
     excludes+=("--exclude=__pycache__/" "--exclude=*.pyc")
+    # The health installer owns its wrapper and bootstrap does not redeploy it.
+    # Restore that one managed-runtime artifact while leaving repo-owned scripts
+    # for the normal deploy phase.
+    excludes+=(
+        "--include=/scripts/"
+        "--include=/scripts/mcp_health_check.sh"
+        "--exclude=/scripts/***"
+    )
 
     local rule
     while IFS= read -r rule; do
