@@ -104,6 +104,7 @@ def test_linux_scheduler_uses_systemd_user_timer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     environment = isolated_env(tmp_path)
+    environment["CLAUDE_CONFIG_DIR"] = str(tmp_path / "claude-profile")
     monkeypatch.setattr(schedulers.sys, "platform", "linux")
     monkeypatch.setattr(schedulers, "_resolve_executable", lambda name: f"/bin/{name}")
     monkeypatch.setattr(
@@ -120,7 +121,7 @@ def test_linux_scheduler_uses_systemd_user_timer(
     assert b"OnCalendar=" in scheduler.timer_payload
     assert b"Persistent=true" in scheduler.timer_payload
     assert b"WantedBy=timers.target" in scheduler.timer_payload
-    assert b"CLAUDE_CONFIG_DIR=" not in scheduler.service_payload
+    assert b'Environment="CLAUDE_CONFIG_DIR=' in scheduler.service_payload
     assert files.SYSTEMD_UNIT_MARKER.encode() in scheduler.timer_payload
     argv = scheduler.systemd_argv(paths, sys.executable, environment)
 
