@@ -62,11 +62,11 @@ def _run_shell(payload, home, extra_env=None):
     )
 
 
-def _path_without_jq(tmp_path):
-    """Return a PATH that resolves every tool the launcher needs except jq."""
-    shim = tmp_path / "no-jq-path"
+def _path_without(tmp_path, *excluded):
+    """Return a PATH that resolves every launcher tool except exclusions."""
+    shim = tmp_path / "filtered-path"
     shim.mkdir()
-    seen = {"jq"}
+    seen = set(excluded)
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         if not entry or not os.path.isdir(entry):
             continue
@@ -80,9 +80,11 @@ def _path_without_jq(tmp_path):
     return str(shim)
 
 
-def _run_launcher_raw(
-    stdin_text: str, home: pathlib.Path
-) -> subprocess.CompletedProcess[str]:
+def _path_without_jq(tmp_path):
+    return _path_without(tmp_path, "jq")
+
+
+def _run_launcher_raw(stdin_text: str, home: pathlib.Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["/bin/sh", str(SHELL)],
         input=stdin_text,
@@ -348,19 +350,29 @@ def test_unparseable_json_config_fails_closed(tmp_path):
     assert "config_unparseable" in decision["reason"]
 
 
-def test_missing_jq_approves_guarded_followup_without_config(tmp_path):
-    """Loop safety cannot depend on jq: a guarded follow-up approves even when
-    jq is absent, before the disabled-gate config is ever consulted."""
-    no_jq_path = _path_without_jq(tmp_path)
+def test_missing_jq_and_python_approves_only_top_level_guard(tmp_path):
+    """The fallback parser accepts a normal Stop payload, never nested metadata."""
+    no_parser_path = _path_without(tmp_path, "jq", "python3")
     result = _run_shell(
-        {"stop_hook_active": True},
+        {
+            "hook_event_name": "Stop",
+            "transcript_path": "/missing.jsonl",
+            "stop_hook_active": True,
+        },
         tmp_path,
-        {"PATH": no_jq_path},
+        {"PATH": no_parser_path},
     )
     assert _decision(result) == {
         "decision": "approve",
         "reason": "stop-hook-active",
     }
+
+    nested = _run_shell(
+        {"hook_event_name": "Stop", "metadata": {"stop_hook_active": True}},
+        tmp_path,
+        {"PATH": no_parser_path},
+    )
+    assert _decision(nested)["reason"] == "gate disabled"
 
 
 def test_missing_jq_disabled_gate_fails_open(tmp_path):

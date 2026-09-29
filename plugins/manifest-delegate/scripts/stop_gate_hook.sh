@@ -93,6 +93,39 @@ if not isinstance(value, dict) or value.get("stop_hook_active") is not True:
 PY
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
+elif awk '
+    BEGIN { active = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
+    {
+        for (i = 1; i <= length($0); i++) {
+            character = substr($0, i, 1)
+            if (in_string) {
+                if (escaped) { escaped = 0; continue }
+                if (character == "\\") { escaped = 1; continue }
+                if (character == "\"") {
+                    in_string = 0
+                    if (depth == 1 && want_key) { key = text }
+                    continue
+                }
+                text = text character
+                continue
+            }
+            if (character == "\"") { in_string = 1; text = ""; continue }
+            if (character == "{") { depth++; if (depth == 1) want_key = 1; continue }
+            if (character == "}") {
+                if (depth == 1 && key == "stop_hook_active" && value == "true") { active = 1; exit }
+                depth--
+                continue
+            }
+            if (depth != 1) continue
+            if (character == ":" && want_key) { want_key = 0; value = ""; continue }
+            if (character == "," && !want_key) { want_key = 1; key = ""; value = ""; continue }
+            if (character !~ /[[:space:]]/) value = value character
+        }
+    }
+    END { exit !active }
+' "$INPUT_FILE" 2> /dev/null; then
+    printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+    exit 0
 fi
 
 # A disabled review gate approves without jq or the managed runtime, so
