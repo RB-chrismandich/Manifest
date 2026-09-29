@@ -30,6 +30,7 @@ from health_install_files import (
 )
 from health_install_scheduler import (
     SYSTEMD_UNIT_NAME,
+    SchedulerTeardownError,
     _activate_scheduler_job,
     _recorded_scheduler,
     _resolve_executable,
@@ -321,6 +322,8 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
             _json_bytes(_build_receipt(plan)),
             environment,
         )
+    except SchedulerTeardownError:
+        raise
     # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
     except BaseException:
         try:

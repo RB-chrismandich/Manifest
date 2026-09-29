@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import subprocess
 from collections.abc import Mapping
-from contextlib import suppress
 from typing import TYPE_CHECKING
 
 import health_install_scheduler as _scheduler
@@ -26,9 +25,8 @@ def _activate_persistent_systemd(
 ) -> None:
     """Reload the user manager, then enable and start the persistent timer.
 
-    A timer left half-enabled after `daemon-reload` is stopped best-effort so
-    the surrounding transaction can roll the install back; a failure before
-    that point leaves nothing armed.
+    A timer left half-enabled after `daemon-reload` must be stopped and
+    verified inactive before the surrounding transaction can roll back.
     """
     started = False
     try:
@@ -53,8 +51,12 @@ def _activate_persistent_systemd(
     # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
     except BaseException:
         if started:
-            with suppress(OSError, subprocess.SubprocessError, InstallError):
+            try:
                 _scheduler._stop_scheduler_job(scheduler, environment)
+            except InstallError as error:
+                raise _scheduler.SchedulerTeardownError(
+                    "systemd teardown could not be verified"
+                ) from error
         raise
 
 

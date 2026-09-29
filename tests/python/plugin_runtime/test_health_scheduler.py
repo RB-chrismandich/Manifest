@@ -300,6 +300,29 @@ def test_linux_install_without_user_manager_records_unscheduled(
     assert "systemd-run" not in log
 
 
+def test_failed_systemd_teardown_prevents_transaction_rollback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    _write_fake_tools(tmp_path, environment)
+    environment["MANIFEST_TEST_ENABLE_STATUS"] = "36"
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    monkeypatch.setattr(
+        schedulers,
+        "_stop_scheduler_job",
+        lambda *_args: (_ for _ in ()).throw(files.InstallError("still active")),
+    )
+    paths = files._paths(environment)
+
+    with pytest.raises(schedulers.SchedulerTeardownError):
+        installer.install(repo_root(), environment)
+
+    assert paths.receipt.is_file()
+    assert paths.systemd_timer.is_file()
+    assert paths.systemd_service.is_file()
+
+
 def test_reinstall_after_manager_returns_replaces_unscheduled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -33,6 +33,10 @@ SYSTEMD_ON_CALENDAR = "Mon *-*-* 09:00:00"
 _INACTIVE_UNIT_STATES = frozenset({"inactive", "failed"})
 
 
+class SchedulerTeardownError(InstallError):
+    """Scheduler remains unverified inactive, so transaction rollback is unsafe."""
+
+
 def _resolve_executable(name: str) -> str:
     candidate = shutil.which(name)
     if candidate is None:
