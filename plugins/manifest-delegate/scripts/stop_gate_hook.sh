@@ -99,12 +99,23 @@ elif awk '
             value == "null" ||
             value ~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
     }
-    BEGIN { active = 0; complete = 0; have_key = 0; invalid = 0; started = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
+    BEGIN { active = 0; complete = 0; have_key = 0; invalid = 0; started = 0; depth = 0; in_string = 0; escaped = 0; unicode_digits = 0; value_done = 0; want_key = 0; key = ""; value = "" }
     {
         for (i = 1; i <= length($0); i++) {
             character = substr($0, i, 1)
             if (in_string) {
-                if (escaped) { escaped = 0; continue }
+                if (unicode_digits) {
+                    if (character !~ /[0-9A-Fa-f]/) invalid = 1
+                    unicode_digits--
+                    continue
+                }
+                if (escaped) {
+                    if (character == "u") unicode_digits = 4
+                    else if (character !~ /["\\\/bfnrt]/) invalid = 1
+                    escaped = 0
+                    continue
+                }
+                if (character ~ /[[:cntrl:]]/) invalid = 1
                 if (character == "\\") { escaped = 1; continue }
                 if (character == "\"") {
                     in_string = 0
@@ -137,7 +148,7 @@ elif awk '
             }
             if (depth == 0) { if (character !~ /[[:space:]]/) invalid = 1; continue }
             if (depth != 1) continue
-            if (character == ":" && want_key && have_key) { want_key = 0; value = ""; continue }
+            if (character == ":" && want_key && have_key) { want_key = 0; value = ""; value_done = 0; continue }
             if (character == ":" && want_key) { invalid = 1; continue }
             if (character == "," && want_key) { invalid = 1; continue }
             if (character == "," && !want_key) {
@@ -147,12 +158,19 @@ elif awk '
                 key = ""
                 have_key = 0
                 value = ""
+                value_done = 0
                 continue
             }
-            if (character !~ /[[:space:]]/) value = value character
+            if (character ~ /[[:space:]]/) {
+                if (!want_key && value != "") value_done = 1
+            } else {
+                if (value_done) invalid = 1
+                value = value character
+            }
         }
+        if (in_string) invalid = 1
     }
-    END { exit !(active && complete && depth == 0 && !in_string && !invalid) }
+    END { exit !(active && complete && depth == 0 && !in_string && !escaped && !unicode_digits && !invalid) }
 ' "$INPUT_FILE" 2> /dev/null; then
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
