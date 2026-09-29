@@ -121,13 +121,17 @@ def test_linux_scheduler_uses_systemd_user_timer(
     assert b"OnCalendar=" in scheduler.timer_payload
     assert b"Persistent=true" in scheduler.timer_payload
     assert b"WantedBy=timers.target" in scheduler.timer_payload
-    assert b'Environment="CLAUDE_CONFIG_DIR=' in scheduler.service_payload
+    assert (
+        f'Environment="CLAUDE_CONFIG_DIR={paths.claude_root}"'.encode()
+        in scheduler.service_payload
+    )
     assert files.SYSTEMD_UNIT_MARKER.encode() in scheduler.timer_payload
     argv = scheduler.systemd_argv(paths, sys.executable, environment)
 
     assert argv[:3] == ["/bin/systemd-run", "--user", "--unit=manifest-health-report"]
     assert any(argument.startswith("--on-calendar=") for argument in argv)
     assert f"--setenv=OMP_AGENT_DIR={paths.agent_root}" in argv
+    assert f"--setenv=CLAUDE_CONFIG_DIR={paths.claude_root}" in argv
 
 
 def test_linux_without_user_manager_installs_unscheduled(
