@@ -122,27 +122,26 @@ DELEGATION_FILE=$(find_delegation_file \
     "${XDG_CONFIG_HOME:-${HOME:-}/.config}/manifest" \
     "${HOME:-}/.claude/config" || true)
 
-# jq is optional. Without it, only a valid JSON delegation config that
-# explicitly enables review blocks; absent, empty, or disabled config keeps the
-# default-disabled gate fail-open.
+# jq is optional. Without it, only an explicit enabled review gate blocks;
+# malformed or absent configuration uses the gate's disabled default.
 if [ -z "$JQ" ]; then
     if [ -z "$DELEGATION_FILE" ]; then
         printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
-    elif python3 - "$DELEGATION_FILE" <<'PY' > /dev/null 2>&1
+    elif python3 - "$DELEGATION_FILE" << 'PY' > /dev/null 2>&1; then
 import json
 import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    config = json.load(handle)
-if not isinstance(config, dict):
-    raise SystemExit(1)
-review_gate = config.get("review_gate")
-if review_gate is None:
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        config = json.load(handle)
+except (OSError, ValueError):
     raise SystemExit(0)
-if not isinstance(review_gate, dict) or review_gate.get("enabled") is not False:
+if not isinstance(config, dict):
+    raise SystemExit(0)
+review_gate = config.get("review_gate")
+if isinstance(review_gate, dict) and review_gate.get("enabled") is True:
     raise SystemExit(1)
 PY
-    then
         printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
     else
         block "jq_unavailable"

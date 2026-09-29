@@ -399,7 +399,7 @@ def test_missing_jq_disabled_json_config_fails_open(tmp_path, config):
     }
 
 
-def test_missing_jq_malformed_json_config_blocks(tmp_path):
+def test_missing_jq_malformed_json_config_uses_disabled_default(tmp_path):
     config_dir = tmp_path / "delegate-config"
     config_dir.mkdir()
     (config_dir / "delegation.json").write_text(
@@ -415,9 +415,10 @@ def test_missing_jq_malformed_json_config_blocks(tmp_path):
         },
     )
 
-    decision = _decision(result)
-    assert decision["decision"] == "block"
-    assert "jq_unavailable" in decision["reason"]
+    assert _decision(result) == {
+        "decision": "approve",
+        "reason": "gate disabled",
+    }
 
 
 def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_path):
