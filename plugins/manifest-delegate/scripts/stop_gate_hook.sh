@@ -87,7 +87,10 @@ import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
-    value = json.load(handle)
+    value = json.load(
+        handle,
+        parse_constant=lambda constant: (_ for _ in ()).throw(ValueError(constant)),
+    )
 if not isinstance(value, dict) or value.get("stop_hook_active") is not True:
     raise SystemExit(1)
 PY

@@ -491,6 +491,16 @@ def test_missing_parsers_reject_control_character_in_string(tmp_path):
     assert _decision(result)["reason"] == "gate disabled"
 
 
+def test_missing_jq_python_rejects_non_json_constant(tmp_path):
+    no_jq_path = _path_without(tmp_path, "jq")
+    result = _run_launcher_raw(
+        '{"x":NaN,"stop_hook_active":true}',
+        tmp_path,
+        {"PATH": no_jq_path},
+    )
+    assert _decision(result)["reason"] == "gate disabled"
+
+
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
     """jq is an optional bootstrap dependency: without it, the default-disabled
     gate approves rather than trapping the session in a block loop."""
