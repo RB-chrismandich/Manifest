@@ -84,18 +84,22 @@ def _path_without_jq(tmp_path):
     return _path_without(tmp_path, "jq")
 
 
-def _run_launcher_raw(stdin_text: str, home: pathlib.Path) -> subprocess.CompletedProcess[str]:
+def _run_launcher_raw(
+    stdin_text: str, home: pathlib.Path, extra_env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    environment = dict(
+        os.environ,
+        HOME=str(home),
+        CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
+    )
+    environment.update(extra_env or {})
     return subprocess.run(
         ["/bin/sh", str(SHELL)],
         input=stdin_text,
         capture_output=True,
         text=True,
         timeout=30,
-        env=dict(
-            os.environ,
-            HOME=str(home),
-            CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT),
-        ),
+        env=environment,
     )
 
 
@@ -374,6 +378,46 @@ def test_missing_jq_and_python_approves_only_top_level_guard(tmp_path):
     )
     assert _decision(nested)["reason"] == "gate disabled"
 
+
+def test_missing_parsers_follow_final_duplicate_guard_value(tmp_path):
+    no_parser_path = _path_without(tmp_path, "jq", "python3")
+    result = _run_launcher_raw(
+        '{"stop_hook_active":true,"stop_hook_active":false}',
+        tmp_path,
+        {"PATH": no_parser_path},
+    )
+    assert _decision(result)["reason"] == "gate disabled"
+
+
+
+def test_missing_parsers_reject_truncated_guard_payload(tmp_path):
+    no_parser_path = _path_without(tmp_path, "jq", "python3")
+    result = _run_launcher_raw(
+        '{"stop_hook_active":true,',
+        tmp_path,
+        {"PATH": no_parser_path},
+    )
+    assert _decision(result)["reason"] == "gate disabled"
+
+
+def test_missing_parsers_reject_invalid_top_level_value(tmp_path):
+    no_parser_path = _path_without(tmp_path, "jq", "python3")
+    result = _run_launcher_raw(
+        '{"stop_hook_active":true, garbage}',
+        tmp_path,
+        {"PATH": no_parser_path},
+    )
+    assert _decision(result)["reason"] == "gate disabled"
+
+
+def test_missing_parsers_reject_guard_without_colon(tmp_path):
+    no_parser_path = _path_without(tmp_path, "jq", "python3")
+    result = _run_launcher_raw(
+        '{"stop_hook_active" true}',
+        tmp_path,
+        {"PATH": no_parser_path},
+    )
+    assert _decision(result)["reason"] == "gate disabled"
 
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
     """jq is an optional bootstrap dependency: without it, the default-disabled

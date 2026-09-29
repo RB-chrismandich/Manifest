@@ -94,7 +94,11 @@ PY
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
 elif awk '
-    BEGIN { active = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
+    function valid_value(value) {
+        return value == "STRING" || value == "true" || value == "false" ||
+            value == "null" || value ~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
+    }
+    BEGIN { active = 0; complete = 0; invalid = 0; started = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
     {
         for (i = 1; i <= length($0); i++) {
             character = substr($0, i, 1)
@@ -103,23 +107,37 @@ elif awk '
                 if (character == "\\") { escaped = 1; continue }
                 if (character == "\"") {
                     in_string = 0
-                    if (depth == 1 && want_key) { key = text }
+                    if (depth == 1 && want_key) key = text
+                    else if (depth == 1) value = "STRING"
                     continue
                 }
                 text = text character
                 continue
             }
             if (character == "\"") { in_string = 1; text = ""; continue }
-            if (character == "{") { depth++; if (depth == 1) want_key = 1; continue }
-            if (character == "}") {
-                if (depth == 1 && key == "stop_hook_active" && value == "true") { active = 1; exit }
-                depth--
+            if (character == "{") {
+                if (depth == 0 && started) { invalid = 1; continue }
+                depth++
+                started = 1
+                if (depth == 1) want_key = 1
                 continue
             }
+            if (character == "}") {
+                if (depth == 1) {
+                    if (want_key || !valid_value(value)) invalid = 1
+                    if (!want_key && key == "stop_hook_active") active = (value == "true")
+                }
+                depth--
+                if (depth == 0) complete = 1
+                if (depth < 0) invalid = 1
+                continue
+            }
+            if (depth == 0) { if (character !~ /[[:space:]]/) invalid = 1; continue }
             if (depth != 1) continue
             if (character == ":" && want_key) { want_key = 0; value = ""; continue }
             if (character == "," && !want_key) {
-                if (key == "stop_hook_active" && value == "true") { active = 1; exit }
+                if (!valid_value(value)) invalid = 1
+                if (key == "stop_hook_active") active = (value == "true")
                 want_key = 1
                 key = ""
                 value = ""
@@ -128,7 +146,7 @@ elif awk '
             if (character !~ /[[:space:]]/) value = value character
         }
     }
-    END { exit !active }
+    END { exit !(active && complete && depth == 0 && !in_string && !invalid) }
 ' "$INPUT_FILE" 2> /dev/null; then
     printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
     exit 0
