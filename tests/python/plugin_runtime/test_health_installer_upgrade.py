@@ -101,34 +101,42 @@ def test_health_installer_refuses_to_clean_up_modified_retired_file_on_upgrade(
     assert retired_file.exists()
 
 
+@pytest.mark.parametrize(
+    "scheduler_name",
+    ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],
+)
 def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
-    repo_root: Path, tmp_path: Path
+    repo_root: Path, tmp_path: Path, scheduler_name: str
 ) -> None:
-    """Pre-split receipts carry no health_install_scheduler.py row; upgrade must pass."""
+    """Pre-split receipts omit either scheduler module; upgrade must pass."""
     source_root, env, runtime_root, receipt_path = _installed_health(
         repo_root, tmp_path
     )
 
-    (runtime_root / "health_install_scheduler.py").unlink()
+    (runtime_root / scheduler_name).unlink()
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    receipt["files"].pop("health_install_scheduler.py")
+    receipt["files"].pop(scheduler_name)
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
 
     _install(source_root, env, tmp_path)
-    assert (runtime_root / "health_install_scheduler.py").exists()
+    assert (runtime_root / scheduler_name).exists()
 
 
 
+@pytest.mark.parametrize(
+    "scheduler_name",
+    ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],
+)
 def test_health_installer_refuses_untracked_split_runtime_file_on_upgrade(
-    repo_root: Path, tmp_path: Path
+    repo_root: Path, tmp_path: Path, scheduler_name: str
 ) -> None:
     source_root, env, runtime_root, receipt_path = _installed_health(
         repo_root, tmp_path
     )
-    scheduler = runtime_root / "health_install_scheduler.py"
+    scheduler = runtime_root / scheduler_name
     scheduler.write_text("# user-owned scheduler\n", encoding="utf-8")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    receipt["files"].pop("health_install_scheduler.py")
+    receipt["files"].pop(scheduler_name)
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
 
     result = run_script(
@@ -143,17 +151,21 @@ def test_health_installer_refuses_untracked_split_runtime_file_on_upgrade(
     assert result.returncode != 0
     assert scheduler.read_text(encoding="utf-8") == "# user-owned scheduler\n"
 
+@pytest.mark.parametrize(
+    "scheduler_name",
+    ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],
+)
 def test_health_installer_uninstalls_receipt_missing_split_scheduler_file(
-    repo_root: Path, tmp_path: Path
+    repo_root: Path, tmp_path: Path, scheduler_name: str
 ) -> None:
     """Uninstall accepts the same pre-split receipt shape."""
     source_root, env, runtime_root, receipt_path = _installed_health(
         repo_root, tmp_path
     )
 
-    (runtime_root / "health_install_scheduler.py").unlink()
+    (runtime_root / scheduler_name).unlink()
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    receipt["files"].pop("health_install_scheduler.py")
+    receipt["files"].pop(scheduler_name)
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
 
     result = run_script(
