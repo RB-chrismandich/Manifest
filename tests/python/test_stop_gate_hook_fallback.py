@@ -1,15 +1,29 @@
 """Strict JSON fallback coverage for the Stop review gate."""
 
-from __future__ import annotations
+import subprocess
+import sys
 
 import pytest
 
 from tests.python.test_stop_gate_hook import (
+    SCRIPT,
     _decision,
     _path_without,
     _run_launcher_raw,
     _run_shell,
 )
+
+
+def test_help_exits_zero_within_15_lines():
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0
+    assert len(result.stdout.splitlines()) <= 15
+    assert "usage" in result.stdout.lower()
 
 
 def test_missing_jq_and_python_approves_only_top_level_guard(tmp_path):

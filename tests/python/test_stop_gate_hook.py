@@ -103,18 +103,6 @@ def _run_launcher_raw(
     )
 
 
-def test_help_exits_zero_within_15_lines():
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--help"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0
-    assert len(result.stdout.splitlines()) <= 15
-    assert "usage" in result.stdout.lower()
-
-
 def test_malformed_stdin_json_blocks_stop():
     payload = _decision(_run("{not valid json"))
     assert payload["decision"] == "block"
