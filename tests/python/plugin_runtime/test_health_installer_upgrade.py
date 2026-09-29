@@ -109,6 +109,7 @@ def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
         repo_root, tmp_path
     )
 
+    (runtime_root / "health_install_scheduler.py").unlink()
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     receipt["files"].pop("health_install_scheduler.py")
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
@@ -116,6 +117,31 @@ def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
     _install(source_root, env, tmp_path)
     assert (runtime_root / "health_install_scheduler.py").exists()
 
+
+
+def test_health_installer_refuses_untracked_split_runtime_file_on_upgrade(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    source_root, env, runtime_root, receipt_path = _installed_health(
+        repo_root, tmp_path
+    )
+    scheduler = runtime_root / "health_install_scheduler.py"
+    scheduler.write_text("# user-owned scheduler\n", encoding="utf-8")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["files"].pop("health_install_scheduler.py")
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    result = run_script(
+        _installer(source_root),
+        "--source-root",
+        str(source_root),
+        "--install",
+        env=env,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode != 0
+    assert scheduler.read_text(encoding="utf-8") == "# user-owned scheduler\n"
 
 def test_health_installer_uninstalls_receipt_missing_split_scheduler_file(
     repo_root: Path, tmp_path: Path
