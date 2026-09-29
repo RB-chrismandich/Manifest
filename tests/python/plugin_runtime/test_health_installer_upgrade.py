@@ -122,8 +122,6 @@ def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
     assert (runtime_root / scheduler_name).exists()
 
 
-
-
 @pytest.mark.parametrize(
     "scheduler_name",
     ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],

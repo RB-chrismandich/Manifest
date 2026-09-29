@@ -161,6 +161,15 @@ EOF
     PATH="$TMP:$PATH" PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" run
 
     [ "$status" -eq 0 ]
-    [ "$(cat "$(gitlab_scope_count_path group/subgroup/widgets)")" = "5" ]
+    nested_count_path="$(python3 - "$PR_MERGE_LOOP_STATE_DIR" <<'PY'
+import hashlib
+import os
+import sys
+
+scope = "gitlab.com\0group/subgroup/widgets"
+print(os.path.join(sys.argv[1], "empty_count_" + hashlib.sha256(scope.encode()).hexdigest()))
+PY
+)"
+    [ "$(cat "$nested_count_path")" = "5" ]
     [ ! -e "$(gitlab_scope_count_path)" ]
 }

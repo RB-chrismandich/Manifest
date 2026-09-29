@@ -134,7 +134,6 @@ def test_linux_scheduler_uses_systemd_user_timer(
     assert f"--setenv=CLAUDE_CONFIG_DIR={paths.claude_root}" in argv
 
 
-
 def test_report_environment_omits_empty_claude_config_override(tmp_path: Path) -> None:
     environment = isolated_env(tmp_path)
     environment["CLAUDE_CONFIG_DIR"] = ""
@@ -144,6 +143,7 @@ def test_report_environment_omits_empty_claude_config_override(tmp_path: Path) -
     )
 
     assert "CLAUDE_CONFIG_DIR" not in report_environment
+
 
 def test_linux_without_user_manager_installs_unscheduled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -202,7 +202,6 @@ def test_launchd_bootout_failure_is_fatal(
         schedulers._stop_scheduler_job(scheduler, environment)
 
 
-
 def test_systemd_disable_failure_is_fatal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -229,6 +228,7 @@ def test_systemd_disable_failure_is_fatal(
 
     with pytest.raises(files.InstallError, match="systemd timer disable failed"):
         schedulers._stop_scheduler_job(scheduler, environment)
+
 
 def test_systemd_state_probe_failure_is_fatal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -302,7 +302,6 @@ def test_uninstall_preserves_owned_files_when_launchd_bootout_fails(
     assert wrapper.is_file()
 
 
-
 def test_uninstall_preserves_owned_files_when_systemd_stop_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -322,6 +321,7 @@ def test_uninstall_preserves_owned_files_when_systemd_stop_fails(
     assert paths.wrapper.is_file()
     assert paths.systemd_timer.is_file()
     assert paths.systemd_service.is_file()
+
 
 def test_failed_systemd_enable_cleans_up_partially_armed_timer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -430,5 +430,3 @@ def test_uninstall_keeps_files_when_systemd_unit_stays_active(
     assert paths.receipt.is_file()
     assert paths.systemd_timer.is_file()
     assert paths.wrapper.is_file()
-
-

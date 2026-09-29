@@ -213,7 +213,7 @@ if [ -z "$JQ" ]; then
         printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
     elif [ "${DELEGATION_FILE##*.}" != "json" ]; then
         block "jq_unavailable"
-    elif python3 - "$DELEGATION_FILE" <<'PY' > /dev/null 2>&1; then
+    elif python3 - "$DELEGATION_FILE" << 'PY' > /dev/null 2>&1; then
 import json
 import sys
 

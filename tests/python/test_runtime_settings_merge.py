@@ -403,7 +403,6 @@ def test_incomplete_health_receipt_does_not_preserve_hook(
     assert "~/.claude/scripts/mcp_health_check.sh" not in commands
 
 
-
 def test_non_object_health_receipt_does_not_preserve_hook(
     deployment, monkeypatch, tmp_path
 ):
@@ -436,6 +435,7 @@ def test_non_object_health_receipt_does_not_preserve_hook(
         hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
     ]
     assert "~/.claude/scripts/mcp_health_check.sh" not in commands
+
 
 def test_canonical_health_receipt_preserves_owned_hook(
     deployment, monkeypatch, tmp_path
