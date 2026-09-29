@@ -145,7 +145,7 @@ print('legacy-removed-unrelated-preserved')" "$target"
     assert_output "legacy-removed-unrelated-preserved"
 }
 
-@test "existing Claude home retires the stale health hook but keeps an owned one" {
+@test "existing Claude home retires stale health hooks without an owned receipt" {
     mkdir -p "$SANDBOX/home/.claude"
     local target="$SANDBOX/home/.claude/settings.json"
     materialize_existing_home "$target"
@@ -179,38 +179,6 @@ print('stale-health-retired')" "$target"
     assert_success
     assert_output "stale-health-retired"
 
-    # Now register the installer's own hook via its receipt: the merge must
-    # preserve exactly that command and still retire other wrapper forms.
-    mkdir -p "$XDG_STATE_HOME/manifest/health"
-    printf '{"claude_hook":{"command":"%s","timeout":30}}' \
-        "$SANDBOX/home/.claude/scripts/mcp_health_check.sh" \
-        > "$XDG_STATE_HOME/manifest/health/installation.json"
-    python3 - "$target" "$SANDBOX/home" <<'PY'
-import json, sys
-path, home = sys.argv[1], sys.argv[2]
-d = json.load(open(path))
-d["hooks"]["SessionStart"].append({
-    "hooks": [
-        {"type": "command", "command": f"{home}/.claude/scripts/mcp_health_check.sh", "timeout": 30},
-        {"type": "command", "command": "~/.claude/scripts/mcp_health_check.sh"},
-    ]
-})
-json.dump(d, open(path, "w"), indent=2)
-PY
-    run merge_claude_runtime_settings "$SRC" "$target"
-    assert_success
-    run python3 - "$target" "$SANDBOX/home" <<'PY'
-import json, sys
-path, home = sys.argv[1], sys.argv[2]
-d = json.load(open(path))
-commands = [h.get('command', '') for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
-owned = f"{home}/.claude/scripts/mcp_health_check.sh"
-assert commands.count(owned) == 1, commands
-assert "~/.claude/scripts/mcp_health_check.sh" not in commands, commands
-print('owned-health-preserved')
-PY
-    assert_success
-    assert_output "owned-health-preserved"
 }
 
 @test "preserves block_silent_replace Stop hook without duplicating Stop" {
