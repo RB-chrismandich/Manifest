@@ -108,7 +108,8 @@ elif awk '
                 if (character == "\\") { escaped = 1; continue }
                 if (character == "\"") {
                     in_string = 0
-                    if (depth == 1 && want_key) { key = text; have_key = 1 }
+                    if (depth == 1 && want_key && !have_key) { key = text; have_key = 1 }
+                    else if (depth == 1 && want_key) invalid = 1
                     else if (depth == 1) value = "STRING"
                     continue
                 }
