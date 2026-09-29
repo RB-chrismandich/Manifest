@@ -403,6 +403,40 @@ def test_incomplete_health_receipt_does_not_preserve_hook(
     assert "~/.claude/scripts/mcp_health_check.sh" not in commands
 
 
+
+def test_non_object_health_receipt_does_not_preserve_hook(
+    deployment, monkeypatch, tmp_path
+):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    receipt_path = tmp_path / "state" / "manifest" / "health" / "installation.json"
+    receipt_path.parent.mkdir(parents=True)
+    receipt_path.write_text("[]", encoding="utf-8")
+    deployment.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "~/.claude/scripts/mcp_health_check.sh",
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        )
+    )
+
+    assert merge(deployment).returncode == 0
+    commands = [
+        hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
+    ]
+    assert "~/.claude/scripts/mcp_health_check.sh" not in commands
+
 def test_canonical_health_receipt_preserves_owned_hook(
     deployment, monkeypatch, tmp_path
 ):
