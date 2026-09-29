@@ -137,6 +137,7 @@ elif awk '
             if (depth == 0) { if (character !~ /[[:space:]]/) invalid = 1; continue }
             if (depth != 1) continue
             if (character == ":" && want_key) { want_key = 0; value = ""; continue }
+            if (character == "," && want_key) { invalid = 1; continue }
             if (character == "," && !want_key) {
                 if (!valid_value(value)) invalid = 1
                 if (key == "stop_hook_active") active = (value == "true")
