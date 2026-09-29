@@ -378,6 +378,48 @@ def test_missing_jq_disabled_gate_fails_open(tmp_path):
         }
 
 
+@pytest.mark.parametrize("config", [{}, {"review_gate": {"enabled": False}}])
+def test_missing_jq_disabled_json_config_fails_open(tmp_path, config):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(json.dumps(config), encoding="utf-8")
+
+    result = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        {
+            "PATH": _path_without_jq(tmp_path),
+            "MANIFEST_CONFIG_DIR": str(config_dir),
+        },
+    )
+
+    assert _decision(result) == {
+        "decision": "approve",
+        "reason": "gate disabled",
+    }
+
+
+def test_missing_jq_malformed_json_config_blocks(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        json.dumps({"review_gate": "enabled"}), encoding="utf-8"
+    )
+
+    result = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
+        tmp_path,
+        {
+            "PATH": _path_without_jq(tmp_path),
+            "MANIFEST_CONFIG_DIR": str(config_dir),
+        },
+    )
+
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "jq_unavailable" in decision["reason"]
+
+
 def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_path):
     """A configured gate stays fail-closed when jq is missing, but exactly one
     block — the parsed recursion guard approves the follow-up so the session

@@ -122,12 +122,27 @@ DELEGATION_FILE=$(find_delegation_file \
     "${XDG_CONFIG_HOME:-${HOME:-}/.config}/manifest" \
     "${HOME:-}/.claude/config" || true)
 
-# jq is an optional bootstrap dependency: without it the gate can neither read
-# the payload nor evaluate config, so the default-disabled gate fails open. A
-# configured gate still blocks once — the guarded follow-up above then frees
-# the session, matching the interpreter_unavailable contract.
+# jq is optional. Without it, only a valid JSON delegation config that
+# explicitly enables review blocks; absent, empty, or disabled config keeps the
+# default-disabled gate fail-open.
 if [ -z "$JQ" ]; then
     if [ -z "$DELEGATION_FILE" ]; then
+        printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+    elif python3 - "$DELEGATION_FILE" <<'PY' > /dev/null 2>&1
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    config = json.load(handle)
+if not isinstance(config, dict):
+    raise SystemExit(1)
+review_gate = config.get("review_gate")
+if review_gate is None:
+    raise SystemExit(0)
+if not isinstance(review_gate, dict) or review_gate.get("enabled") is not False:
+    raise SystemExit(1)
+PY
+    then
         printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
     else
         block "jq_unavailable"
