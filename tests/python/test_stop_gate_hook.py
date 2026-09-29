@@ -428,6 +428,25 @@ def test_missing_parsers_block_malformed_guard_payload(
     assert "jq_unavailable" in decision["reason"]
 
 
+
+def test_missing_jq_python_rejects_non_json_constant_with_enabled_gate(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        '{"review_gate":{"enabled":true}}', encoding="utf-8"
+    )
+    result = _run_launcher_raw(
+        '{"x":NaN,"stop_hook_active":true}',
+        tmp_path,
+        {
+            "MANIFEST_CONFIG_DIR": str(config_dir),
+            "PATH": _path_without(tmp_path, "jq"),
+        },
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "jq_unavailable" in decision["reason"]
+
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
     """jq is an optional bootstrap dependency: without it, the default-disabled
     gate approves rather than trapping the session in a block loop."""
