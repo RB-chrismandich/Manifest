@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
-op="$1"; pr="${2:-}"
+op="$1"
+pr="${2:-}"
 printf '%s %s\n' "$op" "$pr" >> "${SEAM_CALL_LOG:?}"
 if [[ "${SEAM_FP_FAIL:-}" == "$op" || "${SEAM_FP_FAIL:-}" == "${op#fp-}" ]]; then
-  exit 71
+    exit 71
 fi
 case "$op" in
-  fp-scope)
-    if [[ -n "${SEAM_SCOPE:-}" ]]; then
-      printf '%s\n' "$SEAM_SCOPE"
-    else
-      printf '%s\n' '{"host":"github.com","owner_repo":"acme/widgets"}'
-    fi ;;
-  fp-view)
-    if [[ -n "${SEAM_FP_VIEW:-}" ]]; then
-      printf '%s\n' "$SEAM_FP_VIEW"
-    else
-      python3 - "$pr" <<'PY'
+    fp-scope)
+        if [[ -n "${SEAM_SCOPE:-}" ]]; then
+            printf '%s\n' "$SEAM_SCOPE"
+        else
+            printf '%s\n' '{"host":"github.com","owner_repo":"acme/widgets"}'
+        fi
+        ;;
+    fp-view)
+        if [[ -n "${SEAM_FP_VIEW:-}" ]]; then
+            printf '%s\n' "$SEAM_FP_VIEW"
+        else
+            python3 - "$pr" << 'PY'
 import json
 import os
 import sys
@@ -38,12 +40,13 @@ print(json.dumps({
     "state": os.environ.get("SEAM_PR_STATE", "OPEN"),
 }))
 PY
-    fi ;;
-  fp-checks)
-    if [[ -n "${SEAM_FP_CHECKS:-}" ]]; then
-      printf '%s\n' "$SEAM_FP_CHECKS"
-    else
-      python3 - <<'PY'
+        fi
+        ;;
+    fp-checks)
+        if [[ -n "${SEAM_FP_CHECKS:-}" ]]; then
+            printf '%s\n' "$SEAM_FP_CHECKS"
+        else
+            python3 - << 'PY'
 import json
 import os
 
@@ -59,30 +62,34 @@ for index, bucket in enumerate(os.environ.get("SEAM_BUCKETS", "pass").split()):
     })
 print(json.dumps(checks))
 PY
-    fi ;;
-  fp-threads)
-    if [[ -n "${SEAM_FP_THREADS:-}" ]]; then
-      printf '%s\n' "$SEAM_FP_THREADS"
-    else
-      printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}'
-    fi ;;
-  list)             echo "${SEAM_LIST:-[]}" ;;
-  checks)           printf '%s\n' ${SEAM_BUCKETS-pass} ;;
-  reviewdecision)   echo "${SEAM_RD:-APPROVED}" ;;
-  unresolved-human) echo "${SEAM_UH:-0}" ;;
-  disposition)      echo "${SEAM_DISP:-merge}" ;;
-  mergeable)        echo "${SEAM_MRG:-MERGEABLE CLEAN}" ;;
-  hold)             echo "${SEAM_HOLD:-false}" ;;
-  author)           echo "${SEAM_AUTHOR:-Copilot}" ;;
-  admin-check)      echo "${SEAM_ADMIN:-true}" ;;
-  protection)       echo "${SEAM_PROT:-enforce_admins=false required_signatures=false merge_queue=false}" ;;
-  update-branch)    [ "${SEAM_UPDATE_FAIL:-0}" = 1 ] && exit 1 || echo updated ;;
-  add-label)
-    printf '%s %s\n' "$pr" "${3:-}" >> "${SEAM_LABEL_LOG:?}"
-    [ "${SEAM_LABEL_FAIL:-0}" = 1 ] && exit 1 || exit 0 ;;
-  do-merge)         [ "${SEAM_MERGE_FAIL:-0}" = 1 ] && exit 1 || echo merged ;;
-  headsha)
-    if [[ -f "${SEAM_HEAD_DIR:?}/$pr" ]]; then cat "${SEAM_HEAD_DIR}/$pr"; else echo "${SEAM_HEAD:-sha1}"; fi ;;
-  basebranch)       echo "${SEAM_BASE:-main}" ;;
-  mergecommit)      echo "${SEAM_MERGE_SHA:-mergesha1}" ;;
+        fi
+        ;;
+    fp-threads)
+        if [[ -n "${SEAM_FP_THREADS:-}" ]]; then
+            printf '%s\n' "$SEAM_FP_THREADS"
+        else
+            printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}'
+        fi
+        ;;
+    list) echo "${SEAM_LIST:-[]}" ;;
+    checks) printf '%s\n' ${SEAM_BUCKETS-pass} ;;
+    reviewdecision) echo "${SEAM_RD:-APPROVED}" ;;
+    unresolved-human) echo "${SEAM_UH:-0}" ;;
+    disposition) echo "${SEAM_DISP:-merge}" ;;
+    mergeable) echo "${SEAM_MRG:-MERGEABLE CLEAN}" ;;
+    hold) echo "${SEAM_HOLD:-false}" ;;
+    author) echo "${SEAM_AUTHOR:-Copilot}" ;;
+    admin-check) echo "${SEAM_ADMIN:-true}" ;;
+    protection) echo "${SEAM_PROT:-enforce_admins=false required_signatures=false merge_queue=false}" ;;
+    update-branch) [ "${SEAM_UPDATE_FAIL:-0}" = 1 ] && exit 1 || echo updated ;;
+    add-label)
+        printf '%s %s\n' "$pr" "${3:-}" >> "${SEAM_LABEL_LOG:?}"
+        [ "${SEAM_LABEL_FAIL:-0}" = 1 ] && exit 1 || exit 0
+        ;;
+    do-merge) [ "${SEAM_MERGE_FAIL:-0}" = 1 ] && exit 1 || echo merged ;;
+    headsha)
+        if [[ -f "${SEAM_HEAD_DIR:?}/$pr" ]]; then cat "${SEAM_HEAD_DIR}/$pr"; else echo "${SEAM_HEAD:-sha1}"; fi
+        ;;
+    basebranch) echo "${SEAM_BASE:-main}" ;;
+    mergecommit) echo "${SEAM_MERGE_SHA:-mergesha1}" ;;
 esac
