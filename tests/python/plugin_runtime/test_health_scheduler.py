@@ -134,6 +134,17 @@ def test_linux_scheduler_uses_systemd_user_timer(
     assert f"--setenv=CLAUDE_CONFIG_DIR={paths.claude_root}" in argv
 
 
+
+def test_report_environment_omits_empty_claude_config_override(tmp_path: Path) -> None:
+    environment = isolated_env(tmp_path)
+    environment["CLAUDE_CONFIG_DIR"] = ""
+
+    report_environment = schedulers._report_environment(
+        files._paths(environment), environment
+    )
+
+    assert "CLAUDE_CONFIG_DIR" not in report_environment
+
 def test_linux_without_user_manager_installs_unscheduled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
