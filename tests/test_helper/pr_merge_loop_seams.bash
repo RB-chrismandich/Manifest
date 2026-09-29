@@ -219,12 +219,12 @@ PY
 # fails closed on gitlab (no fp-scope), so the gitlab monitor tests read the
 # file cmd_run_monitor maintains directly.
 gitlab_scope_count_path() {
-    python3 - "$PR_MERGE_LOOP_STATE_DIR" << 'PY'
+    python3 - "$PR_MERGE_LOOP_STATE_DIR" "${1:-acme/widgets}" << 'PY'
 import hashlib
 import os
 import sys
 
-h = hashlib.sha256("gitlab.com\0acme/widgets".encode()).hexdigest()
+h = hashlib.sha256(f"gitlab.com\0{sys.argv[2]}".encode()).hexdigest()
 print(os.path.join(sys.argv[1], "empty_count_" + h))
 PY
 }

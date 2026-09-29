@@ -114,3 +114,53 @@ EOF
     [ "$(cat "$(gitlab_scope_count_path)")" = "5" ]
     [[ "$output" == *"5 consecutive empty passes"* ]]
 }
+
+
+@test "gitlab: list failure propagates without counting an empty pass" {
+    cat > "$TMP/glab" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1 $2" == "mr list" ]]; then
+  exit 7
+fi
+echo '{}'
+EOF
+    chmod +x "$TMP/glab"
+    unset PR_MERGE_LOOP_GH_CMD
+    git init -q "$TMP/repo" && cd "$TMP/repo" || return 1
+    git remote add origin git@gitlab.com:acme/widgets.git
+    count_path="$(gitlab_scope_count_path)"
+    mkdir -p "$(dirname "$count_path")"
+    printf '2\n' > "$count_path"
+
+    PATH="$TMP:$PATH" PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" run
+
+    [ "$status" -eq 7 ]
+    [ "$(cat "$count_path")" = "2" ]
+}
+
+
+@test "gitlab: nested namespace scopes the empty counter to the full path" {
+    cat > "$TMP/glab" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1 $2" == "mr list" ]] && { echo '[]'; exit 0; }
+echo '{}'
+EOF
+    chmod +x "$TMP/glab"
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 30 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    unset PR_MERGE_LOOP_GH_CMD
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    git init -q "$TMP/repo" && cd "$TMP/repo" || return 1
+    git remote add origin git@gitlab.com:group/subgroup/widgets.git
+
+    PATH="$TMP:$PATH" PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" run
+
+    [ "$status" -eq 0 ]
+    [ "$(cat "$(gitlab_scope_count_path group/subgroup/widgets)")" = "5" ]
+    [ ! -e "$(gitlab_scope_count_path)" ]
+}
