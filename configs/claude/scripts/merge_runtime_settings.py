@@ -105,14 +105,29 @@ def _health_receipt_command() -> str | None:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if (
-        not isinstance(receipt, dict)
-        or receipt.get("schema_version") != 1
-        or not isinstance(receipt.get("files"), dict)
-        or not isinstance(receipt.get("claude_wrapper"), dict)
-        or not isinstance(receipt.get("hook_hashes"), dict)
-    ):
+    if not isinstance(receipt, dict) or receipt.get("schema_version") != 1:
         return None
+    installer_scripts = (
+        Path(__file__).resolve().parents[3]
+        / "plugins"
+        / "manifest-workspace"
+        / "skills"
+        / "env-check"
+        / "scripts"
+    )
+    if not installer_scripts.is_dir():
+        return None
+    sys.path.insert(0, str(installer_scripts))
+    try:
+        from health_install_files import InstallError, _paths
+        from health_install_receipts import _validate_receipt
+
+        paths = _paths(os.environ)
+        _validate_receipt(receipt, paths)
+    except (ImportError, InstallError, OSError, ValueError):
+        return None
+    finally:
+        sys.path.pop(0)
     hook = receipt.get("claude_hook")
     command = hook.get("command") if isinstance(hook, dict) else None
     return command if isinstance(command, str) else None

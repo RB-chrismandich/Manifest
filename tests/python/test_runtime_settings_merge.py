@@ -13,6 +13,19 @@ REPO = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO / "configs/claude/scripts"
 MERGER = SCRIPTS / "merge_runtime_settings.py"
 
+ENV_CHECK_SCRIPTS = REPO / "plugins/manifest-workspace/skills/env-check/scripts"
+sys.path.insert(0, str(ENV_CHECK_SCRIPTS))
+from health_install_files import (
+    OWNERSHIP_MARKER,
+    SESSION_TIMEOUT_SECONDS,
+    _owned_row,
+    _paths,
+)
+from health_install_receipts import (
+    HOOK_HASH_SOURCES,
+    RUNTIME_SOURCES,
+)
+
 
 @pytest.fixture
 def deployment(tmp_path, monkeypatch):
@@ -353,16 +366,70 @@ def test_retired_health_hook_is_removed_without_a_receipt(
     assert any("deploy_stamp_check.sh" in command for command in commands)
 
 
-def test_installer_owned_health_hook_survives_the_merge(
+def _write_valid_health_receipt(
+    receipt_path: Path, source_root: Path, environment: dict[str, str]
+) -> str:
+    paths = _paths(environment)
+    payload = b"owned\n"
+    paths.runtime_root.mkdir(parents=True)
+    files = {}
+    for name, relative in RUNTIME_SOURCES.items():
+        destination = paths.runtime_root / name
+        destination.write_bytes(payload)
+        files[name] = _owned_row(str(source_root / relative), destination, payload)
+    paths.extension.parent.mkdir(parents=True)
+    paths.extension.write_bytes(payload)
+    paths.wrapper.parent.mkdir(parents=True)
+    paths.wrapper.write_bytes(payload)
+    command = str(paths.wrapper.resolve())
+    receipt_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source_root": str(source_root),
+                "executables": {
+                    name: str((source_root / "bin" / name).resolve())
+                    for name in ("python", "omp", "claude", "coordinator")
+                },
+                "files": files,
+                "omp_extension": _owned_row(
+                    str(source_root / "extension"), paths.extension, payload
+                ),
+                "claude_wrapper": _owned_row(
+                    str(source_root / "wrapper"), paths.wrapper, payload
+                ),
+                "scheduler": {"kind": "none", "managed_by": OWNERSHIP_MARKER},
+                "claude_hook": {
+                    "command": command,
+                    "timeout": SESSION_TIMEOUT_SECONDS,
+                },
+                "hook_hashes": dict.fromkeys(HOOK_HASH_SOURCES, "a" * 64),
+            }
+        ),
+        encoding="utf-8",
+    )
+    return command
+
+
+def test_incomplete_health_receipt_does_not_preserve_hook(
     deployment, monkeypatch, tmp_path
 ):
-    """A hook matching the installer receipt is installer-managed, not stale."""
+    """A partial receipt cannot authorize retention of a known health hook."""
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     command = str(tmp_path / "home" / ".claude" / "scripts" / "mcp_health_check.sh")
     receipt_path = tmp_path / "state" / "manifest" / "health" / "installation.json"
     receipt_path.parent.mkdir(parents=True)
     receipt_path.write_text(
-        json.dumps({"claude_hook": {"command": command, "timeout": 30}}),
+        json.dumps(
+            {
+                "schema_version": 1,
+                "files": {"env_check.py": {}},
+                "claude_wrapper": {"destination": command},
+                "hook_hashes": {"hooks.json": "a" * 64},
+                "claude_hook": {"command": command, "timeout": 30},
+            }
+        ),
         encoding="utf-8",
     )
     deployment.write_text(
@@ -388,5 +455,35 @@ def test_installer_owned_health_hook_survives_the_merge(
     commands = [
         hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
     ]
-    assert commands.count(command) == 1
+    assert command not in commands
     assert "~/.claude/scripts/mcp_health_check.sh" not in commands
+
+
+def test_canonical_health_receipt_preserves_owned_hook(
+    deployment, monkeypatch, tmp_path
+):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    receipt_path = tmp_path / "state" / "manifest" / "health" / "installation.json"
+    receipt_path.parent.mkdir(parents=True)
+    command = _write_valid_health_receipt(receipt_path, source_root, dict(os.environ))
+    deployment.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "SessionStart": [
+                        {"hooks": [{"type": "command", "command": command}]}
+                    ]
+                }
+            }
+        )
+    )
+
+    assert merge(deployment).returncode == 0
+    commands = [
+        hook["command"] for hook in _session_hooks(json.loads(deployment.read_text()))
+    ]
+    assert commands.count(command) == 1
