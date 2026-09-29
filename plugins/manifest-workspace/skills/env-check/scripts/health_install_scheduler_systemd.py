@@ -82,9 +82,11 @@ def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -
             "systemd timer disable",
         )
     try:
-        _scheduler._run_quiet(
+        stopped = _scheduler._run_quiet(
             [scheduler.systemctl, "--user", "stop", timer, service], environment, 10.0
         )
+        if stopped.returncode != 0:
+            raise InstallError("systemd unit stop failed")
     except (OSError, subprocess.SubprocessError) as error:
         raise InstallError("systemd unit stop failed") from error
     try:

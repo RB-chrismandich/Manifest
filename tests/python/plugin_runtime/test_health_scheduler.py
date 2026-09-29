@@ -302,6 +302,27 @@ def test_uninstall_preserves_owned_files_when_launchd_bootout_fails(
     assert wrapper.is_file()
 
 
+
+def test_uninstall_preserves_owned_files_when_systemd_stop_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    _write_fake_tools(tmp_path, environment)
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    monkeypatch.setenv("PATH", environment["PATH"])
+
+    installer.install(repo_root(), environment)
+    paths = files._paths(environment)
+    environment["MANIFEST_TEST_STOP_STATUS"] = "1"
+
+    with pytest.raises(files.InstallError, match="systemd unit stop failed"):
+        installer.uninstall(repo_root(), environment)
+
+    assert paths.receipt.is_file()
+    assert paths.wrapper.is_file()
+    assert paths.systemd_timer.is_file()
+    assert paths.systemd_service.is_file()
+
 def test_failed_systemd_enable_cleans_up_partially_armed_timer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
