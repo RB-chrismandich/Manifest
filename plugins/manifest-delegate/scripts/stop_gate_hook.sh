@@ -118,7 +118,13 @@ elif awk '
             }
             if (depth != 1) continue
             if (character == ":" && want_key) { want_key = 0; value = ""; continue }
-            if (character == "," && !want_key) { want_key = 1; key = ""; value = ""; continue }
+            if (character == "," && !want_key) {
+                if (key == "stop_hook_active" && value == "true") { active = 1; exit }
+                want_key = 1
+                key = ""
+                value = ""
+                continue
+            }
             if (character !~ /[[:space:]]/) value = value character
         }
     }

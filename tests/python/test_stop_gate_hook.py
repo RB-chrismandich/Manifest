@@ -355,9 +355,9 @@ def test_missing_jq_and_python_approves_only_top_level_guard(tmp_path):
     no_parser_path = _path_without(tmp_path, "jq", "python3")
     result = _run_shell(
         {
+            "stop_hook_active": True,
             "hook_event_name": "Stop",
             "transcript_path": "/missing.jsonl",
-            "stop_hook_active": True,
         },
         tmp_path,
         {"PATH": no_parser_path},
