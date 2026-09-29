@@ -202,6 +202,34 @@ def test_launchd_bootout_failure_is_fatal(
         schedulers._stop_scheduler_job(scheduler, environment)
 
 
+
+def test_systemd_disable_failure_is_fatal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = isolated_env(tmp_path)
+    scheduler = schedulers._Scheduler(
+        kind="systemd",
+        domain="",
+        service="",
+        unit="manifest-health-report",
+        launchctl="",
+        plutil="",
+        systemd_run="",
+        systemctl="/bin/systemctl",
+        payload=b"",
+        persistent=True,
+    )
+    monkeypatch.setattr(
+        schedulers,
+        "_run_required",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            files.InstallError("systemd timer disable failed")
+        ),
+    )
+
+    with pytest.raises(files.InstallError, match="systemd timer disable failed"):
+        schedulers._stop_scheduler_job(scheduler, environment)
+
 def test_systemd_state_probe_failure_is_fatal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
