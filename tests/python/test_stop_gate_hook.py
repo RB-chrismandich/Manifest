@@ -390,115 +390,42 @@ def test_missing_parsers_follow_final_duplicate_guard_value(tmp_path):
 
 
 
-def test_missing_parsers_reject_truncated_guard_payload(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
+@pytest.mark.parametrize(
+    "payload",
+    [
         '{"stop_hook_active":true,',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_parsers_reject_invalid_top_level_value(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{"stop_hook_active":true, garbage}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_parsers_reject_guard_without_colon(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{"stop_hook_active" true}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-
-def test_missing_parsers_reject_double_comma_payload(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{"x":1,,"stop_hook_active":true}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-
-def test_missing_parsers_reject_value_without_key(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{:1,"stop_hook_active":true}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_parsers_reject_adjacent_keys(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{"x""stop_hook_active":true}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-def test_missing_parsers_reject_invalid_string_escape(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         r'{"x":"\q","stop_hook_active":true}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_parsers_reject_newline_in_string(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{"x":"line\nbreak","stop_hook_active":true}',
-        tmp_path,
-        {"PATH": no_parser_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_parsers_reject_spaced_boolean(tmp_path):
-    no_parser_path = _path_without(tmp_path, "jq", "python3")
-    result = _run_launcher_raw(
         '{"stop_hook_active":t r u e}',
-        tmp_path,
-        {"PATH": no_parser_path},
+        '{"x":"raw\ttab","stop_hook_active":true}',
+        '{"x":NaN,"stop_hook_active":true}',
+    ],
+)
+def test_missing_parsers_block_malformed_guard_payload(
+    tmp_path, payload: str
+) -> None:
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        '{"review_gate":{"enabled":true}}', encoding="utf-8"
     )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_parsers_reject_control_character_in_string(tmp_path):
     no_parser_path = _path_without(tmp_path, "jq", "python3")
     result = _run_launcher_raw(
-        '{"x":"raw\ttab","stop_hook_active":true}',
+        payload,
         tmp_path,
-        {"PATH": no_parser_path},
+        {
+            "MANIFEST_CONFIG_DIR": str(config_dir),
+            "PATH": no_parser_path,
+        },
     )
-    assert _decision(result)["reason"] == "gate disabled"
-
-
-def test_missing_jq_python_rejects_non_json_constant(tmp_path):
-    no_jq_path = _path_without(tmp_path, "jq")
-    result = _run_launcher_raw(
-        '{"x":NaN,"stop_hook_active":true}',
-        tmp_path,
-        {"PATH": no_jq_path},
-    )
-    assert _decision(result)["reason"] == "gate disabled"
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "jq_unavailable" in decision["reason"]
 
 
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
