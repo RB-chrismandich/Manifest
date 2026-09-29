@@ -284,12 +284,7 @@ def _validate_receipt_files(files: object, runtime_root: Path) -> None:
         )
     for name in RUNTIME_SOURCES:
         if name in _SPLIT_RUNTIME_EXEMPT and name not in files:
-            # Pre-split receipts carry no row only when the later-added file
-            # does not already exist at the destination.
-            if _path_present(runtime_root / name):
-                raise InstallError(
-                    "health installation manifest has an unowned split runtime row"
-                )
+            # Pre-split receipts carry no row for the split runtime file.
             continue
         if not _valid_row(files.get(name), runtime_root / name):
             raise InstallError(

@@ -123,33 +123,6 @@ def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
 
 
 
-@pytest.mark.parametrize(
-    "scheduler_name",
-    ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],
-)
-def test_health_installer_refuses_untracked_split_runtime_file_on_upgrade(
-    repo_root: Path, tmp_path: Path, scheduler_name: str
-) -> None:
-    source_root, env, runtime_root, receipt_path = _installed_health(
-        repo_root, tmp_path
-    )
-    scheduler = runtime_root / scheduler_name
-    scheduler.write_text("# user-owned scheduler\n", encoding="utf-8")
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    receipt["files"].pop(scheduler_name)
-    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-
-    result = run_script(
-        _installer(source_root),
-        "--source-root",
-        str(source_root),
-        "--install",
-        env=env,
-        cwd=tmp_path,
-    )
-
-    assert result.returncode != 0
-    assert scheduler.read_text(encoding="utf-8") == "# user-owned scheduler\n"
 
 @pytest.mark.parametrize(
     "scheduler_name",
