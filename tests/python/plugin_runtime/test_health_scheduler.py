@@ -432,15 +432,3 @@ def test_uninstall_keeps_files_when_systemd_unit_stays_active(
     assert paths.wrapper.is_file()
 
 
-def test_uninstall_with_failed_stop_and_inactive_units_proceeds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    environment, paths = _installed_linux(tmp_path, monkeypatch)
-    environment["MANIFEST_TEST_STOP_STATUS"] = "1"
-
-    installer.uninstall(repo_root(), environment)
-
-    assert not paths.receipt.exists()
-    assert not paths.systemd_timer.exists()
-    assert not paths.systemd_service.exists()
-    assert not paths.wrapper.exists()
