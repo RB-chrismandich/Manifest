@@ -96,7 +96,8 @@ PY
 elif awk '
     function valid_value(value) {
         return value == "STRING" || value == "true" || value == "false" ||
-            value == "null" || value ~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
+            value == "null" ||
+            value ~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
     }
     BEGIN { active = 0; complete = 0; invalid = 0; started = 0; depth = 0; in_string = 0; escaped = 0; want_key = 0; key = ""; value = "" }
     {
@@ -117,6 +118,7 @@ elif awk '
             if (character == "\"") { in_string = 1; text = ""; continue }
             if (character == "{") {
                 if (depth == 0 && started) { invalid = 1; continue }
+                if (depth == 1 && !want_key) invalid = 1
                 depth++
                 started = 1
                 if (depth == 1) want_key = 1

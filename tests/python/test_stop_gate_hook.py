@@ -419,6 +419,8 @@ def test_missing_parsers_reject_guard_without_colon(tmp_path):
     )
     assert _decision(result)["reason"] == "gate disabled"
 
+
+
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
     """jq is an optional bootstrap dependency: without it, the default-disabled
     gate approves rather than trapping the session in a block loop."""
