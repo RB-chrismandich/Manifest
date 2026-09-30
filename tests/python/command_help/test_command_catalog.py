@@ -97,6 +97,17 @@ def test_when_to_use_ignores_terminators_inside_quotes():
     )
 
 
+def test_when_to_use_secondary_also_use_when_does_not_replace_primary_cue():
+    desc = (
+        "Build or harden a CI workflow running privileged actions. "
+        "Also use when debugging a gate that does not fire."
+    )
+    assert (
+        cc.derive_when_to_use(desc, "ci-harden-workflow")
+        == "Build or harden a CI workflow running privileged actions."
+    )
+
+
 def test_when_to_use_clause_ignores_terminators_inside_quotes():
     desc = 'Use when the user asks "ok to ship?" about a diff. Not for docs.'
     assert (

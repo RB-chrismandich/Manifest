@@ -92,10 +92,10 @@ def derive_when_to_use(description: str, name: str) -> str:
     description → (3) humanized name. Never returns empty.
     """
     flat = " ".join((description or "").split())
-    lowered = flat.lower()
-    idx = lowered.find("use when")
-    if idx != -1:
-        return _first_sentence(flat[idx:])
+    # A secondary "Also use when …" is an extra case, never the primary cue.
+    for match in re.finditer(r"\buse when\b", flat, re.IGNORECASE):
+        if not flat[: match.start()].lower().endswith("also "):
+            return _first_sentence(flat[match.start() :])
     sentence = _first_sentence(flat)
     if sentence:
         return sentence
