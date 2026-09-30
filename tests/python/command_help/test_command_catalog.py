@@ -87,6 +87,24 @@ def test_when_to_use_first_sentence_fallback():
     )
 
 
+def test_when_to_use_ignores_terminators_inside_quotes():
+    desc = (
+        'Trigger on sign-off asks like "ok to ship?", "look good?" on a change. Extra.'
+    )
+    assert (
+        cc.derive_when_to_use(desc, "code-audit")
+        == 'Trigger on sign-off asks like "ok to ship?", "look good?" on a change.'
+    )
+
+
+def test_when_to_use_clause_ignores_terminators_inside_quotes():
+    desc = 'Use when the user asks "ok to ship?" about a diff. Not for docs.'
+    assert (
+        cc.derive_when_to_use(desc, "x")
+        == 'Use when the user asks "ok to ship?" about a diff.'
+    )
+
+
 def test_when_to_use_humanized_name_fallback():
     assert cc.derive_when_to_use("", "branch-clean") == "Branch clean"
 
