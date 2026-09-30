@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This prints our on-call roster but the last engineer shows up twice at the bottom of the list — what's wrong?
 

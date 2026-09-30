@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 bandit flagged this during our pre-merge scan — is this something we should be tracking as a recurring issue?
 

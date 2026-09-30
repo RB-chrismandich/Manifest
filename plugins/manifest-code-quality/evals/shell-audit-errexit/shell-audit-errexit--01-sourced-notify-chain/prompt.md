@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We have a deploy script that occasionally stops before printing the final "rollout complete" line — exit code 1, nothing in the logs, and the services actually did get restarted. Can you audit `deploy.sh` and the two helper libs it sources for anything that could abort the whole run under strict mode?
 

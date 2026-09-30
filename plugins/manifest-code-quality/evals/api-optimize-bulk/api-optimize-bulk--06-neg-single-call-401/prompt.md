@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This call keeps returning 401 even though the API key is definitely correct. Here's the relevant part of the Billwise docs and my code — what am I missing?
 

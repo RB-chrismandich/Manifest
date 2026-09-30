@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Here's a query helper from our ops toolbox — does this look production ready?
 

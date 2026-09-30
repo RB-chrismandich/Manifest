@@ -3,6 +3,7 @@ max_turns: 30
 timeout_seconds: 600
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(python3:*)", "Bash(ruff:*)", "Bash(pytest:*)", "Bash(bandit:*)", "Bash(command:*)"]
 runs: 3
+model: sonnet
 ---
 I'm about to merge this branch. Save the two files below in the current directory exactly as given, then run the quality gate on this project and tell me pass or fail before I merge.
 

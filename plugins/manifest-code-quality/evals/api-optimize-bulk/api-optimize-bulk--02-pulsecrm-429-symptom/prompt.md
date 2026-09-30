@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We keep getting `429 Too Many Requests` syncing contacts overnight. We have about 1500 contact IDs to sync. Here's the relevant PulseCRM doc section and the sync code — what should we do?
 

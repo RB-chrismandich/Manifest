@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our security scanner keeps flagging this IAM policy on every scan and I don't understand why — can you help me fix it up?
 

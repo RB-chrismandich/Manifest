@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Here's our `formatMonthLabel` helper. I know it's off by one — `getMonth()` is 0-indexed and we never add 1 — but half our reports currently depend on that exact off-by-one until we finish a coordinated migration next quarter, so I'm not touching the logic now.
 

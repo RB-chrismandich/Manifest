@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 240
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you refactor this Go handler for security issues before we ship it?
 

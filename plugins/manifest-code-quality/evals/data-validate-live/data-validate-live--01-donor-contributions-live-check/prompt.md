@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 I just finished the parser for our nightly donor-contribution import. Unit tests
 (built on hand-written fixtures) are all green. Before I open the PR, run a live-data

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you do a pipefail/silent-abort audit of this coverage gate before we wire it into the merge queue?
 

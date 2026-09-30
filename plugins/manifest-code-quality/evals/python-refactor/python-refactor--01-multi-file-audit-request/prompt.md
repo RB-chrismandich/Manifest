@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We're about to onboard a bigger customer onto this billing service. Can you do a full refactor audit and give me a prioritized roadmap of what to fix before then?
 

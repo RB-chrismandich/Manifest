@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 I'm getting `AttributeError: 'RiskSnapshot' object has no attribute
 'backlog_ratio'`. A teammate added the field on their branch but it never made it

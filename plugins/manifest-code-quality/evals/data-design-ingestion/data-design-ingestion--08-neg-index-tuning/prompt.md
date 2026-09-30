@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our `filings` table already has the right ingestion design (append-only, decided
 months ago and working fine). What's slow now is querying it: `SELECT * FROM

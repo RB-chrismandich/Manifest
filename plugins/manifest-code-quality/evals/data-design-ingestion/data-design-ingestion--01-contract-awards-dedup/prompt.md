@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 I'm building a nightly job that pulls newly awarded federal contracts from a public
 contracts API into a local SQLite table for an internal dashboard. Once a contract

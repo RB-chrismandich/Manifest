@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Here's our ingestion for completed court judgments (each judgment is final and
 public record the moment it's entered — the court never edits or retracts one,

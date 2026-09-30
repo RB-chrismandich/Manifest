@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 I'm about to merge this smoke-test runner — can you sanity check it for `set -e` footguns before I do?
 

@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 I'm fetching a paginated REST API (`GET /awards?page=N`) and every so often a page
 request comes back with a 500 or times out, so I silently lose that page's records

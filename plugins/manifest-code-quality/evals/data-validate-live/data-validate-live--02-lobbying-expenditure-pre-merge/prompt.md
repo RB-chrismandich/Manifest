@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 All 40 unit tests pass for the lobbying-expenditure aggregator. Before I mark the
 ticket done, here's the code plus a small real response I captured from the state

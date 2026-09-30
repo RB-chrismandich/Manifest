@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our spec-consistency check flagged `momentum_score` as a coverage gap: it's
 referenced in the alert-prompt spec but `plan.md` never lists a task to populate

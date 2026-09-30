@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Write pytest tests for this slugify function — cover a normal title, one with extra whitespace, and one with mixed case.
 

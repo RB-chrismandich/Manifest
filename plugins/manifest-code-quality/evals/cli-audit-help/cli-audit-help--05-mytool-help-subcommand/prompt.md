@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 New users can't get `mytool help` (or `mytool --help`) to work before they've run `mytool init` — both just error out about a missing state file. Here's the script, what's broken?
 

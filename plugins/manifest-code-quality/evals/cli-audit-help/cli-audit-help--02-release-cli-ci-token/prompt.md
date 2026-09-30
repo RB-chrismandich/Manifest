@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 In CI, `./release-cli --help` exits 1 with "missing API token file" — but it works fine on my laptop and nothing else changed. What's going on?
 

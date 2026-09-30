@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our ruff run just failed in CI. Can you look at this and tell me whether it's a recurring pattern worth tracking?
 

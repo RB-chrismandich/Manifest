@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you review this? It throws `ZeroDivisionError: float division by zero` in CI and I can't figure out why — the `normalize` function looks fine to me.
 

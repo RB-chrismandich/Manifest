@@ -3,6 +3,7 @@ max_turns: 12
 timeout_seconds: 300
 allowed_tools: [Skill, Read, Write, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Save this as `loyalty_discount.py`, then just give me a prioritized roadmap of constitution issues in it — please don't edit anything yet, I want to review the plan first before anyone touches the file.
 

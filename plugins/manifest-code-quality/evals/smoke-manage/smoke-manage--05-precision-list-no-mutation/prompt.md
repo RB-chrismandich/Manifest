@@ -3,6 +3,7 @@ max_turns: 20
 timeout_seconds: 600
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(python3:*)", "Bash(find:*)"]
 runs: 3
+model: sonnet
 ---
 Save the file below as `smoke-catalog/billing.yaml` exactly as given, then show me what smoke coverage already exists for the `billing` app. Don't change anything, I just want to know what's there.
 

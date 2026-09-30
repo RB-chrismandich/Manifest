@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Two different reviewers on this PR independently flagged the same problem: our tests for the pricing module call the function and check that it didn't throw, but never assert on the actual value returned. Here's one of the flagged tests:
 

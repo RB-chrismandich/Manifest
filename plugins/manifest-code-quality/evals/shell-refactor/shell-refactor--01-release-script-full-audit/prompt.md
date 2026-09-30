@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Refactor this release script for security and quality — give me a prioritized report with effort and risk ratings for each finding.
 

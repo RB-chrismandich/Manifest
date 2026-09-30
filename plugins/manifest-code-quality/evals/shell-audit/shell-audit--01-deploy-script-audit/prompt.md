@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Audit this deploy script for ways it can abort silently under `set -euo pipefail`. Report findings by severity with a fix for each. Don't rewrite the whole script.
 

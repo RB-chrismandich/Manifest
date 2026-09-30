@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Every report row shows "sector PE=None" even though I added the `sector_pe_ratio`
 field months ago. Here's the whole pipeline — what's missing?

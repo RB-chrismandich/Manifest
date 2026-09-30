@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 New machine provisioning script, sources three helper libs. Please audit it for `set -e`/`pipefail` footguns before we roll it out to the fleet.
 

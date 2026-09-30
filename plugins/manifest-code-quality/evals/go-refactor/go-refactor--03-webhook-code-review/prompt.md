@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Here's the diff for our new webhook signature check and the HTTP client it uses to call out to the provider. Can you take a look before I approve the PR?
 

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Before I roll this out, does this preflight script have any false-green risk — could it ever claim something passed when it wasn't actually checked?
 

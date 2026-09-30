@@ -3,6 +3,7 @@ max_turns: 20
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Write, Edit, Grep, Glob, "Bash(mkdir:*)", "Bash(python3:*)", "Bash(pytest:*)"]
 runs: 3
+model: sonnet
 ---
 Save this as `pricing.py` and audit/fix it against the code constitution before we merge — that rate table looks like it shouldn't be sitting in the code.
 

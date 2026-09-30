@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 QA reported that our paginated `/items` endpoint returns overlapping items — page 0 with page_size=3 returns 4 items, and the extra one shows up again as the first item of page 1. Root cause is `get_page()` computing `end = start + page_size + 1` instead of `start + page_size`. Fixing it properly needs a migration for cached page tokens, so it's parked for next quarter and I'm not changing the logic now.
 

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Adding a `--version` flag to our log-shipper script. Here's the current top of the file — does this look right before I open the PR?
 

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you take a look at this before I merge it? It works, just want a second pair of eyes. `repo_ids` has around 400 entries for our org.
 

@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 150
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This function should return the average score but blows up with a TypeError. What's wrong and how do I fix it?
 

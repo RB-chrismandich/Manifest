@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 240
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you audit this Go handler for issues before we merge it?
 

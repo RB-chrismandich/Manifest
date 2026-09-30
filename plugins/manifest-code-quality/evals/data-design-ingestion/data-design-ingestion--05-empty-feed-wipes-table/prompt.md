@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We mirror a daily grant-recipient roster that's re-published in full each morning
 (no diffs, no version field) using a delete-then-insert loader:

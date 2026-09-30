@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 About to open the PR for this daily price-anomaly flagger. Here's the code and a
 real window of closing prices captured from our vendor feed (which paginates in

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our payments package works but every new provider we add means touching half the package. Can you give this a holistic audit -- architecture and anything else you spot?
 

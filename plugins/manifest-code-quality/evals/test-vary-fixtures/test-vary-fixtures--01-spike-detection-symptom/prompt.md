@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This spike-detection test is failing and I can't figure out why. We feed it an obvious surge — 500 requests/min against a baseline of ~120 — and `is_spike` still comes back `False`. Is the detection logic broken?
 

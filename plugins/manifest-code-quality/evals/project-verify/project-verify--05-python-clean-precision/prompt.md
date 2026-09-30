@@ -3,6 +3,7 @@ max_turns: 30
 timeout_seconds: 600
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(python3:*)", "Bash(ruff:*)", "Bash(pytest:*)", "Bash(bandit:*)", "Bash(command:*)"]
 runs: 3
+model: sonnet
 ---
 Before I tag this release, save the two files below in the current directory exactly as given, then run the quality gate and confirm it's good to ship.
 

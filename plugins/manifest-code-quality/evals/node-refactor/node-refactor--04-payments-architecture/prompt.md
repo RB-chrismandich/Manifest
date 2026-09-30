@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This payments service works but adding a new provider means editing this file in five places. Can you take a full pass -- not just architecture?
 

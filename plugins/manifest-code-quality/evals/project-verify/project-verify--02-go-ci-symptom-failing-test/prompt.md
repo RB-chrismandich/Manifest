@@ -3,6 +3,7 @@ max_turns: 30
 timeout_seconds: 900
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(go:*)", "Bash(command:*)"]
 runs: 3
+model: sonnet
 ---
 Our CI has been red on this branch for the last two runs and I can't tell why. Here's the Go package — save these three files in the current directory exactly as given, then check it and tell me what's broken before I push again.
 

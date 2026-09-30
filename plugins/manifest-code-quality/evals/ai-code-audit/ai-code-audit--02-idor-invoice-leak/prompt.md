@@ -3,6 +3,7 @@ max_turns: 25
 timeout_seconds: 600
 allowed_tools: [Skill, Agent, Read, Write, Grep, Glob, "Bash(mkdir:*)", "Bash(ls:*)", "Bash(grep:*)", "Bash(python3:*)", "Bash(node:*)", "Bash(git:*)"]
 runs: 3
+model: sonnet
 ---
 First save each file below into this workspace at the path given in its header comment, then run the audit against that local tree.
 

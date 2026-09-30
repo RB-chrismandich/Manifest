@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This baseline fixture for our anomaly detector blows up with `ValueError: day is out of range for month` when the test suite runs. Here's the fixture and the failing test:
 

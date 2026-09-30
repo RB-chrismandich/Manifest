@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Security flagged this log-cleanup script in our last audit — can you give me a fix roadmap with priorities?
 

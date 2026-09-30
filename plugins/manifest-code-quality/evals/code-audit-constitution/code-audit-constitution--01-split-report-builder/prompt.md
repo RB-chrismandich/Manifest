@@ -3,6 +3,7 @@ max_turns: 20
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Write, Edit, Grep, Glob, "Bash(python3:*)", "Bash(pytest:*)"]
 runs: 3
+model: sonnet
 ---
 Save this as `report_builder.py`. The constitution checker keeps flagging `build_report` in it as over the function size ceiling. Can you actually fix it instead of just noting it, and confirm it still produces the same report?
 

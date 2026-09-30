@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 CI `go test` is red across three packages with basically the same failure shape. Is this a recurring pattern worth tracking?
 

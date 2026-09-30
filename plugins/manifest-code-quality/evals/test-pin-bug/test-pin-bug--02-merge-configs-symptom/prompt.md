@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We noticed `merge_configs` silently drops nested keys instead of deep-merging — e.g. our `db.port` setting vanishes whenever an override only touches `db.host`. Turns out it does a shallow `dict.update()`. Deep-merging is a bigger refactor we're deferring to next sprint, so I don't want to change the logic right now. Meanwhile I want a regression test for this call:
 

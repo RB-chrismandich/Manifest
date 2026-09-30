@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Run a shell audit on this before I commit it — any silent-abort or control-flow risks under strict mode?
 

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This is way too slow — can you speed it up? We have about 1200 customer IDs in `customer_ids`.
 

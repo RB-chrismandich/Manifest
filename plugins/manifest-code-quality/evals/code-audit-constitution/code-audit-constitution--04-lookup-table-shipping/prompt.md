@@ -3,6 +3,7 @@ max_turns: 20
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Write, Edit, Grep, Glob, "Bash(python3:*)", "Bash(pytest:*)"]
 runs: 3
+model: sonnet
 ---
 Can you save this as `shipping.py` and audit it against our code constitution? Every time we add a region we just bolt on another elif — feels like it's due for a cleanup.
 

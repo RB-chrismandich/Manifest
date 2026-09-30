@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our nightly status dashboard printed "ALL SYSTEMS GREEN" last night, but PagerDuty alerting was actually completely broken in that environment — it turns out the runner never had `PAGERDUTY_TOKEN` set. Here's the checker. Can you tell me why it didn't catch that, and how to fix it for good?
 

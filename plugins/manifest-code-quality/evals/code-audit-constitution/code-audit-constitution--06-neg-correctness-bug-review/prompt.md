@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 200
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you review this palindrome check — it crashes with an IndexError on input like "level". What's wrong?
 

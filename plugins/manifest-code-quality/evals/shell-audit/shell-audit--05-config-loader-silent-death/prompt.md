@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our release job sometimes just stops with exit 1 and no output at all. The upstream step writes `plan.json`. Can you check this script for the silent-abort risk?
 

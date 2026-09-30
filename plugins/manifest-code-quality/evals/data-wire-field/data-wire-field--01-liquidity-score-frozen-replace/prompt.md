@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 I added `liquidity_score` to `PortfolioSnapshot` and wrote `compute_liquidity_score()`
 to calculate it. The prompt builder already reads `snap.liquidity_score`. Can you

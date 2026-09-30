@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We're onboarding a bigger customer onto this service soon. Can you do a full refactor audit of these files and give me a prioritized roadmap?
 

@@ -3,6 +3,7 @@ max_turns: 25
 timeout_seconds: 600
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(python3:*)", "Bash(find:*)"]
 runs: 3
+model: sonnet
 ---
 Save the file below as `smoke-catalog/billing.yaml` exactly as given, then update the existing `healthcheck` smoke test for the `billing` app: tag it `core` and give its step a 5000ms timeout. Keep it at the `Lite` tier.
 

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This module technically works but our team keeps stepping on each other's changes because every function reads and writes the same shared dict. Can you do a full audit -- architecture and anything else you spot?
 

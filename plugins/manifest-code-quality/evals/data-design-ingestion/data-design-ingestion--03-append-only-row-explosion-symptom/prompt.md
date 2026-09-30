@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our `filings` table has ballooned to 40x the row count we expected. The ingestion
 is append-only with a deterministic dedup id and `INSERT OR IGNORE`:

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our pen-test report flagged something in this Python data-access helper — can you refactor it and tell me what else needs fixing?
 

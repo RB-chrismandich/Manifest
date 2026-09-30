@@ -3,6 +3,7 @@ max_turns: 30
 timeout_seconds: 600
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(python3:*)", "Bash(ruff:*)", "Bash(pytest:*)", "Bash(bandit:*)", "Bash(command:*)"]
 runs: 3
+model: sonnet
 ---
 Quick check before I open the PR — save this as `stringutils.py` and `test_stringutils.py` in the current directory, then run the quality gate and tell me what it finds.
 

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 New field `rsi` on `WatchlistEntry` — can you confirm it's wired end to end before
 I close the ticket?

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Mind taking a look at this before I merge it? It's the new signature verifier for incoming webhook payloads.
 

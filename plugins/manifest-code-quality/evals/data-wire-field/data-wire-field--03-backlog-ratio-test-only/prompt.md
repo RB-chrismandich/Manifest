@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 The unit test for `_attach_backlog_ratio` passes and I know the math is right, but
 I want a second pair of eyes: is `backlog_ratio` actually populated when

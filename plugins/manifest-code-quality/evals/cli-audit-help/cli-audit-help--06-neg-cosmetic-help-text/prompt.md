@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Can you punch up the `--help` text for this formatter with a short description and one usage example? Don't change any of the logic.
 

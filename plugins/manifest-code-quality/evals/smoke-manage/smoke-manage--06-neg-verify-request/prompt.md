@@ -3,6 +3,7 @@ max_turns: 25
 timeout_seconds: 600
 allowed_tools: [Skill, Write, Read, Grep, Glob, "Bash(python3:*)", "Bash(ruff:*)", "Bash(pytest:*)", "Bash(command:*)"]
 runs: 3
+model: sonnet
 ---
 Save the two files below in the current directory exactly as given, then run our lint and test suite and tell me if this is safe to ship.
 

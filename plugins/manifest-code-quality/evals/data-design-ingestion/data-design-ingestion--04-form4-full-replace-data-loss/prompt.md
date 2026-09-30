@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This nightly sync loads insider-trading Form 4 filings into our SQLite mirror. Each
 filing is permanent once filed — the SEC never amends or retracts a Form 4. Lately

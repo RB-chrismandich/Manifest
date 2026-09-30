@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Review this deploy preflight script for false-green risk before we wire it into CI — can it ever print "ALL CHECKS PASSED" when something wasn't actually verified?
 

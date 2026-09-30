@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Sanity check this CLI entry point for us — does `--help` actually work before any of our env/config requirements kick in?
 

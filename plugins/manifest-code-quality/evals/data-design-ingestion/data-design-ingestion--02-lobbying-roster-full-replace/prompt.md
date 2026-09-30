@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our state's lobbyist registration feed returns the FULL current list of ~4,000
 active registrations every time we call it — it's not incremental. Past entries

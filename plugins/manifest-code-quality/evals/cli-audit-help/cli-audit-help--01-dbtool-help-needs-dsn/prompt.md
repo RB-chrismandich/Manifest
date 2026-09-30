@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 We just added `--help` to `dbtool` but a new contributor says `dbtool --help` fails on their machine with a DB_DSN error instead of showing usage. Here's the script — what's wrong and how do we fix it properly?
 

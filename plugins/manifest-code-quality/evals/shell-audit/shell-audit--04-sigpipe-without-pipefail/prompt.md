@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Pre-commit review: please do a shell safety audit of this cleanup script and rank anything that can make it exit early.
 

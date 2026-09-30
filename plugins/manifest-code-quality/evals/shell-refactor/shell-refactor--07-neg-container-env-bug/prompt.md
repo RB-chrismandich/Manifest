@@ -3,6 +3,7 @@ max_turns: 10
 timeout_seconds: 180
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 This script exits immediately with "HOME: unbound variable" after we moved it into a minimal Docker image. Any idea why?
 

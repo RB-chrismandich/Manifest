@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 `go test -race` flagged something in our metrics package under load, and separately I noticed this admin token sitting in the code -- can you do a full pass on these two files, not just the race, and prioritize what needs fixing?
 

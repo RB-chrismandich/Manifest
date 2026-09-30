@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Grep, Glob]
 runs: 3
+model: sonnet
 ---
 Our employer-enrichment step is returning almost no matches against the employer
 registry, even though the data looks fine when I eyeball it. All the unit tests

@@ -3,6 +3,7 @@ max_turns: 15
 timeout_seconds: 480
 allowed_tools: [Skill, Read, Write, Edit, Grep, Glob, "Bash(python3:*)", "Bash(pytest:*)"]
 runs: 3
+model: sonnet
 ---
 Save this as `discount.py` and audit it against the code constitution — fix anything it flags.
 
