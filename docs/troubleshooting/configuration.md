@@ -158,7 +158,7 @@ Gemini-lineage import path. Devin verifies the generated rule against
 `~/.codeium/windsurf/memories/global_rules.md`, which `devin rules` reports as
 always-on. If that Devin file already contains different non-empty user content,
 bootstrap preserves it and reports the collision; move or merge that content,
-then rerun bootstrap so the pinned ADHD rule can be installed.
+then rerun bootstrap so the generated ADHD rule can be installed.
 
 ---
 
