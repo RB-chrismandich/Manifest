@@ -44,7 +44,11 @@ def test_missing_jq_and_python_approves_only_top_level_guard(tmp_path):
         tmp_path,
         {"PATH": no_parser_path},
     )
-    assert _decision(nested)["reason"] == "gate disabled"
+    # With no parser available the non-guard payload is unverifiable, so the
+    # disabled gate fails closed instead of approving like the jq path.
+    nested_decision = _decision(nested)
+    assert nested_decision["decision"] == "block"
+    assert "invalid_input" in nested_decision["reason"]
 
 
 def test_missing_parsers_follow_final_duplicate_guard_value(tmp_path):
@@ -53,7 +57,11 @@ def test_missing_parsers_follow_final_duplicate_guard_value(tmp_path):
         tmp_path,
         {"PATH": _path_without(tmp_path, "jq", "python3")},
     )
-    assert _decision(result)["reason"] == "gate disabled"
+    # The awk guard sees the final value is not `true`, so the payload is not
+    # a guarded follow-up; with no parser left it is unverifiable and blocks.
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "invalid_input" in decision["reason"]
 
 
 @pytest.mark.parametrize(
@@ -108,3 +116,53 @@ def test_missing_jq_python_rejects_non_json_constant_with_enabled_gate(tmp_path)
     decision = _decision(result)
     assert decision["decision"] == "block"
     assert "jq_unavailable" in decision["reason"]
+
+
+@pytest.mark.parametrize(
+    ("stdin_text", "expected"),
+    [
+        ('{"some_field":1}', "not_stop_event"),
+        ('{"hook_event_name":"Stop"}', "missing_transcript"),
+        (
+            '{"hook_event_name":"Stop","transcript_path":"/missing.jsonl"}',
+            None,
+        ),
+    ],
+)
+def test_no_jq_disabled_gate_applies_stop_contract(
+    tmp_path, stdin_text: str, expected: str | None
+) -> None:
+    """With jq gone the disabled gate must enforce the same object/event/
+    transcript contract as the jq path — via the python3 fallback parser."""
+    result = _run_launcher_raw(
+        stdin_text,
+        tmp_path,
+        {"PATH": _path_without(tmp_path, "jq")},
+    )
+    decision = _decision(result)
+    if expected is None:
+        assert decision == {"decision": "approve", "reason": "gate disabled"}
+    else:
+        assert decision["decision"] == "block"
+        assert expected in decision["reason"]
+
+
+@pytest.mark.parametrize(
+    "stdin_text",
+    [
+        '{"some_field":1}',
+        '{"hook_event_name":"Stop"}',
+        '{"hook_event_name":"Stop","transcript_path":"/missing.jsonl"}',
+    ],
+)
+def test_no_jq_no_python_disabled_gate_fails_closed(tmp_path, stdin_text: str) -> None:
+    """With neither jq nor python3, the disabled gate cannot verify the input
+    at all and must fail closed — even for a payload that would be valid."""
+    result = _run_launcher_raw(
+        stdin_text,
+        tmp_path,
+        {"PATH": _path_without(tmp_path, "jq", "python3")},
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "invalid_input" in decision["reason"]

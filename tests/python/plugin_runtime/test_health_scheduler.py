@@ -430,3 +430,65 @@ def test_uninstall_keeps_files_when_systemd_unit_stays_active(
     assert paths.receipt.is_file()
     assert paths.systemd_timer.is_file()
     assert paths.wrapper.is_file()
+
+
+def test_reinstall_with_failed_probe_refuses_edited_recorded_unit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A probe failure resolving to "none" must not silently discard the
+    externally edited unit file the recorded systemd receipt still owns."""
+    environment, paths = _installed_linux(tmp_path, monkeypatch)
+    edited = paths.systemd_timer.read_bytes() + b"# operator edit\n"
+    paths.systemd_timer.write_bytes(edited)
+    environment["MANIFEST_TEST_SHOW_ENV_STATUS"] = "1"
+
+    with pytest.raises(
+        files.InstallError, match="externally edited systemd timer unit"
+    ):
+        installer.install(repo_root(), environment)
+
+    assert paths.systemd_timer.read_bytes() == edited
+    receipt = json.loads(paths.receipt.read_text(encoding="utf-8"))
+    assert receipt["scheduler"]["kind"] == "systemd"
+
+
+def test_reinstall_reports_failed_rollback_reactivation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When a replace fails after the prior timer was disabled, a failing
+    rollback `enable --now` must surface in the raised InstallError."""
+    environment, paths = _installed_linux(tmp_path, monkeypatch)
+    environment["MANIFEST_TEST_ENABLE_STATUS"] = "36"
+
+    with pytest.raises(files.InstallError) as caught:
+        installer.install(repo_root(), environment)
+
+    message = str(caught.value)
+    assert "systemd timer enable failed" in message
+    assert "reactivat" in message
+    assert paths.systemd_timer.is_file()
+    assert paths.systemd_service.is_file()
+
+
+def test_uninstall_reports_failed_rollback_reactivation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An uninstall aborted after the timer was stopped must report a rollback
+    reactivation failure instead of leaving the timer silently disabled."""
+    environment, paths = _installed_linux(tmp_path, monkeypatch)
+    original_atomic_write = installer._atomic_write
+
+    def fail_settings_write(path: Path, payload: bytes, mode: int) -> None:
+        if path == paths.settings:
+            raise files.InstallError("injected settings write failure")
+        original_atomic_write(path, payload, mode)
+
+    monkeypatch.setattr(installer, "_atomic_write", fail_settings_write)
+    environment["MANIFEST_TEST_ENABLE_STATUS"] = "36"
+
+    with pytest.raises(files.InstallError) as caught:
+        installer.uninstall(repo_root(), environment)
+
+    message = str(caught.value)
+    assert "injected settings write failure" in message
+    assert "reactivat" in message

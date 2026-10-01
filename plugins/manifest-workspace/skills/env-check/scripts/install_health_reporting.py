@@ -36,7 +36,6 @@ from health_install_files import (  # noqa: E402
     _read_regular,
     _read_settings,
     _remove_empty_directory,
-    _restore_snapshots,
     _snapshot,
 )
 from health_install_receipts import (  # noqa: E402
@@ -54,6 +53,7 @@ from health_install_reconcile import (  # noqa: E402
     _InstallPlan,
     _managed_paths,
     _rewrite_health_hook,
+    _rollback_transaction,
 )
 from health_install_scheduler import (  # noqa: E402
     _receipt_scheduler_kind,
@@ -61,7 +61,6 @@ from health_install_scheduler import (  # noqa: E402
     _resolve_scheduler,
     _run_best_effort,
     _scheduler_kind,
-    _scheduler_reactivate,
     _stop_scheduler_job,
 )
 
@@ -147,12 +146,20 @@ def _preflight_destinations(
         "Claude wrapper",
         payloads.wrapper if payloads is not None else None,
     )
-    if scheduler_kind == "launchd":
+    # The recorded scheduler's artifacts are managed files this transaction
+    # can stop, overwrite, or unlink; they must pass the same ownership and
+    # digest preflight even when the resolved kind differs. A transient
+    # probe failure resolving to "none" cannot silently discard an edited
+    # unit file that the receipt still describes.
+    managed_kinds = {scheduler_kind}
+    if receipt is not None:
+        managed_kinds.add(_receipt_scheduler_kind(receipt))
+    if "launchd" in managed_kinds:
         _assert_plist_owned(
             paths.plist,
             receipt.get("launchd_plist") if receipt else None,
         )
-    elif scheduler_kind == "systemd":
+    if "systemd" in managed_kinds:
         for key, destination, description in (
             ("systemd_timer", paths.systemd_timer, "systemd timer unit"),
             ("systemd_service", paths.systemd_service, "systemd service unit"),
@@ -279,16 +286,15 @@ def _uninstall(environment: Mapping[str, str]) -> None:
                 [recorded.systemctl, "--user", "daemon-reload"], environment
             )
     # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
-    except BaseException:
-        try:
-            _restore_snapshots(snapshots)
-        finally:
-            _scheduler_reactivate(
-                recorded,
-                paths,
-                str(Path(sys.executable).resolve(strict=False)),
-                environment,
-            )
+    except BaseException as error:
+        _rollback_transaction(
+            snapshots,
+            recorded,
+            paths,
+            str(Path(sys.executable).resolve(strict=False)),
+            environment,
+            error,
+        )
         raise
 
     _remove_empty_directory(paths.runtime_root)

@@ -110,12 +110,18 @@ def _scheduler_reactivate(
     python: str,
     environment: Mapping[str, str],
 ) -> None:
-    """Best-effort re-arm of a previously running scheduler after rollback."""
+    """Re-arm a previously running scheduler after rollback.
+
+    Re-arm failures raise InstallError: a rollback that leaves a stopped
+    persistent timer silently disabled is worse than a loud combined error.
+    Callers combine this failure with the error that triggered rollback.
+    """
     if scheduler.kind == "launchd":
         if _scheduler._path_present(paths.plist):
-            _scheduler._run_best_effort(
+            _scheduler._run_required(
                 [scheduler.launchctl, "bootstrap", scheduler.domain, str(paths.plist)],
                 environment,
+                "launchd reactivation",
             )
         return
     if scheduler.kind == "none":
@@ -123,10 +129,12 @@ def _scheduler_reactivate(
     if _scheduler._path_present(paths.systemd_timer) and _scheduler._path_present(
         paths.systemd_service
     ):
+        # daemon-reload stays best-effort: a stale in-memory unit table only
+        # matters if the enable below cannot proceed, which surfaces anyway.
         _scheduler._run_best_effort(
             [scheduler.systemctl, "--user", "daemon-reload"], environment
         )
-        _scheduler._run_best_effort(
+        _scheduler._run_required(
             [
                 scheduler.systemctl,
                 "--user",
@@ -135,9 +143,14 @@ def _scheduler_reactivate(
                 f"{scheduler.unit}.timer",
             ],
             environment,
+            "systemd timer reactivation",
+            timeout=30.0,
         )
         return
     if scheduler.systemd_run:
-        _scheduler._run_best_effort(
-            scheduler.systemd_argv(paths, python, environment), environment
+        _scheduler._run_required(
+            scheduler.systemd_argv(paths, python, environment),
+            environment,
+            "systemd transient timer reactivation",
+            timeout=30.0,
         )

@@ -344,11 +344,17 @@ def test_unparseable_json_config_fails_closed(tmp_path):
 
 def test_missing_jq_disabled_gate_fails_open(tmp_path):
     """jq is an optional bootstrap dependency: without it, the default-disabled
-    gate approves rather than trapping the session in a block loop."""
+    gate approves rather than trapping the session in a block loop. Approval
+    still requires a verifiably valid Stop payload — both events below carry a
+    nonblank transcript_path, matching the jq-path contract."""
     no_jq_path = _path_without_jq(tmp_path)
     for payload in (
         {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"},
-        {"stop_hook_active": False, "hook_event_name": "Stop"},
+        {
+            "stop_hook_active": False,
+            "hook_event_name": "Stop",
+            "transcript_path": "/missing.jsonl",
+        },
     ):
         result = _run_shell(payload, tmp_path, {"PATH": no_jq_path})
         assert _decision(result) == {

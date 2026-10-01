@@ -325,18 +325,46 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
     except SchedulerTeardownError:
         raise
     # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
-    except BaseException:
-        try:
-            _restore_snapshots(plan.snapshots)
-        finally:
-            if prior is not None:
-                _scheduler_reactivate(
-                    prior,
-                    plan.paths,
-                    plan.executables["python"],
-                    environment,
-                )
+    except BaseException as error:
+        _rollback_transaction(
+            plan.snapshots,
+            prior,
+            plan.paths,
+            plan.executables["python"],
+            environment,
+            error,
+        )
         raise
+
+
+def _rollback_transaction(
+    snapshots: Sequence[FileSnapshot],
+    prior: _Scheduler | None,
+    paths: InstallPaths,
+    python: str,
+    environment: Mapping[str, str],
+    error: BaseException,
+) -> None:
+    """Restore snapshots and re-arm the prior scheduler after ``error``.
+
+    A failed re-arm raises one InstallError naming both failures, so a
+    rollback never silently leaves the recorded timer disabled. Otherwise
+    returns and the caller re-raises ``error``.
+    """
+    reactivation_error: InstallError | None = None
+    try:
+        _restore_snapshots(snapshots)
+    finally:
+        if prior is not None:
+            try:
+                _scheduler_reactivate(prior, paths, python, environment)
+            except InstallError as failed:
+                reactivation_error = failed
+    if prior is not None and reactivation_error is not None:
+        raise InstallError(
+            f"{error}; additionally, rollback could not reactivate the "
+            f"recorded {prior.kind} scheduler: {reactivation_error}"
+        ) from error
 
 
 def _cleanup_retired_runtime(plan: _InstallPlan) -> None:

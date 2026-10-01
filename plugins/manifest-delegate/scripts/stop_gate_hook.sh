@@ -208,9 +208,61 @@ DELEGATION_FILE=$(find_delegation_file \
 
 # jq is optional. Without it, only an explicit enabled review gate blocks;
 # malformed or absent configuration uses the gate's disabled default.
+
+# validate_stop_input mirrors the jq checks below — JSON object, hook_event_name
+# == "Stop", nonblank transcript_path — using python3's strict parser (NaN and
+# friends rejected like the recursion-guard fallback). It exits 0 only for a
+# verifiably valid Stop payload and prints nothing; the caller classifies the
+# failure. With no python3 either, the input is unverifiable and the disabled
+# gate must fail closed, never approve.
+validate_stop_input() {
+    python3 - "$INPUT_FILE" << 'PY' > /dev/null 2>&1
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        value = json.load(
+            handle,
+            parse_constant=lambda constant: (_ for _ in ()).throw(ValueError(constant)),
+        )
+except (OSError, ValueError):
+    raise SystemExit(1)
+if not isinstance(value, dict):
+    raise SystemExit(1)
+if value.get("hook_event_name") != "Stop":
+    raise SystemExit(2)
+transcript = value.get("transcript_path")
+if not isinstance(transcript, str) or not transcript.strip():
+    raise SystemExit(3)
+PY
+}
+
+# approve_disabled emits the disabled-gate approval only after the same input
+# contract the jq path enforces. python3 gives the exact block reason; with no
+# parser at all, unverifiable input blocks like the jq path's first check.
+approve_disabled() {
+    validate_stop_input
+    VALIDATION=$?
+    case "$VALIDATION" in
+        0)
+            printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+            ;;
+        2)
+            block "not_stop_event"
+            ;;
+        3)
+            block "missing_transcript"
+            ;;
+        *)
+            block "invalid_input"
+            ;;
+    esac
+}
+
 if [ -z "$JQ" ]; then
     if [ -z "$DELEGATION_FILE" ]; then
-        printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+        approve_disabled
     elif [ "${DELEGATION_FILE##*.}" != "json" ]; then
         block "jq_unavailable"
     elif python3 - "$DELEGATION_FILE" << 'PY' > /dev/null 2>&1; then
@@ -228,7 +280,7 @@ review_gate = config.get("review_gate")
 if isinstance(review_gate, dict) and review_gate.get("enabled") is True:
     raise SystemExit(1)
 PY
-        printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+        approve_disabled
     else
         block "jq_unavailable"
     fi
