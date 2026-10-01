@@ -17,8 +17,8 @@ Monorepo-only by its own SKILL.md: the installed bundle does not ship the benchm
 runtime, so for plugin users the skill can only explain that it can't run. Its high Δ
 measures that honesty, not a working feature.
 
-- Move `skills/token-benchmark/` to the repo's `.claude/skills/` (project-scoped, like
-  the speckit skills); remove it from the bundle manifest and `plugin.json`.
+- Move `skills/token-benchmark/` out of the bundle into a project-scoped skill under the
+  repo's `.claude/` directory (like the speckit skills); remove it from the bundle manifest and `plugin.json`.
 - Delete `evals/token-benchmark/` in the same change.
 - Run the skill-lifecycle generators (`docs/COMMANDS.md`, guide index, Cursor rules).
 
