@@ -52,7 +52,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume \u2014 verifies the population site exists, not just the schema.",
+      "description": "Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume \u2014 verifies the population site exists, not just the schema. Not for declaring/restoring the field itself (DDL, schema merge conflicts).",
       "name": "data-wire-field",
       "qualified_name": "manifest-code-quality:data-wire-field"
     },
@@ -87,7 +87,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Initialize new projects with language-specific quality gates, linting configs, test frameworks, CI/CD templates, and Manifest integration.",
+      "description": "Initialize new projects with language-specific quality gates, linting configs, test frameworks, pre-commit hooks, and Manifest integration.",
       "name": "project-scaffold",
       "qualified_name": "manifest-code-quality:project-scaffold"
     },

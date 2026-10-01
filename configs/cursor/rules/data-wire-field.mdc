@@ -1,12 +1,12 @@
 ---
-description: "Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema."
+description: "Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema. Not for declaring/restoring the field itself (DDL, schema merge conflicts)."
 globs: ".claude/skills/data-wire-field/**"
 alwaysApply: false
 ---
 
 # data-wire-field
 
-Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema.
+Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema. Not for declaring/restoring the field itself (DDL, schema merge conflicts).
 
 <!-- Auto-generated from .claude/skills/data-wire-field/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

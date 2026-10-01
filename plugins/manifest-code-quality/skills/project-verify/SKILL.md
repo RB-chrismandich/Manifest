@@ -110,8 +110,10 @@ Classify each category result:
 | Exit Code | Classification | Meaning |
 |-----------|---------------|---------|
 | 0 | **pass** | No issues found |
-| 1 | **warn** | Issues found but non-blocking (lint warnings, low-severity findings) |
-| 2+ | **fail** | Critical issues (test failures, high-severity vulnerabilities) |
+| non-zero, test runner | **fail** | Any failing or erroring test (pytest exits 1 on a test failure, `go test` exits 1) |
+| non-zero, linter | **warn** | Lint findings that do not block (unless the project configures lint as blocking) |
+| 2+ | **fail** | Critical issues (high-severity vulnerabilities, tool usage/collection errors) |
+| tool cannot start | **skip** | Report as not run (e.g. broken install), never as pass or fail |
 | timeout | **fail** | Tool exceeded 120s timeout |
 | skip | **skip** | Tool not installed |
 
