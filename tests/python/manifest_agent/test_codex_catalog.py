@@ -149,6 +149,8 @@ def test_installed_manifest_ids_filters_correctly() -> None:
         f"manifest-workspace@{MARKETPLACE}",
         f"manifest-core@{MARKETPLACE}",
     }
+
+
 from manifest_agent.models import HarnessReceipt, OwnedEntry
 from manifest_agent.ownership import owned_codex_catalog_entry
 
@@ -206,6 +208,7 @@ def test_observe_restoration_routing() -> None:
         result = observe_restoration(entry_enabled_missing)
         assert result == "ambiguous"
         mock_enabled_missing_path.assert_not_called()
+
 
 def test_desired_target_identity(desired: DesiredState) -> None:
     from dataclasses import replace
