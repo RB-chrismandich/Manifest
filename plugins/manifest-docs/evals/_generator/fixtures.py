@@ -212,7 +212,57 @@ def good_readme(typo=False, install="make install"):
 
 
 class Code(str):
-    """A Python expression emitted verbatim into the setup script."""
+    """A Python expression emitted verbatim into the setup script.
+
+    The string itself IS the source expression (what ``emit()`` writes into
+    the generated setup script, byte for byte). ``value`` is the identical
+    content, computed by native Python rather than by evaluating that
+    expression text, so ``render()`` never needs ``eval()``.
+    """
+
+    def __new__(cls, expr: str, value: str):
+        obj = str.__new__(cls, expr)
+        obj.value = value
+        return obj
+
+
+def _section_toc():
+    expr = '"".join(f"- [Section {i}](#section-{i})\\n" for i in range(1, 13))'
+    value = "".join(f"- [Section {i}](#section-{i})\n" for i in range(1, 13))
+    return Code(expr, value)
+
+
+def _directory_tree():
+    expr = (
+        '"".join(f"tally/module_{i:02d}.py   # placeholder listing line {i}\\n" '
+        "for i in range(1, 41))"
+    )
+    value = "".join(
+        f"tally/module_{i:02d}.py   # placeholder listing line {i}\n"
+        for i in range(1, 41)
+    )
+    return Code(expr, value)
+
+
+def _faq():
+    expr = (
+        '"".join(f"**Q{i}: Does tally handle case {i}?**\\n\\nOf course. Obviously '
+        'it does, basically out of the box.\\n\\n" for i in range(1, 31))'
+    )
+    value = "".join(
+        f"**Q{i}: Does tally handle case {i}?**\n\n"
+        "Of course. Obviously it does, basically out of the box.\n\n"
+        for i in range(1, 31)
+    )
+    return Code(expr, value)
+
+
+def _changelog():
+    expr = (
+        '"".join(f"- 0.{i // 10}.{i % 10}: minor fixes\\n" for i in range(30, 0, -1))'
+    )
+    value = "".join(f"- 0.{i // 10}.{i % 10}: minor fixes\n" for i in range(30, 0, -1))
+    return Code(expr, value)
 
 
 def bloated_readme():
@@ -230,19 +280,13 @@ def bloated_readme():
     body = good_readme().split("\n", 3)[3]
     return [
         intro,
-        Code('"".join(f"- [Section {i}](#section-{i})\\n" for i in range(1, 13))'),
+        _section_toc(),
         "\n" + body + "\n## Directory tree\n\n```text\n",
-        Code(
-            '"".join(f"tally/module_{i:02d}.py   # placeholder listing line {i}\\n" for i in range(1, 41))'
-        ),
+        _directory_tree(),
         "```\n\n## FAQ\n\n",
-        Code(
-            '"".join(f"**Q{i}: Does tally handle case {i}?**\\n\\nOf course. Obviously it does, basically out of the box.\\n\\n" for i in range(1, 31))'
-        ),
+        _faq(),
         "\n## Changelog\n\n",
-        Code(
-            '"".join(f"- 0.{i // 10}.{i % 10}: minor fixes\\n" for i in range(30, 0, -1))'
-        ),
+        _changelog(),
     ]
 
 
@@ -277,6 +321,25 @@ def stale_readme(onboarding=False):
     )
 
 
+def _troubleshooting_body():
+    expr = (
+        '"".join(f"## {s} errors\\n\\n" + "".join(f"### `{s.upper()}-{i:02d}`\\n\\n'
+        'Please note that this error is basically caused by case {i}. Obviously, re-run the command.\\n\\n"'
+        ' for i in range(1, 25)) for s in ("Install", "Auth", "Ingest"))'
+    )
+    value = "".join(
+        f"## {s} errors\n\n"
+        + "".join(
+            f"### `{s.upper()}-{i:02d}`\n\n"
+            f"Please note that this error is basically caused by case {i}. "
+            "Obviously, re-run the command.\n\n"
+            for i in range(1, 25)
+        )
+        for s in ("Install", "Auth", "Ingest")
+    )
+    return Code(expr, value)
+
+
 def troubleshooting():
     head = D("""
         # Troubleshooting
@@ -285,12 +348,7 @@ def troubleshooting():
         most errors are simply configuration mistakes. Needless to say, read carefully.
 
         """)
-    body = Code(
-        '"".join(f"## {s} errors\\n\\n" + "".join(f"### `{s.upper()}-{i:02d}`\\n\\n'
-        'Please note that this error is basically caused by case {i}. Obviously, re-run the command.\\n\\n"'
-        ' for i in range(1, 25)) for s in ("Install", "Auth", "Ingest"))'
-    )
-    return [head, body]
+    return [head, _troubleshooting_body()]
 
 
 CONFIG_HEAD = D("""
@@ -304,13 +362,20 @@ CONFIG_HEAD = D("""
     """)
 
 
+def _legacy_aliases():
+    expr = (
+        '"".join(f"| `legacy_alias_{i:03d}` | none | Deprecated alias, ignored |\\n" '
+        "for i in range(440))"
+    )
+    value = "".join(
+        f"| `legacy_alias_{i:03d}` | none | Deprecated alias, ignored |\n"
+        for i in range(440)
+    )
+    return Code(expr, value)
+
+
 def config_ref():
-    return [
-        CONFIG_HEAD,
-        Code(
-            '"".join(f"| `legacy_alias_{i:03d}` | none | Deprecated alias, ignored |\\n" for i in range(440))'
-        ),
-    ]
+    return [CONFIG_HEAD, _legacy_aliases()]
 
 
 SMALL = {
@@ -328,17 +393,30 @@ def mermaid(title, body, caption):
 FLOW = "flowchart LR\n    cli[tally.cli] --> ingest[tally.ingest]\n    ingest --> store[(tally.store / SQLite)]\n    cli --> report[tally.report]\n    report --> store"
 
 
+def _huge_diagrams_body():
+    expr = (
+        '"".join(f"## Diagram {i}\\n\\n```mermaid\\n" + '
+        + repr(FLOW)
+        + ' + "\\n```\\n\\n" + "".join('
+        'f"Note {j} on diagram {i}: this paragraph restates the node list in prose.\\n" for j in range(1, 45)) + "\\n\\n"'
+        " for i in range(1, 8))"
+    )
+    value = "".join(
+        f"## Diagram {i}\n\n```mermaid\n"
+        + FLOW
+        + "\n```\n\n"
+        + "".join(
+            f"Note {j} on diagram {i}: this paragraph restates the node list in prose.\n"
+            for j in range(1, 45)
+        )
+        + "\n\n"
+        for i in range(1, 8)
+    )
+    return Code(expr, value)
+
+
 def huge_diagrams():
-    return [
-        "# Architecture diagrams\n\n",
-        Code(
-            '"".join(f"## Diagram {i}\\n\\n```mermaid\\n" + '
-            + repr(FLOW)
-            + ' + "\\n```\\n\\n" + "".join('
-            'f"Note {j} on diagram {i}: this paragraph restates the node list in prose.\\n" for j in range(1, 45)) + "\\n\\n"'
-            " for i in range(1, 8))"
-        ),
-    ]
+    return ["# Architecture diagrams\n\n", _huge_diagrams_body()]
 
 
 def stale_diagrams():
@@ -367,7 +445,7 @@ def parts(value):
 
 def render(value):
     """Content a file value produces, for local checks."""
-    return "".join(eval(p) if isinstance(p, Code) else p for p in parts(value))
+    return "".join(p.value if isinstance(p, Code) else p for p in parts(value))
 
 
 def emit(value):

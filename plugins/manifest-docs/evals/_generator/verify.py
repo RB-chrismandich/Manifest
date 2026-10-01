@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
+import common
 import fixtures as F
 import gen
 
@@ -57,16 +58,18 @@ def drift(generated, evals):
 
 
 def expected_fixtures():
+    # Case-builder modules (readme.py, diagrams.py, ...) call common.write_case
+    # module-qualified, so patching it here reaches every one of them.
     expected = {}
-    real = gen.write_case
-    gen.write_case = lambda root, slug, files, *a, **k: expected.__setitem__(
+    real = common.write_case
+    common.write_case = lambda root, slug, files, *a, **k: expected.__setitem__(
         slug, files or {}
     )
     try:
         for fn in gen.SKILLS.values():
             fn(None)
     finally:
-        gen.write_case = real
+        common.write_case = real
     return expected
 
 
