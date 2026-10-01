@@ -319,8 +319,10 @@ def test_omp_plugin_link_isolated_from_real_home_registers_package(
     npm_packages = json.loads(listed.stdout)["npm"]
     package = next(item for item in npm_packages if item["name"] == "stitch-design")
     assert Path(package["path"]) == registered_package
-    on_disk = json.loads((stitch_bundle / "package.json").read_text(encoding="utf-8"))
-    assert package["version"] == on_disk["version"]
+    plugin = json.loads(
+        (stitch_bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+    assert package["version"] == plugin["version"]
     assert package["enabled"] is True
     assert package["manifest"]["extensions"] == ["./extensions/ui-delivery-policy.ts"]
     real_registry_after = (
