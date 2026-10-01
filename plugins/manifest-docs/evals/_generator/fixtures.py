@@ -1,10 +1,15 @@
 """Fixture repo ("tallyho") builders for manifest-docs evals."""
-import base64, io, tarfile, textwrap
 
-D = lambda s: textwrap.dedent(s).lstrip("\n")
+import textwrap
+
+
+def D(s: str) -> str:
+    """Dedent a triple-quoted fixture body and drop its leading newline."""
+    return textwrap.dedent(s).lstrip("\n")
+
 
 CODE = {
-    "pyproject.toml": D('''
+    "pyproject.toml": D("""
         [project]
         name = "tallyho"
         version = "0.3.0"
@@ -13,7 +18,7 @@ CODE = {
 
         [project.scripts]
         tally = "tally.cli:main"
-        '''),
+        """),
     "Makefile": "install:\n\tpip install -e .\n\ntest:\n\tpytest -q\n",
     "tally/__init__.py": '"""tallyho: count events from CSV logs and flag threshold breaches."""\n',
     "tally/config.py": D('''
@@ -100,7 +105,7 @@ CODE = {
             for event, n in report.breaches(cfg["db_path"], t).items():
                 click.echo(f"{event}\\t{n}")
         '''),
-    "tests/test_report.py": D('''
+    "tests/test_report.py": D("""
         from tally import ingest, report
 
 
@@ -110,7 +115,7 @@ CODE = {
             db = str(tmp_path / "t.db")
             ingest.run(str(csv_path), db)
             assert report.breaches(db, 5) == {"login": 5}
-        '''),
+        """),
 }
 
 SPLIT_INGEST = {
@@ -142,21 +147,22 @@ SPLIT_INGEST = {
         '''),
 }
 
-ACME = D('''
+ACME = D("""
     ## Running on the ops cron host
 
     Ops runs `tally report` every 15 minutes from cron on the shared metrics
     host; the crontab entry is `*/15 * * * * cd /srv/tally && tally report`.
     Output goes to the host's mail spool, so check there first when a breach
     alert looks wrong.
-    ''')
+    """)
 
 SUPPORT = "## Support\n\nOpen an issue or ping #tally in chat.\n"
 
 
 def good_readme(typo=False, install="make install"):
     recv = "recieve" if typo else "receive"
-    return D(f'''
+    return (
+        D(f"""
         # tallyho
 
         Count events from CSV logs and flag any event whose count meets a threshold.
@@ -198,7 +204,11 @@ def good_readme(typo=False, install="make install"):
 
         Tests {recv} a temporary directory from pytest and never touch `tally.db`.
 
-        ''') + ACME + "\n" + SUPPORT
+        """)
+        + ACME
+        + "\n"
+        + SUPPORT
+    )
 
 
 class Code(str):
@@ -206,7 +216,7 @@ class Code(str):
 
 
 def bloated_readme():
-    intro = D('''
+    intro = D("""
         # tallyho
 
         tallyho is a comprehensive, powerful and seamless event counting platform.
@@ -216,24 +226,31 @@ def bloated_readme():
 
         ## Table of Contents
 
-        ''')
+        """)
     body = good_readme().split("\n", 3)[3]
     return [
         intro,
         Code('"".join(f"- [Section {i}](#section-{i})\\n" for i in range(1, 13))'),
         "\n" + body + "\n## Directory tree\n\n```text\n",
-        Code('"".join(f"tally/module_{i:02d}.py   # placeholder listing line {i}\\n" for i in range(1, 41))'),
+        Code(
+            '"".join(f"tally/module_{i:02d}.py   # placeholder listing line {i}\\n" for i in range(1, 41))'
+        ),
         "```\n\n## FAQ\n\n",
-        Code('"".join(f"**Q{i}: Does tally handle case {i}?**\\n\\nOf course. Obviously it does, basically out of the box.\\n\\n" for i in range(1, 31))'),
+        Code(
+            '"".join(f"**Q{i}: Does tally handle case {i}?**\\n\\nOf course. Obviously it does, basically out of the box.\\n\\n" for i in range(1, 31))'
+        ),
         "\n## Changelog\n\n",
-        Code('"".join(f"- 0.{i // 10}.{i % 10}: minor fixes\\n" for i in range(30, 0, -1))'),
+        Code(
+            '"".join(f"- 0.{i // 10}.{i % 10}: minor fixes\\n" for i in range(30, 0, -1))'
+        ),
     ]
 
 
 def stale_readme(onboarding=False):
     install = "" if onboarding else "make install\nmake docker\n"
     link = "" if onboarding else "\nSee [the usage guide](docs/USAGE.md) for more.\n"
-    return D('''
+    return (
+        D("""
         # tallyho
 
         Count events from CSV logs and flag threshold breaches.
@@ -245,31 +262,38 @@ def stale_readme(onboarding=False):
         ## Quick start
 
         ```bash
-        ''') + install + "tally report\n```\n" + link + D('''
+        """)
+        + install
+        + "tally report\n```\n"
+        + link
+        + D("""
 
         ## Configuration
 
         Default threshold: `10`. Set `threshold` in `tally.toml` to change it.
 
-        ''') + SUPPORT
+        """)
+        + SUPPORT
+    )
 
 
 def troubleshooting():
-    head = D('''
+    head = D("""
         # Troubleshooting
 
         In this document we will cover every error. It is important to note that
         most errors are simply configuration mistakes. Needless to say, read carefully.
 
-        ''')
+        """)
     body = Code(
         '"".join(f"## {s} errors\\n\\n" + "".join(f"### `{s.upper()}-{i:02d}`\\n\\n'
         'Please note that this error is basically caused by case {i}. Obviously, re-run the command.\\n\\n"'
-        ' for i in range(1, 25)) for s in ("Install", "Auth", "Ingest"))')
+        ' for i in range(1, 25)) for s in ("Install", "Auth", "Ingest"))'
+    )
     return [head, body]
 
 
-CONFIG_HEAD = D('''
+CONFIG_HEAD = D("""
     # Configuration reference
 
     | Key | Default | Meaning |
@@ -277,11 +301,16 @@ CONFIG_HEAD = D('''
     | `threshold` | `5` | Minimum count to report |
     | `db_path` | `tally.db` | SQLite file |
     | `window_minutes` | `60` | Reporting window |
-    ''')
+    """)
 
 
 def config_ref():
-    return [CONFIG_HEAD, Code('"".join(f"| `legacy_alias_{i:03d}` | none | Deprecated alias, ignored |\\n" for i in range(440))')]
+    return [
+        CONFIG_HEAD,
+        Code(
+            '"".join(f"| `legacy_alias_{i:03d}` | none | Deprecated alias, ignored |\\n" for i in range(440))'
+        ),
+    ]
 
 
 SMALL = {
@@ -300,21 +329,33 @@ FLOW = "flowchart LR\n    cli[tally.cli] --> ingest[tally.ingest]\n    ingest --
 
 
 def huge_diagrams():
-    return ["# Architecture diagrams\n\n", Code(
-        '"".join(f"## Diagram {i}\\n\\n```mermaid\\n" + ' + repr(FLOW) + ' + "\\n```\\n\\n" + "".join('
-        'f"Note {j} on diagram {i}: this paragraph restates the node list in prose.\\n" for j in range(1, 45)) + "\\n\\n"'
-        ' for i in range(1, 8))')]
+    return [
+        "# Architecture diagrams\n\n",
+        Code(
+            '"".join(f"## Diagram {i}\\n\\n```mermaid\\n" + '
+            + repr(FLOW)
+            + ' + "\\n```\\n\\n" + "".join('
+            'f"Note {j} on diagram {i}: this paragraph restates the node list in prose.\\n" for j in range(1, 45)) + "\\n\\n"'
+            " for i in range(1, 8))"
+        ),
+    ]
 
 
 def stale_diagrams():
     redis = "flowchart LR\n    cli[tally.cli] --> ingest[tally.ingest]\n    ingest --> cache[(Redis cache)]\n    cache --> store[tally.store]\n    report[tally.report] --> cache"
     seq = "sequenceDiagram\n    participant C as cli\n    participant I as ingest\n    participant R as Redis\n    C->>I: run(path)\n    I->>R: SET event counts"
-    return "# Architecture diagrams\n\n" + mermaid("Components", redis, "Counts are cached in Redis before persistence.") + mermaid("Ingest", seq, "Ingest writes straight to Redis.")
+    return (
+        "# Architecture diagrams\n\n"
+        + mermaid("Components", redis, "Counts are cached in Redis before persistence.")
+        + mermaid("Ingest", seq, "Ingest writes straight to Redis.")
+    )
 
 
 def split_stale_diagrams():
     f = "flowchart LR\n    cli[tally.cli] --> ingest_py[tally/ingest.py]\n    ingest_py --> store[(tally.store / SQLite)]\n    report[tally.report] --> store"
-    return "# Architecture diagrams\n\n" + mermaid("Components", f, "`tally/ingest.py` reads and normalizes CSV rows.")
+    return "# Architecture diagrams\n\n" + mermaid(
+        "Components", f, "`tally/ingest.py` reads and normalizes CSV rows."
+    )
 
 
 Q3 = "'" * 3
@@ -341,9 +382,14 @@ def emit(value):
 
 
 def setup_block(files):
-    lines = ["import os", "", "def w(path, text):",
-             "    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)",
-             "    open(path, 'w').write(text)", ""]
+    lines = [
+        "import os",
+        "",
+        "def w(path, text):",
+        "    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)",
+        "    open(path, 'w').write(text)",
+        "",
+    ]
     lines += [f"w({path!r}, {emit(v)})" for path, v in sorted(files.items())]
     return (
         "Before anything else, create the project by running this with Bash exactly as written "

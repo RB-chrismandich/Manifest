@@ -23,8 +23,8 @@ empirically measured rework cost.
    only if the costlier version actually avoids misses: it nets positive only when observed `p_v1 − p_v2` exceeds
    `Δp*`. Equal nonzero miss rates mean the premium never earns back.
 6. **Report a verdict, not just deltas.** Compute the break-even reduction `Δp* = extra_spend / (runs × R)` (the
-   `net = 0` point; `extra_spend` is the step-2 total over `runs`, so equivalently per-run premium ÷ `R`), then compare it to
-   the *observed* reduction `p_v1 − p_v2` (e.g. from evals) to say plainly whether it nets positive and under what
+   `net = 0` point; `extra_spend` is the step-2 total over `runs`, so equivalently per-run premium ÷ `R`), then compare
+   it to the *observed* reduction `p_v1 − p_v2` (e.g. from evals) to say plainly whether it nets positive and under what
    usage mix.
 7. **Persist the baseline to memory** (per-run costs, measured R, break-even rate, usage assumption) so future
    sessions don't re-derive it.
