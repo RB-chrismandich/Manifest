@@ -169,7 +169,7 @@ tool_policies:
       - Read
       - Write      # per-track JSON state under the Manifest state root
       - Edit
-      - Skill      # drives the per-phase /speckit-* and /spec-review commands
+      - Skill      # drives the per-phase /manifest-spec-planning:* spec commands
     forbidden: []
     validation_tier: 1            # safety-gate logic + handles env-injected provider secrets
     subagents: never

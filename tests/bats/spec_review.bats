@@ -41,15 +41,15 @@ teardown() {
     assert_output --partial "tasks	$SANDBOX/specs/001-feature/tasks.md"
 }
 
-@test "discover_artifacts finds superpowers design+plan (tasks embedded in plan)" {
-    mkdir -p "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
-    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+@test "discover_artifacts finds design-doc design+plan (tasks embedded in plan)" {
+    mkdir -p "$SANDBOX/docs/design/specs" "$SANDBOX/docs/design/plans"
+    : > "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     source "$SCRIPT"
     run discover_artifacts "$SANDBOX"
     assert_success
-    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    assert_output --partial "spec	$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     refute_output --partial "tasks	"
 }
 
@@ -59,20 +59,20 @@ teardown() {
     assert_output ""
 }
 
-@test "discover_artifacts pairs a superpowers design-doc FILE within its own tree" {
+@test "discover_artifacts pairs a design-doc FILE within its own tree" {
     # Mixed-layout repo: the co-existing speckit layout must NOT hijack the
     # explicit design doc's plan (feature 482 US3 / FR-001).
     mkdir -p "$SANDBOX/specs/001-feature" \
-        "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
+        "$SANDBOX/docs/design/specs" "$SANDBOX/docs/design/plans"
     : > "$SANDBOX/specs/001-feature/spec.md"
     : > "$SANDBOX/specs/001-feature/plan.md"
-    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    : > "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     source "$SCRIPT"
-    run discover_artifacts "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    run discover_artifacts "$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
     assert_success
-    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
-    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    assert_output --partial "spec	$SANDBOX/docs/design/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/design/plans/2026-06-08-thing.md"
     refute_output --partial "001-feature"
 }
 
@@ -285,6 +285,32 @@ STUB
     run head -1 "$skill"; assert_output "---"
     run grep -E '^name: spec-review' "$skill"; assert_success
     run grep -E 'spec_review\.sh' "$skill"; assert_success
+}
+
+@test "spec-artifact-discovery.md's relative script refs resolve in the deployed layout" {
+    # Deploy rsyncs configs/claude/ -> ~/.claude/ preserving layout, so a
+    # `../x` reference inside references/ resolves to ~/.claude/x. The PR-980
+    # review caught `../spec_review.sh` resolving to ~/.claude/spec_review.sh
+    # where the script actually lands in scripts/. Resolve every `../` token
+    # in the deployed copy the same way a reader would.
+    local ref="$REPO_ROOT/configs/claude/references/spec-artifact-discovery.md"
+    run python3 -c "
+import re, os
+ref = '$ref'
+base = os.path.dirname(ref)
+bad = []
+for m in re.finditer(r'\`(\.\./[^\\\`\s]+)\`', open(ref).read()):
+    if not os.path.exists(os.path.normpath(os.path.join(base, m.group(1)))):
+        bad.append(m.group(1))
+assert not bad, bad
+print('all relative refs resolve')"
+    assert_success
+    # The bundle copy lives one level deeper (runtime/references/) and its
+    # `../spec_review.sh` resolves to runtime/spec_review.sh — pin that it was
+    # intentionally NOT changed to match the configs copy.
+    local bundle="$REPO_ROOT/plugins/manifest-spec-planning/runtime/references/spec-artifact-discovery.md"
+    run grep -cF '../scripts/spec_review.sh' "$bundle"
+    assert_output "0"
 }
 
 @test ".gitignore ignores the .spec-review runtime dir" {

@@ -59,6 +59,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__HOME__/.claude/scripts/block_silent_replace.py"
+          }
+        ]
+      }
     ]
   },
   "permissions": {

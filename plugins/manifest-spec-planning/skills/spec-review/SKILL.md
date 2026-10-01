@@ -1,6 +1,6 @@
 ---
 name: spec-review
-description: Cross-reference spec/plan/tasks artifacts for internal consistency through a selected native reviewer. Analysis-only, never edits. Speckit and superpowers layouts; auto-discovers or takes explicit paths.
+description: Cross-reference spec/plan/tasks artifacts for internal consistency through a selected native reviewer. Analysis-only, never edits. Structured and design-doc layouts; auto-discovers or takes explicit paths.
 ---
 
 # Spec Review
@@ -28,7 +28,7 @@ reviewer executable must already be installed; this runtime never installs a
 CLI or reads another bundle. This skill is analysis-only; apply recommendations
 yourself.
 
-Layout detection (speckit `spec/plan/tasks` vs superpowers `design + plan`, with
+Layout detection (structured `spec/plan/tasks` vs design-doc `design + plan`, with
 tasks embedded in the plan) follows `../../runtime/references/spec-artifact-discovery.md`
 — the same contract `spec-audit-tasks` and `spec-decide-tradeoffs` use — and is
 implemented by the script's `resolve_artifacts`/`discover_artifacts` seam.

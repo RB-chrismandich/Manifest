@@ -1,19 +1,12 @@
 #!/usr/bin/env python3
 # help-coverage: covered by tests/bats/help_coverage.bats
-"""Stop hook thin wrapper for the manifest-delegate soft review gate.
+"""Fail-closed Python boundary for the manifest-delegate Stop review gate.
 
-Reads the Stop hook's stdin JSON and forwards `transcript_path` (plus
---stop-hook-active when true) to `delegate.py gate --json`, passing the gate's
-hook-JSON decision straight through to stdout. See
-specs/675-multi-agent-delegation/contracts/delegate-cli.md ("gate").
-
-Only those two keys are read, deliberately. The Stop payload also carries
-`session_id`, `cwd`, and `hook_event_name`; none reaches a consumer. `gate`
-derives its job-record workspace from `os.getcwd()`, which this hook already
-inherits from the harness, so `cwd` would be the same value arriving by a
-second path — and `gate` exposes no flag to accept it. `session_id` and
-`hook_event_name` feed nothing: the gate opens its own job record and is only
-ever wired to Stop. Parsing them to leave them unused would be dead surface.
+The POSIX launcher owns interpreter availability and validates this script's
+decision before forwarding it. This layer parses the Stop payload, handles the
+exact boolean recursion guard, invokes ``delegate.py gate --json`` with the same
+managed interpreter, and turns every unverified result into a sanitized block.
+Raw subprocess output and stderr are never relayed.
 """
 
 import sys
@@ -39,33 +32,14 @@ import subprocess
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DELEGATE_PY = os.path.join(SCRIPT_DIR, "delegate.py")
 
-# The gate caps the BACKEND alone at config.GATE_BUDGET_CAP_SECONDS (840s). This
-# outer wrapper timeout must exceed that by the gate's own overhead — diff
-# assembly, process launch, the output-drain grace, envelope parse, and result
-# persistence — so the gate reaches its OWN backend timeout and reaps the
-# detached backend process group BEFORE this timeout fires. If this fired first,
-# subprocess.run would kill only delegate.py and leave the setsid'd backend
-# group running (collected only by a later SessionEnd/status reap), while the
-# hook fails open. 840s was itself derived as "900s Stop-hook window minus
-# overhead", so the window is 900s.
-#
-# It must also stay UNDER hooks.json's declared Stop timeout (900s), which is
-# the harness's hard ceiling for this whole invocation. At exactly 900 there is
-# no room left to catch TimeoutExpired, format, and flush the fail-open JSON —
-# Claude Code would kill this script mid-write and get no decision at all,
-# which is the one outcome the fail-open design exists to prevent. So the
-# margin is taken out of THIS timeout, not out of the declared one:
-#   GATE_BUDGET_CAP_SECONDS (840) < this (870) < hooks.json Stop timeout (900)
-# Drift guards: test_stop_gate_hook.py and delegate_plugin.bats each assert
-# BOTH bounds (> backend cap, < the timeout declared in hooks.json).
-# (Kept as a literal, not a package import, so a package import fault cannot
-# crash this resilience wrapper — it must always be able to fail open.)
+# The backend cap is 840 seconds. This wrapper must leave it cleanup headroom
+# while still finishing before hooks.json's 900-second harness deadline.
 GATE_WRAPPER_TIMEOUT_SECONDS = 870
 
 
 def _read_payload(argv):
-    # type: (list[str] | None) -> dict
-    """Parse args and return the Stop hook payload; malformed JSON reads as {}."""
+    # type: (list[str] | None) -> tuple[dict | None, str | None]
+    """Return one object payload and a stable error code."""
     parser = argparse.ArgumentParser(
         prog="stop_gate_hook.py",
         description="Stop hook wrapper: forwards transcript to `delegate.py gate`.",
@@ -78,65 +52,69 @@ def _read_payload(argv):
     )
     args = parser.parse_args(argv)
 
-    if args.stdin_json:
-        with open(args.stdin_json, encoding="utf-8") as fh:
-            raw = fh.read()
-    else:
-        raw = sys.stdin.read()
     try:
-        return json.loads(raw) if raw.strip() else {}
+        if args.stdin_json:
+            with open(args.stdin_json, encoding="utf-8") as fh:
+                raw = fh.read()
+        else:
+            raw = sys.stdin.read()
+    except (OSError, UnicodeError):
+        return None, "input_unreadable"
+    if not raw.strip():
+        return None, "empty_input"
+    try:
+        payload = json.loads(raw)
     except ValueError:
-        return {}
+        return None, "invalid_input"
+    if not isinstance(payload, dict):
+        return None, "invalid_input"
+    return payload, None
 
 
 def _relay_gate_decision(result):
     # type: (subprocess.CompletedProcess) -> None
-    """Pass the gate's hook JSON through, or emit a fail-open systemMessage.
-
-    Every rejection path here is a fail-open: the gate is advisory, so an
-    unusable response must never become a blocked session.
-    """
-    out = result.stdout.strip()
+    """Validate and canonicalize the gate decision; never relay raw stderr."""
     if result.returncode != 0:
-        _fail_open(
-            f"delegate.py gate exited {result.returncode}: {_tail(result.stderr)}"
-        )
+        _fail_closed("delegate_failed")
         return
+    out = result.stdout.strip()
     if not out:
-        _fail_open(
-            f"delegate.py gate produced no output; stderr: {_tail(result.stderr)}"
-        )
+        _fail_closed("empty_decision")
         return
     try:
-        json.loads(out)
-    except ValueError as exc:
-        _fail_open(
-            f"delegate.py gate produced invalid JSON ({exc}); stderr: {_tail(result.stderr)}"
-        )
+        decision = json.loads(out)
+    except ValueError:
+        _fail_closed("invalid_decision")
         return
-    sys.stdout.write(out + "\n")
+    if (
+        not isinstance(decision, dict)
+        or decision.get("decision") not in {"approve", "block"}
+        or not isinstance(decision.get("reason"), str)
+        or not decision["reason"].strip()
+    ):
+        _fail_closed("invalid_decision")
+        return
+    print(json.dumps({"decision": decision["decision"], "reason": decision["reason"]}))
 
 
 def main(argv=None):
     # type: (list[str] | None) -> int
-    """Forward the Stop hook's transcript to `delegate.py gate` and relay its JSON.
+    """Run one bounded review decision and always speak native hook JSON."""
+    payload, error_reason = _read_payload(argv)
+    if error_reason:
+        _fail_closed(error_reason)
+        return 0
 
-    Fails open (returns 0, emits a systemMessage) on missing transcript_path,
-    malformed stdin JSON, or any subprocess error — a hook must never crash
-    or block the session it is attached to.
-    """
-    payload = _read_payload(argv)
+    # Only the native boolean activates loop safety. This must precede every
+    # transcript check, import, and subprocess launch so a blocked turn can be
+    # reported to the developer without recursively reviewing that report.
+    if payload.get("stop_hook_active") is True:
+        print(json.dumps({"decision": "approve", "reason": "stop-hook-active"}))
+        return 0
 
     transcript_path = payload.get("transcript_path")
-    if not transcript_path:
-        # Fail open: no transcript means nothing to gate.
-        print(
-            json.dumps(
-                {
-                    "systemMessage": "review gate skipped: no transcript_path in Stop payload"
-                }
-            )
-        )
+    if not isinstance(transcript_path, str) or not transcript_path.strip():
+        _fail_closed("missing_transcript")
         return 0
 
     cmd = [
@@ -147,32 +125,49 @@ def main(argv=None):
         transcript_path,
         "--json",
     ]
-    if payload.get("stop_hook_active"):
-        cmd.append("--stop-hook-active")
-
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=GATE_WRAPPER_TIMEOUT_SECONDS
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=GATE_WRAPPER_TIMEOUT_SECONDS,
         )
-    except Exception as exc:
-        _fail_open(f"subprocess error: {exc}")
+    except subprocess.TimeoutExpired:
+        _fail_closed("delegate_timeout")
+        return 0
+    except (OSError, ValueError, subprocess.SubprocessError):
+        _fail_closed("delegate_unavailable")
         return 0
 
     _relay_gate_decision(result)
     return 0
 
 
-def _tail(stderr, limit=500):
-    # type: (str, int) -> str
-    """Bounded stderr excerpt for a fail-open systemMessage."""
-    text = (stderr or "").strip()
-    return text[-limit:] if text else "(no stderr)"
+_SAFE_FAILURE_REASONS = frozenset(
+    {
+        "delegate_failed",
+        "delegate_timeout",
+        "delegate_unavailable",
+        "empty_decision",
+        "empty_input",
+        "input_unreadable",
+        "invalid_decision",
+        "invalid_input",
+        "missing_transcript",
+    }
+)
 
 
-def _fail_open(cause):
+def _fail_closed(reason_code):
     # type: (str) -> None
-    """Emit the fail-open hook decision so the gate visibly no-ops."""
-    print(json.dumps({"systemMessage": f"review gate skipped: {cause}"}))
+    """Emit the fixed refusal shape using only an allowlisted reason code."""
+    if reason_code not in _SAFE_FAILURE_REASONS:
+        reason_code = "delegate_failed"
+    reason = (
+        f"Review gate could not verify this turn ({reason_code}); make no tool calls or "
+        "edits; report the failure to the developer for a decision."
+    )
+    print(json.dumps({"decision": "block", "reason": reason}))
 
 
 if __name__ == "__main__":

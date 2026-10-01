@@ -10,17 +10,17 @@ are not competing — each owns a distinct lifecycle stage and audience.
 
 | System | Location | Owns | Use when |
 |--------|----------|------|----------|
-| **Speckit** | `specs/` (artifacts) + `.specify/` (templates, scripts, constitution, extensions) | Full feature lifecycle — the constitution's nine-phase **state-gated lifecycle**: Specify → Clarify → Spec-Review (product) → Plan → Task Creation → Analyze → Spec-Review (technical) → Implement → Verify task-by-task, with hard phase-gating, the smoke-test Verify gate, and the project constitution (Principle VI) | Building a new feature of any real size. Entry point: `/speckit-specify`, or `/lifecycle-run` to drive the full gated flow |
-| **Superpowers design docs** | `docs/superpowers/specs/` (designs) + `docs/superpowers/plans/` (implementation plans) | Dated design-decision history from the superpowers brainstorm→plan workflow | Recording a reviewed design for a focused change (e.g. a subsystem swap); historical reference |
+| **Speckit (artifacts)** | `specs/` | Feature lifecycle artifacts (`spec.md`, `plan.md`, `tasks.md`) governed by the constitution's nine-phase **state-gated lifecycle**: Specify → Clarify → Spec-Review (product) → Plan → Task Creation → Analyze → Spec-Review (technical) → Implement → Verify task-by-task, with hard phase-gating, the smoke-test Verify gate, and the project constitution (Principle VI). Note: the spec-kit tooling (`.specify/`, `/speckit-*` commands) was removed — see `docs/decisions/0002-remove-speckit.md` | Building a new feature of any real size. Entry point: `/lifecycle-run` to drive the full gated flow |
+| **Design docs** | `docs/design/specs/` (designs) + `docs/design/plans/` (implementation plans) | Dated design-doc history (design + implementation plan pairs); the plugin workflow that produced them has been removed | Recording a reviewed design for a focused change (e.g. a subsystem swap); historical reference |
 | **Plan-manage lifecycle** | `configs/claude/.plans/` (deployed to `~/.claude/.plans/`) | Lightweight operational plans on target machines: CREATE → ACTIVE → COMPLETED (`.archive/`) / ABANDONED (`.abandoned/`) | Day-to-day orchestrated work tracking via `/plan-manage`; not tied to this repo's features |
 | **Lesson journal** | `.Jules/` (`bolt.md`, `forge.md`, `palette.md`, `sentinel.md`) | Dated lessons learned (performance, security, UI, tooling) captured by agents during sessions | Append-only knowledge capture; consult when a task touches a previously-burned area |
 
 ## Rules of thumb
 
-- **New feature?** Speckit. The constitution (`.specify/memory/constitution.md`)
+- **New feature?** The constitution (`docs/constitution.md`)
   is non-negotiable and its gates (risk-gated independent review, quality
   tiers) apply to the resulting PRs.
-- **Design review for a focused swap/refactor?** A superpowers design doc is
+- **Design review for a focused swap/refactor?** a design doc under `docs/design/` is
   enough; link it from the implementing PR.
 - **Tracking multi-step operational work on a deployed machine?** `/plan-manage`
   with `configs/claude/.plans/`.
@@ -34,7 +34,7 @@ are not competing — each owns a distinct lifecycle stage and audience.
 
 - [docs/COMMANDS.md](COMMANDS.md) — canonical slash-command table
 - [configs/claude/.plans/README.md](../configs/claude/.plans/README.md) — plan lifecycle reference
-- [.specify/memory/constitution.md](../.specify/memory/constitution.md) — project constitution
+- [docs/constitution.md](constitution.md) — project constitution
 
 ## Feature Closeout Checklist
 
@@ -44,8 +44,6 @@ When a spec-kit feature's final PR merges, the same PR (or an immediate follow-u
    `spec.md` (and `plan.md` header where present), matching specs/002's format.
 2. Check off remaining `tasks.md` boxes — or record an explicit closeout
    exception note under any task that genuinely did not happen.
-3. Update the `<!-- SPECKIT -->` block in root `CLAUDE.md`: point it at the next
-   active feature or set it to `none`.
-4. Add the feature's `CHANGELOG.md` entry under `[Unreleased]` in the same PR
+3. Add the feature's `CHANGELOG.md` entry under `[Unreleased]` in the same PR
    (it moves into the dated `[YYYY-MM]` section when it ships; CONTRIBUTING.md's
    Documentation section carries the full convention).

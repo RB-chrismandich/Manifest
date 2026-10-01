@@ -1,5 +1,5 @@
 # tracker_providers.yml — issue-tracker provider registry (evolves lifecycle_providers.yml;
-# spec: docs/superpowers/specs/2026-07-16-agent-app-agnostic-skills-design.md).
+# spec: docs/design/specs/2026-07-16-agent-app-agnostic-skills-design.md).
 # Access precedence per provider is an ORDERED list: mcp > cli > git > api.
 # Agent-context skills use the first available method; hooks/scripts start at cli.
 
@@ -28,7 +28,7 @@ phase_to_canonical_status:
 providers:
   github:
     access: [cli, api]      # prepend mcp when a GitHub MCP server is registered
-    verified: true           # Task 12 matrix (2026-07-17): 9/9 PASS, 2/2 N/A (docs/superpowers/specs/2026-07-17-tracker-contract-matrix.md)
+    verified: true           # Task 12 matrix (2026-07-17): 9/9 PASS, 2/2 N/A (docs/design/specs/2026-07-17-tracker-contract-matrix.md)
     status_via: label         # canonical status applied as a label
     tier_map:
       1: project_v2           # no native issue type -> see missing_tier_behavior

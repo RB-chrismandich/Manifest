@@ -122,7 +122,7 @@ def test_policy_codeowners_are_single_owner_without_placeholders() -> None:
         "/plugins/stitch-design/runtime/node/package.json",
         "/plugins/stitch-design/runtime/node/package-lock.json",
         "/.github/",
-        "/docs/superpowers/specs/",
+        "/docs/design/specs/",
     }
     entries = {}
     for line in (REPO_ROOT_MARKER / ".github/CODEOWNERS").read_text().splitlines():

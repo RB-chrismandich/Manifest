@@ -3,7 +3,10 @@
 # Usage: ./check_status.sh [--verbose]
 #
 # Scope: services.yml enabled agents, CLI availability, auth, Codex session
-#        storage, and Manifest state directories.
+#        storage, Manifest state directories, and cached Claude/OMP MCP health.
+#        Reports whether the system has enough agents ready for orchestration.
+#
+# Also invoked by: parallel_agent.py --status
 #
 # For full environment audit (MCP, symlinks, config syntax, labels):
 #   use the /env-check skill in Claude Code.
@@ -20,12 +23,12 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'
 Usage: check_status.sh [--verbose]
 
-Manifest runtime readiness check: services.yml enabled agents, CLI availability,
-auth, Codex session storage, and Manifest state directories.
+Parallel-agent orchestration readiness check: services.yml enabled agents,
+CLI availability, auth, Manifest state directories, and cached MCP health.
 
   --verbose   Also print CLI locations and versions
 
-Full environment audit (MCP, symlinks, config syntax): /env-check skill.
+Full environment audit (symlinks, config syntax, labels): /env-check skill.
 USAGE
     exit 0
 fi
@@ -545,6 +548,29 @@ if [[ "$state_ok" == true ]]; then
     echo -e "  ${GREEN}✓${NC} Manifest state root ready: $manifest_state_root"
 fi
 
+echo ""
+# MCP health is cache-only here: startup hooks own bounded native probes.
+echo -e "${BOLD}MCP Health:${NC}"
+health_python="${MANIFEST_HEALTH_PYTHON:-$(command -v python3 2> /dev/null || true)}"
+health_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+health_helper="${MANIFEST_MCP_HEALTH_HELPER:-$health_data_home/manifest/health/mcp_health.py}"
+if [[ -z "$health_python" || ! -x "$health_python" ]]; then
+    echo -e "  ${YELLOW}⚠${NC}  MCP health: degraded (python_unavailable)"
+elif [[ ! -r "$health_helper" ]]; then
+    echo -e "  ${YELLOW}⚠${NC}  MCP health: degraded (helper_unavailable)"
+else
+    for health_harness in claude omp; do
+        health_output="$(run_with_timeout "$health_python" "$health_helper" --harness "$health_harness" 2> /dev/null)"
+        health_rc=$?
+        if [[ "$health_rc" -eq 0 && "$health_output" == "MCP health: ok" ]]; then
+            echo -e "  ${GREEN}✓${NC} ${health_harness}: ${health_output}"
+        elif [[ "$health_rc" -eq 1 && "$health_output" =~ ^MCP\ health:\ degraded\ \([a-z_,]{1,120}\)$ ]]; then
+            echo -e "  ${YELLOW}⚠${NC}  ${health_harness}: ${health_output}"
+        else
+            echo -e "  ${YELLOW}⚠${NC}  ${health_harness}: MCP health: degraded (invalid_result)"
+        fi
+    done
+fi
 echo ""
 
 # Model staleness (warn-only; full detail via model_check.sh directly)

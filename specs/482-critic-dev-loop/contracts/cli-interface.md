@@ -10,7 +10,7 @@ Thin shim delegating to the `cddl` package; owns `--help` and the exit-code cont
 ### `cddl_loop.py start <target-path> [options]`
 
 `<target-path>` may be a directory (feature dir / repo root) or an artifact
-FILE (e.g. a superpowers design doc): a file target is the explicit spec by
+FILE (e.g. a design-doc design doc): a file target is the explicit spec by
 FR-001 precedence and pairs its plan within its own layout tree.
 
 Pre-flight (discovery, role validation, git checks, backend probe) then phase 1
