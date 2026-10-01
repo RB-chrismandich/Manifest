@@ -72,7 +72,10 @@ Work through each category; the sequence within and across categories does not m
 
 - SQL injection: f-strings in queries (`f"SELECT...WHERE {var}"`)
 - Hardcoded secrets: `password =`, `secret =`, `api_key =`, `token =`; hardcoded URLs, emails, hostnames
-- Error handling: bare exceptions (`except:`), silent failures without logging
+- Error handling: bare exceptions (`except:`) and swallowed failures. Remediation must keep the failure visible
+  to the caller — catch the specific exception and re-raise (optionally wrapped/after logging), return an explicit
+  failure result the caller must check, or route it to a central handler. Logging and then continuing (or
+  returning `None`/a default) is still a swallowed error, not a fix.
 - Dangerous operations: `import pickle`, `eval()`, `exec()`, `yaml.load()` (should be
   `yaml.safe_load()`), `subprocess`, `os.system`, `os.popen`
 

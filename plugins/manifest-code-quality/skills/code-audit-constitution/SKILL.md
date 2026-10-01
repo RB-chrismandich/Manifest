@@ -29,7 +29,7 @@ Read first, do not restate:
 ## Step 1 — Measure the whole picture
 
 ```bash
-python3 scripts/constitution_check.py --no-baseline <target>
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/code-audit-constitution/scripts/constitution_check.py" --no-baseline <target>
 ```
 
 `--no-baseline` is the correct flag **for an audit**, and the wrong one for a
@@ -192,7 +192,7 @@ arguments that always travel together are a record, not arguments.
 ## Step 5 — Re-run, then exempt only what is genuinely correct
 
 ```bash
-python3 scripts/constitution_check.py --no-baseline <target>
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/code-audit-constitution/scripts/constitution_check.py" --no-baseline <target>
 ```
 
 Compare against the Step 1 counts, per check. State the delta. A count that did
@@ -230,7 +230,7 @@ attempted is a suppression, and a suppressed article stops being an article.
 Fixed violations should lower the recorded ceiling permanently:
 
 ```bash
-python3 scripts/constitution_check.py --update-baseline <target>
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/code-audit-constitution/scripts/constitution_check.py" --update-baseline <target>
 ```
 
 Review the resulting `constitution_baseline.json` diff before committing. Counts
