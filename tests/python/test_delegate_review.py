@@ -229,6 +229,46 @@ class TestReviewCommand:
         rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
         assert rc == 1, "partial coverage must not be a clean exit 0"
 
+    def test_reported_failure_with_findings_surfaces_the_findings(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """A reviewer that returns outcome=failure alongside valid findings did
+        review the diff; the worker must not discard its output as malformed."""
+        self._setup(tmp_path, monkeypatch)
+        raw_output = (
+            "```json\n"
+            + json.dumps(
+                {
+                    "backend": "codex",
+                    "model": "gpt-5",
+                    "outcome": "failure",
+                    "attempted": "reviewed the diff",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                    "findings": [{"severity": "high", "text": "swallowed error"}],
+                }
+            )
+            + "\n```\n"
+        )
+        monkeypatch.setattr(
+            delegate.process,
+            "_spawn_backend",
+            lambda *_args, **_kwargs: (0, raw_output, None, False, None),
+        )
+        args = _ReviewArgs()
+        args.backend = "codex"
+        rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
+        assert rc == 1, "a failure outcome is never a clean exit 0"
+        envelope = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+        assert envelope["findings"] == [{"severity": "high", "text": "swallowed error"}]
+
+    def test_review_prompt_defines_outcome_as_review_completion(self):
+        contract = delegate.review._REVIEW_OUTPUT_CONTRACT
+        assert '"outcome" describes whether YOUR REVIEW RUN completed' in contract
+        assert 'Never use "failure" to report defects' in contract
+
     def test_adversarial_switches_prompt_with_focus(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
         captured = {}

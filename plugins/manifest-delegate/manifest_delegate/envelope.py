@@ -36,6 +36,15 @@ def _extract_last_json_block(text):
 ENVELOPE_OUTCOMES = ("success", "partial", "failure")
 ENVELOPE_ARRAY_FIELDS = ("changes", "succeeded", "failed", "follow_ups")
 
+# Reviewers otherwise read "outcome" as "did the diff pass", and a failure
+# outcome is treated as a broken backend. Shared by the gate and `review`.
+REVIEW_OUTCOME_SEMANTICS = (
+    '"outcome" describes whether YOUR REVIEW RUN completed, not whether the diff '
+    'passed: "success" = you reviewed the whole diff, "partial" = you could only '
+    'review part of it, "failure" = you could not perform the review. Never use '
+    '"failure" to report defects in the diff; defects go in "findings".\n'
+)
+
 
 def validate_findings(env, label="review"):
     """Validate a review-style envelope's outcome/findings shape.

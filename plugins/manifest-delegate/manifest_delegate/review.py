@@ -28,9 +28,10 @@ _REVIEW_OUTPUT_CONTRACT = (
     '  "findings": [{"severity": "critical|high|medium|low|info", "text": "<finding>"}]\n'
     "}\n"
     "```\n"
-    'Set "findings" to [] when the diff has no issues. Use "partial" or '
-    '"failure" instead of "success" when the review is incomplete or failed. '
-    "Every array field must be an array of strings.\n\n"
+    'Set "findings" to [] when the diff has no issues. '
+    "Every array field must be an array of strings.\n"
+    + envelope_mod.REVIEW_OUTCOME_SEMANTICS
+    + "\n"
 )
 
 
