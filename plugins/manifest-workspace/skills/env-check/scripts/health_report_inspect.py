@@ -173,8 +173,11 @@ def _inspect_installation(
     ):
         _add_finding(findings, "omp_extension_drift", "installation", "omp")
     home = Path(environment.get("HOME") or Path.home()).expanduser()
+    claude_root = Path(
+        environment.get("CLAUDE_CONFIG_DIR") or home / ".claude"
+    ).expanduser()
     if not _verify_owned_row(
-        value.get("claude_wrapper"), home / ".claude/scripts/mcp_health_check.sh"
+        value.get("claude_wrapper"), claude_root / "scripts/mcp_health_check.sh"
     ):
         _add_finding(findings, "claude_wrapper_drift", "installation", "claude")
     source_root = Path(source_value).expanduser()
@@ -214,6 +217,7 @@ def _check_package_pins(
             continue
         try:
             observed = package_version(name)
+        # constitution: exempt C-ERR — observation failures are mismatches.
         except Exception:
             observed = None
         matched = observed == expected

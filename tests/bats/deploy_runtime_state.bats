@@ -52,6 +52,19 @@ teardown() {
     assert_equal "$(cat "$TGT/plugins/installed_plugins.json")" "plugin-state"
 }
 
+
+@test "restore_runtime_state preserves the installer-owned health wrapper" {
+    mkdir -p "$BK/scripts"
+    printf 'installed wrapper\n' > "$BK/scripts/mcp_health_check.sh"
+    printf 'stale config\n' > "$BK/scripts/stale-owned.sh"
+
+    run restore_runtime_state "$BK" "$TGT" "$SRC"
+
+    assert_success
+    assert_equal "$(cat "$TGT/scripts/mcp_health_check.sh")" "installed wrapper"
+    [ ! -e "$TGT/scripts/stale-owned.sh" ]
+}
+
 @test "restore_runtime_state restores the user's own settings.json and plugin data dirs" {
     run restore_runtime_state "$BK" "$TGT" "$SRC"
     assert_success

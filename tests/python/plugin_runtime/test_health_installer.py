@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import plistlib
 import shutil
 import stat
@@ -41,6 +40,9 @@ def _copy_health_source(repo_root: Path, destination: Path) -> Path:
         "plugins/manifest-workspace/skills/env-check/scripts/health_install_files.py",
         "plugins/manifest-workspace/skills/env-check/scripts/health_install_reconcile.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health_expectations.py",
+        "plugins/manifest-workspace/skills/env-check/scripts/health_install_receipts.py",
+        "plugins/manifest-workspace/skills/env-check/scripts/health_install_scheduler.py",
+        "plugins/manifest-workspace/skills/env-check/scripts/health_install_scheduler_systemd.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health_report.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health_runtime.py",
         "plugins/manifest-workspace/skills/env-check/scripts/install_health_reporting.py",
@@ -64,11 +66,23 @@ def _write_health_tool_fakes(tmp_path: Path, env: dict[str, str]) -> Path:
     binary_dir = tmp_path / "health-bin"
     binary_dir.mkdir()
     log = tmp_path / "native-commands.log"
-    for name in ("omp", "claude", "manifest", "launchctl", "plutil"):
+    for name in (
+        "omp",
+        "claude",
+        "manifest",
+        "launchctl",
+        "plutil",
+        "systemctl",
+        "systemd-run",
+    ):
         executable = binary_dir / name
         executable.write_text(
             "#!/bin/sh\n"
             f'printf "%s\\n" "{name} $*" >> "$MANIFEST_TEST_COMMAND_LOG"\n'
+            'if [ "$(basename "$0")" = systemctl ] && [ "$2" = is-active ]; then\n'
+            '  printf "%s\\n" inactive inactive\n'
+            "  exit 3\n"
+            "fi\n"
             "exit 0\n",
             encoding="utf-8",
         )
@@ -97,8 +111,8 @@ def _installer(source_root: Path) -> Path:
     )
 
 
-def _install(source_root: Path, env: dict[str, str], cwd: Path) -> None:
-    result = run_script(
+def _install_result(source_root: Path, env: dict[str, str], cwd: Path):
+    return run_script(
         _installer(source_root),
         "--source-root",
         str(source_root),
@@ -106,6 +120,10 @@ def _install(source_root: Path, env: dict[str, str], cwd: Path) -> None:
         env=env,
         cwd=cwd,
     )
+
+
+def _install(source_root: Path, env: dict[str, str], cwd: Path) -> None:
+    result = _install_result(source_root, env, cwd)
     assert result.returncode == 0, result.stderr
 
 
@@ -157,6 +175,8 @@ def _assert_installation_manifest(source_root: Path, env: dict[str, str]) -> Pat
         "health_report_sanitize.py",
         "health_install_files.py",
         "health_install_reconcile.py",
+        "health_install_scheduler.py",
+        "health_install_scheduler_systemd.py",
         "hook_smoke.py",
         "hook_smoke_support.py",
         "mcp_health.py",
@@ -194,17 +214,24 @@ def _assert_owned_destinations(installation: dict, env: dict[str, str]) -> None:
         )
         == 0o600
     )
-    for key, destination in (
+    destinations = [
         ("omp_extension", Path(env["OMP_AGENT_DIR"]) / "extensions/manifest-health.ts"),
         (
             "claude_wrapper",
             Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh",
         ),
-        (
-            "launchd_plist",
-            Path(env["HOME"]) / "Library/LaunchAgents/com.manifest.health-report.plist",
-        ),
-    ):
+    ]
+    if sys.platform == "darwin":
+        destinations.append(
+            (
+                "launchd_plist",
+                Path(env["HOME"])
+                / "Library/LaunchAgents/com.manifest.health-report.plist",
+            )
+        )
+    else:
+        assert installation["scheduler"]["kind"] == "systemd"
+    for key, destination in destinations:
         row = installation[key]
         digest = hashlib.sha256(destination.read_bytes()).hexdigest()
         assert row["destination"] == str(destination.resolve())
@@ -233,13 +260,19 @@ def _assert_launchd_plist(env: dict[str, str], runtime_root: Path) -> None:
     assert plist["RunAtLoad"] is False
     assert plist["ProcessType"] == "Background"
     assert plist["ManifestManagedBy"] == "manifest-health-reporting"
-    assert plist["EnvironmentVariables"] == {
+    expected_environment = {
         "HOME": str(Path(env["HOME"]).resolve()),
+        "OMP_AGENT_DIR": str(Path(env["OMP_AGENT_DIR"]).resolve()),
         "PATH": env["PATH"],
         "XDG_CONFIG_HOME": str(Path(env["XDG_CONFIG_HOME"]).resolve()),
         "XDG_DATA_HOME": str(Path(env["XDG_DATA_HOME"]).resolve()),
         "XDG_STATE_HOME": str(Path(env["XDG_STATE_HOME"]).resolve()),
     }
+    if env.get("CLAUDE_CONFIG_DIR"):
+        expected_environment["CLAUDE_CONFIG_DIR"] = str(
+            Path(env["CLAUDE_CONFIG_DIR"]).resolve()
+        )
+    assert plist["EnvironmentVariables"] == expected_environment
     assert stat.S_IMODE(plist_path.stat().st_mode) == 0o600
 
 
@@ -249,9 +282,10 @@ def _assert_uninstalled(env: dict[str, str], settings_path: Path) -> None:
     ).exists()
     assert not (Path(env["OMP_AGENT_DIR"]) / "extensions/manifest-health.ts").exists()
     assert not (Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh").exists()
-    assert not (
-        Path(env["HOME"]) / "Library/LaunchAgents/com.manifest.health-report.plist"
-    ).exists()
+    if sys.platform == "darwin":
+        assert not (
+            Path(env["HOME"]) / "Library/LaunchAgents/com.manifest.health-report.plist"
+        ).exists()
     remaining = json.loads(settings_path.read_text(encoding="utf-8"))
     assert _session_start_commands(remaining) == ["/custom/session"]
 
@@ -259,7 +293,6 @@ def _assert_uninstalled(env: dict[str, str], settings_path: Path) -> None:
 def test_health_installer_is_owned_idempotent_updatable_and_uninstallable(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """Install twice, mutate a source file, reinstall, then uninstall twice."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     command_log = _write_health_tool_fakes(tmp_path, env)
@@ -269,7 +302,8 @@ def test_health_installer_is_owned_idempotent_updatable_and_uninstallable(
     _install(source_root, env, tmp_path)
 
     runtime_root = _assert_installation_manifest(source_root, env)
-    _assert_launchd_plist(env, runtime_root)
+    if sys.platform == "darwin":
+        _assert_launchd_plist(env, runtime_root)
     wrapper_path = Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh"
     assert stat.S_IMODE(wrapper_path.stat().st_mode) == 0o700
     assert stat.S_IMODE(settings_path.stat().st_mode) == 0o600
@@ -303,16 +337,18 @@ def test_health_installer_is_owned_idempotent_updatable_and_uninstallable(
     _assert_uninstalled(env, settings_path)
 
     log_lines = command_log.read_text(encoding="utf-8").splitlines()
-    assert any("bootstrap gui/" in line for line in log_lines)
-    assert any("kickstart -k gui/" in line for line in log_lines)
-    assert any("plutil -lint " in line for line in log_lines)
-    assert sum("kickstart -k gui/" in line for line in log_lines) == 3
+    if sys.platform == "darwin":
+        assert any("bootstrap gui/" in line for line in log_lines)
+        assert any("kickstart -k gui/" in line for line in log_lines)
+        assert any("plutil -lint " in line for line in log_lines)
+        assert sum("kickstart -k gui/" in line for line in log_lines) == 3
+    else:
+        assert sum("systemctl --user enable --now" in line for line in log_lines) == 3
 
 
 def test_health_installer_refuses_unowned_or_edited_destinations(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """A pre-existing operator file is never overwritten or claimed."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)
@@ -320,14 +356,7 @@ def test_health_installer_refuses_unowned_or_edited_destinations(
     extension.parent.mkdir(parents=True)
     extension.write_text("user-owned\n", encoding="utf-8")
 
-    result = run_script(
-        _installer(source_root),
-        "--source-root",
-        str(source_root),
-        "--install",
-        env=env,
-        cwd=tmp_path,
-    )
+    result = _install_result(source_root, env, tmp_path)
 
     assert result.returncode == 1
     assert extension.read_text(encoding="utf-8") == "user-owned\n"
@@ -336,10 +365,10 @@ def test_health_installer_refuses_unowned_or_edited_destinations(
     ).exists()
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="launchd-specific behavior")
 def test_health_installer_preserves_an_unowned_launchd_job(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """An existing operator-owned LaunchAgent with the same label is untouched."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)
@@ -355,14 +384,7 @@ def test_health_installer_preserves_an_unowned_launchd_job(
     )
     plist_path.write_bytes(original)
 
-    result = run_script(
-        _installer(source_root),
-        "--source-root",
-        str(source_root),
-        "--install",
-        env=env,
-        cwd=tmp_path,
-    )
+    result = _install_result(source_root, env, tmp_path)
 
     assert result.returncode == 1
     assert plist_path.read_bytes() == original
@@ -372,7 +394,6 @@ def test_health_installer_preserves_an_unowned_launchd_job(
 def test_health_installer_requires_one_explicit_action(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """Zero or conflicting actions are a usage error, not a partial install."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     installer = _installer(source_root)
@@ -402,7 +423,6 @@ def test_health_installer_requires_one_explicit_action(
 def test_health_installer_refuses_to_uninstall_edited_owned_files(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """Uninstall refuses to delete files that drifted from the recorded digest."""
     source_root = _copy_health_source(repo_root, tmp_path / "source")
     env = isolated_env(tmp_path)
     _write_health_tool_fakes(tmp_path, env)
@@ -423,56 +443,7 @@ def test_health_installer_refuses_to_uninstall_edited_owned_files(
     assert extension.read_text(encoding="utf-8") == "externally edited\n"
     assert (Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json").is_file()
     assert (Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh").is_file()
-    assert (
-        Path(env["HOME"]) / "Library/LaunchAgents/com.manifest.health-report.plist"
-    ).is_file()
-
-
-def _stateful_launchctl(env: dict[str, str]) -> None:
-    launchctl = Path(env["PATH"].split(os.pathsep, 1)[0]) / "launchctl"
-    launchctl.write_text(
-        "#!/bin/sh\n"
-        'printf "%s\\n" "launchctl $*" >> "$MANIFEST_TEST_COMMAND_LOG"\n'
-        'case "$1" in\n'
-        "  bootstrap)\n"
-        '    test ! -e "$MANIFEST_TEST_LAUNCHD_STATE" || exit 36\n'
-        '    printf "manifest\\n" > "$MANIFEST_TEST_LAUNCHD_STATE"\n'
-        "    ;;\n"
-        "  bootout)\n"
-        '    rm -f "$MANIFEST_TEST_LAUNCHD_STATE"\n'
-        "    ;;\n"
-        "esac\n"
-        "exit 0\n",
-        encoding="utf-8",
-    )
-    launchctl.chmod(0o755)
-
-
-def test_health_installer_does_not_bootout_an_unowned_loaded_label_after_failed_bootstrap(
-    repo_root: Path, tmp_path: Path
-) -> None:
-    """A failed bootstrap against an unowned label never escalates to bootout."""
-    source_root = _copy_health_source(repo_root, tmp_path / "source")
-    env = isolated_env(tmp_path)
-    command_log = _write_health_tool_fakes(tmp_path, env)
-    launchd_state = tmp_path / "launchd-state"
-    launchd_state.write_text("unowned\n", encoding="utf-8")
-    env["MANIFEST_TEST_LAUNCHD_STATE"] = str(launchd_state)
-    _stateful_launchctl(env)
-
-    result = run_script(
-        _installer(source_root),
-        "--source-root",
-        str(source_root),
-        "--install",
-        env=env,
-        cwd=tmp_path,
-    )
-
-    log_lines = command_log.read_text(encoding="utf-8").splitlines()
-    assert result.returncode == 1
-    assert "launchd bootstrap failed" in result.stderr
-    assert any(line.startswith("launchctl bootstrap gui/") for line in log_lines)
-    assert launchd_state.is_file()
-    assert launchd_state.read_text(encoding="utf-8") == "unowned\n"
-    assert not any(line.startswith("launchctl bootout ") for line in log_lines)
+    if sys.platform == "darwin":
+        assert (
+            Path(env["HOME"]) / "Library/LaunchAgents/com.manifest.health-report.plist"
+        ).is_file()

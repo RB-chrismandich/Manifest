@@ -145,6 +145,103 @@ print('legacy-removed-unrelated-preserved')" "$target"
     assert_output "legacy-removed-unrelated-preserved"
 }
 
+@test "existing Claude home retires stale health hooks without an owned receipt" {
+    mkdir -p "$SANDBOX/home/.claude"
+    local target="$SANDBOX/home/.claude/settings.json"
+    materialize_existing_home "$target"
+    # Bootstrap's retired registration: absolute path, owned timeout field.
+    python3 - "$target" "$SANDBOX/home" <<'PY'
+import json, sys
+path, home = sys.argv[1], sys.argv[2]
+d = json.load(open(path))
+d["hooks"]["SessionStart"].append({
+    "hooks": [
+        {"type": "command", "command": "~/.claude/scripts/mcp_health_check.sh", "timeout": 30},
+        {"type": "command", "command": f"{home}/.claude/scripts/mcp_health_check.sh"},
+        {"type": "command", "command": "/opt/user-hooks/keep-health.sh"},
+    ]
+})
+json.dump(d, open(path, "w"), indent=2)
+PY
+    # No health installer receipt anywhere under the sandbox state dir.
+    export XDG_STATE_HOME="$SANDBOX/state"
+    mkdir -p "$XDG_STATE_HOME"
+
+    run merge_claude_runtime_settings "$SRC" "$target"
+    assert_success
+    run python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+commands = [h.get('command', '') for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
+assert not any('mcp_health_check.sh' in c for c in commands), commands
+assert '/opt/user-hooks/keep-health.sh' in commands, commands
+print('stale-health-retired')" "$target"
+    assert_success
+    assert_output "stale-health-retired"
+
+}
+
+@test "a canonical health receipt keeps its owned hook and retires the legacy form" {
+    # The merger preserves a health hook only when a valid owned receipt
+    # describes it. write_valid_health_receipt derives destinations from the
+    # exported env (HOME, XDG_*, OMP_AGENT_DIR) exactly as the merger's
+    # _validate_receipt(_paths(os.environ)) will resolve them.
+    export HOME="$SANDBOX/home"
+    export XDG_STATE_HOME="$SANDBOX/state"
+    export XDG_DATA_HOME="$SANDBOX/data"
+    export XDG_CONFIG_HOME="$SANDBOX/config"
+    unset PI_CODING_AGENT_DIR OMP_AGENT_DIR CLAUDE_CONFIG_DIR
+    mkdir -p "$HOME/.claude" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME"
+    owned="$(python3 - "$REPO_ROOT" "$SANDBOX/source" <<'PY'
+import os, sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from tests.python.plugin_runtime.health_test_helpers import write_valid_health_receipt
+
+receipt = Path(os.environ["XDG_STATE_HOME"]) / "manifest" / "health" / "installation.json"
+receipt.parent.mkdir(parents=True)
+print(write_valid_health_receipt(receipt, Path(sys.argv[2]), dict(os.environ)))
+PY
+)"
+
+    local target="$HOME/.claude/settings.json"
+    materialize_existing_home "$target"
+    # One entry carries the receipt's canonical command plus the retired
+    # bootstrap registration for the same wrapper.
+    python3 - "$target" "$owned" <<'PY'
+import json, sys
+path, owned = sys.argv[1], sys.argv[2]
+d = json.load(open(path))
+d["hooks"]["SessionStart"].append({
+    "hooks": [
+        {"type": "command", "command": "~/.claude/scripts/mcp_health_check.sh"},
+        {"type": "command", "command": owned},
+    ]
+})
+json.dump(d, open(path, "w"), indent=2)
+PY
+
+    run merge_claude_runtime_settings "$SRC" "$target"
+    assert_success
+    run python3 - "$target" "$owned" <<'PY'
+import json, sys
+path, owned = sys.argv[1], sys.argv[2]
+d = json.load(open(path))
+commands = [
+    h.get("command", "")
+    for entries in d["hooks"].values()
+    for entry in entries
+    for h in entry.get("hooks", [])
+]
+assert commands.count(owned) == 1, commands
+assert not any("mcp_health_check.sh" in c and c != owned for c in commands), commands
+print("owned-kept-legacy-retired")
+PY
+    assert_success
+    assert_output "owned-kept-legacy-retired"
+}
+
 @test "preserves block_silent_replace Stop hook without duplicating Stop" {
     materialize_existing_home "$SANDBOX/settings.json"
     merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"

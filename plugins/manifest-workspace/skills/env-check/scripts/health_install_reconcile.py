@@ -5,17 +5,15 @@ from __future__ import annotations
 
 import copy
 import os
-import shutil
-import subprocess
 import sys
 from collections.abc import Mapping, Sequence
-from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from health_install_files import (
     LAUNCHD_LABEL,
+    RETIRED_RUNTIME_SOURCES,
     SCHEMA_VERSION,
     SESSION_TIMEOUT_SECONDS,
     FileSnapshot,
@@ -30,10 +28,34 @@ from health_install_files import (
     _read_regular,
     _restore_snapshots,
 )
+from health_install_scheduler import (
+    SYSTEMD_UNIT_NAME,
+    SchedulerTeardownError,
+    _activate_scheduler_job,
+    _recorded_scheduler,
+    _resolve_executable,
+    _run_required,
+    _Scheduler,
+    _scheduler_reactivate,
+)
 
 
 def _managed_hook(command: str) -> dict[str, object]:
     return {"type": "command", "command": command, "timeout": SESSION_TIMEOUT_SECONDS}
+
+
+def _hook_targets_wrapper(hook: object, wrapper: Path) -> bool:
+    """Match health-hook commands in either absolute or shipped tilde form."""
+    if not isinstance(hook, dict):
+        return False
+    command = hook.get("command")
+    if not isinstance(command, str):
+        return False
+    try:
+        candidate = Path(command).expanduser().resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return candidate == wrapper
 
 
 def _session_entries(settings: dict) -> tuple[dict, list]:
@@ -60,6 +82,26 @@ def _uninstalled_entries(updated: dict) -> tuple[dict, list] | None:
     return hooks_value, entries_value
 
 
+def _split_wrapper_hooks(
+    hooks: list, canonical: Path, command: str, desired: dict
+) -> tuple[list, bool]:
+    retained: list[object] = []
+    removed = False
+    for hook in hooks:
+        if not _hook_targets_wrapper(hook, canonical):
+            retained.append(hook)
+            continue
+        if hook != desired:
+            equivalent = dict(hook)
+            equivalent["command"] = command
+            if equivalent != desired:
+                raise InstallError(
+                    "Claude health hook registration was externally edited"
+                )
+        removed = True
+    return retained, removed
+
+
 def _rewrite_health_hook(settings: dict, command: str, *, install: bool) -> dict:
     updated = copy.deepcopy(settings)
     if install:
@@ -70,22 +112,15 @@ def _rewrite_health_hook(settings: dict, command: str, *, install: bool) -> dict
             return updated
         hooks, entries = uninstalled
     desired = _managed_hook(command)
+    canonical = Path(command).expanduser().resolve(strict=False)
     rewritten: list[object] = []
     for entry in entries:
         if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
             rewritten.append(entry)
             continue
-        retained: list[object] = []
-        removed = False
-        for hook in entry["hooks"]:
-            if isinstance(hook, dict) and hook.get("command") == command:
-                if hook != desired:
-                    raise InstallError(
-                        "Claude health hook registration was externally edited"
-                    )
-                removed = True
-                continue
-            retained.append(hook)
+        retained, removed = _split_wrapper_hooks(
+            entry["hooks"], canonical, command, desired
+        )
         if retained:
             item = copy.deepcopy(entry)
             item["hooks"] = retained
@@ -105,25 +140,13 @@ def _hook_is_present(settings: dict, command: str) -> bool:
     entries = hooks.get("SessionStart")
     if not isinstance(entries, list):
         return False
+    canonical = Path(command).expanduser().resolve(strict=False)
     return any(
         isinstance(entry, dict)
         and isinstance(entry.get("hooks"), list)
-        and any(
-            isinstance(hook, dict) and hook.get("command") == command
-            for hook in entry["hooks"]
-        )
+        and any(_hook_targets_wrapper(hook, canonical) for hook in entry["hooks"])
         for entry in entries
     )
-
-
-def _resolve_executable(name: str) -> str:
-    candidate = shutil.which(name)
-    if not candidate:
-        raise InstallError(f"required executable is unavailable: {name}")
-    resolved = Path(candidate).resolve(strict=False)
-    if not resolved.is_file() or not os.access(resolved, os.X_OK):
-        raise InstallError(f"required executable is not runnable: {name}")
-    return str(resolved)
 
 
 def _executables() -> dict[str, str]:
@@ -136,44 +159,6 @@ def _executables() -> dict[str, str]:
         "claude": _resolve_executable("claude"),
         "coordinator": _resolve_executable("manifest"),
     }
-
-
-def _run_quiet(
-    argv: Sequence[str],
-    environment: Mapping[str, str],
-    timeout: float,
-) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        list(argv),
-        env=dict(environment),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=timeout,
-        check=False,
-        start_new_session=True,
-    )
-
-
-def _run_required(
-    argv: Sequence[str],
-    environment: Mapping[str, str],
-    description: str,
-    timeout: float = 10.0,
-) -> None:
-    try:
-        result = _run_quiet(argv, environment, timeout)
-    except (OSError, subprocess.SubprocessError) as error:
-        raise InstallError(f"{description} could not be executed") from error
-    if result.returncode != 0:
-        raise InstallError(f"{description} failed")
-
-
-def _run_best_effort(
-    argv: Sequence[str], environment: Mapping[str, str], timeout: float = 10.0
-) -> None:
-    with suppress(OSError, subprocess.SubprocessError):
-        _run_quiet(argv, environment, timeout)
 
 
 def _smoke_runtime(
@@ -193,19 +178,30 @@ def _smoke_runtime(
         )
 
 
-def _managed_paths(paths: InstallPaths, runtime_names: Sequence[str]) -> list[Path]:
-    return [
+def _managed_paths(
+    paths: InstallPaths,
+    runtime_names: Sequence[str],
+    scheduler_kind: str = "launchd",
+) -> list[Path]:
+    managed = [
         *(paths.runtime_root / name for name in sorted(runtime_names)),
         paths.extension,
         paths.wrapper,
-        paths.plist,
     ]
+    if scheduler_kind == "launchd":
+        managed.append(paths.plist)
+    elif scheduler_kind == "systemd":
+        managed.extend((paths.systemd_timer, paths.systemd_service))
+    return managed
 
 
 def _assert_no_unowned_install(
-    paths: InstallPaths, settings: dict, runtime_names: Sequence[str]
+    paths: InstallPaths,
+    settings: dict,
+    runtime_names: Sequence[str],
+    scheduler_kind: str = "launchd",
 ) -> None:
-    for path in _managed_paths(paths, runtime_names):
+    for path in _managed_paths(paths, runtime_names, scheduler_kind):
         if _path_present(path):
             raise InstallError(f"no ownership manifest exists for managed path: {path}")
     command = str(paths.wrapper.resolve(strict=False))
@@ -233,11 +229,9 @@ class _InstallPlan:
     extension_payload: bytes
     wrapper_source: Path
     wrapper_payload: bytes
-    plist_payload: bytes
+    scheduler: _Scheduler
     executables: Mapping[str, str]
     hook_hashes: Mapping[str, str]
-    launchctl: str
-    plutil: str
     settings_target: Path
     updated_settings: dict
     snapshots: Sequence[FileSnapshot]
@@ -248,7 +242,7 @@ def _build_receipt(plan: _InstallPlan) -> dict[str, object]:
     installed_at = (
         datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     )
-    return {
+    receipt: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "installed_at": installed_at,
         "source_root": str(plan.source_root),
@@ -263,21 +257,43 @@ def _build_receipt(plan: _InstallPlan) -> dict[str, object]:
         "claude_wrapper": _owned_row(
             str(plan.wrapper_source), plan.paths.wrapper, plan.wrapper_payload
         ),
-        "launchd_plist": _owned_row(
-            f"generated:{LAUNCHD_LABEL}", plan.paths.plist, plan.plist_payload
-        ),
+        "scheduler": plan.scheduler.metadata(),
         "claude_hook": {
             "command": str(plan.paths.wrapper.resolve(strict=False)),
             "timeout": SESSION_TIMEOUT_SECONDS,
         },
         "hook_hashes": dict(sorted(plan.hook_hashes.items())),
     }
+    if plan.scheduler.kind == "launchd":
+        receipt["launchd_plist"] = _owned_row(
+            f"generated:{LAUNCHD_LABEL}", plan.paths.plist, plan.scheduler.payload
+        )
+    elif plan.scheduler.kind == "systemd":
+        receipt["systemd_timer"] = _owned_row(
+            f"generated:{SYSTEMD_UNIT_NAME}.timer",
+            plan.paths.systemd_timer,
+            plan.scheduler.timer_payload,
+        )
+        receipt["systemd_service"] = _owned_row(
+            f"generated:{SYSTEMD_UNIT_NAME}.service",
+            plan.paths.systemd_service,
+            plan.scheduler.service_payload,
+        )
+    return receipt
 
 
 def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
-    domain = f"gui/{os.getuid()}"
-    service = f"{domain}/{LAUNCHD_LABEL}"
-    job_was_bootstrapped = False
+    scheduler = plan.scheduler
+    prior: _Scheduler | None = None
+    if plan.job_was_replaced:
+        prior = _recorded_scheduler(plan.receipt or {}, environment)
+        if prior.kind != scheduler.kind and not {prior.kind, scheduler.kind} <= {
+            "systemd",
+            "none",
+        }:
+            raise InstallError(
+                f"recorded {prior.kind} scheduler cannot be managed on this platform"
+            )
     try:
         for name, (_source, payload) in plan.runtime.items():
             _atomic_write(plan.paths.runtime_root / name, payload, 0o600)
@@ -299,45 +315,69 @@ def _apply_install(plan: _InstallPlan, environment: Mapping[str, str]) -> None:
         _atomic_write(plan.paths.wrapper, plan.wrapper_payload, 0o700)
         _atomic_write(plan.settings_target, _json_bytes(plan.updated_settings), 0o600)
 
-        if plan.job_was_replaced:
-            _run_best_effort([plan.launchctl, "bootout", service], environment)
-        _atomic_write(plan.paths.plist, plan.plist_payload, 0o600)
-        _run_required(
-            [plan.plutil, "-lint", str(plan.paths.plist)],
+        _activate_scheduler_job(
+            scheduler,
+            prior,
+            plan.paths,
+            _json_bytes(_build_receipt(plan)),
             environment,
-            "launchd plist lint",
         )
-
-        _atomic_write(plan.paths.receipt, _json_bytes(_build_receipt(plan)), 0o600)
-        _run_required(
-            [plan.launchctl, "bootstrap", domain, str(plan.paths.plist)],
+    except SchedulerTeardownError:
+        raise
+    # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
+    except BaseException as error:
+        _rollback_transaction(
+            plan.snapshots,
+            prior,
+            plan.paths,
+            plan.executables["python"],
             environment,
-            "launchd bootstrap",
+            error,
         )
-        job_was_bootstrapped = True
-        _run_required(
-            [plan.launchctl, "kickstart", "-k", service],
-            environment,
-            "launchd kickstart",
-        )
-    except BaseException:
-        if job_was_bootstrapped:
-            _run_best_effort([plan.launchctl, "bootout", service], environment)
-        _restore_snapshots(plan.snapshots)
-        if plan.job_was_replaced and _path_present(plan.paths.plist):
-            _run_best_effort(
-                [plan.launchctl, "bootstrap", domain, str(plan.paths.plist)],
-                environment,
-            )
         raise
 
 
+def _rollback_transaction(
+    snapshots: Sequence[FileSnapshot],
+    prior: _Scheduler | None,
+    paths: InstallPaths,
+    python: str,
+    environment: Mapping[str, str],
+    error: BaseException,
+) -> None:
+    """Restore snapshots and re-arm the prior scheduler after ``error``.
+
+    A failed restore means the runtime is in an unknown partial state, so
+    the prior scheduler is never re-armed after an incomplete restore. Any
+    rollback failure — restore or re-arm — raises one InstallError naming
+    every failure, so a rollback never silently leaves the recorded timer
+    disabled. Otherwise returns and the caller re-raises ``error``.
+    """
+    problems: list[BaseException] = []
+    try:
+        _restore_snapshots(snapshots)
+    except Exception as restore_error:
+        problems.append(restore_error)
+    else:
+        if prior is not None:
+            try:
+                _scheduler_reactivate(prior, paths, python, environment)
+            except InstallError as reactivation_error:
+                problems.append(reactivation_error)
+    if problems:
+        detail = "; additionally, rollback failed: ".join(
+            str(problem) for problem in problems
+        )
+        raise InstallError(
+            f"{error}; additionally, rollback failed: {detail}"
+        ) from error
+
+
 def _cleanup_retired_runtime(plan: _InstallPlan) -> None:
-    retired_sources = frozenset({"plugin_reconcile.py"})
     receipt_files = (
         (plan.receipt or {}).get("files", {}) if isinstance(plan.receipt, dict) else {}
     )
-    for name in retired_sources:
+    for name in RETIRED_RUNTIME_SOURCES:
         retired_path = plan.paths.runtime_root / name
         if _path_present(retired_path):
             row = receipt_files.get(name) if isinstance(receipt_files, dict) else None

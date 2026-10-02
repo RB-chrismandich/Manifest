@@ -1,7 +1,8 @@
 # shellcheck shell=bash
 # pr_merge_loop_fp.sh — observation & transition-state layer for
-# pr_merge_loop.sh (signal collection, managed-PR listing, counters,
-# canonical material fingerprinting, and durable fingerprint state).
+# pr_merge_loop.sh (signal collection, managed-PR listing, revision counters,
+# canonical material fingerprinting, and durable fingerprint state; the
+# repository-scoped empty-run counter lives in lib/pr_merge_loop_empty_run.sh).
 #
 # Split out of pr_merge_loop.sh (C-SIZE/CON-002, ceiling 600) along the
 # observation/state seam, complementing lib/pr_merge_loop_gh.sh's platform-I/O
@@ -92,12 +93,9 @@ cmd_signals() {
 # exclusively via stdin and parsed with `json.load`, never interpolated into source.
 LIST_MANAGED_PY='
 import json, sys
-try:
-    prs = json.load(sys.stdin)
-    if not isinstance(prs, list):
-        raise ValueError("prs not a list")
-except Exception:
-    prs = []
+prs = json.load(sys.stdin)
+if not isinstance(prs, list):
+    raise ValueError("prs not a list")
 try:
     cfg = json.load(open(sys.argv[1])) or {}
 except Exception:
@@ -106,40 +104,20 @@ allow = {a.lower().replace("[bot]", "") for a in (cfg.get("authors") or [])}
 out = []
 for p in prs:
     a = (p.get("author") or {})
-    login = (a.get("login") if isinstance(a, dict) else str(a)) or ""
+    # github `gh pr list` gives author.login + __typename; gitlab
+    # `glab mr list -F json` gives author.username and no typename.
+    login = ((a.get("login") or a.get("username")) if isinstance(a, dict) else str(a)) or ""
     key = login.lower().replace("[bot]", "")
     is_bot = isinstance(a, dict) and (a.get("is_bot") or a.get("__typename") == "Bot")
     if key in allow or (cfg.get("trust_bot_typename") and is_bot):
-        out.append({"number": p.get("number"), "author": login})
+        out.append({"number": p.get("number") or p.get("iid"), "author": login})
 print(json.dumps(out))
 '
 
 cmd_list_managed() {
     local raw
-    raw="$(gh_op list)"
+    raw="$(gh_op list)" || return $?
     printf '%s' "$raw" | python3 -c "${LIST_MANAGED_PY}" "$AUTHORS_FILE"
-}
-
-cmd_empty_run() {
-    mkdir -p "$STATE_DIR" 2> /dev/null || true
-    local f="${STATE_DIR}/empty_count" n
-    n=$([[ -f "$f" ]] && cat "$f" || echo 0)
-    case "${1:-get}" in
-        get) echo "$n" ;;
-        incr)
-            n=$((n + 1))
-            echo "$n" > "$f"
-            echo "$n"
-            ;;
-        reset)
-            echo 0 > "$f"
-            echo 0
-            ;;
-        *)
-            err "empty-run: get|incr|reset"
-            return 64
-            ;;
-    esac
 }
 
 # --- live orchestration (integration paths; seam-overridable) ---
@@ -277,12 +255,21 @@ if not isinstance(view["latestReviews"], list):
 for review in view["latestReviews"]:
     if not isinstance(review, dict):
         raise ValueError("review")
+    # The gh latestReviews projection emits "id" as "" (REST-backed reviews
+    # carry no GraphQL node id), so it can never be required — review material
+    # is keyed on the author/submittedAt/state/body fields gh actually emits.
+    author = review.get("author")
+    if isinstance(author, dict):
+        author = author.get("login")
     reviews.append({
-        "id": require_text(review.get("id"), "review.id"),
-        "state": require_text(review.get("state"), "review.state"),
+        "author": "" if author is None else require_text(author, "review.author"),
         "submittedAt": require_text(review.get("submittedAt"), "review.submittedAt"),
+        "state": require_text(review.get("state"), "review.state"),
+        "body": optional_text(review.get("body"), "review.body") or "",
     })
-reviews.sort(key=lambda item: (item["id"], item["state"], item["submittedAt"]))
+reviews.sort(key=lambda item: (
+    item["author"], item["submittedAt"], item["state"], item["body"],
+))
 
 if not isinstance(view["labels"], list):
     raise ValueError("view.labels")
@@ -343,10 +330,48 @@ for page_index, page in enumerate(pages):
         latest_comment = latest[0] if latest else {}
         if latest_comment and not isinstance(latest_comment, dict):
             raise ValueError("thread.latestComment")
+        # count_unresolved_human classifies a thread from every comment author
+        # plus the comments pageInfo.hasNextPage truncation flag, so all of it
+        # must change the fingerprint — recording only latestComments would
+        # miss a deleted older human objection.
+        comments_conn = thread.get("comments")
+        comments_truncated = False
+        comment_authors = []
+        if comments_conn is None:
+            # A missing connection is indistinguishable from "cannot rule out
+            # a human comment" — same as the classifier blocking default.
+            comments_truncated = True
+        elif not isinstance(comments_conn, dict):
+            raise ValueError("thread.comments")
+        else:
+            comments_truncated = bool((comments_conn.get("pageInfo") or {}).get("hasNextPage"))
+            comment_nodes = comments_conn.get("nodes")
+            if not isinstance(comment_nodes, list):
+                comments_truncated = True
+            else:
+                for comment in comment_nodes:
+                    if not isinstance(comment, dict):
+                        raise ValueError("thread.comment")
+                    author = comment.get("author")
+                    if isinstance(author, dict):
+                        author = author.get("login")
+                    comment_authors.append({
+                        "id": optional_text(comment.get("id"), "comment.id"),
+                        "createdAt": optional_text(
+                            comment.get("createdAt"), "comment.createdAt"
+                        ),
+                        "author": optional_text(author, "comment.author"),
+                    })
+        comment_authors.sort(key=lambda item: tuple(
+            "" if item[key] is None else item[key]
+            for key in ("id", "createdAt", "author")
+        ))
         threads.append({
             "id": require_text(thread.get("id"), "thread.id"),
             "isResolved": thread["isResolved"],
             "isOutdated": thread["isOutdated"],
+            "commentsTruncated": comments_truncated,
+            "comments": comment_authors,
             "latestCommentId": optional_text(latest_comment.get("id"), "thread.latestComment.id"),
             "latestCommentCreatedAt": optional_text(
                 latest_comment.get("createdAt"), "thread.latestComment.createdAt"
@@ -354,6 +379,7 @@ for page_index, page in enumerate(pages):
         })
 threads.sort(key=lambda item: (
     item["id"], item["isResolved"], item["isOutdated"],
+    item["commentsTruncated"], json.dumps(item["comments"], sort_keys=True),
     item["latestCommentId"] or "", item["latestCommentCreatedAt"] or "",
 ))
 
