@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Persistent systemd user-timer activation for the health installer.
+
+Extracted from `health_install_scheduler._activate_scheduler_job`. This module
+imports `health_install_scheduler` for its process helpers, which the caller
+imports lazily inside the systemd branch so module loading stays
+one-directional.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
+import health_install_scheduler as _scheduler
+from health_install_files import InstallError
+
+if TYPE_CHECKING:
+    from health_install_scheduler import _Scheduler
+
+
+def _activate_persistent_systemd(
+    scheduler: _Scheduler, environment: Mapping[str, str]
+) -> None:
+    """Reload the user manager, then enable and start the persistent timer.
+
+    A timer left half-enabled after `daemon-reload` must be stopped and
+    verified inactive before the surrounding transaction can roll back.
+    """
+    started = False
+    try:
+        _scheduler._run_required(
+            [scheduler.systemctl, "--user", "daemon-reload"],
+            environment,
+            "systemd daemon reload",
+        )
+        started = True
+        _scheduler._run_required(
+            [
+                scheduler.systemctl,
+                "--user",
+                "enable",
+                "--now",
+                f"{scheduler.unit}.timer",
+            ],
+            environment,
+            "systemd timer enable",
+            timeout=30.0,
+        )
+    # constitution: exempt C-ERR — rollback must preserve KeyboardInterrupt.
+    except BaseException:
+        if started:
+            try:
+                _scheduler._stop_scheduler_job(scheduler, environment)
+            except InstallError as error:
+                raise _scheduler.SchedulerTeardownError(
+                    "systemd teardown could not be verified"
+                ) from error
+        raise
+
+
+def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -> None:
+    """Stop the recorded scheduler and verify both systemd units are inactive."""
+    if scheduler.kind == "launchd":
+        _scheduler._run_required(
+            [scheduler.launchctl, "bootout", scheduler.service],
+            environment,
+            "launchd bootout",
+        )
+        return
+    if scheduler.kind == "none":
+        return
+    timer, service = f"{scheduler.unit}.timer", f"{scheduler.unit}.service"
+    _scheduler._run_best_effort(
+        [scheduler.systemctl, "--user", "reset-failed", timer, service], environment
+    )
+    if scheduler.persistent:
+        _scheduler._run_required(
+            [scheduler.systemctl, "--user", "disable", timer],
+            environment,
+            "systemd timer disable",
+        )
+    try:
+        stopped = _scheduler._run_quiet(
+            [scheduler.systemctl, "--user", "stop", timer, service], environment, 10.0
+        )
+        if stopped.returncode != 0 and not _units_not_loaded(
+            scheduler, (timer, service), environment
+        ):
+            raise InstallError("systemd unit stop failed")
+    except (OSError, subprocess.SubprocessError) as error:
+        raise InstallError("systemd unit stop failed") from error
+    try:
+        probe = _scheduler._run_quiet(
+            [scheduler.systemctl, "--user", "is-active", timer, service],
+            environment,
+            10.0,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise InstallError("systemd unit state could not be verified") from error
+    states = probe.stdout.decode("utf-8", "replace").split() if probe.stdout else []
+    if probe.returncode == 0:
+        raise InstallError("systemd unit stop failed")
+    if not _scheduler._verified_inactive(states):
+        raise InstallError("systemd unit state could not be verified")
+
+
+def _units_not_loaded(
+    scheduler: _Scheduler, units: tuple[str, ...], environment: Mapping[str, str]
+) -> bool:
+    """True only when the manager confirms every unit is absent from memory.
+
+    A legacy transient timer vanishes after a reboot or manager restart, so
+    `stop` fails with nothing left to deactivate. Any other answer — bus,
+    permission, or a loaded unit — keeps the stop failure fatal.
+    """
+    try:
+        shown = _scheduler._run_quiet(
+            [
+                scheduler.systemctl,
+                "--user",
+                "show",
+                "--property=LoadState",
+                "--value",
+                *units,
+            ],
+            environment,
+            10.0,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    states = shown.stdout.decode("utf-8", "replace").split() if shown.stdout else []
+    return (
+        shown.returncode == 0
+        and len(states) == len(units)
+        and all(state == "not-found" for state in states)
+    )
+
+
+def _scheduler_reactivate(
+    scheduler: _Scheduler,
+    paths: _scheduler.InstallPaths,
+    python: str,
+    environment: Mapping[str, str],
+) -> None:
+    """Re-arm a previously running scheduler after rollback.
+
+    Re-arm failures raise InstallError: a rollback that leaves a stopped
+    persistent timer silently disabled is worse than a loud combined error.
+    Callers combine this failure with the error that triggered rollback.
+    """
+    if scheduler.kind == "launchd":
+        if _scheduler._path_present(paths.plist):
+            _scheduler._run_required(
+                [scheduler.launchctl, "bootstrap", scheduler.domain, str(paths.plist)],
+                environment,
+                "launchd reactivation",
+            )
+        return
+    if scheduler.kind == "none":
+        return
+    if _scheduler._path_present(paths.systemd_timer) and _scheduler._path_present(
+        paths.systemd_service
+    ):
+        # daemon-reload stays best-effort: a stale in-memory unit table only
+        # matters if the enable below cannot proceed, which surfaces anyway.
+        _scheduler._run_best_effort(
+            [scheduler.systemctl, "--user", "daemon-reload"], environment
+        )
+        _scheduler._run_required(
+            [
+                scheduler.systemctl,
+                "--user",
+                "enable",
+                "--now",
+                f"{scheduler.unit}.timer",
+            ],
+            environment,
+            "systemd timer reactivation",
+            timeout=30.0,
+        )
+        return
+    if scheduler.systemd_run:
+        _scheduler._run_required(
+            scheduler.systemd_argv(paths, python, environment),
+            environment,
+            "systemd transient timer reactivation",
+            timeout=30.0,
+        )

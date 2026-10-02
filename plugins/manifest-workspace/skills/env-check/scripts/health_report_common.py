@@ -48,7 +48,7 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 VERSION = re.compile(r"(?<![0-9])([0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?)")
 WEEKLY_FILE = re.compile(r"^weekly-[0-9]{8}\.json$")
 BAD_CAPABILITY_STATES = frozenset(
-    {
+    [
         "absent",
         "blocked",
         "degraded",
@@ -59,10 +59,10 @@ BAD_CAPABILITY_STATES = frozenset(
         "unavailable",
         "unsupported",
         "unverified",
-    }
+    ]
 )
 EXPECTED_RUNTIME_FILES = frozenset(
-    {
+    [
         "health_report.py",
         "health_report_collect.py",
         "health_report_common.py",
@@ -74,10 +74,12 @@ EXPECTED_RUNTIME_FILES = frozenset(
         "mcp_health_runtime.py",
         "health_install_files.py",
         "health_install_reconcile.py",
+        "health_install_scheduler.py",
+        "health_install_scheduler_systemd.py",
         "env_check.py",
         "hook_smoke.py",
         "hook_smoke_support.py",
-    }
+    ]
 )
 VALID_MCP_STATUSES = frozenset({"healthy", "disabled", "degraded"})
 VALID_MCP_REASONS = frozenset(

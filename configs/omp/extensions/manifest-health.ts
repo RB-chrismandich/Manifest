@@ -191,12 +191,26 @@ export default function manifestHealth(pi: ExtensionAPI) {
             if (
               !tool ||
               typeof tool !== "object" ||
-              !("mcpServerName" in tool)
+              !("sourceInfo" in tool) ||
+              !tool.sourceInfo ||
+              typeof tool.sourceInfo !== "object" ||
+              !("source" in tool.sourceInfo) ||
+              tool.sourceInfo.source !== "mcp"
             ) {
               continue;
             }
-            const name = tool.mcpServerName;
-            if (name === undefined) continue;
+            // The ToolInfo contract does not yet expose a supported MCP
+            // server mapping; metadata.mcpServerName arrives only from
+            // registry shapes that carry it. An MCP-sourced tool without a
+            // usable server name means the inventory is incomplete, not
+            // empty — report it as unobserved so a failed probe cannot be
+            // confused with "no MCP servers configured".
+            const name =
+              "metadata" in tool &&
+              tool.metadata &&
+              typeof tool.metadata === "object"
+                ? (tool.metadata as Record<string, unknown>).mcpServerName
+                : undefined;
             if (typeof name !== "string" || !SAFE_SERVER_NAME.test(name)) {
               inventoryObserved = false;
               continue;

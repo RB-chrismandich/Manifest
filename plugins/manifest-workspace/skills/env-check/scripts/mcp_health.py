@@ -8,9 +8,10 @@ import json
 import math
 import os
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -62,98 +63,122 @@ from mcp_health_runtime import (  # noqa: E402
     utc_now,
 )
 
-__all__ = [
-    "ANSI_RE",
-    "INTERNAL_SERVER_NAMES",
-    "MAX_CACHE_AGE_SECONDS",
-    "MAX_OUTPUT_BYTES",
-    "MAX_SERVER_COUNT",
-    "MAX_TIMEOUT_SECONDS",
-    "SCHEMA_VERSION",
-    "SERVER_NAME_RE",
-    "VALID_REASONS",
-    "VALID_STATUSES",
-    "Clock",
-    "CommandResult",
-    "Expectations",
-    "Runner",
-    "RuntimePaths",
-    "_append_degraded_row",
-    "_atomic_write_report",
-    "_base_rows",
-    "_cache_path",
-    "_configuration_row",
-    "_fresh_cached_report",
-    "_kill_process_group",
-    "_not_probed_report",
-    "_parse_cached_timestamp",
-    "_parse_claude_status",
-    "_plugin_mcp_expectations",
-    "_prepare_state_dir",
-    "_read_json_object",
-    "_reconcile_cached",
-    "_release_probe_lock",
-    "_report",
-    "_row",
-    "_timestamp",
-    "_try_probe_lock",
-    "_validated_cached_report",
-    "build_parser",
-    "collect_health",
-    "load_claude_expectations",
-    "load_omp_expectations",
-    "main",
-    "probe_claude",
-    "probe_omp",
-    "render_text",
-    "run_bounded",
-    "utc_now",
-]
+__all__ = (
+    [  # noqa: RUF005
+        "ANSI_RE",
+        "INTERNAL_SERVER_NAMES",
+        "MAX_CACHE_AGE_SECONDS",
+        "MAX_OUTPUT_BYTES",
+        "MAX_SERVER_COUNT",
+        "MAX_TIMEOUT_SECONDS",
+        "SCHEMA_VERSION",
+        "SERVER_NAME_RE",
+        "VALID_REASONS",
+        "VALID_STATUSES",
+    ]
+    + [
+        "Clock",
+        "CommandResult",
+        "Expectations",
+        "ProbeContext",
+        "Runner",
+        "RuntimePaths",
+    ]
+    + [
+        "_append_degraded_row",
+        "_atomic_write_report",
+        "_base_rows",
+        "_cache_path",
+        "_configuration_row",
+        "_fresh_cached_report",
+        "_kill_process_group",
+        "_not_probed_report",
+        "_parse_cached_timestamp",
+        "_parse_claude_status",
+    ]
+    + [
+        "_plugin_mcp_expectations",
+        "_prepare_state_dir",
+        "_read_json_object",
+        "_reconcile_cached",
+        "_release_probe_lock",
+        "_report",
+        "_row",
+        "_timestamp",
+        "_try_probe_lock",
+        "_validated_cached_report",
+    ]
+    + [
+        "build_parser",
+        "collect_health",
+        "load_claude_expectations",
+        "load_omp_expectations",
+        "main",
+        "probe_claude",
+        "probe_omp",
+        "render_text",
+        "run_bounded",
+        "utc_now",
+    ]
+)
 
 MAX_TIMEOUT_SECONDS = 20.0
 
 
-def collect_health(
-    *,
-    harness: str,
-    probe: bool,
-    timeout_seconds: float,
-    paths: RuntimePaths,
-    environment: Mapping[str, str],
-    inventory_observed: bool,
-    observed_servers: Sequence[str],
-    runner: Runner = run_bounded,
-    clock: Clock = utc_now,
-) -> dict[str, Any]:
-    """Collect cached or freshly probed health and persist fresh reports."""
-    expectations = (
-        load_claude_expectations(paths, required=True)
-        if harness == "claude"
-        else load_omp_expectations(paths)
-    )
-    if not probe:
-        cached = _fresh_cached_report(paths, harness, expectations, clock)
-        return cached or _not_probed_report(harness, expectations, clock)
+@dataclass(frozen=True)
+class ProbeContext:
+    """Typed inputs controlling one harness health collection."""
 
-    lock_descriptor, acquired = _try_probe_lock(paths.state_dir, harness)
+    harness: Literal["claude", "omp"]
+    probe: bool
+    timeout_seconds: float
+    paths: RuntimePaths
+    environment: Mapping[str, str]
+    inventory_observed: bool
+    observed_servers: tuple[str, ...]
+    runner: Runner = run_bounded
+    clock: Clock = utc_now
+
+
+def collect_health(context: ProbeContext) -> dict[str, Any]:
+    """Collect cached or freshly probed health and persist fresh reports."""
+    project_dir = Path(
+        context.environment.get("CLAUDE_PROJECT_DIR")
+        or context.environment.get("PWD")
+        or "."
+    )
+    expectations = (
+        load_claude_expectations(context.paths, required=True, project_dir=project_dir)
+        if context.harness == "claude"
+        else load_omp_expectations(context.paths)
+    )
+    if not context.probe:
+        cached = _fresh_cached_report(
+            context.paths, context.harness, expectations, context.clock
+        )
+        return cached or _not_probed_report(
+            context.harness, expectations, context.clock
+        )
+
+    lock_descriptor, acquired = _try_probe_lock(
+        context.paths.state_dir, context.harness
+    )
     if not acquired:
         return _handle_unacquired_probe(
-            paths, harness, expectations, clock, lock_descriptor
+            context.paths,
+            context.harness,
+            expectations,
+            context.clock,
+            lock_descriptor,
         )
     try:
-        report = _run_probe(
-            harness,
-            paths,
-            expectations,
-            timeout_seconds,
-            environment,
-            inventory_observed,
-            observed_servers,
-            runner,
-            clock,
-        )
-        if not _atomic_write_report(_cache_path(paths, harness), report):
-            return _append_degraded_row(report, "__state__", "unavailable", clock)
+        report = _run_probe(context, expectations)
+        if not _atomic_write_report(
+            _cache_path(context.paths, context.harness), report
+        ):
+            return _append_degraded_row(
+                report, "__state__", "unavailable", context.clock
+            )
         return report
     finally:
         _release_probe_lock(lock_descriptor)
@@ -184,26 +209,21 @@ def _handle_unacquired_probe(
         _release_probe_lock(lock_descriptor)
 
 
-def _run_probe(
-    harness: str,
-    paths: RuntimePaths,
-    expectations: Expectations,
-    timeout_seconds: float,
-    environment: Mapping[str, str],
-    inventory_observed: bool,
-    observed_servers: Sequence[str],
-    runner: Runner,
-    clock: Clock,
-) -> dict[str, Any]:
-    if harness == "claude":
+def _run_probe(context: ProbeContext, expectations: Expectations) -> dict[str, Any]:
+    if context.harness == "claude":
         return probe_claude(
-            paths, expectations, timeout_seconds, environment, runner, clock
+            context.paths,
+            expectations,
+            context.timeout_seconds,
+            context.environment,
+            context.runner,
+            context.clock,
         )
     return probe_omp(
         expectations,
-        inventory_observed=inventory_observed,
-        observed_servers=observed_servers,
-        clock=clock,
+        inventory_observed=context.inventory_observed,
+        observed_servers=context.observed_servers,
+        clock=context.clock,
     )
 
 
@@ -264,13 +284,15 @@ def main(argv: list[str] | None = None) -> int:
     environment = dict(os.environ)
     paths = RuntimePaths.from_environment(environment, args.state_dir)
     report = collect_health(
-        harness=args.harness,
-        probe=args.probe,
-        timeout_seconds=args.timeout_seconds,
-        paths=paths,
-        environment=environment,
-        inventory_observed=args.inventory_observed,
-        observed_servers=args.observed_server,
+        ProbeContext(
+            harness=args.harness,
+            probe=args.probe,
+            timeout_seconds=args.timeout_seconds,
+            paths=paths,
+            environment=environment,
+            inventory_observed=args.inventory_observed,
+            observed_servers=tuple(args.observed_server),
+        )
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))

@@ -194,6 +194,8 @@ def _runtime_file_rows(runtime_root: Path) -> dict[str, dict[str, str]]:
         "mcp_health_runtime.py",
         "health_install_files.py",
         "health_install_reconcile.py",
+        "health_install_scheduler.py",
+        "health_install_scheduler_systemd.py",
         "env_check.py",
         "hook_smoke.py",
         "hook_smoke_support.py",
@@ -206,7 +208,6 @@ def _runtime_file_rows(runtime_root: Path) -> dict[str, dict[str, str]]:
 
 def _write_health_installation(
     env: dict[str, str],
-    tmp_path: Path,
     source_root: Path,
     runtime_root: Path,
     agent_root: Path,
@@ -228,9 +229,9 @@ def _write_health_installation(
                 "source_root": str(source_root),
                 "executables": {
                     "python": str(Path(sys.executable).resolve()),
-                    "omp": str(tmp_path / "bin/omp"),
-                    "claude": str(tmp_path / "bin/claude"),
-                    "coordinator": str(tmp_path / "bin/manifest"),
+                    "omp": str(agent_root.parent / "bin/omp"),
+                    "claude": str(agent_root.parent / "bin/claude"),
+                    "coordinator": str(agent_root.parent / "bin/manifest"),
                 },
                 "files": _runtime_file_rows(runtime_root),
                 "omp_extension": file_row(extension),
@@ -257,9 +258,7 @@ def write_report_fixture(
     _write_pin_lock(agent_root)
     runtime_root = tmp_path / "runtime"
     runtime_root.mkdir()
-    _write_health_installation(
-        env, tmp_path, source_root, runtime_root, agent_root, now
-    )
+    _write_health_installation(env, source_root, runtime_root, agent_root, now)
     return env, runtime_root, receipt
 
 
@@ -383,3 +382,60 @@ __all__ = [
     "workspace_bundle",
     "write_report_fixture",
 ]
+
+
+def write_valid_health_receipt(
+    receipt_path: Path, source_root: Path, environment: dict[str, str]
+) -> str:
+    scripts = repo_root() / "plugins/manifest-workspace/skills/env-check/scripts"
+    sys.path.insert(0, str(scripts))
+    try:
+        from health_install_files import (
+            OWNERSHIP_MARKER,
+            SESSION_TIMEOUT_SECONDS,
+            _owned_row,
+            _paths,
+        )
+        from health_install_receipts import HOOK_HASH_SOURCES, RUNTIME_SOURCES
+    finally:
+        sys.path.pop(0)
+    paths = _paths(environment)
+    payload = b"owned\n"
+    paths.runtime_root.mkdir(parents=True)
+    files = {}
+    for name, relative in RUNTIME_SOURCES.items():
+        destination = paths.runtime_root / name
+        destination.write_bytes(payload)
+        files[name] = _owned_row(str(source_root / relative), destination, payload)
+    paths.extension.parent.mkdir(parents=True)
+    paths.extension.write_bytes(payload)
+    paths.wrapper.parent.mkdir(parents=True)
+    paths.wrapper.write_bytes(payload)
+    command = str(paths.wrapper.resolve())
+    receipt_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source_root": str(source_root),
+                "executables": {
+                    name: str((source_root / "bin" / name).resolve())
+                    for name in ("python", "omp", "claude", "coordinator")
+                },
+                "files": files,
+                "omp_extension": _owned_row(
+                    str(source_root / "extension"), paths.extension, payload
+                ),
+                "claude_wrapper": _owned_row(
+                    str(source_root / "wrapper"), paths.wrapper, payload
+                ),
+                "scheduler": {"kind": "none", "managed_by": OWNERSHIP_MARKER},
+                "claude_hook": {
+                    "command": command,
+                    "timeout": SESSION_TIMEOUT_SECONDS,
+                },
+                "hook_hashes": dict.fromkeys(HOOK_HASH_SOURCES, "a" * 64),
+            }
+        ),
+        encoding="utf-8",
+    )
+    return command
