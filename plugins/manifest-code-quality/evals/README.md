@@ -44,3 +44,42 @@ in both arms, so for these skills the evals find no measurable lift over the
 base model — the cases stay as regression tests. A one-run pilot also showed
 `refactor--12` and `api-optimize-bulk--11` at Δ +0.67; neither held at 3 runs,
 so judge single-run Δ with caution.
+
+## Baseline results
+
+Full suite on `main` at `e8819f2e` (after #1007 fixed seven skill defects),
+2026-10-02: sonnet agent, opus judge, `runs: 3`, `--ablation with-without`.
+The previous run (2026-09-27, before those fixes) scored with 0.90 /
+without 0.82 / Δ +0.08; the fixes lifted the with-plugin arm to 0.95, and the
+former regressions (`shell-audit-errexit`, `node-refactor`, `data-wire-field`)
+are now at or above zero. Overall Δ is unchanged because the without-plugin
+arm also scored higher this run, so compare per-skill rows across runs, not
+just the headline. Excludes the `--1N-hard-*` cases above.
+
+| Skill | Cases | With | Without | Δ |
+|---|---|---|---|---|
+| `ai-code-audit` | 7 | 0.98 | 0.70 | +0.29 |
+| `antipattern-detect` | 7 | 0.81 | 0.73 | +0.07 |
+| `api-optimize-bulk` | 6 | 1.00 | 1.00 | +0.00 |
+| `cli-audit-help` | 7 | 1.00 | 0.83 | +0.17 |
+| `code-audit-constitution` | 7 | 0.84 | 0.55 | +0.30 |
+| `data-design-ingestion` | 8 | 1.00 | 0.75 | +0.25 |
+| `data-validate-live` | 7 | 1.00 | 1.00 | +0.00 |
+| `data-wire-field` | 7 | 0.93 | 0.86 | +0.08 |
+| `false-green-check-audit` | 7 | 0.93 | 0.90 | +0.02 |
+| `go-refactor` | 7 | 0.92 | 0.86 | +0.06 |
+| `llm-invoke-stdin` | 7 | 0.92 | 0.91 | +0.01 |
+| `node-refactor` | 7 | 1.00 | 0.97 | +0.03 |
+| `project-scaffold` | 7 | 0.92 | 0.82 | +0.09 |
+| `project-verify` | 7 | 0.94 | 0.91 | +0.03 |
+| `python-refactor` | 7 | 0.95 | 0.99 | -0.04 |
+| `refactor` | 7 | 1.00 | 1.00 | +0.00 |
+| `shell-audit-errexit` | 7 | 1.00 | 1.00 | +0.00 |
+| `shell-audit-pipefail` | 7 | 0.94 | 0.87 | +0.06 |
+| `shell-audit` | 8 | 0.95 | 0.90 | +0.05 |
+| `shell-refactor` | 7 | 0.98 | 0.98 | +0.00 |
+| `smoke-manage` | 7 | 0.97 | 0.76 | +0.21 |
+| `terraform-refactor` | 7 | 0.90 | 0.93 | -0.02 |
+| `test-pin-bug` | 6 | 1.00 | 0.78 | +0.22 |
+| `test-vary-fixtures` | 6 | 0.94 | 0.85 | +0.09 |
+| **Overall** | 167 | **0.95** | **0.87** | **+0.08** |
