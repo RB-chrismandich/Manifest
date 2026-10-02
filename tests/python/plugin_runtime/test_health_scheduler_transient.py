@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 
@@ -65,3 +66,32 @@ def test_failed_stop_of_loaded_units_stays_fatal(
 
     with pytest.raises(files.InstallError, match="systemd unit stop failed"):
         schedulers._stop_scheduler_job(_transient_scheduler(), isolated_env(tmp_path))
+
+
+@pytest.mark.parametrize("row", ["launchd_plist", "systemd_timer", "systemd_service"])
+def test_unscheduled_receipt_with_scheduler_row_refuses_uninstall(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, row: str
+) -> None:
+    """A `none` receipt that still lists a scheduler artifact is contradictory:
+    uninstall must refuse rather than delete the runtime under a live job."""
+    import install_health_reporting as installer
+
+    from tests.python.plugin_runtime.test_health_scheduler import _write_fake_tools
+
+    environment = isolated_env(tmp_path)
+    _write_fake_tools(tmp_path, environment)
+    environment["MANIFEST_TEST_SHOW_ENV_STATUS"] = "1"
+    monkeypatch.setenv("PATH", environment["PATH"])
+    monkeypatch.setattr(schedulers.sys, "platform", "linux")
+    installer.install(repo_root(), environment)
+    paths = files._paths(environment)
+    receipt = json.loads(paths.receipt.read_text(encoding="utf-8"))
+    assert receipt["scheduler"]["kind"] == "none"
+    receipt[row] = receipt["claude_wrapper"]
+    paths.receipt.write_text(json.dumps(receipt), encoding="utf-8")
+
+    with pytest.raises(files.InstallError, match="unscheduled install"):
+        installer.uninstall(repo_root(), environment)
+
+    assert paths.receipt.is_file()
+    assert paths.wrapper.is_file()

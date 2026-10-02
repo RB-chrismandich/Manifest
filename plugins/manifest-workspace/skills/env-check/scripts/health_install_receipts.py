@@ -241,6 +241,15 @@ def _validate_receipt_scheduler(receipt: dict, paths: InstallPaths) -> None:
             )
         return
     if scheduler.get("kind") == "none":
+        # An unscheduled install owns no scheduler artifacts or identity; any
+        # leftover row means the job may still run against deleted files.
+        artifact_rows = ("launchd_plist", "systemd_timer", "systemd_service")
+        identity_keys = set(scheduler) - {"kind", "managed_by"}
+        if identity_keys or any(receipt.get(key) is not None for key in artifact_rows):
+            raise InstallError(
+                "health installation manifest records scheduler artifacts "
+                "for an unscheduled install"
+            )
         return
     if (
         scheduler.get("unit") != SYSTEMD_UNIT_NAME
