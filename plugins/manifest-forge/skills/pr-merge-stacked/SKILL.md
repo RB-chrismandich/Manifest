@@ -1,29 +1,113 @@
 ---
 name: pr-merge-stacked
-description: Use when merging stacked PRs via gh/glab — `gh pr merge --delete-branch` on a parent CLOSES the dependent child instead of retargeting it; merge keeping the branch, retarget the child, then delete.
+description: Use when merging stacked PRs/MRs via gh/glab — merge bottom-up, verify each child was auto-retargeted to the trunk (GitHub on parent-branch deletion, GitLab on merge), rebase the rest of the stack after a squash/rebase merge, and recover a child closed by deleting an unmerged parent's branch.
 ---
 # Merge a Stacked PR Chain Safely
 
 Distinct from `pr-clean-base` (rebasing one branch onto a fresh base) and `pr-reset-reapply` (untangling tangled
 history). This is the merge-time choreography for an already-open stack.
 
-1. **Map the stack first.** GitHub:
-   `for n in <PRs>; do gh pr view "$n" --json number,baseRefName,headRefName; done`.
-   GitLab: `for n in <MRs>; do glab mr view "$n" --output json; done`. Confirm
-   A(base `main`) ← B(base A) ← C(base B) …
-2. **Ensure CI runs on every PR before merging.** A workflow keyed `on: pull_request:
-   branches: [main]` only triggers for PRs targeting `main`; remove that base filter
-   where every stacked child must be independently gated.
-3. **Merge bottom-up, one at a time.** Wait for green and mergeability, then
-   `gh pr merge <parent> --merge` or `glab mr merge <parent>`, **without**
-   deleting the parent branch.
-4. **Immediately retarget the child** onto the surviving base:
-   `gh pr edit <child> --base main` or `glab mr update <child> --target-branch main`;
-   then read it back using the same provider CLI.
-5. **Only then delete the merged parent branch:** `git push origin --delete
-   <parent-branch>`. Deleting first triggers the cascade.
-6. **Recover a cascaded-closed child.** Restore the ref with `git push origin
-   <merged-sha>:refs/heads/<deleted-base>`, then `gh pr reopen <child>` or
-   `glab mr reopen <child>`, retarget it, then delete the temporary ref.
-7. **Let each retarget re-run CI** against its new base; wait for green before merging it.
-8. **Finish clean.** Sync local `main` (`git checkout main && git pull`) and prune merged branches.
+**What the forge does for you.** GitHub: when a merged PR's head branch is deleted (`gh pr merge --delete-branch`,
+the "Delete branch" button, or repo auto-delete), open PRs based on it are **retargeted** to the merged PR's base —
+not closed (since 2020); the PR's issue events record `automatic_base_change_succeeded` or
+`automatic_base_change_failed`. Keeping the branch means **no** retarget. GitLab: merging an MR into the default
+branch updates the target of up to four open MRs that targeted it; deleting the source branch later retargets
+nothing. Neither forge removes the merged parent's original commits from the children after a squash or rebase
+merge — that is step 5.
+
+If the repo uses GitHub's native stacked PRs (public preview), merge from the stack's merge box (or the asynchronous
+merge API) instead: a merge lands every unmerged PR below it and rebases the next one onto the stack base; auto-merge
+is not supported. Skip the steps below.
+
+1. **Map the stack and pin its state.** List bottom → top with base and head:
+   GitHub `gh pr view <n> --json number,baseRefName,headRefName,headRefOid`; GitLab `glab mr view <n> --output json`
+   (`target_branch`, `source_branch`, `sha`). `TRUNK` is the **bottom** PR's base (`main`, `release/x`, …) — use it
+   everywhere below, never a hard-coded `main`. Stop if the base chain is broken (some PR's base is not the PR
+   below it). Record each branch's remote head now, in bash (≥ 4) — the fetch keeps those commits available after
+   the forge deletes branches, and `REC` stays the pre-rewrite table until step 5 pushes:
+   ```bash
+   git fetch origin --prune
+   declare -A REC; for b in <bottom> … <top>; do REC[$b]=$(git rev-parse "origin/$b"); done
+   ```
+2. **Ensure CI gates every PR.** A workflow keyed `on: pull_request: branches: [main]` only runs for PRs targeting
+   `main`; remove that filter so stacked children are tested too.
+3. **Merge the bottom PR with a method the repo allows.** Check `gh repo view --json
+   mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed` (GitLab: the project's merge method and squash
+   option). Record the bottom branch's head as `PRE=${REC[<bottom-branch>]}`. **Gate the merge first:** required
+   checks green and mergeable — `gh pr checks <n> --required --watch --fail-fast`, then `gh pr view <n> --json
+   mergeStateStatus` is `CLEAN`; GitLab: the MR's own pipeline (`glab mr view <n> --output json` → `head_pipeline`) has `status` `success` and
+   `sha` equal to the MR's `sha` — not `glab ci status --branch`, which reads the branch pipeline — and
+   `detailed_merge_status` is `mergeable`. Then merge **exactly the commit you checked**:
+   `gh pr merge <n> --merge|--squash|--rebase --delete-branch --match-head-commit "$PRE"` or
+   `glab mr merge <n> [--squash] [--rebase] --sha "$PRE"` — a push after mapping makes the merge refuse instead of
+   landing unreviewed commits. **Merge queue required:** `gh` rejects `--delete-branch`; run
+   `gh pr merge <n> --match-head-commit "$PRE"` (it queues), wait for `state` = `MERGED`, then delete the branch
+   (`gh api -X DELETE repos/{owner}/{repo}/git/refs/heads/<branch>` or the UI) unless auto-delete did.
+4. **Verify the merge and the retarget — never assume them.**
+   - Merged and landed: GitHub `gh pr view <n> --json state,mergeCommit` (`MERGED`); GitLab `state` = `merged`,
+     using `squash_commit_sha`, else `merge_commit_sha`, else `sha` (fast-forward). Then `git fetch origin` and
+     `git merge-base --is-ancestor <that-sha> origin/$TRUNK`.
+   - Child's base: `gh pr view <child> --json baseRefName` / `glab mr view <child>` must show `$TRUNK`. Reason, if
+     needed: `gh api --paginate repos/{owner}/{repo}/issues/<child>/events --jq '.[].event' | grep
+     automatic_base_change` (issue events, not the timeline API). If it still targets the merged branch, retarget:
+     `gh pr edit <child> --base $TRUNK` / `glab mr update <child> --target-branch $TRUNK`, and read it back.
+5. **After a squash or rebase merge, rebase the remaining stack — as a bash script, not pasted into your shell**
+   (it aborts on the first failure instead of pushing a half-rewritten stack, and never exits your terminal):
+   ```bash
+   #!/usr/bin/env bash   # land-stack.sh TRUNK PRE branch=REC_SHA …   (remaining stack, bottom → top)
+   set -euo pipefail
+   trunk=$1 pre=$2; shift 2
+   declare -A REC; stack=()
+   for kv in "$@"; do stack+=("${kv%%=*}"); REC[${kv%%=*}]=${kv#*=}; done
+   git fetch origin --prune
+   for b in "${stack[@]}"; do                                    # someone else moved a branch → stop, re-map
+     [ "$(git rev-parse "origin/$b")" = "${REC[$b]}" ] || { echo "origin/$b moved — re-run step 1" >&2; exit 3; }
+   done
+   for b in "${stack[@]}"; do      # never discard local-only work
+     git rev-parse -q --verify "refs/heads/$b" >/dev/null || continue
+     git update-ref "refs/stack-backup/$b" "$b"                  # recoverable: git branch -f <b> refs/stack-backup/<b>
+     # unpushed merge commits (git cherry ignores merges), or unpushed patches (rebased copies of remote ones are OK);
+     # captured, not piped into grep -q — under pipefail an early-exiting grep makes git cherry die of SIGPIPE (141)
+     merges=$(git rev-list --merges "origin/$b..$b"); unpushed=$(git cherry "origin/$b" "$b" | sed -n 's/^+ //p')
+     if [ -n "$merges" ] || [ -n "$unpushed" ]; then
+       echo "local $b has commits not on origin — push or move them, then re-run step 1" >&2; exit 4
+     fi
+   done
+   if [ "$(git rev-list --count "origin/$trunk..$(git merge-base "origin/${stack[0]}" "$pre")")" -eq 0 ]; then
+     echo "merge commit: nothing to drop"; exit 0                # only this script ends; continue at step 6
+   fi
+   for b in "${stack[@]}"; do                                    # a rebase would flatten merges in the stack
+     [ -z "$(git rev-list --merges "origin/$trunk..origin/$b")" ] || {
+       echo "origin/$b contains merge commits — rebase would drop them; land it by hand" >&2; exit 5; }
+   done
+   git switch --detach                                           # no stack branch may be checked out
+   newbase="origin/$trunk" oldparent=$pre
+   for b in "${stack[@]}"; do                                    # bottom → top
+     git branch -f "$b" "origin/$b"                              # local = remote (checked above: nothing local-only)
+     git rebase --onto "$newbase" "$(git merge-base "origin/$b" "$oldparent")" "$b"
+     git switch --detach
+     newbase=$b oldparent=${REC[$b]}                             # child forks from its parent's PRE-rewrite head
+   done
+   leases=(); refs=()
+   for b in "${stack[@]}"; do leases+=("--force-with-lease=$b:${REC[$b]}"); refs+=("$b:$b"); done
+   git push --atomic origin "${leases[@]}" "${refs[@]}"
+   ```
+   Afterwards re-record `REC` from `origin` (step 1). Why this shape: the fork point comes from the merged parent's
+   head as recorded (`PRE`), so it is right even when the parent gained commits after the child branched; each
+   branch is rebased onto its already-rewritten parent from that parent's **pre-rewrite** SHA, which also covers a
+   middle branch that advanced after its own child branched (a single `--update-refs` rebase of the top branch
+   would leave such a branch behind); every lease names the recorded SHA and the refspecs push nothing else.
+6. **Make CI actually run against the new base.** A base change is a `pull_request` `edited` event, which GitHub
+   Actions ignores by default (`opened`, `synchronize`, `reopened`). After a retarget with no push (merge-commit
+   path), add `edited` to the workflow's `types:` or trigger a fresh run (empty commit, or close + reopen);
+   re-running the old run reuses the old merge ref and does not count. Before merging the child, confirm a green
+   run that started after the retarget: `gh pr checks <child>` or, on GitLab, the MR's `head_pipeline` (`glab mr view <child>
+   --output json`) with `status` `success` and `sha` equal to the MR's current `sha`.
+7. **Repeat 3–6** with the child as the new bottom and `PRE` = its `REC` entry (re-recorded after any push).
+8. **Recover a child closed by a deleted base.** Deleting the branch of a parent that was **closed without
+   merging** (or any base deleted outside the merge flow) closes the PRs based on it; Reopen stays disabled while
+   the base is gone. Restore it with `git push origin <REC SHA>:refs/heads/<deleted-base>`, reopen
+   (`gh pr reopen <child>` / `glab mr reopen <child>`), retarget to `$TRUNK`. If the abandoned parent's commits must
+   not ship, run step 5's script with `PRE` = the parent's `REC` SHA (skip step 4's merged-and-landed check). Delete
+   the restored ref only after the retarget.
+9. **Finish clean.** `git switch $TRUNK && git pull --ff-only`, then prune merged branches.
