@@ -17,9 +17,12 @@ the trigger is control flow, not `$()` parsing.
    {...}` that killed every bootstrap run silently. Fix: rewrite as `if ... then ... fi` (the false guard returns 0,
    while a failing `action` still propagates), or end the function on an explicit `return 0` placed where it cannot
    mask a real failure. Avoid a blanket `|| true` on the whole list — it also hides a failing `action`.
-   **Only the LAST statement matters.** A `cmd && action` (e.g. `id "$u" &>/dev/null && return 0`) that is *not*
-   the function's last statement never triggers errexit: bash ignores failures of every command in an `&&`/`||`
-   list except the final one. Do not flag it — confirm the position before reporting.
+   **Which failure matters depends on position.** Failure of a *non-final* command in an `&&`/`||` list is
+   ignored — `id "$u" &>/dev/null && return 0` mid-function is safe because only the left-hand guard can fail.
+   But the *final* command in any `&&`/`||` list still trips errexit even when the list is not the function's
+   last statement: `f(){ true && false; echo reached; }` under `set -e` aborts before `echo reached`. Do not
+   flag a non-last-statement `cmd && action` when only `cmd` can fail; if `action` can fail, it is a real abort
+   — flag it.
 3. **Subprocess draining a while-read loop's stdin.** Scan for `… | while IFS=… read …; do … <cmd> …; done` where
    `<cmd>` is a subprocess that reads stdin (ssh, an LLM/agent CLI, ffmpeg). It consumes the loop's piped stdin, so only
    the first iteration runs. Fix: redirect the inner command — `cmd </dev/null` — or read on a separate FD. Reproduce
