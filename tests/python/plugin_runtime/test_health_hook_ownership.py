@@ -52,7 +52,8 @@ def scheduler_module():
     sys.path.insert(0, str(_SCRIPTS))
     try:
         module = load_runtime_module(
-            _SCRIPTS / "health_install_scheduler.py", "health_install_scheduler"
+            _SCRIPTS / "health_install_scheduler.py",
+            "health_install_scheduler_ownership_test",
         )
     finally:
         sys.path.remove(str(_SCRIPTS))

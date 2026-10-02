@@ -82,6 +82,17 @@ def merge_permissions(source: dict, target: dict) -> None:
     permissions["allow"] = allow
 
 
+def _health_receipt_path() -> Path:
+    """Locate the health installer's state receipt under XDG_STATE_HOME."""
+    state_home = os.environ.get("XDG_STATE_HOME")
+    root = (
+        Path(state_home).expanduser()
+        if state_home
+        else Path.home() / ".local" / "state"
+    )
+    return root / "manifest" / "health" / "installation.json"
+
+
 def _health_receipt_command() -> str | None:
     """Return the hook command recorded by the owned health installer.
 
@@ -90,17 +101,7 @@ def _health_receipt_command() -> str | None:
     owned installation manages the hook — the same refusal the installer
     itself applies, and the signal to retire any bootstrap-registered copy.
     """
-    state_home = os.environ.get("XDG_STATE_HOME")
-    receipt_path = (
-        (
-            Path(state_home).expanduser()
-            if state_home
-            else Path.home() / ".local" / "state"
-        )
-        / "manifest"
-        / "health"
-        / "installation.json"
-    )
+    receipt_path = _health_receipt_path()
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
