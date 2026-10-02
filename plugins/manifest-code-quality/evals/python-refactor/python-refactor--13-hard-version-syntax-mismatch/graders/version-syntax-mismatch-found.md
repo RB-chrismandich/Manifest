@@ -1,0 +1,5 @@
+---
+type: llm
+weight: 1
+---
+Score 1 only if the answer identifies a real incompatibility between `pyproject.toml`'s `requires-python = ">=3.8"` and `notify.py`'s use of PEP 604 union syntax (`str | None`, `int | None`) in the `send_digest` function signature: this syntax requires Python 3.10+ to evaluate at runtime (there is no `from __future__ import annotations` in the file), so importing `notify.py` on the declared-supported Python 3.8/3.9 raises `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'` at module load — the module fails to import at all, before `send_digest` is ever called. The answer must name this specific mechanism (not just "add more type hints" or a generic style comment about `Optional`), and propose a concrete fix: add `from __future__ import annotations`, raise `requires-python` to `>=3.10`, or use `typing.Optional[str]` / `typing.Union[int, None]` instead. Score 0 if the version/syntax mismatch is not identified, or if the answer merely praises the modern type hints without checking them against the declared minimum Python version.

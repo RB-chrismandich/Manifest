@@ -31,3 +31,16 @@ The five `ai-code-audit` cases grant `Bash(git:*)`. In a macOS agent sandbox,
 Apple's `/usr/bin/git` can fail through `xcrun`; if those runs show git errors,
 move the repo setup into a harness-run `scaffold.sh` (`case.yaml` →
 `context.scaffold_script`, run with `--scaffold`) as manifest-ops does.
+
+## Discrimination probe: `--1N-hard-*` cases
+
+Seven skills scored Δ≈0 in the full suite (`refactor`, `python-refactor`,
+`node-refactor`, `go-refactor`, `shell-audit-pipefail`, `data-validate-live`,
+`api-optimize-bulk`). Each now has three `<skill>--1N-hard-*` cases built around
+a rule from its SKILL.md that a generic review tends to miss. 3-run result
+(sonnet agent, opus judge): only `node-refactor--11-hard-untrusted-checkout-audit`
+separates the arms (with 1.00, without 0.56, Δ +0.44). The other 20 score 1.00
+in both arms, so for these skills the evals find no measurable lift over the
+base model — the cases stay as regression tests. A one-run pilot also showed
+`refactor--12` and `api-optimize-bulk--11` at Δ +0.67; neither held at 3 runs,
+so judge single-run Δ with caution.
