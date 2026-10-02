@@ -72,9 +72,7 @@ def _owned_hook_setup(deployment, monkeypatch, tmp_path):
     source_root.mkdir()
     receipt_path = tmp_path / "state" / "manifest" / "health" / "installation.json"
     receipt_path.parent.mkdir(parents=True)
-    command = write_valid_health_receipt(
-        receipt_path, source_root, dict(os.environ)
-    )
+    command = write_valid_health_receipt(receipt_path, source_root, dict(os.environ))
     deployment.write_text(
         json.dumps(
             {
@@ -98,9 +96,7 @@ def test_deleted_wrapper_receipt_retires_hook(deployment, monkeypatch, tmp_path)
     assert command not in commands
 
 
-def test_tampered_wrapper_receipt_retires_hook(
-    deployment, monkeypatch, tmp_path
-):
+def test_tampered_wrapper_receipt_retires_hook(deployment, monkeypatch, tmp_path):
     command, wrapper = _owned_hook_setup(deployment, monkeypatch, tmp_path)
     wrapper.write_text("# tampered\n", encoding="utf-8")
 

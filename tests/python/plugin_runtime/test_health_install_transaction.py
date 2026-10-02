@@ -48,9 +48,7 @@ def _files_module(repo_root: Path):
 
 
 def _reconcile_module(repo_root: Path):
-    scripts = (
-        repo_root / "plugins/manifest-workspace/skills/env-check/scripts"
-    )
+    scripts = repo_root / "plugins/manifest-workspace/skills/env-check/scripts"
     sys.path.insert(0, str(scripts))
     try:
         return load_runtime_module(
@@ -59,6 +57,7 @@ def _reconcile_module(repo_root: Path):
         )
     finally:
         sys.path.remove(str(scripts))
+
 
 def test_install_waits_for_exclusive_installation_lock(
     repo_root: Path, tmp_path: Path
@@ -198,9 +197,7 @@ def test_failed_snapshot_restore_skips_reactivation_and_reports_both(
     prior = type("Prior", (), {"kind": "systemd"})()
 
     with pytest.raises(InstallError) as caught:
-        reconcile._rollback_transaction(
-            [], prior, tmp_path, "python", {}, original
-        )
+        reconcile._rollback_transaction([], prior, tmp_path, "python", {}, original)
 
     message = str(caught.value)
     assert "original install failure" in message

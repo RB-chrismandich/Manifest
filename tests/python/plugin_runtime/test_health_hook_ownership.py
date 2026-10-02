@@ -58,6 +58,7 @@ def scheduler_module():
         sys.path.remove(str(_SCRIPTS))
     return module
 
+
 def _settings_with(hooks: list[dict]) -> dict:
     return {"hooks": {"SessionStart": [{"hooks": hooks}]}}
 
@@ -274,7 +275,5 @@ def test_systemd_execstart_escapes_percent_specifiers(
         line for line in text.splitlines() if line.startswith("ExecStart=")
     )
     assert "100%%" in exec_line
-    env_lines = [
-        line for line in text.splitlines() if line.startswith("Environment=")
-    ]
+    env_lines = [line for line in text.splitlines() if line.startswith("Environment=")]
     assert any("100%" in line and "100%%" not in line for line in env_lines)
