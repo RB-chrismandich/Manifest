@@ -1,6 +1,6 @@
 ---
 name: data-wire-field
-description: Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema.
+description: Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema. Not for declaring/restoring the field itself (DDL, schema merge conflicts).
 ---
 # Wire a New Data Field End-to-End
 

@@ -26,7 +26,10 @@ stale aggregates after upstream corrections.
 1. **Wrap multi-statement writes in one transaction** (`with conn:`), so a crash
    can't leave events updated but the derived aggregate stale.
 2. **Guard the empty-feed case**: if the fetch returns zero rows, do NOT run the
-   `DELETE` — preserve existing data and only bump the as-of/refresh timestamp.
+   `DELETE` — preserve existing data, and record the empty fetch as its own event (a
+   last-attempt time, an empty-fetch counter, or an alert). Do NOT advance the
+   data-as-of / last-successful-refresh timestamp: nothing was refreshed, and bumping
+   it makes stale retained rows look current.
 3. **Separate raw from derived**: keep an append-only raw event log and a
    materialized summary table when a formula may change — you can recompute the
    summary from raw without re-hitting the API (`--recompute`). Drive staleness
