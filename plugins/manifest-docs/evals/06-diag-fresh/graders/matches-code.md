@@ -1,0 +1,5 @@
+---
+type: llm
+focus: {source: file, path: docs/ARCHITECTURE_DIAGRAMS.md}
+---
+Check every Mermaid diagram in the file. (1) Syntax: each declares a diagram type on its first line (flowchart, sequenceDiagram, classDiagram, stateDiagram) and has no unclosed brackets, unclosed subgraphs, or prose lines inside the block. (2) Every internal component shown is a real part of the repo: tally.cli (ingest and report commands), tally.config, tally.ingest, tally.store, tally.report, or their functions. External actors are fine: the user/shell, the CSV input file, tally.toml, the SQLite database file, click. Invented components fail it: Redis, a queue, an API/web server, a cache, a separate database service. (3) Each diagram has at most 20 nodes and a short caption. Pass only if all three hold.

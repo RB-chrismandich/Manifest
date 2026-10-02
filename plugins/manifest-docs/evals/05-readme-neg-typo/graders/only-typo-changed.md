@@ -1,0 +1,6 @@
+---
+type: regex
+target: {source: file, path: README.md}
+match: contains
+---
+^# tallyho\n\nCount events from CSV logs and flag any event whose count meets a threshold\.\n\n## Requirements\n\n- Python 3\.11\+\n- click 8\.1\+\n\n## Quick start\n\n```bash\nmake install\ntally ingest events\.csv\ntally report\n```\n\n## Usage\n\n`tally ingest FILE` loads a CSV with `event,ts` columns into SQLite\.\n`tally report` prints every event whose count is at or above the threshold\.\nPass `--threshold N` to override it for one run\.\n\n## Configuration\n\nSettings are read from `tally\.toml` in the working directory\.\n\n\| Key \| Default \| Meaning \|\n\|-----\|---------\|---------\|\n\| `threshold` \| `5` \| Minimum count to report \|\n\| `db_path` \| `tally\.db` \| SQLite file \|\n\| `window_minutes` \| `60` \| Reporting window \|\n\n## Testing\n\n```bash\nmake test\n```\n\nTests receive a temporary directory from pytest and never touch `tally\.db`\.\n\n## Running on the ops cron host\n\nOps runs `tally report` every 15 minutes from cron on the shared metrics\nhost; the crontab entry is `\*\/15 \* \* \* \* cd \/srv\/tally && tally report`\.\nOutput goes to the host's mail spool, so check there first when a breach\nalert looks wrong\.\n\n## Support\n\nOpen an issue or ping #tally in chat\.\n\n*$

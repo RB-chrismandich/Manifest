@@ -97,7 +97,10 @@ def test_stitch_bundle_declares_an_installable_omp_package(
     package = json.loads(package_path.read_text(encoding="utf-8"))
 
     assert package["name"] == "stitch-design"
-    assert package["version"] == "0.4.0"
+    plugin = json.loads(
+        (stitch_bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+    assert package["version"] == plugin["version"]
     assert package["private"] is True
     assert package["omp"] == {"extensions": ["./extensions/ui-delivery-policy.ts"]}
 
@@ -316,7 +319,10 @@ def test_omp_plugin_link_isolated_from_real_home_registers_package(
     npm_packages = json.loads(listed.stdout)["npm"]
     package = next(item for item in npm_packages if item["name"] == "stitch-design")
     assert Path(package["path"]) == registered_package
-    assert package["version"] == "0.4.0"
+    plugin = json.loads(
+        (stitch_bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+    assert package["version"] == plugin["version"]
     assert package["enabled"] is True
     assert package["manifest"]["extensions"] == ["./extensions/ui-delivery-policy.ts"]
     real_registry_after = (

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-open SessionStart delivery for the pinned ADHD guidance."""
+"""Fail-open SessionStart delivery for owned ADHD guidance."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ MAX_RECORDS = 100
 MAX_DIAGNOSTIC_FIELD = 512
 MAX_DIAGNOSTIC_TOTAL = 4096
 PLUGIN = "manifest-i-have-adhd"
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 ALLOWED_REASONS = frozenset(
     {
         "invalid-event",

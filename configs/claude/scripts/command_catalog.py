@@ -70,10 +70,17 @@ def _humanize(name: str) -> str:
 
 
 def _first_sentence(text: str) -> str:
-    """First sentence of a flattened description (terminator kept)."""
+    """First sentence of a flattened text (terminator kept).
+
+    Terminators inside a double-quoted example ("ok to ship?") do not end
+    the sentence.
+    """
     flat = " ".join(text.split())
+    quoted = False
     for i, ch in enumerate(flat):
-        if ch in ".!?":
+        if ch in '"“”':
+            quoted = not quoted
+        elif ch in ".!?" and not quoted:
             return flat[: i + 1].strip()
     return flat.strip()
 
@@ -85,15 +92,10 @@ def derive_when_to_use(description: str, name: str) -> str:
     description → (3) humanized name. Never returns empty.
     """
     flat = " ".join((description or "").split())
-    lowered = flat.lower()
-    idx = lowered.find("use when")
-    if idx != -1:
-        clause = flat[idx:]
-        # Trim to the first sentence-ending punctuation or em-dash boundary.
-        for i, ch in enumerate(clause):
-            if ch in ".!?":
-                return clause[: i + 1].strip()
-        return clause.strip()
+    # A secondary "Also use when …" is an extra case, never the primary cue.
+    for match in re.finditer(r"\buse when\b", flat, re.IGNORECASE):
+        if not flat[: match.start()].lower().endswith("also "):
+            return _first_sentence(flat[match.start() :])
     sentence = _first_sentence(flat)
     if sentence:
         return sentence
