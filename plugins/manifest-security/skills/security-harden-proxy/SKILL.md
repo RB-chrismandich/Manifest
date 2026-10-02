@@ -26,9 +26,10 @@ text, error responses, or logs. Build it so the secret never escapes.
        raise RuntimeError("upstream request failed")   # __context__ and __cause__ are None
    ```
 
-   `raise … from None` inside the `except` is **not** enough: it only sets `__suppress_context__`, and the
-   original exception (with the credentialed URL) stays reachable on `__context__` for error reporters and
-   framework handlers that walk the chain (Sentry, `traceback.TracebackException`, debug middleware).
+   `raise … from None` inside the `except` is **not** enough: it only sets `__suppress_context__`, which hides the
+   original exception from standard traceback output and from error reporters that honor suppression (Sentry,
+   `traceback`), but the credentialed exception stays reachable on `__context__` for custom handlers, debug
+   middleware, and error reporters that walk the exception object graph directly.
 
 3. **Return a generic error to clients** — on failure, send a fixed status + opaque message (e.g. `502 "upstream
    error"`); never include the exception text, URL, or headers in the HTTP response body.
