@@ -486,6 +486,12 @@ cmd_run() {
                     material="$(collect_fingerprint_material "$pr")" || return 13
                     case "$(fingerprint_recorded_action "$pr" "$material")" in
                         wait | revise | update-branch) inflight=1 ;;
+                        # Empty: the material changed between the tick's
+                        # `unchanged` verdict and this re-observation, so no
+                        # fingerprint state matches. That is unhandled work —
+                        # counting the pass empty could end the loop at the
+                        # 5-empty stop with the new transition unprocessed.
+                        "") inflight=1 ;;
                     esac
                     ;;
                 skip) inflight=1 ;;

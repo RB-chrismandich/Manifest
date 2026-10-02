@@ -294,14 +294,17 @@ def _local_mcp_expectations(
         if not isinstance(key, str):
             expectations.errors.add("unparseable")
             continue
-        if not isinstance(record, dict):
-            continue
         candidate = Path(key).expanduser()
         try:
             resolved_key = str(candidate.resolve())
         except OSError:
             resolved_key = os.path.abspath(key)
         if resolved_key != resolved:
+            # A malformed record under another project's key is not this
+            # project's configuration — keep ignoring it.
+            continue
+        if not isinstance(record, dict):
+            expectations.errors.add("unparseable")
             continue
         servers = record.get("mcpServers", {})
         if not isinstance(servers, dict):

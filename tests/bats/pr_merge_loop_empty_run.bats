@@ -223,3 +223,46 @@ EOF
     run "$SCRIPT" run
     [ "$status" -eq 11 ]
 }
+
+@test "run: material that changed after an unchanged verdict counts as active" {
+    # Regression for PR #992 review thread PRRT_kwDOPe2ygc6oW0ho: cmd_tick may
+    # return `unchanged` for material A, yet the PR changes to B before
+    # cmd_run's post-tick re-observation. The recorded-action lookup for B is
+    # then empty — if that silence counts as settled, the pass is empty and a
+    # seeded counter reaches 5, stopping the loop with B still unhandled.
+    # The pass must count as active work (counter resets to 0) instead.
+    "$SCRIPT" tick 5 > /dev/null 2>&1   # persists fingerprint + action for sha1
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    "$SCRIPT" empty-run incr > /dev/null
+    # fp-view serves sha1 on the first observation per run, sha2 on every
+    # later call: the tick matches sha1, the re-observation lands on sha2.
+    cat > "$TMP/shift-seam.sh" <<'EOF'
+#!/usr/bin/env bash
+c="${TMP:?}/view-count"
+if [[ "$1" == "fp-view" ]]; then
+    n=$(( $(cat "$c" 2>/dev/null || echo 0) + 1 ))
+    echo "$n" > "$c"
+    ((n < 2)) || printf 'sha2\n' > "${SEAM_HEAD_DIR:?}/$2"
+fi
+exec "$SEAM_INNER" "$@"
+EOF
+    chmod +x "$TMP/shift-seam.sh"
+    export SEAM_INNER="$TMP/seam.sh" PR_MERGE_LOOP_GH_CMD="$TMP/shift-seam.sh"
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+f="${SEAM_NOW_FILE:?}"; n=$(( $(cat "$f" 2>/dev/null || echo 0) + 100 ))
+echo "$n" > "$f"; echo "$n"
+EOF
+    chmod +x "$TMP/now.sh"
+    export SEAM_NOW_FILE="$TMP/now" PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh"
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    export PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    # The sha2 material is unrecorded work, so the pass is active and the
+    # seeded counter resets to 0; the buggy build increments it to 5 and stops.
+    [ "$("$SCRIPT" empty-run get)" = "0" ]
+    [[ "$output" != *"5 consecutive empty passes"* ]]
+}

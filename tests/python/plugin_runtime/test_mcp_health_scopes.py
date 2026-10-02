@@ -263,6 +263,63 @@ def test_unparseable_project_manifest_degrades(
     assert "unparseable" in expectations.errors
 
 
+def test_local_scope_non_object_record_for_active_project_is_unparseable(
+    expectations_module, tmp_path: Path
+) -> None:
+    # Regression for PR #992 review thread PRRT_kwDOPe2ygc6oW0hr: the active
+    # project's `.claude.json["projects"]` entry holds the local-scope
+    # `mcpServers`, so a non-object record there is a malformed configuration
+    # the probe must report — a silent skip would let a broken local scope
+    # present as a healthy setup.
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    project.mkdir(parents=True)
+    _write_claude_config(
+        home,
+        {
+            "mcpServers": {"user-server": {}},
+            "projects": {str(project): ["not", "an", "object"]},
+        },
+    )
+    paths = _runtime_paths(expectations_module, tmp_path, home)
+
+    expectations = expectations_module.load_claude_expectations(
+        paths, required=True, project_dir=project
+    )
+
+    assert "unparseable" in expectations.errors
+
+
+def test_local_scope_non_object_records_for_other_projects_are_ignored(
+    expectations_module, tmp_path: Path
+) -> None:
+    # Companion to the active-project rule: malformed records under unrelated
+    # project keys are not this run's configuration, so they must not be
+    # reported as errors.
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    other = tmp_path / "other"
+    project.mkdir(parents=True)
+    _write_claude_config(
+        home,
+        {
+            "mcpServers": {"user-server": {}},
+            "projects": {
+                str(other): "not-an-object",
+                str(project): {"mcpServers": {"local-server": {}}},
+            },
+        },
+    )
+    paths = _runtime_paths(expectations_module, tmp_path, home)
+
+    expectations = expectations_module.load_claude_expectations(
+        paths, required=True, project_dir=project
+    )
+
+    assert expectations.errors == set()
+    assert expectations.disabled["local-server"] is False
+
+
 def _environment(home: Path, extra: dict[str, str]) -> dict[str, str]:
     env = {"HOME": str(home)}
     env.update(extra)
