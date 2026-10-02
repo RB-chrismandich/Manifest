@@ -6,7 +6,7 @@ returned outcome=failure with valid blocking findings. The worker classified
 that as malformed output and discarded it, so the gate reported
 `backend_error` and the findings never reached the developer.
 
-Run with: uv run --project configs/claude pytest tests/python/test_delegate_gate_reported_failure.py -q
+Run with: PYTHONNOUSERSITE=1 uv run pytest tests/python/test_delegate_gate_reported_failure.py -q
 """
 
 import json
