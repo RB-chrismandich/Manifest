@@ -132,8 +132,10 @@ REQUIRED_EXEC_DEPS=(
     audit_log.sh
 )
 REQUIRED_SOURCED_DEPS=(
-    lib/pr_merge_loop_gh.sh
+    lib/pr_merge_loop_empty_run.sh
     lib/pr_merge_loop_fp.sh
+    lib/pr_merge_loop_gh.sh
+    lib/pr_merge_loop_monitor.sh
 )
 for dep in "${REQUIRED_EXEC_DEPS[@]}"; do
     depfile="$BIN_DIR/$dep"

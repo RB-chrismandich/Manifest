@@ -82,6 +82,95 @@ def merge_permissions(source: dict, target: dict) -> None:
     permissions["allow"] = allow
 
 
+def _health_receipt_path() -> Path:
+    """Locate the health installer's state receipt under XDG_STATE_HOME."""
+    state_home = os.environ.get("XDG_STATE_HOME")
+    root = (
+        Path(state_home).expanduser()
+        if state_home
+        else Path.home() / ".local" / "state"
+    )
+    return root / "manifest" / "health" / "installation.json"
+
+
+def _health_receipt_command() -> str | None:
+    """Return the hook command recorded by the owned health installer.
+
+    install_health_reporting.py records its canonical SessionStart command in
+    the state receipt. A missing, unreadable, or malformed receipt means no
+    owned installation manages the hook — the same refusal the installer
+    itself applies, and the signal to retire any bootstrap-registered copy.
+    """
+    receipt_path = _health_receipt_path()
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(receipt, dict) or receipt.get("schema_version") != 1:
+        return None
+    installer_scripts = (
+        Path(__file__).resolve().parents[3]
+        / "plugins"
+        / "manifest-workspace"
+        / "skills"
+        / "env-check"
+        / "scripts"
+    )
+    if not installer_scripts.is_dir():
+        return None
+    sys.path.insert(0, str(installer_scripts))
+    try:
+        try:
+            from health_install_files import InstallError, _file_digest, _paths
+            from health_install_receipts import _validate_receipt
+        except ImportError:
+            return None
+        try:
+            paths = _paths(os.environ)
+            _validate_receipt(receipt, paths)
+        except (InstallError, OSError, ValueError):
+            return None
+        # A receipt alone is not ownership evidence: the installed wrapper
+        # must still exist with the recorded digest, otherwise a stale
+        # receipt would preserve a broken SessionStart hook after the
+        # wrapper was deleted or tampered with.
+        wrapper_row = receipt.get("claude_wrapper")
+        if not isinstance(wrapper_row, dict) or _file_digest(
+            paths.wrapper
+        ) != wrapper_row.get("destination_sha256"):
+            return None
+    finally:
+        sys.path.pop(0)
+    hook = receipt.get("claude_hook")
+    command = hook.get("command") if isinstance(hook, dict) else None
+    return command if isinstance(command, str) else None
+
+
+def _hook_targets_health_wrapper(command: object, directory: Path) -> bool:
+    """Match only the bootstrap hook or this installation's wrapper path."""
+    if not isinstance(command, str):
+        return False
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        words = command.split()
+    if not words:
+        return False
+    program = words[0]
+    if program == "~/.claude/scripts/mcp_health_check.sh":
+        return True
+    try:
+        resolved = Path(program).expanduser().resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    home = Path(os.environ.get("HOME") or Path.home()).expanduser()
+    known_wrappers = (
+        home / ".claude" / "scripts" / "mcp_health_check.sh",
+        directory / "scripts" / "mcp_health_check.sh",
+    )
+    return any(resolved == wrapper.resolve(strict=False) for wrapper in known_wrappers)
+
+
 def merge_hooks(source: dict, target: dict, directory: Path) -> None:
     """Resolve shipped commands at the target, preserving arbitrary user hooks."""
     hooks = target.setdefault("hooks", {})
@@ -90,6 +179,10 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
         str(directory / "scripts/subagent_model_default.py"),
         shlex.quote(str(directory / "scripts/subagent_model_default.py")),
     }
+    # Retire the bootstrap-registered health hook only when the owned
+    # installer does not already manage it — otherwise bootstrap would
+    # deregister a live, working hook on every deploy.
+    managed_health_command = _health_receipt_command()
     for event, entries in hooks.items():
         retained = []
         for entry in entries:
@@ -101,6 +194,11 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
                     and (
                         h["command"] == "~/.claude/scripts/version_pin_hook.sh"
                         or h["command"].endswith("/.claude/scripts/version_pin_hook.sh")
+                        or (
+                            event == "SessionStart"
+                            and _hook_targets_health_wrapper(h["command"], directory)
+                            and h["command"] != managed_health_command
+                        )
                         or (
                             event == "PreToolUse"
                             and entry.get("matcher") == "Agent"

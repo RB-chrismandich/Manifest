@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -44,6 +46,9 @@ class RuntimePaths:
         state_home = Path(
             environment.get("XDG_STATE_HOME") or home / ".local/state"
         ).expanduser()
+        claude_root = Path(
+            environment.get("CLAUDE_CONFIG_DIR") or home / ".claude"
+        ).expanduser()
         omp_agent = Path(
             environment.get("PI_CODING_AGENT_DIR")
             or environment.get("OMP_AGENT_DIR")
@@ -52,9 +57,13 @@ class RuntimePaths:
         return cls(
             home=home,
             state_dir=(state_dir or state_home / "manifest/health").expanduser(),
-            claude_config=home / ".claude.json",
-            claude_settings=home / ".claude/settings.json",
-            plugin_index=home / ".claude/plugins/installed_plugins.json",
+            claude_config=(
+                claude_root / ".claude.json"
+                if environment.get("CLAUDE_CONFIG_DIR")
+                else home / ".claude.json"
+            ),
+            claude_settings=claude_root / "settings.json",
+            plugin_index=claude_root / "plugins/installed_plugins.json",
             omp_agent_dir=omp_agent,
         )
 
@@ -227,11 +236,94 @@ def _plugin_mcp_expectations(
         )
 
 
+def _add_manifest_servers(
+    manifest: object,
+    expectations: Expectations,
+) -> None:
+    """Merge `mcpServers` from one project-scope .mcp.json document."""
+    servers = manifest.get("mcpServers") if isinstance(manifest, dict) else None
+    if not isinstance(servers, dict):
+        expectations.errors.add("unparseable")
+        return
+    for name, server in servers.items():
+        if not isinstance(server, dict):
+            expectations.errors.add("unparseable")
+            continue
+        disabled = server.get("disabled") is True or server.get("enabled") is False
+        expectations.add(name, disabled=disabled, overwrite=True)
+
+
+def _project_manifest_paths(project_dir: Path) -> list[Path]:
+    """Walk upward so `claude mcp list` in a subdirectory still resolves."""
+    root = project_dir.expanduser().resolve()
+    candidates = [
+        root / ".mcp.json",
+        *[parent / ".mcp.json" for parent in root.parents],
+    ]
+    return [path for path in candidates if path.is_file()]
+
+
+def _project_mcp_expectations(
+    project_dir: Path,
+    expectations: Expectations,
+) -> None:
+    # Nearest manifest wins: iterate farthest-first so the closest record is
+    # applied last and overwrites ancestor project-scope entries.
+    for manifest_path in reversed(_project_manifest_paths(project_dir)):
+        manifest, error = _read_json_object(manifest_path, required=True)
+        if error or manifest is None:
+            expectations.errors.add(error or "unparseable")
+            continue
+        _add_manifest_servers(manifest, expectations)
+
+
+def _local_mcp_expectations(
+    config: Mapping[str, Any] | None,
+    project_dir: Path,
+    expectations: Expectations,
+) -> None:
+    """Merge `.claude.json["projects"][<project_dir>]` local-scope servers."""
+    projects = (config or {}).get("projects", {})
+    if projects is None:
+        return
+    if not isinstance(projects, dict):
+        expectations.errors.add("unparseable")
+        return
+    resolved = str(project_dir.expanduser().resolve())
+    for key, record in projects.items():
+        if not isinstance(key, str):
+            expectations.errors.add("unparseable")
+            continue
+        candidate = Path(key).expanduser()
+        try:
+            resolved_key = str(candidate.resolve())
+        except OSError:
+            resolved_key = os.path.abspath(key)
+        if resolved_key != resolved:
+            # A malformed record under another project's key is not this
+            # project's configuration — keep ignoring it.
+            continue
+        if not isinstance(record, dict):
+            expectations.errors.add("unparseable")
+            continue
+        servers = record.get("mcpServers", {})
+        if not isinstance(servers, dict):
+            expectations.errors.add("unparseable")
+            continue
+        for name, server in servers.items():
+            if not isinstance(server, dict):
+                expectations.errors.add("unparseable")
+                continue
+            disabled = server.get("disabled") is True or server.get("enabled") is False
+            expectations.add(name, disabled=disabled, overwrite=True)
+
+
 def load_claude_expectations(
     paths: RuntimePaths,
     *,
     required: bool,
     claude_namespace: bool = True,
+    project_dir: Path | None = None,
 ) -> Expectations:
     expectations = Expectations()
     config, error = _read_json_object(paths.claude_config, required=required)
@@ -255,6 +347,14 @@ def load_claude_expectations(
         expectations,
         claude_namespace=claude_namespace,
     )
+    # `claude mcp list` also reports project-scope (.mcp.json) and local-scope
+    # (per-project entries inside .claude.json) servers; include them so a
+    # failed non-user server cannot hide behind a healthy user server. The OMP
+    # import path (claude_namespace=False) keeps the user+plugin scopes only.
+    if claude_namespace:
+        root = project_dir if project_dir is not None else Path.cwd()
+        _project_mcp_expectations(root, expectations)
+        _local_mcp_expectations(config, root, expectations)
     return expectations
 
 

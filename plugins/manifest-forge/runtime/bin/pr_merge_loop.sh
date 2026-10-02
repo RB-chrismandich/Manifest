@@ -90,11 +90,24 @@ source "${SCRIPT_DIR}/lib/pr_merge_loop_gh.sh"
 
 # --- observation & transition-state layer: split out of this file into
 # lib/pr_merge_loop_fp.sh (C-SIZE/CON-002 — see that file's header for the
-# seam rationale). Provides cmd_signals, cmd_list_managed, cmd_empty_run,
-# cmd_address_cycle, cmd_set_disposition, cmd_post_merge_check, _jget, and the
+# seam rationale). Provides cmd_signals, cmd_list_managed, cmd_address_cycle,
+# cmd_set_disposition, cmd_post_merge_check, _jget, and the
 # collect_fingerprint_material / fingerprint_state_* machinery.
 # shellcheck source=lib/pr_merge_loop_fp.sh disable=SC1091
 source "${SCRIPT_DIR}/lib/pr_merge_loop_fp.sh"
+
+# --- repository-scoped empty-run counter: split out of this file into
+# lib/pr_merge_loop_empty_run.sh (C-SIZE/CON-002 — see that file's header for
+# the seam rationale). Provides EMPTY_RUN_PY, cmd_empty_run, and
+# _monitor_empty_run.
+# shellcheck source=lib/pr_merge_loop_empty_run.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_empty_run.sh"
+
+# --- degraded provider monitor loop: split out of this file into
+# lib/pr_merge_loop_monitor.sh (C-SIZE/CON-002 — see that file's header for
+# the seam rationale). Provides cmd_run_monitor.
+# shellcheck source=lib/pr_merge_loop_monitor.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_monitor.sh"
 
 # --- merge path (T019) + dispatch (T021) ---
 APPLY="${PR_MERGE_LOOP_APPLY:-0}"
@@ -181,11 +194,16 @@ lifecycle_gate_ok() {
 
 cmd_tick() {
     local pr="${1:?pr required}" sig d act gate sig2 head_sha
-    local material post_material rc=0 lock_rc=0 handling_failed=0 lock_degraded=0
+    local material="${2:-}" post_material rc=0 lock_rc=0 handling_failed=0 lock_degraded=0
 
     # Observe before touching the mutation lease. An exact valid state match is
     # the cheap path: no lease label, reviewer, action label, or audit append.
-    material="$(collect_fingerprint_material "$pr")" || return 13
+    # cmd_run may pass material it already collected for this PR (used here for
+    # the cheap-path match and, in cmd_run, for the in-flight check); otherwise
+    # collect it — the `tick` subcommand relies on that.
+    if [[ -z "$material" ]]; then
+        material="$(collect_fingerprint_material "$pr")" || return 13
+    fi
     if fingerprint_state_matches "$pr" "$material"; then
         printf 'unchanged\n'
         return 0
@@ -369,22 +387,34 @@ print(json.dumps(s))' "$gate" 2> /dev/null)" || {
 }
 
 # --- bounded state-driven loop. Every managed PR is observed each pass, while
-# expensive handling only runs for changed fingerprints. The first complete
-# pass with no changed/actionable PR stops immediately.
-cmd_run() {
-    local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
-    local start deadline now managed_json managed pr act rc changed complete
-    gh_op fp-scope > /dev/null || {
-        err "material fingerprinting unsupported for this repository/provider"
-        return 13
-    }
-    start="$(_now)"
-    deadline=$((start + ceiling))
-    while :; do
-        now="$(_now)"
-        ((now < deadline)) || break
-        managed_json="$(cmd_list_managed)" || return $?
-        managed="$(printf '%s' "$managed_json" | python3 -c '
+# expensive handling only runs for changed fingerprints. A pass is EMPTY only
+# when nothing changed and no unchanged PR is still in flight (FR-018a): a
+# fingerprint whose recorded action was wait/revise/update-branch is pending
+# work the loop must keep polling, not an idle queue, and a `skip` means another
+# worker holds the lease. Five consecutive empty passes stop the loop early.
+
+# fingerprint_recorded_action <pr> <material> — print the action persisted
+# alongside a still-matching fingerprint (empty when no valid state exists).
+# cmd_run uses it to distinguish "unchanged because settled" (hand-human, a
+# hard-gated merge) from "unchanged but in flight" (wait/revise/update-branch);
+# only the former may advance the consecutive-empty counter.
+fingerprint_recorded_action() {
+    local pr="${1:?pr required}" material="${2:?material required}" path
+    fingerprint_state_matches "$pr" "$material" || return 0
+    path="$(fingerprint_state_path "$pr" "$material")" || return 0
+    python3 - "$path" << 'PY' 2> /dev/null || true
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as handle:
+    print(json.load(handle)["action"])
+PY
+}
+
+# _managed_numbers <managed-json> — validate the cmd_list_managed payload and
+# print the PR numbers space-joined (empty output for an empty queue). Shared
+# by cmd_run's per-PR loop and the degraded provider-monitor path.
+_managed_numbers() {
+    printf '%s' "$1" | python3 -c '
 import json,sys
 items=json.load(sys.stdin)
 if not isinstance(items,list):
@@ -395,11 +425,36 @@ for item in items:
     if not isinstance(number,int) or number < 1:
         raise ValueError("managed PR number")
     numbers.append(str(number))
-print(" ".join(numbers))' 2> /dev/null)" || {
+print(" ".join(numbers))' 2> /dev/null
+}
+
+cmd_run() {
+    local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
+    local start deadline now managed_json managed pr act rc changed inflight complete n material scope_rc=0
+    gh_op fp-scope > /dev/null || scope_rc=$?
+    if [[ $scope_rc -ne 0 ]]; then
+        if [[ $scope_rc -eq 13 ]]; then
+            # Provider-declared unsupported (gitlab's fp-* ops refuse with 13):
+            # keep bounded queue monitoring instead of dying at the probe.
+            err "material fingerprinting unsupported — monitoring managed queue only (ceiling ${ceiling}s, 5-empty stop)"
+            cmd_run_monitor "$ceiling" "$poll"
+            return $?
+        fi
+        err "material fingerprinting unsupported for this repository/provider"
+        return 13
+    fi
+    start="$(_now)"
+    deadline=$((start + ceiling))
+    while :; do
+        now="$(_now)"
+        ((now < deadline)) || break
+        managed_json="$(cmd_list_managed)" || return $?
+        managed="$(_managed_numbers "$managed_json")" || {
             err "managed-PR observation was malformed"
             return 13
         }
         changed=0
+        inflight=0
         complete=1
         # shellcheck disable=SC2086 # space-joined validated integer PR numbers
         for pr in $managed; do
@@ -408,28 +463,53 @@ print(" ".join(numbers))' 2> /dev/null)" || {
                 complete=0
                 break
             fi
+            # Observed once per PR per pass: feeds cmd_tick's cheap-path match.
+            # The `unchanged` in-flight check below re-observes — the tick's
+            # verdict can rest on its post-lease re-read, not this material.
+            material="$(collect_fingerprint_material "$pr")" || return 13
             rc=0
-            act="$(cmd_tick "$pr")" || rc=$?
+            act="$(cmd_tick "$pr" "$material")" || rc=$?
             [[ $rc -eq 0 ]] || return "$rc"
             case "$act" in
                 halt)
                     err "loop HALT — main breakage on #$pr"
                     return 11
                     ;;
-                unchanged) : ;;
+                unchanged)
+                    # `unchanged` may be decided on cmd_tick's post-lease re-read:
+                    # a racing worker can persist state for NEW material while
+                    # this tick waits on the lock, leaving the caller's pre-lease
+                    # observation stale. Re-observe before reading the recorded
+                    # action — under the stale fingerprint the lookup is empty and
+                    # an in-flight PR (wait/revise/update-branch) looks settled,
+                    # letting the empty counter advance toward a premature stop.
+                    material="$(collect_fingerprint_material "$pr")" || return 13
+                    case "$(fingerprint_recorded_action "$pr" "$material")" in
+                        wait | revise | update-branch) inflight=1 ;;
+                        # Empty: the material changed between the tick's
+                        # `unchanged` verdict and this re-observation, so no
+                        # fingerprint state matches. That is unhandled work —
+                        # counting the pass empty could end the loop at the
+                        # 5-empty stop with the new transition unprocessed.
+                        "") inflight=1 ;;
+                    esac
+                    ;;
+                skip) inflight=1 ;;
                 *) changed=1 ;;
             esac
         done
         ((complete == 1)) || break
         now="$(_now)"
         ((now < deadline)) || break
-        if ((changed == 0)); then
+        if ((changed == 1 || inflight == 1)); then
             cmd_empty_run reset > /dev/null
-            cmd_empty_run incr > /dev/null
-            err "first unchanged pass — stopping"
-            break
+        else
+            n="$(cmd_empty_run incr)"
+            if ((n >= 5)); then
+                err "5 consecutive empty passes — stopping"
+                break
+            fi
         fi
-        cmd_empty_run reset > /dev/null
         now="$(_now)"
         ((now < deadline)) || break
         [[ "$poll" -gt 0 ]] && sleep "$poll"
