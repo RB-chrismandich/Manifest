@@ -5,20 +5,30 @@ description: Use when building a service or sidecar that calls an authenticated 
 # Secret-Safe Upstream Proxy
 
 A service that authenticates to an upstream and returns aggregated/proxied data can leak the token through exception
-tracebacks, error responses, or logs. Build it so the secret never escapes.
+text, error responses, or logs. Build it so the secret never escapes.
 
 1. **Keep the token in one place** — read it once from the environment; never embed it in returned data, never echo the
    constructed URL (which may carry it as a query param) back to the client.
-2. **Wrap every upstream call and sever the exception chain** — `urllib`/HTTP-client errors carry the request object
-   (with its `Authorization` header) in their traceback. Re-raise a clean error that drops the context:
+2. **Wrap every upstream call and sever the exception chain** — HTTP-client exceptions stringify to text that includes
+   the request URL (`urllib.error.HTTPError` holds the URL, status, and *response* headers; `requests` errors embed the
+   full URL). If the key rides in the URL (`?api_key=…`), echoing `str(exc)` to the client, or calling
+   `log.exception(...)`/logging the traceback, writes the credential into responses and logs. Raise a clean error
+   **after** the `except` block, so it carries no reference to the original exception:
 
    ```python
+   failed = False
    try:
        with _get(url, token, accept) as resp:
            ...
    except Exception:
-       raise RuntimeError("upstream request failed") from None  # `from None` discards the chained context
+       failed = True          # keep nothing from the original exception
+   if failed:
+       raise RuntimeError("upstream request failed")   # __context__ and __cause__ are None
    ```
+
+   `raise … from None` inside the `except` is **not** enough: it only sets `__suppress_context__`, and the
+   original exception (with the credentialed URL) stays reachable on `__context__` for error reporters and
+   framework handlers that walk the chain (Sentry, `traceback.TracebackException`, debug middleware).
 
 3. **Return a generic error to clients** — on failure, send a fixed status + opaque message (e.g. `502 "upstream
    error"`); never include the exception text, URL, or headers in the HTTP response body.
@@ -29,4 +39,5 @@ tracebacks, error responses, or logs. Build it so the secret never escapes.
 6. **Keep it internal-only** — bind the service to the private network/IP, never expose it through the reverse proxy,
    since it holds a privileged credential.
 7. **Add a review/test that asserts no leak** — a unit test that forces an upstream failure and asserts the token string
-   does not appear in the raised message or response.
+   does not appear in the raised message or response, **and** that the raised error has `__context__ is None` and
+   `__cause__ is None` (or, walking the whole chain, that no exception in it stringifies to text containing the token).

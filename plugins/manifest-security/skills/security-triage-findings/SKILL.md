@@ -54,3 +54,12 @@ When at least three candidate findings need triage, assign one adversarial
 and request the strongest supported native model. Each child returns a concrete
 verdict with cited evidence for only its assigned finding; the parent applies
 the triage rules directly. Below the threshold, triage inline.
+
+**Inline fallback:** when native dispatch is unavailable — the host exposes no
+Agent/Task tool, or a dispatch attempt fails — triage every
+finding yourself, one at a time and in isolation — apply steps 1-9 to each before
+moving on — and state `dispatch: DEGRADED (inline)` in the output. Never stop or
+skip candidates because sub-agents could not be spawned. With pasted code only,
+cite evidence as `snippet:line` and treat code you cannot see as unknown. Steps 3-4
+still apply: an off-diff candidate with no citable enabling line is refuted; any other
+candidate survives only if no visible evidence refutes it.

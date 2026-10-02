@@ -122,6 +122,34 @@ After calibration (larger budgets on shp-01/shp-03/chw-01): ~$11.3 agent cost pe
 | code-audit | 0.88 | 0.87 | +0.01 | ca-01 0.89, ca-02 0.67, ca-05 0.83 |
 | **overall (53 cases)** | **0.95** | **0.76** | **+0.19** | |
 
+## Re-measure after follow-up fixes (runs: 3, Opus judge, 2026-09-30) — $20.41
+Split by `--case '<prefix>-*'`; no session-limit errors. Skill fixes: daf step-2 rule order, shp
+exception framing, code-audit / ci-harden-workflow triggers, pasted-input fallbacks, srd
+description. Graders unchanged.
+| skill | with | without | Δ | cases below 1.00 with-plugin |
+|---|---|---|---|---|
+| docker-audit-firewall | 1.00 | 0.74 | +0.26 | — (daf-01/daf-04 now 3/3) |
+| ci-harden-workflow | 0.93 | 0.73 | +0.20 | chw-01 0.67 (`hardened` judge FAIL 2/3) |
+| security-triage-findings | 0.96 | 0.76 | +0.20 | stf-02 0.78 (`verdicts` FAIL 1/3) |
+| ci-audit-triggers | 1.00 | 0.82 | +0.18 | — |
+| security-harden-proxy | 1.00 | 0.90 | +0.10 | — |
+| mcp-audit | 1.00 | 0.93 | +0.07 | — |
+| security-review-diff | 1.00 | 0.94 | +0.06 | — |
+| llm-audit-traversal | 1.00 | 0.97 | +0.03 | — |
+| code-audit | 0.96 | 0.96 | +0.00 | ca-01 0.78 (1 regex + 1 judge miss); ca-02/ca-04 now 1.00 |
+| security-refute-findings | 1.00 | 1.00 | +0.00 | — |
+| **overall (53 cases)** | **0.99** | **0.87** | **+0.11** | |
+
+With-plugin rose 0.95 → 0.99; Δ fell +0.19 → +0.11 because the **without** arm rose 0.76 → 0.87
+(the plugin plays no part in that arm, so it is run-to-run/base-model variance; this run: claude 2.1.285).
+Compare with-arm scores across runs, not Δ alone. Fire status per run is unverified: traces live in
+deleted temp dirs, so ca-02/ca-04/chw-04 gains are outcome-graded only.
+
+## Partial re-measure after review-gate fixes (2026-10-01) — $6.80
+daf/cat/chw only, after docker-audit-firewall precondition checks (backend, trusted_host_interfaces, IPv6 by bridge
+mode) and pasted-YAML-first Step 0. docker-audit-firewall 0.97 / 0.83 (daf-02 0.83); ci-audit-triggers 1.00 / 0.79;
+ci-harden-workflow 0.90 / 0.73 (chw-01 0.50: `hardened` judge FAIL 3/3, same case as before). skill-did-not-fire 9/9.
+
 ## Design decision: inline inputs (known skill-procedure conflicts)
 Cases paste code/diffs/YAML inline — the most common real input shape — with read-only tools.
 Several skills' procedures assume a repo or extra tools, so the with-arm must deviate. This is
