@@ -59,7 +59,7 @@
       "description": "Design generation, review, extraction, and implementation workflows.",
       "name": "stitch-design",
       "source": "./plugins/stitch-design",
-      "version": "0.4.1"
+      "version": "0.4.2"
     },
     {
       "category": "productivity",
