@@ -181,12 +181,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "learning-capture-seed",
-            "component_type": "runtime",
-            "mode": "imported",
-            "path": "skills/learning-capture/data"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "imported",
@@ -309,10 +303,6 @@
           {
             "id": "learning-capture-scripts",
             "path": "skills/learning-capture/scripts"
-          },
-          {
-            "id": "learning-capture-seed",
-            "path": "skills/learning-capture/data"
           },
           {
             "id": "pr-smoke-scripts",
@@ -528,12 +518,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "learning-capture-seed",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/learning-capture/data"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "native",
@@ -670,10 +654,6 @@
           {
             "id": "learning-capture-scripts",
             "path": "skills/learning-capture/scripts"
-          },
-          {
-            "id": "learning-capture-seed",
-            "path": "skills/learning-capture/data"
           },
           {
             "id": "pr-smoke-scripts",
@@ -893,12 +873,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "learning-capture-seed",
-            "component_type": "runtime",
-            "mode": "generated",
-            "path": "skills/learning-capture/data"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "generated",
@@ -1017,10 +991,6 @@
           {
             "id": "learning-capture-scripts",
             "path": "skills/learning-capture/scripts"
-          },
-          {
-            "id": "learning-capture-seed",
-            "path": "skills/learning-capture/data"
           },
           {
             "id": "pr-smoke-scripts",
@@ -1240,12 +1210,6 @@
             "path": "skills/learning-capture/scripts"
           },
           {
-            "component_id": "learning-capture-seed",
-            "component_type": "runtime",
-            "mode": "native",
-            "path": "skills/learning-capture/data"
-          },
-          {
             "component_id": "pr-smoke-scripts",
             "component_type": "runtime",
             "mode": "native",
@@ -1364,10 +1328,6 @@
           {
             "id": "learning-capture-scripts",
             "path": "skills/learning-capture/scripts"
-          },
-          {
-            "id": "learning-capture-seed",
-            "path": "skills/learning-capture/data"
           },
           {
             "id": "pr-smoke-scripts",

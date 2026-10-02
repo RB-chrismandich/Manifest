@@ -278,7 +278,6 @@ cmd_issue_list() {
 
 # Subcommand: issue-view
 cmd_issue_view() {
-    [[ $# -ge 1 && -n "$1" ]] || error "Usage: issue-view IDENTIFIER"
     local identifier="$1"
 
     local query='query($identifier: String!) {
@@ -435,7 +434,6 @@ cmd_issue_create() {
 
 # Subcommand: issue-update
 cmd_issue_update() {
-    [[ $# -ge 1 && -n "$1" ]] || error "Usage: issue-update IDENTIFIER [options]"
     local identifier="$1"
     shift
 
@@ -502,7 +500,6 @@ cmd_issue_update() {
 
 # Subcommand: issue-comment
 cmd_issue_comment() {
-    [[ $# -ge 1 && -n "$1" ]] || error "Usage: issue-comment IDENTIFIER [options]"
     local identifier="$1"
     shift
 

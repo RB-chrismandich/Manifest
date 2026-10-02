@@ -173,11 +173,9 @@ run_verified_uv_check() {
     assert_output --partial "exactly one expected executable"
 }
 
-@test "check_uv leaves a pre-existing uv and uvx untouched when verification fails" {
+@test "check_uv removes a previously installed uv when verification fails" {
     printf '#!/bin/sh\necho unverified\n' > "$HOME/.local/bin/uv"
     chmod +x "$HOME/.local/bin/uv"
-    printf '#!/bin/sh\necho unverified-uvx\n' > "$HOME/.local/bin/uvx"
-    chmod +x "$HOME/.local/bin/uvx"
     cat > "$SANDBOX/bin/curl" <<'EOF'
 #!/bin/sh
 exit 1
@@ -190,9 +188,7 @@ EOF
         command_exists() { command -v "$1" >/dev/null 2>&1; }
         source "'"$INSTALL_LIB"'"
         if check_uv; then exit 99; fi
-        test -f "$HOME/.local/bin/uv" || exit 1
-        test -f "$HOME/.local/bin/uvx" || exit 1
-        [ "$("$HOME/.local/bin/uv")" = "unverified" ] || exit 1
+        test ! -e "$HOME/.local/bin/uv"
     '
     assert_success
 }

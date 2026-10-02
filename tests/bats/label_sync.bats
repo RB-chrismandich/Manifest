@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for plugins/manifest-forge/runtime/bin/label_sync.sh
+# Tests for configs/claude/scripts/label_sync.sh
 # YAML parsing, dry-run output, platform detection, error handling
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/label_sync.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/label_sync.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
@@ -17,21 +17,23 @@ setup() {
     # git_platform.sh short-circuits on this override.
     export MANIFEST_GIT_PLATFORM=github
 
-    # Create a minimal labels.json for testing. The forge script reads JSON
-    # (the configs twin's labels.json form is gone).
+    # Create a minimal labels.yml for testing
     mkdir -p "$TEST_DIR/config"
-    cat > "$TEST_DIR/config/labels.json" << 'EOF'
-{"labels": [
-  {"name": "planned", "color": "1D76DB",
-   "description": "Implementation plan exists for this issue",
-   "platforms": ["github", "gitlab", "linear"]},
-  {"name": "done", "color": "0E8A16",
-   "description": "Implementation complete and validated",
-   "platforms": ["github", "gitlab", "linear"]}
-],
-"deprecated": [
-  {"name": "processed", "replacement": "done", "reason": "Redundant with done"}
-]}
+    cat > "$TEST_DIR/config/labels.yml" << 'EOF'
+labels:
+  - name: planned
+    color: "1D76DB"
+    description: "Implementation plan exists for this issue"
+    platforms: [github, gitlab, linear]
+  - name: done
+    color: "0E8A16"
+    description: "Implementation complete and validated"
+    platforms: [github, gitlab, linear]
+
+deprecated:
+  - name: processed
+    replacement: done
+    reason: "Redundant with done"
 EOF
 }
 
@@ -59,26 +61,26 @@ teardown() {
 
 # --- Config file resolution tests ---
 
-@test "fails when labels.json not found" {
-    run bash "$SCRIPT_UNDER_TEST" --config "/nonexistent/labels.json"
+@test "fails when labels.yml not found" {
+    run bash "$SCRIPT_UNDER_TEST" --config "/nonexistent/labels.yml"
     assert_failure
     assert_output --partial "Labels file not found"
 }
 
 @test "accepts explicit --config path" {
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.yml"
     assert_success
-    assert_output --partial "Registry: $TEST_DIR/config/labels.json"
+    assert_output --partial "Registry: $TEST_DIR/config/labels.yml"
 }
 
-@test "parses a labels.json at a path containing a single quote (FR-009)" {
+@test "parses a labels.yml at a path containing a single quote (FR-009)" {
     # Path must be passed to Python as data (argv), never interpolated into
     # interpreter source — a quote in the path used to break/inject.
     local qdir="$TEST_DIR/it's here"
     mkdir -p "$qdir"
-    cp "$TEST_DIR/config/labels.json" "$qdir/labels.json"
+    cp "$TEST_DIR/config/labels.yml" "$qdir/labels.yml"
 
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$qdir/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$qdir/labels.yml"
     assert_success
     assert_output --partial "Found 2 labels in registry"
 }
@@ -86,7 +88,7 @@ teardown() {
 # --- Dry-run tests ---
 
 @test "dry-run lists all labels from registry" {
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.yml"
     assert_success
     assert_output --partial "Found 2 labels in registry"
     assert_output --partial "planned"
@@ -94,14 +96,14 @@ teardown() {
 }
 
 @test "dry-run shows would-create messages" {
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.yml"
     assert_success
     assert_output --partial "[dry-run]"
     assert_output --partial "Would create"
 }
 
 @test "dry-run reports zero created" {
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/labels.yml"
     assert_success
     assert_output --partial "Created: 0"
 }
@@ -109,7 +111,7 @@ teardown() {
 # --- Validate-only tests ---
 
 @test "validate mode shows would-create messages" {
-    run bash "$SCRIPT_UNDER_TEST" --validate --config "$TEST_DIR/config/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --validate --config "$TEST_DIR/config/labels.yml"
     assert_success
     assert_output --partial "[dry-run]"
 }
@@ -117,7 +119,7 @@ teardown() {
 # --- Platform filter tests ---
 
 @test "platform filter limits sync to specified platform" {
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --platform linear --config "$TEST_DIR/config/labels.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --platform linear --config "$TEST_DIR/config/labels.yml"
     assert_success
     # Should only show linear messages, not git platform messages
     assert_output --partial "Linear"
@@ -125,7 +127,7 @@ teardown() {
 
 # --- Invalid YAML tests ---
 
-@test "fails on invalid JSON" {
+@test "fails on invalid YAML" {
     cat > "$TEST_DIR/config/bad.yml" << 'EOF'
 labels:
   - name: planned
@@ -139,10 +141,10 @@ EOF
 # --- Empty labels file tests ---
 
 @test "handles empty labels list" {
-    cat > "$TEST_DIR/config/empty.json" << 'EOF'
-{"labels": []}
+    cat > "$TEST_DIR/config/empty.yml" << 'EOF'
+labels: []
 EOF
-    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/empty.json"
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$TEST_DIR/config/empty.yml"
     assert_success
     assert_output --partial "Found 0 labels"
 }

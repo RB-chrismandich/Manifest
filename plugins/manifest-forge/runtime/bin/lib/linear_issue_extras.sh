@@ -1,7 +1,6 @@
 # shellcheck shell=bash disable=SC2016
 
 cmd_issue_close() {
-    [[ $# -ge 1 && -n "$1" ]] || error "Usage: issue-close IDENTIFIER [options]"
     local identifier="$1"
     shift
 
@@ -54,7 +53,6 @@ cmd_issue_close() {
 
 # Subcommand: issue-mark-duplicate
 cmd_issue_mark_duplicate() {
-    [[ $# -ge 1 && -n "$1" ]] || error "Usage: issue-mark-duplicate IDENTIFIER [options]"
     local identifier="$1"
     shift
 

@@ -54,7 +54,7 @@ Adjust the weights if your project has different priorities (e.g., prioritize ri
 ### Step 1: Fetch All Open Issues
 
 ```bash
-gh issue list --state open --limit 500 --json number,title,labels,createdAt,updatedAt,body,assignees -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-list --state open --limit 500 --json number,title,labels,createdAt,updatedAt,body,assignees -R {owner}/{repo}
 ```
 
 **Replace `{owner}/{repo}` with your repository.**
@@ -158,7 +158,7 @@ For each finding, produce a specific actionable recommendation:
 ```
 DUPLICATE: #A and #B describe the same thing
   Action: Close #B as duplicate of #A (A is more detailed)
-  Command: gh issue close B --reason "not planned" --comment "Duplicate of #A" -R {owner}/{repo}
+  Command: ~/.claude/scripts/git_ops.sh issue-close B --reason "not planned" --comment "Duplicate of #A" -R {owner}/{repo}
 ```
 
 **For overlaps**:
@@ -174,7 +174,7 @@ OVERLAP: #A and #B both touch [component] [feature]
 ```
 STALE: #C references [deprecated component/file]
   Action: Close as not planned
-  Command: gh issue close C --reason "not planned" --comment "References deprecated [component/file]" -R {owner}/{repo}
+  Command: ~/.claude/scripts/git_ops.sh issue-close C --reason "not planned" --comment "References deprecated [component/file]" -R {owner}/{repo}
 ```
 
 **For prioritization fixes**:
@@ -182,7 +182,7 @@ STALE: #C references [deprecated component/file]
 ```
 PRIORITY: #D (score 28) has no labels but should be prioritized above #E (score 15, has 'planned')
   Action: Add 'enhancement' label to #D
-  Command: gh issue edit D --add-label "enhancement" -R {owner}/{repo}
+  Command: ~/.claude/scripts/git_ops.sh issue-edit D --add-label "enhancement" -R {owner}/{repo}
 ```
 
 ### Step 7: Take Actions (unless --dry-run)
@@ -194,7 +194,7 @@ If `DRY_RUN=false`:
 For each duplicate pair with HIGH confidence:
 
 ```bash
-gh issue close <LOWER_QUALITY_NUMBER> --reason "not planned" -R {owner}/{repo} --comment "$(cat <<'EOF'
+~/.claude/scripts/git_ops.sh issue-close <LOWER_QUALITY_NUMBER> --reason "not planned" -R {owner}/{repo} --comment "$(cat <<'EOF'
 Closing as duplicate of #<BETTER_NUMBER>.
 
 **Reason**: <brief explanation of why these are duplicates>
@@ -207,7 +207,7 @@ EOF
 For each stale issue with HIGH confidence:
 
 ```bash
-gh issue close <NUMBER> --reason "not planned" -R {owner}/{repo} --comment "$(cat <<'EOF'
+~/.claude/scripts/git_ops.sh issue-close <NUMBER> --reason "not planned" -R {owner}/{repo} --comment "$(cat <<'EOF'
 Closing as stale.
 
 **Reason**: <staleness reason>
@@ -222,8 +222,8 @@ EOF
 For issues with incorrect or missing labels:
 
 ```bash
-gh issue edit <NUMBER> --add-label "<label>" -R {owner}/{repo}
-gh issue edit <NUMBER> --remove-label "<label>" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-edit <NUMBER> --add-label "<label>" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-edit <NUMBER> --remove-label "<label>" -R {owner}/{repo}
 ```
 
 #### 7d. Link related issues
@@ -231,7 +231,7 @@ gh issue edit <NUMBER> --remove-label "<label>" -R {owner}/{repo}
 For overlapping issues that should reference each other, post a comment:
 
 ```bash
-gh issue comment <NUMBER> --body "Related: #<OTHER_NUMBER> (overlapping scope — consider batching)" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-comment <NUMBER> --body "Related: #<OTHER_NUMBER> (overlapping scope — consider batching)" -R {owner}/{repo}
 ```
 
 ### Step 8: Report Results

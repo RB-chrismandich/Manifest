@@ -53,5 +53,6 @@
     ├── manifest_model_policy/       # Policy loader and headless CLI helpers
     ├── generate_cursor_rules.sh     # Regenerate .cursor/rules from SKILL.md
     ├── git_platform.sh              # Platform detection
+    ├── git_ops.sh                   # Platform-agnostic Git operations
     └── linear_ops.sh                # Linear API operations
 ```

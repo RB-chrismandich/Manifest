@@ -5,14 +5,11 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import fcntl
 import json
 import os
 import sys
 import tempfile
-import textwrap
 from collections import Counter
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -50,49 +47,6 @@ def entries_path() -> Path:
     """Return the XDG-owned JSONL source of truth."""
     data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
     return data_home / "manifest/knowledge/entries.jsonl"
-
-
-SEED_PATH = Path(__file__).resolve().parents[1] / "data" / "seed.jsonl"
-
-
-def load_seed() -> list[dict[str, object]]:
-    """Load the bundled seed registry shipped with this skill."""
-    if not SEED_PATH.exists():
-        raise ValueError(f"{SEED_PATH}: bundled seed registry missing")
-    return load_entries(SEED_PATH)
-
-
-def merge_entries(
-    seed: list[dict[str, object]], user: list[dict[str, object]]
-) -> list[dict[str, object]]:
-    """Overlay user records on the seed, keyed by id; user wins a shared id."""
-    merged: dict[str, dict[str, object]] = {}
-    order: list[str] = []
-    for record in seed:
-        identifier = str(record.get("id", ""))
-        merged[identifier] = record
-        order.append(identifier)
-    for record in user:
-        identifier = str(record.get("id", ""))
-        if identifier not in merged:
-            order.append(identifier)
-        merged[identifier] = record
-    return [merged[identifier] for identifier in order]
-
-
-@contextlib.contextmanager
-def _store_lock(path: Path) -> Iterator[None]:
-    """Serialize read-modify-write access to the user store between processes."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(
-        path.with_name(path.name + ".lock"), os.O_CREAT | os.O_RDWR, 0o600
-    )
-    try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
-        yield
-    finally:
-        fcntl.flock(descriptor, fcntl.LOCK_UN)
-        os.close(descriptor)
 
 
 def load_entries(path: Path) -> list[dict[str, object]]:
@@ -296,7 +250,7 @@ def _sync_docs(entries: list[dict[str, object]], output: Path) -> None:
     lines = [
         "# Knowledge Base",
         "",
-        "> Generated from the bundled seed registry plus XDG-owned `entries.jsonl` by `learning-capture sync-docs`.",
+        "> Generated from XDG-owned `entries.jsonl` by `learning-capture sync-docs`.",
         "",
     ]
     for category in CATEGORIES:
@@ -312,7 +266,7 @@ def _sync_docs(entries: list[dict[str, object]], output: Path) -> None:
                 (
                     f"### {entry.get('id', '?')}: {entry.get('title', 'Untitled')}",
                     "",
-                    textwrap.fill(str(entry.get("description", "")), width=118),
+                    str(entry.get("description", "")),
                     "",
                 )
             )
@@ -330,20 +284,11 @@ def _handle_add(
 
 
 def _handle_increment(
-    args: argparse.Namespace,
-    entries: list[dict[str, object]],
-    seed: list[dict[str, object]],
-    path: Path,
+    args: argparse.Namespace, entries: list[dict[str, object]], path: Path
 ) -> None:
     record = next((item for item in entries if item.get("id") == args.entry_id), None)
     if record is None:
-        seed_record = next(
-            (item for item in seed if item.get("id") == args.entry_id), None
-        )
-        if seed_record is None:
-            raise ValueError(f"entry {args.entry_id} not found")
-        record = dict(seed_record)
-        entries.append(record)
+        raise ValueError(f"entry {args.entry_id} not found")
     record["occurrences"] = int(record.get("occurrences", 1)) + 1
     record["last_seen"] = datetime.now(UTC).date().isoformat()
     replace_entries(path, entries)
@@ -380,10 +325,7 @@ def _render_stats(entries: list[dict[str, object]]) -> str:
 
 
 def _dispatch(
-    args: argparse.Namespace,
-    seed: list[dict[str, object]],
-    user: list[dict[str, object]],
-    path: Path,
+    args: argparse.Namespace, entries: list[dict[str, object]], path: Path
 ) -> None:
     if args.command == "contract":
         print(
@@ -391,12 +333,11 @@ def _dispatch(
         )
         return
     if args.command == "add":
-        _handle_add(args, user, path)
+        _handle_add(args, entries, path)
         return
     if args.command == "increment":
-        _handle_increment(args, user, seed, path)
+        _handle_increment(args, entries, path)
         return
-    entries = merge_entries(seed, user)
     if args.command == "query":
         _handle_query(args, entries)
         return
@@ -420,12 +361,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     path = entries_path()
     try:
-        seed = load_seed()
-        if args.command in ("add", "increment"):
-            with _store_lock(path):
-                _dispatch(args, seed, load_entries(path), path)
-        else:
-            _dispatch(args, seed, load_entries(path), path)
+        _dispatch(args, load_entries(path), path)
     except (OSError, TypeError, ValueError) as error:
         print(f"learning_capture.py: {error}", file=sys.stderr)
         return 2

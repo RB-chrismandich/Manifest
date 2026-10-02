@@ -1,6 +1,6 @@
 {
   "name": "manifest-delegate",
-  "version": "0.1.3",
+  "version": "0.1.2",
   "description": "Delegate tasks, second opinions, and reviews to Codex, Claude, or Antigravity backends with resumable follow-ups, background jobs, and an optional finish-time review gate.",
   "author": {
     "name": "ReefBytes"
@@ -8,8 +8,5 @@
   "skills": [
     "./skills/delegate",
     "./skills/delegate-setup"
-  ],
-  "agents": [
-    "./agents/delegate-runner.md"
   ]
 }

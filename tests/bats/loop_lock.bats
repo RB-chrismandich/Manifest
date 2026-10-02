@@ -2,8 +2,9 @@
 # Tests for the VENDORED plugins/manifest-forge/runtime/bin/loop_lock.sh — the
 # per-PR concurrency guard shipped in the manifest-forge plugin bundle.
 #
-# This is the only copy: the former operator/bootstrap twin under
-# configs/claude/scripts was retired in favor of the bundle.
+# configs/claude/scripts/loop_lock.sh (the operator/bootstrap copy) is a
+# separate, unmodified file — out of scope for this task (CDDL QA-critic
+# finding, 2026-08-19/20) and not exercised by this file.
 
 SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/loop_lock.sh"
 
