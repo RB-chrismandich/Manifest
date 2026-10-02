@@ -201,6 +201,15 @@ find_delegation_file() {
     return 1
 }
 
+# Without HOME the default locations collapse to /.config and /.claude, so a
+# gate enabled in the user's real home would be missed and silently approved.
+# Unless an explicit config root names the location, fail closed instead.
+if [ -z "${HOME:-}" ] && [ -z "${MANIFEST_CONFIG_DIR:-}" ] &&
+    [ -z "${XDG_CONFIG_HOME:-}" ]; then
+    block "home_unavailable"
+    exit 0
+fi
+
 DELEGATION_FILE=$(find_delegation_file \
     "${MANIFEST_CONFIG_DIR:-}" \
     "${XDG_CONFIG_HOME:-${HOME:-}/.config}/manifest" \

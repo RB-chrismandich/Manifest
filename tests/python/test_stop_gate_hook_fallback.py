@@ -1,17 +1,59 @@
 """Strict JSON fallback coverage for the Stop review gate."""
 
+import json
+import os
 import subprocess
 import sys
 
 import pytest
 
 from tests.python.test_stop_gate_hook import (
+    PLUGIN_ROOT,
     SCRIPT,
+    SHELL,
     _decision,
     _path_without,
     _run_launcher_raw,
     _run_shell,
 )
+
+
+def _run_without_home(tmp_path, extra_env):
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"HOME", "XDG_CONFIG_HOME", "MANIFEST_CONFIG_DIR"}
+    }
+    environment.update(CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT), **extra_env)
+    payload = {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"}
+    return subprocess.run(
+        ["/bin/sh", str(SHELL)],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=environment,
+        cwd=tmp_path,
+    )
+
+
+def test_unavailable_home_fails_closed(tmp_path):
+    """With no HOME and no explicit config root the gate's location is
+    unknowable, so an enabled gate must never be skipped as disabled."""
+    decision = _decision(_run_without_home(tmp_path, {}))
+    assert decision["decision"] == "block"
+    assert "home_unavailable" in decision["reason"]
+
+
+def test_explicit_config_root_works_without_home(tmp_path):
+    """An explicit MANIFEST_CONFIG_DIR still decides the gate without HOME."""
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        '{"review_gate":{"enabled":false}}', encoding="utf-8"
+    )
+    result = _run_without_home(tmp_path, {"MANIFEST_CONFIG_DIR": str(config_dir)})
+    assert _decision(result) == {"decision": "approve", "reason": "gate disabled"}
 
 
 def test_help_exits_zero_within_15_lines():
