@@ -85,7 +85,9 @@ def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -
         stopped = _scheduler._run_quiet(
             [scheduler.systemctl, "--user", "stop", timer, service], environment, 10.0
         )
-        if stopped.returncode != 0:
+        if stopped.returncode != 0 and not _units_not_loaded(
+            scheduler, (timer, service), environment
+        ):
             raise InstallError("systemd unit stop failed")
     except (OSError, subprocess.SubprocessError) as error:
         raise InstallError("systemd unit stop failed") from error
@@ -102,6 +104,38 @@ def _stop_scheduler_job(scheduler: _Scheduler, environment: Mapping[str, str]) -
         raise InstallError("systemd unit stop failed")
     if not _scheduler._verified_inactive(states):
         raise InstallError("systemd unit state could not be verified")
+
+
+def _units_not_loaded(
+    scheduler: _Scheduler, units: tuple[str, ...], environment: Mapping[str, str]
+) -> bool:
+    """True only when the manager confirms every unit is absent from memory.
+
+    A legacy transient timer vanishes after a reboot or manager restart, so
+    `stop` fails with nothing left to deactivate. Any other answer — bus,
+    permission, or a loaded unit — keeps the stop failure fatal.
+    """
+    try:
+        shown = _scheduler._run_quiet(
+            [
+                scheduler.systemctl,
+                "--user",
+                "show",
+                "--property=LoadState",
+                "--value",
+                *units,
+            ],
+            environment,
+            10.0,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    states = shown.stdout.decode("utf-8", "replace").split() if shown.stdout else []
+    return (
+        shown.returncode == 0
+        and len(states) == len(units)
+        and all(state == "not-found" for state in states)
+    )
 
 
 def _scheduler_reactivate(
