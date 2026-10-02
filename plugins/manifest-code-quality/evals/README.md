@@ -1,8 +1,9 @@
 # manifest-code-quality evals
 
-Ablation suites for all 24 manifest-code-quality skills: 167 cases, one
-directory per skill (`<skill>/<skill>--NN-<slug>/`). The headline number is
-Δ — the with-plugin score minus the without-plugin score.
+Ablation suites for all 24 manifest-code-quality skills: 188 cases (167
+baseline + 21 `--1N-hard-*` discrimination probes), one directory per skill
+(`<skill>/<skill>--NN-<slug>/`). The headline number is Δ — the with-plugin
+score minus the without-plugin score.
 
 ## Run
 

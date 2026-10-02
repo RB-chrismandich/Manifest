@@ -5,4 +5,4 @@ match: not_contains
 flags: i
 weight: 0.5
 ---
-eslint|\bnpm\b|typescript|docstring|pep ?8|shellcheck|goroutine
+eslint|\bnpm\b|typescript|docstring|pep ?8|shellcheck
