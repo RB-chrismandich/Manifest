@@ -1,7 +1,7 @@
 ---
 max_turns: 20
 timeout_seconds: 480
-allowed_tools: [Skill, Read, Write, Edit, Grep, Glob, "Bash(python3:*)", "Bash(pytest:*)"]
+allowed_tools: [Skill, Read, Write, Edit, Grep, Glob, "Bash(python3:*)", "Bash(pytest:*)", "Bash(grep:*)", "Bash(echo:*)", "Bash(ls:*)"]
 runs: 3
 model: sonnet
 ---
