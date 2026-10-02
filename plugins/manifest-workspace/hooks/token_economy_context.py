@@ -30,7 +30,7 @@ MAX_RECORDS = 100
 MAX_DIAGNOSTIC_FIELD = 512
 MAX_DIAGNOSTIC_TOTAL = 4096
 PLUGIN = "manifest-workspace"
-VERSION = "0.4.1"
+VERSION = "0.5.0"
 ALLOWED_REASONS = frozenset(
     {
         "invalid-event",

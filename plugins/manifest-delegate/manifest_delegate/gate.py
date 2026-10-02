@@ -9,7 +9,7 @@ from . import backend, config, jobstore, registry, review, worker
 
 # Imported by name, not as `from . import envelope`: several functions here take
 # a parameter called `envelope` (the dict), which would shadow the module.
-from .envelope import validate_findings
+from .envelope import REVIEW_OUTCOME_SEMANTICS, validate_findings
 
 
 def _gate_allow(reason=None, json_mode=False, cause=None):
@@ -101,8 +101,9 @@ _GATE_PROMPT_INSTRUCTIONS = (
     "}\n"
     "```\n"
     'Set "findings" to [] when the diff has no blocking issues. Every element of '
-    '"findings" MUST have string "severity" and "text" fields.\n\n'
-    "Diff to review:\n\n"
+    '"findings" MUST have string "severity" and "text" fields.\n'
+    + REVIEW_OUTCOME_SEMANTICS
+    + "\nDiff to review:\n\n"
 )
 
 
@@ -228,10 +229,12 @@ def _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, transcr
         return _gate_block_infra("review_timeout", json_mode=json_mode)
 
     envelope = final.get("envelope") or {}
-    if envelope.get("error"):
-        return _gate_block_infra("backend_error", json_mode=json_mode)
-
     findings, error_reason = _gate_validate_findings(envelope)
+    # A reviewer that reports outcome=failure WITH valid findings still
+    # reviewed the diff; block on its findings rather than hide them behind
+    # backend_error. Infra-failure envelopes never carry a findings field.
+    if envelope.get("error") and (error_reason or not findings):
+        return _gate_block_infra("backend_error", json_mode=json_mode)
     if error_reason:
         return _gate_block_infra("invalid_review", json_mode=json_mode)
     if not findings:
