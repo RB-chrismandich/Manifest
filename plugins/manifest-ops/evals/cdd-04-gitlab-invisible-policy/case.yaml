@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: cdd-04-gitlab-invisible-policy
+context:
+  scaffold_script: scaffold.sh

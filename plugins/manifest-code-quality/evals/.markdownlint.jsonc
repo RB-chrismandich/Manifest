@@ -1,0 +1,13 @@
+{
+  // Eval prompts and graders are model inputs, not documentation. Their bodies
+  // embed verbatim code fixtures (Go/Makefile hard tabs, tool output without a
+  // fence language, one-paragraph rubrics) whose exact bytes are what the eval
+  // tests; the hook's `--fix` must not rewrite them.
+  "extends": "../../../.markdownlint.jsonc",
+  "MD010": false,
+  "MD013": false,
+  "MD031": false,
+  "MD036": false,
+  "MD038": false,
+  "MD040": false
+}

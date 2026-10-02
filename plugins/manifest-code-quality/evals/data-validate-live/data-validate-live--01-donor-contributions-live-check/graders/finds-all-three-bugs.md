@@ -1,0 +1,5 @@
+---
+type: llm
+weight: 1
+---
+Against this sample, execution stops at the FIRST comma-formatted amount: `float(raw)` in `parse_amount` raises `ValueError` on "1,000.00", so the later bugs never execute in this run — they are latent defects visible in the code. Score 1 only if the answer identifies ALL THREE: (a) the observed crash — `float(raw)` rejects comma-formatted amounts, needing comma-stripping or a locale/regex-aware parser; (b) a latent collision — `dedup_key` built from only `last_name:date` makes the two different "Smith" donors on 2026-03-01 collide, so `seen[key] = ...` would silently drop one contribution once (a) is fixed, needing a donor id or other disambiguating field; (c) a latent falsy-zero bug — `float(match) if match else None` turns a legitimate `employer_match` of `0` into `None`, needing `match is not None`. Describing (b) and (c) as what would happen after the crash is fixed (or as code-level defects) is correct; do not require claiming they occur in this exact run. Score 0 if any of the three is missed or the code is said to handle the sample correctly.

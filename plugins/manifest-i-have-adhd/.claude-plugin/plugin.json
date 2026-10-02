@@ -2,7 +2,7 @@
   "author": {
     "name": "ReefBytes"
   },
-  "description": "Pinned ADHD-friendly always-on response guidance with fail-open diagnostics.",
+  "description": "ADHD-friendly always-on response guidance with fail-open diagnostics.",
   "hooks": [
     "./hooks/hooks.json"
   ],
@@ -38,5 +38,5 @@
   "skills": [
     "./skills/i-have-adhd"
   ],
-  "version": "0.1.1"
+  "version": "0.2.0"
 }
