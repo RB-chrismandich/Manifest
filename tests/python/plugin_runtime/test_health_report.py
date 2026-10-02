@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import sys
 import time
@@ -17,6 +18,7 @@ import pytest
 from tests.python.plugin_runtime.health_test_helpers import (
     HealthyReportRunner,
     collect_report,
+    file_row,
     healthy_harness_record,
     isolated_env,
     load_runtime_module,
@@ -80,31 +82,90 @@ def test_weekly_health_report_accepts_only_complete_fresh_evidence_and_retains_t
     assert stat.S_IMODE((out_dir / "latest.json").stat().st_mode) == 0o600
 
 
+def test_health_report_flags_drifted_scheduler_runtime_file(
+    report_bundle: Path, tmp_path: Path
+) -> None:
+    """health_install_scheduler.py rows are verified like every runtime file."""
+    module = load_runtime_module(
+        _report_script(report_bundle),
+        f"health_report_sched_{tmp_path.name}",
+    )
+    now = datetime(2026, 9, 20, 12, tzinfo=UTC)
+    env, runtime_root, _receipt = write_report_fixture(tmp_path, now)
+    (runtime_root / "health_install_scheduler.py").write_text(
+        "# tampered\n", encoding="utf-8"
+    )
+
+    report = collect_report(module, env, runtime_root, now, HealthyReportRunner(module))
+
+    codes = {finding["code"] for finding in report["findings"]}
+    assert "health_runtime_drift" in codes
+    assert "health_runtime_incomplete" not in codes
+
+
+def test_health_report_verifies_wrapper_under_claude_config_dir(
+    report_bundle: Path, tmp_path: Path
+) -> None:
+    """claude_wrapper drift is checked at the active Claude config root."""
+    module = load_runtime_module(
+        _report_script(report_bundle),
+        f"health_report_wrapper_{tmp_path.name}",
+    )
+    now = datetime(2026, 9, 20, 12, tzinfo=UTC)
+    env, runtime_root, _receipt = write_report_fixture(tmp_path, now)
+    claude_root = tmp_path / "claude-profile"
+    env["CLAUDE_CONFIG_DIR"] = str(claude_root)
+    default_wrapper = Path(env["HOME"]) / ".claude/scripts/mcp_health_check.sh"
+    moved_wrapper = claude_root / "scripts/mcp_health_check.sh"
+    moved_wrapper.parent.mkdir(parents=True)
+    shutil.copy2(default_wrapper, moved_wrapper)
+    default_wrapper.unlink()
+    installation = Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json"
+    document = json.loads(installation.read_text(encoding="utf-8"))
+    document["claude_wrapper"] = file_row(moved_wrapper)
+    installation.write_text(json.dumps(document), encoding="utf-8")
+
+    report = collect_report(module, env, runtime_root, now, HealthyReportRunner(module))
+
+    assert report["status"] == "ok"
+    assert not any(
+        finding["code"] == "claude_wrapper_drift" for finding in report["findings"]
+    )
+
+
 def _apply_local_state_failure(
     failure: str, env: dict[str, str], receipt: Path, now: datetime
 ) -> None:
-    if failure == "missing":
-        receipt.unlink()
-    elif failure == "malformed":
-        receipt.write_text("{", encoding="utf-8")
-    elif failure == "stale":
+    def mark_stale() -> None:
         stale = now.timestamp() - (8 * 24 * 60 * 60)
         os.utime(receipt, (stale, stale))
-    elif failure == "blocked":
+
+    def mark_blocked() -> None:
         document = json.loads(receipt.read_text(encoding="utf-8"))
         document["harnesses"]["claude"]["capabilities"][
             "manifest-workspace:mcp:context7"
         ] = "blocked"
         receipt.write_text(json.dumps(document), encoding="utf-8")
-    elif failure == "pin-drift":
-        (Path(env["OMP_AGENT_DIR"]) / "ui-expert.md").write_text(
-            "drifted\n", encoding="utf-8"
-        )
-    elif failure == "native-missing":
+
+    def drop_native_cli() -> None:
         installation = Path(env["XDG_STATE_HOME"]) / "manifest/health/installation.json"
         document = json.loads(installation.read_text(encoding="utf-8"))
         del document["executables"]["claude"]
         installation.write_text(json.dumps(document), encoding="utf-8")
+
+    handlers = {
+        "missing": receipt.unlink,
+        "malformed": lambda: receipt.write_text("{", encoding="utf-8"),
+        "stale": mark_stale,
+        "blocked": mark_blocked,
+        "pin-drift": lambda: (Path(env["OMP_AGENT_DIR"]) / "ui-expert.md").write_text(
+            "drifted\n", encoding="utf-8"
+        ),
+        "native-missing": drop_native_cli,
+    }
+    apply = handlers.get(failure)
+    if apply is not None:
+        apply()
 
 
 @pytest.mark.parametrize(
