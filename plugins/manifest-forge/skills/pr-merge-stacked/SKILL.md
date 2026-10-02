@@ -25,17 +25,21 @@ is not supported. Skip the steps below.
    everywhere below, never a hard-coded `main`. Stop if the base chain is broken (some PR's base is not the PR
    below it). Record each branch's remote head now, in bash (≥ 4) — the fetch keeps those commits available after
    the forge deletes branches, and `REC` stays the pre-rewrite table until step 5 pushes:
+
    ```bash
    git fetch origin --prune
    declare -A REC; for b in <bottom> … <top>; do REC[$b]=$(git rev-parse "origin/$b"); done
    ```
+
 2. **Ensure CI gates every PR.** A workflow keyed `on: pull_request: branches: [main]` only runs for PRs targeting
    `main`; remove that filter so stacked children are tested too.
 3. **Merge the bottom PR with a method the repo allows.** Check `gh repo view --json
    mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed` (GitLab: the project's merge method and squash
    option). Record the bottom branch's head as `PRE=${REC[<bottom-branch>]}`. **Gate the merge first:** required
    checks green and mergeable — `gh pr checks <n> --required --watch --fail-fast`, then `gh pr view <n> --json
-   mergeStateStatus` is `CLEAN`; GitLab: the MR's own pipeline (`glab mr view <n> --output json` → `head_pipeline`) has `status` `success` and
+   mergeable,mergeStateStatus` shows `mergeable` = `MERGEABLE` and `mergeStateStatus` `CLEAN` **or `HAS_HOOKS`**
+   (repos with pre-receive hooks report `HAS_HOOKS` on an otherwise-mergeable PR; `merge_decision.sh` treats both as
+   merge-ready);
    `sha` equal to the MR's `sha` — not `glab ci status --branch`, which reads the branch pipeline — and
    `detailed_merge_status` is `mergeable`. Then merge **exactly the commit you checked**:
    `gh pr merge <n> --merge|--squash|--rebase --delete-branch --match-head-commit "$PRE"` or
@@ -53,6 +57,7 @@ is not supported. Skip the steps below.
      `gh pr edit <child> --base $TRUNK` / `glab mr update <child> --target-branch $TRUNK`, and read it back.
 5. **After a squash or rebase merge, rebase the remaining stack — as a bash script, not pasted into your shell**
    (it aborts on the first failure instead of pushing a half-rewritten stack, and never exits your terminal):
+
    ```bash
    #!/usr/bin/env bash   # land-stack.sh TRUNK PRE branch=REC_SHA …   (remaining stack, bottom → top)
    set -euo pipefail
@@ -92,6 +97,7 @@ is not supported. Skip the steps below.
    for b in "${stack[@]}"; do leases+=("--force-with-lease=$b:${REC[$b]}"); refs+=("$b:$b"); done
    git push --atomic origin "${leases[@]}" "${refs[@]}"
    ```
+
    Afterwards re-record `REC` from `origin` (step 1). Why this shape: the fork point comes from the merged parent's
    head as recorded (`PRE`), so it is right even when the parent gained commits after the child branched; each
    branch is rebased onto its already-rewritten parent from that parent's **pre-rewrite** SHA, which also covers a
