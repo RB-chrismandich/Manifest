@@ -87,3 +87,11 @@ benchmark_data/
 # bootstrap/lib/common.sh preserve symlinks-as-symlinks, which would deploy 108
 # dangling links while every repo-side gate stayed green.
 .apm/skills/
+
+# context-mode writes its routing block as CLAUDE.md into any cwd; plugin bundles
+# must not ship it (no declared context-mode dependency).
+plugins/CLAUDE.md
+plugins/*/CLAUDE.md
+
+# plugin eval run output (claude plugin eval)
+plugins/*/evals/results/

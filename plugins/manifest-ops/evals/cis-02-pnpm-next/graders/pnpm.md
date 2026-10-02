@@ -1,0 +1,8 @@
+---
+type: regex
+target: {source: file, path: .github/workflows/ci.yml}
+match: contains
+flags: i
+weight: 0.5
+---
+pnpm
