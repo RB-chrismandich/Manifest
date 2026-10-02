@@ -39,12 +39,17 @@ Seven skills scored Δ≈0 in the full suite (`refactor`, `python-refactor`,
 `node-refactor`, `go-refactor`, `shell-audit-pipefail`, `data-validate-live`,
 `api-optimize-bulk`). Each now has three `<skill>--1N-hard-*` cases built around
 a rule from its SKILL.md that a generic review tends to miss. 3-run result
-(sonnet agent, opus judge): only `node-refactor--11-hard-untrusted-checkout-audit`
-separates the arms (with 1.00, without 0.56, Δ +0.44). The other 20 score 1.00
-in both arms, so for these skills the evals find no measurable lift over the
-base model — the cases stay as regression tests. A one-run pilot also showed
-`refactor--12` and `api-optimize-bulk--11` at Δ +0.67; neither held at 3 runs,
-so judge single-run Δ with caution.
+on the final graders (`--ablation with-without`, sonnet agent, opus judge,
+2026-10-02, $21): with 0.99 / without 0.98 / Δ +0.01 over the 21 cases. Only
+`refactor--12-hard-shell-go-token-pipeline` separates the arms (with 1.00,
+without 0.78, Δ +0.22); the other 20 score the same in both arms, so for these
+skills the evals find no measurable lift over the base model and the cases stay
+as regression tests. `python-refactor--12` scores 0.78 in both arms: one run
+per arm lost a 2–1 judge vote on an answer that did refuse to fabricate check
+output. Earlier measurements on pre-review graders disagree: a 3-run probe put
+`node-refactor--11` at Δ +0.44 (now +0.00), and a one-run pilot put
+`refactor--12` and `api-optimize-bulk--11` at Δ +0.67 (now +0.22 and +0.00).
+Treat any single case's Δ as noisy until it repeats across runs.
 
 ## Baseline results
 
