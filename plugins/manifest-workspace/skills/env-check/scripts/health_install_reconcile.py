@@ -347,23 +347,29 @@ def _rollback_transaction(
 ) -> None:
     """Restore snapshots and re-arm the prior scheduler after ``error``.
 
-    A failed re-arm raises one InstallError naming both failures, so a
-    rollback never silently leaves the recorded timer disabled. Otherwise
-    returns and the caller re-raises ``error``.
+    A failed restore means the runtime is in an unknown partial state, so
+    the prior scheduler is never re-armed after an incomplete restore. Any
+    rollback failure — restore or re-arm — raises one InstallError naming
+    every failure, so a rollback never silently leaves the recorded timer
+    disabled. Otherwise returns and the caller re-raises ``error``.
     """
-    reactivation_error: InstallError | None = None
+    problems: list[BaseException] = []
     try:
         _restore_snapshots(snapshots)
-    finally:
+    except Exception as restore_error:
+        problems.append(restore_error)
+    else:
         if prior is not None:
             try:
                 _scheduler_reactivate(prior, paths, python, environment)
-            except InstallError as failed:
-                reactivation_error = failed
-    if prior is not None and reactivation_error is not None:
+            except InstallError as reactivation_error:
+                problems.append(reactivation_error)
+    if problems:
+        detail = "; additionally, rollback failed: ".join(
+            str(problem) for problem in problems
+        )
         raise InstallError(
-            f"{error}; additionally, rollback could not reactivate the "
-            f"recorded {prior.kind} scheduler: {reactivation_error}"
+            f"{error}; additionally, rollback failed: {detail}"
         ) from error
 
 

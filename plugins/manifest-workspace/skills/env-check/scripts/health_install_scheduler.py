@@ -144,6 +144,11 @@ def _systemd_quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _systemd_exec_arg(value: str) -> str:
+    """Escape one ExecStart argument; %% expansion applies inside quotes too."""
+    return _systemd_quote(value.replace("%", "%%"))
+
+
 def _systemd_unit_payloads(
     paths: InstallPaths, python: str, environment: Mapping[str, str]
 ) -> tuple[bytes, bytes]:
@@ -162,7 +167,7 @@ def _systemd_unit_payloads(
             "Type=oneshot",
             *environment_lines,
             "ExecStart="
-            + " ".join(_systemd_quote(arg) for arg in _report_argv(paths, python)),
+            + " ".join(_systemd_exec_arg(arg) for arg in _report_argv(paths, python)),
             "",
         ]
     ).encode("utf-8")

@@ -120,13 +120,23 @@ def _health_receipt_command() -> str | None:
     sys.path.insert(0, str(installer_scripts))
     try:
         try:
-            from health_install_files import InstallError, _paths
+            from health_install_files import InstallError, _file_digest, _paths
             from health_install_receipts import _validate_receipt
         except ImportError:
             return None
         try:
-            _validate_receipt(receipt, _paths(os.environ))
+            paths = _paths(os.environ)
+            _validate_receipt(receipt, paths)
         except (InstallError, OSError, ValueError):
+            return None
+        # A receipt alone is not ownership evidence: the installed wrapper
+        # must still exist with the recorded digest, otherwise a stale
+        # receipt would preserve a broken SessionStart hook after the
+        # wrapper was deleted or tampered with.
+        wrapper_row = receipt.get("claude_wrapper")
+        if not isinstance(wrapper_row, dict) or _file_digest(
+            paths.wrapper
+        ) != wrapper_row.get("destination_sha256"):
             return None
     finally:
         sys.path.pop(0)

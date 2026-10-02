@@ -47,6 +47,17 @@ def reconcile():
     return module
 
 
+@pytest.fixture(scope="module")
+def scheduler_module():
+    sys.path.insert(0, str(_SCRIPTS))
+    try:
+        module = load_runtime_module(
+            _SCRIPTS / "health_install_scheduler.py", "health_install_scheduler"
+        )
+    finally:
+        sys.path.remove(str(_SCRIPTS))
+    return module
+
 def _settings_with(hooks: list[dict]) -> dict:
     return {"hooks": {"SessionStart": [{"hooks": hooks}]}}
 
@@ -238,3 +249,32 @@ def test_health_installer_refuses_a_divergent_unowned_wrapper(
     assert result.returncode == 1
     assert wrapper_path.read_text(encoding="utf-8") == "# operator-local wrapper\n"
     _no_installation(env)
+
+
+def test_systemd_execstart_escapes_percent_specifiers(
+    scheduler_module, tmp_path: Path
+) -> None:
+    """%% expansion applies to ExecStart even inside quotes, so managed paths
+    containing % must be escaped there — while Environment= values, which are
+    not specifier-expanded, must stay literal."""
+    import health_install_files as files
+
+    environment = isolated_env(tmp_path)
+    percent_home = tmp_path / "data 100%"
+    percent_home.mkdir()
+    environment["XDG_DATA_HOME"] = str(percent_home)
+    paths = files._paths(environment)
+
+    _timer, service = scheduler_module._systemd_unit_payloads(
+        paths, sys.executable, environment
+    )
+
+    text = service.decode("utf-8")
+    exec_line = next(
+        line for line in text.splitlines() if line.startswith("ExecStart=")
+    )
+    assert "100%%" in exec_line
+    env_lines = [
+        line for line in text.splitlines() if line.startswith("Environment=")
+    ]
+    assert any("100%" in line and "100%%" not in line for line in env_lines)

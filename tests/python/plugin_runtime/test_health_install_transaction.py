@@ -47,6 +47,19 @@ def _files_module(repo_root: Path):
     )
 
 
+def _reconcile_module(repo_root: Path):
+    scripts = (
+        repo_root / "plugins/manifest-workspace/skills/env-check/scripts"
+    )
+    sys.path.insert(0, str(scripts))
+    try:
+        return load_runtime_module(
+            scripts / "health_install_reconcile.py",
+            "health_install_reconcile_txn",
+        )
+    finally:
+        sys.path.remove(str(scripts))
+
 def test_install_waits_for_exclusive_installation_lock(
     repo_root: Path, tmp_path: Path
 ) -> None:
@@ -159,3 +172,37 @@ def test_uninstall_removes_receipt_owned_retired_runtime(
     assert not retired_file.exists()
     assert not runtime_root.exists()
     assert not receipt_path.exists()
+
+
+def test_failed_snapshot_restore_skips_reactivation_and_reports_both(
+    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A partially restored runtime is an unknown state: the prior scheduler
+    must not be re-armed, and the raised error names the restore failure."""
+    reconcile = _reconcile_module(repo_root)
+    InstallError = reconcile.InstallError
+
+    reactivated = []
+
+    def fail_restore(snapshots):
+        raise InstallError("injected restore failure")
+
+    monkeypatch.setattr(reconcile, "_restore_snapshots", fail_restore)
+    monkeypatch.setattr(
+        reconcile,
+        "_scheduler_reactivate",
+        lambda *args: reactivated.append(args),
+    )
+
+    original = InstallError("original install failure")
+    prior = type("Prior", (), {"kind": "systemd"})()
+
+    with pytest.raises(InstallError) as caught:
+        reconcile._rollback_transaction(
+            [], prior, tmp_path, "python", {}, original
+        )
+
+    message = str(caught.value)
+    assert "original install failure" in message
+    assert "injected restore failure" in message
+    assert reactivated == []
