@@ -3,20 +3,25 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import plistlib
 import stat
 import tempfile
-from collections.abc import Mapping, Sequence
-from contextlib import suppress
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 
 SCHEMA_VERSION = 1
 LAUNCHD_LABEL = "com.manifest.health-report"
 PLIST_NAME = f"{LAUNCHD_LABEL}.plist"
+SYSTEMD_UNIT_NAME = "manifest-health-report"
+SYSTEMD_UNIT_MARKER = "# managed-by: manifest-health-reporting"
+INSTALL_LOCK_NAME = "install.lock"
+RETIRED_RUNTIME_SOURCES = frozenset({"plugin_reconcile.py"})
 OWNERSHIP_MARKER = "manifest-health-reporting"
 SESSION_TIMEOUT_SECONDS = 30
 SHA256_LENGTH = 64
@@ -32,6 +37,7 @@ class InstallPaths:
     state_home: Path
     data_home: Path
     config_home: Path
+    claude_root: Path
     runtime_root: Path
     state_root: Path
     report_root: Path
@@ -40,6 +46,8 @@ class InstallPaths:
     wrapper: Path
     settings: Path
     plist: Path
+    systemd_timer: Path
+    systemd_service: Path
     receipt: Path
 
 
@@ -64,24 +72,34 @@ def _paths(environment: Mapping[str, str]) -> InstallPaths:
         environment.get("XDG_DATA_HOME") or home / ".local" / "share"
     )
     config_home = _resolved_path(environment.get("XDG_CONFIG_HOME") or home / ".config")
+    claude_root = _resolved_path(
+        environment.get("CLAUDE_CONFIG_DIR") or home / ".claude"
+    )
     runtime_root = data_home / "manifest" / "health"
     state_root = state_home / "manifest" / "health"
     agent_root = _resolved_path(
-        environment.get("OMP_AGENT_DIR") or home / ".omp" / "agent"
+        environment.get("PI_CODING_AGENT_DIR")
+        or environment.get("OMP_AGENT_DIR")
+        or home / ".omp" / "agent"
     )
     return InstallPaths(
         home=home,
         state_home=state_home,
         data_home=data_home,
         config_home=config_home,
+        claude_root=claude_root,
         runtime_root=runtime_root,
         state_root=state_root,
         report_root=state_home / "manifest" / "reports",
         agent_root=agent_root,
         extension=agent_root / "extensions" / "manifest-health.ts",
-        wrapper=home / ".claude" / "scripts" / "mcp_health_check.sh",
-        settings=home / ".claude" / "settings.json",
+        wrapper=claude_root / "scripts" / "mcp_health_check.sh",
+        settings=claude_root / "settings.json",
         plist=home / "Library" / "LaunchAgents" / PLIST_NAME,
+        systemd_timer=(config_home / "systemd" / "user" / f"{SYSTEMD_UNIT_NAME}.timer"),
+        systemd_service=(
+            config_home / "systemd" / "user" / f"{SYSTEMD_UNIT_NAME}.service"
+        ),
         receipt=state_root / "installation.json",
     )
 
@@ -176,13 +194,59 @@ def _snapshot(path: Path) -> FileSnapshot:
 
 
 def _restore_snapshots(snapshots: Sequence[FileSnapshot]) -> None:
+    failures: list[str] = []
     for snapshot in reversed(snapshots):
-        with suppress(AssertionError, InstallError, OSError):
+        try:
             if snapshot.existed:
                 assert snapshot.payload is not None and snapshot.mode is not None
                 _atomic_write(snapshot.path, snapshot.payload, snapshot.mode)
             elif _path_present(snapshot.path):
                 snapshot.path.unlink()
+        except (AssertionError, InstallError, OSError) as error:
+            failures.append(f"{snapshot.path}: {error}")
+    if failures:
+        raise InstallError(
+            "rollback could not restore every pre-installation snapshot: "
+            + "; ".join(failures)
+        )
+
+
+@contextmanager
+def _installation_lock(paths: InstallPaths) -> Iterator[Path]:
+    """Hold the exclusive health-installation lock across one transaction.
+
+    Shares the coordinator's `<state>/manifest/install.lock` name so bootstrap,
+    installs, and uninstalls of the health runtime cannot interleave snapshots
+    and rollback. The blocking flock serializes concurrent invocations.
+    """
+    lock_dir = paths.state_root.parent
+    try:
+        lock_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    except OSError as error:
+        raise InstallError(
+            f"could not create install lock directory: {lock_dir}"
+        ) from error
+    try:
+        descriptor = os.open(
+            lock_dir / INSTALL_LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600
+        )
+    except OSError as error:
+        raise InstallError(
+            f"could not open install lock: {lock_dir / INSTALL_LOCK_NAME}"
+        ) from error
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+        except OSError as error:
+            raise InstallError(
+                "could not acquire the health installation lock"
+            ) from error
+        try:
+            yield lock_dir / INSTALL_LOCK_NAME
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def _settings_target(path: Path) -> Path:
@@ -249,10 +313,20 @@ def _valid_row(row: object, destination: Path) -> bool:
     return recorded == destination.resolve(strict=False)
 
 
-def _assert_destination_owned(destination: Path, row: object, description: str) -> None:
+def _assert_destination_owned(
+    destination: Path,
+    row: object,
+    description: str,
+    payload: bytes | None = None,
+) -> None:
     if not _path_present(destination):
         return
     if not _valid_row(row, destination):
+        if payload is not None and _file_digest(destination) == _digest(payload):
+            # An unrecorded byte-identical file is an earlier deployment's
+            # copy of this payload, not operator data: adopt it into the
+            # receipt instead of refusing a routine redeploy.
+            return
         raise InstallError(f"refusing to replace unowned {description}: {destination}")
     assert isinstance(row, dict)
     observed = _file_digest(destination)
@@ -280,6 +354,16 @@ def _plist_payload(
     python: str,
     environment: Mapping[str, str],
 ) -> bytes:
+    report_environment = {
+        "HOME": str(paths.home),
+        "OMP_AGENT_DIR": str(paths.agent_root),
+        "PATH": environment.get("PATH") or os.defpath,
+        "XDG_CONFIG_HOME": str(paths.config_home),
+        "XDG_DATA_HOME": str(paths.data_home),
+        "XDG_STATE_HOME": str(paths.state_home),
+    }
+    if environment.get("CLAUDE_CONFIG_DIR"):
+        report_environment["CLAUDE_CONFIG_DIR"] = str(paths.claude_root)
     document = {
         "Label": LAUNCHD_LABEL,
         "ManifestManagedBy": OWNERSHIP_MARKER,
@@ -294,13 +378,7 @@ def _plist_payload(
             "--out-dir",
             str(paths.report_root.resolve(strict=False)),
         ],
-        "EnvironmentVariables": {
-            "HOME": str(paths.home),
-            "PATH": environment.get("PATH") or os.defpath,
-            "XDG_CONFIG_HOME": str(paths.config_home),
-            "XDG_DATA_HOME": str(paths.data_home),
-            "XDG_STATE_HOME": str(paths.state_home),
-        },
+        "EnvironmentVariables": report_environment,
         "ProcessType": "Background",
         "RunAtLoad": False,
         "StartCalendarInterval": {"Weekday": 1, "Hour": 9, "Minute": 0},
@@ -322,6 +400,20 @@ def _assert_plist_owned(path: Path, row: object) -> None:
         or document.get("ManifestManagedBy") != OWNERSHIP_MARKER
     ):
         raise InstallError("launchd plist does not carry the Manifest ownership marker")
+
+
+def _assert_systemd_unit_owned(path: Path, row: object, description: str) -> None:
+    _assert_destination_owned(path, row, description)
+    if not _path_present(path):
+        return
+    try:
+        contents = path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise InstallError(f"owned {description} is malformed") from error
+    if SYSTEMD_UNIT_MARKER not in contents.splitlines():
+        raise InstallError(
+            f"{description} does not carry the Manifest ownership marker"
+        )
 
 
 def _remove_empty_directory(path: Path) -> None:

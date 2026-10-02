@@ -28,7 +28,18 @@ Fail-closed: no admin / `enforce_admins` / `required_signatures` / merge-queue �
 Read `main` HEAD check-runs (R3). **Exit**: `0` green; `10` red (→ caller `halt`s); `8` pending.
 
 ## `pr_merge_loop.sh empty-run <get|incr|reset>`
-Manage `consecutive_empty` (FR-018a) in the state dir. `get` prints the count; loop stops at ≥5.
+Manage `consecutive_empty` (FR-018a) per repository scope in the state dir — the counter file is
+keyed on the host+owner_repo scope hash so repos sharing one XDG state dir keep independent counts,
+and read-modify-write is serialized via `flock` for concurrent run processes. `get` prints the
+count; loop stops at ≥5.
+
+## `pr_merge_loop.sh run [--apply]`
+Bounded self-paced loop (ceiling + 5-empty stop). When the provider does not support material
+fingerprinting (gitlab: `gh_op fp-scope` refuses with 13), `run` degrades to the observation half
+only — it keeps polling `list-managed` under the same bounds instead of exiting at the probe: a
+non-empty managed queue resets the empty counter (pending work), an empty queue increments it. The
+counter stays per-repository and flock-serialized, keyed on the scope derived from the origin
+remote URL since `fp-scope` is unavailable. Any other probe failure remains exit `13`.
 
 ## `loop_lock.sh <acquire|release|is-held> <pr>`
 Label-based lock (`loop-active`) + local `flock` (R4). `acquire` exit `0` got it / `1` held by
