@@ -39,8 +39,8 @@ is not supported. Skip the steps below.
    checks green and mergeable — `gh pr checks <n> --required --watch --fail-fast`, then `gh pr view <n> --json
    mergeable,mergeStateStatus` shows `mergeable` = `MERGEABLE` and `mergeStateStatus` `CLEAN` **or `HAS_HOOKS`**
    (repos with pre-receive hooks report `HAS_HOOKS` on an otherwise-mergeable PR; `merge_decision.sh` treats both as
-   merge-ready);
-   `sha` equal to the MR's `sha` — not `glab ci status --branch`, which reads the branch pipeline — and
+   merge-ready); GitLab: the MR's own pipeline (`glab mr view <n> --output json` → `head_pipeline`) has `status`
+   `success` and `sha` equal to the MR's `sha` — not `glab ci status --branch`, which reads the branch pipeline — and
    `detailed_merge_status` is `mergeable`. Then merge **exactly the commit you checked**:
    `gh pr merge <n> --merge|--squash|--rebase --delete-branch --match-head-commit "$PRE"` or
    `glab mr merge <n> [--squash] [--rebase] --sha "$PRE"` — a push after mapping makes the merge refuse instead of
