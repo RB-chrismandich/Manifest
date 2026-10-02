@@ -7,8 +7,8 @@ Score 1 only if the answer identifies that the registry's `"O'Brien Consulting"`
 (curly/right single quotation mark, U+2019) are different Unicode characters
 that look nearly identical when printed, and that `normalize()`'s
 `strip().lower()` does nothing to fix this since the mismatch is neither
-whitespace nor casing — it is a character-level encoding difference introduced
-by the legacy system's Windows-1252-to-UTF-8 re-encoding. The answer must
+whitespace nor casing — the two source values simply use different apostrophe
+code points. (Do not require any claim about how the curly quote got there.) The answer must
 recommend explicit punctuation/quote folding on both sides before comparing —
 mapping curly quotes/dashes to their ASCII equivalents (a translate/replace or
 equivalent transform) — rather than just adding more whitespace or case

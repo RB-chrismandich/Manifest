@@ -44,7 +44,7 @@ registry = [{"vendor_name": "O'Brien Consulting", "vendor_id": "V301"}]
 ```
 
 Real AP export record (pulled straight from the legacy accounts-payable system,
-which re-encodes its exports from Windows-1252 to UTF-8):
+where vendor names are typed in by hand):
 ```python
 records = [{"vendor": "O’Brien Consulting"}]
 ```

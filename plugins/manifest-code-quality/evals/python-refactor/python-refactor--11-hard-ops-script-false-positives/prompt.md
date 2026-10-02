@@ -14,7 +14,7 @@ import subprocess
 
 logger = logging.getLogger(__name__)
 
-# password = "hunter2"  -- old creds, rotated 2019, kept here for incident history only
+# password = "<REDACTED>"  -- old creds, rotated 2019, kept here for incident history only
 ARCHIVE_ROOT = "/var/snapshots"
 
 
