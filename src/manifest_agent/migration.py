@@ -144,6 +144,51 @@ def load_legacy_inventory(path: Path | None = None) -> LegacyInventory:
     return LegacyInventory(tuple(categories), entries)
 
 
+def _validate_ownership_proof(proof: Any) -> OwnershipProof:
+    if not isinstance(proof, dict) or set(proof) != {"type", "value"}:
+        raise ValueError("legacy ownership proof has an invalid schema")
+    if proof.get("type") == "generated-hash" and (
+        not isinstance(proof.get("value"), str)
+        or len(proof["value"]) != 64
+        or any(char not in "0123456789abcdef" for char in proof["value"].lower())
+    ):
+        raise ValueError("generated-hash ownership proof must be an exact SHA-256")
+    return OwnershipProof(proof["type"], proof["value"])
+
+
+def _validate_harnesses(harnesses: Any) -> tuple[str, ...]:
+    if (
+        not isinstance(harnesses, list)
+        or not harnesses
+        or not all(isinstance(name, str) and name for name in harnesses)
+    ):
+        raise ValueError("legacy ownership inventory harnesses are invalid")
+    return tuple(harnesses)
+
+
+def _validate_action_and_proof(action: str, proof: OwnershipProof) -> None:
+    if action not in {"disable", "remove", "retain"}:
+        raise ValueError("legacy ownership inventory entry has an invalid action")
+    if action in {"disable", "remove"}:
+        if proof.type not in _DESTRUCTIVE_PROOFS:
+            raise ValueError("destructive legacy entry lacks ownership proof")
+        if proof.type == "deploy-stamp":
+            raise ValueError(
+                "deploy-stamp is not deterministic destructive ownership proof"
+            )
+
+
+def _validate_destination(destination: str) -> None:
+    dest_lower = destination.lower()
+    if any(forbidden in dest_lower for forbidden in _FORBIDDEN_DESTINATIONS):
+        raise ValueError("legacy ownership inventory has a forbidden destination")
+
+
+def _validate_path(path: str) -> None:
+    if not path.startswith("~/") or ".." in Path(path).parts:
+        raise ValueError("legacy ownership inventory paths must be HOME-relative")
+
+
 def _decode_inventory_entry(value: Any) -> LegacyInventoryEntry:
     required = {
         "id",
@@ -159,53 +204,32 @@ def _decode_inventory_entry(value: Any) -> LegacyInventoryEntry:
     }
     if not isinstance(value, dict) or set(value) != required:
         raise ValueError("legacy ownership inventory entry has an invalid schema")
-    proof = value["ownership_proof"]
-    if not isinstance(proof, dict) or set(proof) != {"type", "value"}:
-        raise ValueError("legacy ownership proof has an invalid schema")
+
+    proof = _validate_ownership_proof(value["ownership_proof"])
+
     if not all(
         isinstance(value[key], str) and value[key]
         for key in required - {"harnesses", "ownership_proof"}
     ):
         raise ValueError("legacy ownership inventory strings must be non-empty")
-    harnesses = value["harnesses"]
-    if (
-        not isinstance(harnesses, list)
-        or not harnesses
-        or not all(isinstance(name, str) and name for name in harnesses)
-    ):
-        raise ValueError("legacy ownership inventory harnesses are invalid")
+
+    harnesses = _validate_harnesses(value["harnesses"])
+
     if value["category"] not in _CATEGORIES:
         raise ValueError("legacy ownership inventory entry has an unknown category")
-    if value["action"] not in {"disable", "remove", "retain"}:
-        raise ValueError("legacy ownership inventory entry has an invalid action")
-    if (
-        value["action"] in {"disable", "remove"}
-        and proof.get("type") not in _DESTRUCTIVE_PROOFS
-    ):
-        raise ValueError("destructive legacy entry lacks ownership proof")
-    if value["action"] in {"disable", "remove"} and proof.get("type") == "deploy-stamp":
-        raise ValueError(
-            "deploy-stamp is not deterministic destructive ownership proof"
-        )
-    if proof.get("type") == "generated-hash" and (
-        not isinstance(proof.get("value"), str)
-        or len(proof["value"]) != 64
-        or any(char not in "0123456789abcdef" for char in proof["value"].lower())
-    ):
-        raise ValueError("generated-hash ownership proof must be an exact SHA-256")
-    destination = value["destination"].lower()
-    if any(forbidden in destination for forbidden in _FORBIDDEN_DESTINATIONS):
-        raise ValueError("legacy ownership inventory has a forbidden destination")
-    if not value["path"].startswith("~/") or ".." in Path(value["path"]).parts:
-        raise ValueError("legacy ownership inventory paths must be HOME-relative")
+
+    _validate_action_and_proof(value["action"], proof)
+    _validate_destination(value["destination"])
+    _validate_path(value["path"])
+
     return LegacyInventoryEntry(
         value["id"],
         value["category"],
         value["path"],
-        tuple(value["harnesses"]),
+        harnesses,
         value["classification"],
         value["destination"],
-        OwnershipProof(proof["type"], proof["value"]),
+        proof,
         value["action"],
         value["recovery"],
         value["parity_test"],
