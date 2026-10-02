@@ -216,7 +216,12 @@ def _capture_attempt(entry, argv, prompt_bytes, job_dir, budget, store, job_id):
     return result
 
 
-def _classify_attempt(entry, selected, result):
+def _has_review_findings(candidate):
+    findings, error_reason = envelope.validate_findings(candidate)
+    return error_reason is None and bool(findings)
+
+
+def _classify_attempt(entry, selected, result, is_review=False):
     if result.timed_out:
         return None
     if result.returncode == 0:
@@ -225,7 +230,12 @@ def _classify_attempt(entry, selected, result):
             entry["id"],
             selected.model_id,
         )
-        if candidate.get("outcome") != "failure":
+        # A reviewer (gate or `review`) may report outcome=failure alongside
+        # valid findings; that is a completed review, so keep its output
+        # instead of retrying and discarding the findings as malformed.
+        if candidate.get("outcome") != "failure" or (
+            is_review and _has_review_findings(candidate)
+        ):
             result.failure = None
             result.task_failure_summary = None
             return None
@@ -328,7 +338,9 @@ def _run_attempts(store, job_id, entry, record, prompt_bytes, chain, controller)
                 "returncode": result.returncode,
             }
         )
-        evidence = _classify_attempt(entry, selected, result)
+        evidence = _classify_attempt(
+            entry, selected, result, is_review=record.get("kind") in ("gate", "review")
+        )
         if result.timed_out or evidence is None:
             break
         decision = controller.decide(index, result.failure)
