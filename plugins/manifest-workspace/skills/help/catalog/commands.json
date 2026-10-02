@@ -633,14 +633,14 @@
     {
       "bundle": "manifest-security",
       "category": "security",
-      "description": "Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers \u2014 identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits.",
+      "description": "Build, harden, or debug the gate of a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers \u2014 identity gates, CODEOWNERS, branch protection, environments. Also use when a changed `if:` gate \"didn't take effect\" or you need to test a gate on issue_comment/pull_request_target/workflow_run (those run the default-branch YAML). Counterpart to ci-audit-triggers, which audits.",
       "name": "ci-harden-workflow",
       "qualified_name": "manifest-security:ci-harden-workflow"
     },
     {
       "bundle": "manifest-security",
       "category": "security",
-      "description": "Auto-trigger for changed security-boundary behavior or an explicit security review request. Gives focused security feedback without blocking user flow.",
+      "description": "Auto-trigger for changed security-boundary behavior (auth, JWT/token verification, password hashing, crypto, secrets, input validation) or an explicit security review request \u2014 including implicit sign-off asks like \"ok to ship?\", \"look good?\", \"thoughts?\" on such a change. Gives focused security feedback without blocking user flow.",
       "name": "code-audit",
       "qualified_name": "manifest-security:code-audit"
     },
@@ -682,7 +682,7 @@
     {
       "bundle": "manifest-security",
       "category": "security",
-      "description": "Use when asked to review a change or diff for security vulnerabilities \u2014 applies a disciplined source-to-sink method that reports only real findings, not resilience or best-practice nits. To verify/refute an existing candidate list, use security-refute-findings.",
+      "description": "Use when asked to review a change or diff for security vulnerabilities \u2014 applies a disciplined source-to-sink method that reports only real findings, not resilience or best-practice nits. To verify/refute an existing candidate list, use security-triage-findings.",
       "name": "security-review-diff",
       "qualified_name": "manifest-security:security-review-diff"
     },
@@ -794,7 +794,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Use when merging stacked PRs via gh/glab \u2014 `gh pr merge --delete-branch` on a parent CLOSES the dependent child instead of retargeting it; merge keeping the branch, retarget the child, then delete.",
+      "description": "Use when merging stacked PRs/MRs via gh/glab \u2014 merge bottom-up, verify each child was auto-retargeted to the trunk (GitHub on parent-branch deletion, GitLab on merge), rebase the rest of the stack after a squash/rebase merge, and recover a child closed by deleting an unmerged parent's branch.",
       "name": "pr-merge-stacked",
       "qualified_name": "manifest-forge:pr-merge-stacked"
     },
