@@ -1,6 +1,6 @@
 ---
 name: security-review-diff
-description: Use when asked to review a change or diff for security vulnerabilities — applies a disciplined source-to-sink method that reports only real findings, not resilience or best-practice nits. To verify/refute an existing candidate list, use security-refute-findings.
+description: Use when asked to review a change or diff for security vulnerabilities — applies a disciplined source-to-sink method that reports only real findings, not resilience or best-practice nits. To verify/refute an existing candidate list, use security-triage-findings.
 ---
 # Diff Security Review
 
@@ -10,6 +10,11 @@ from general code quality. Recurs constantly: the discipline is in what you DON'
 1. **Read every changed file in full first.** The diff shows only `+` lines; the vulnerability often lives in the
    unchanged context (the sink, the caller, the validator being bypassed). Resolve the real repo path — provided paths
    like `/home/user/repo/...` are often wrong; fall back to `<cwd>/<relative-path>` or `Glob` for the basename.
+   **Diff-only input** (a pasted diff/snippet, or files not in the checkout): review what you have — do not stop or
+   demand the full files. Treat the hunk context lines as the known unchanged code, state which callers/validators
+   you could not see, and report a finding only when the source→sink path is visible in the diff. A suspected path
+   that depends on unseen code goes under a separate "Open questions (not findings)" note naming the code to check —
+   never in the findings list, and never with invented context.
 
 2. **Enumerate the new sinks the diff introduces:** filesystem writes, URL/SSRF, shell/exec, SQL, deserialization,
    HTML/template rendering, auth/authz gates, logging of secrets. For each, name it explicitly.
