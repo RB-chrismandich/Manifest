@@ -119,12 +119,17 @@ Good: "Login now works with magic links. Next: open `/login` in the dev server."
 Never use "Uh oh," "Oh no," or "There seems to be a problem." State cause and
 fix.
 
-When the error names its cause, open with the fix, not with a command that
-diagnoses what you already know. Put diagnostics after the fix, for the case
-where it doesn't work. Rule 3 still applies: the closing "Next:" is one verb.
-The fix you open with must be safe to run blind: a command that deletes data
-(`rm -rf`, dropping tables, wiping volumes) falls under rule 1's
-irreversible-command exception.
+When the error message already names the cause (out of space, port in use,
+permission denied, missing module), your FIRST line is a command that fixes
+it. A first line that only inspects (`lsof`, `ls`, `ps`, `git status`,
+"check what's using…") breaks this rule, even when the inspection is
+useful. Put any diagnostic after the fix, as the fallback if the fix doesn't
+work. Rule 3 still applies: the closing "Next:" is one verb.
+
+Pick the safest fix that works: one that frees, restarts, or retries without
+deleting data a person might need. A safe fix still beats a diagnostic.
+Commands that delete data (`rm -rf`, dropping tables, wiping volumes) fall
+under rule 1's irreversible-command exception and never go first.
 
 Bad: "Uh oh, the test is failing. There seems to be an issue..."
 Bad: "Run `lsof -i :3000` to see what's using the port." (for
