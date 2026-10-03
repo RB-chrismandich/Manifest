@@ -591,10 +591,22 @@ jobs:
           fi
           echo "Cursor rules, mcp.json, and agents are up-to-date"
   toolchain-attest-linux:
-    name: Toolchain Attestation (Linux arm64)
+    name: Toolchain Attestation (${{ matrix.label }})
     if: github.event_name == 'workflow_dispatch'
     timeout-minutes: 30
-    runs-on: [self-hosted, Linux, ARM64, grf]
+    # Env digests and providers are per-platform observations, so each Linux
+    # platform pinned in config/toolchain.lock.json attests on its own runner.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-arm64
+            label: Linux arm64
+            runner: '["self-hosted", "Linux", "ARM64", "grf"]'
+          - platform: linux-x64
+            label: Linux x64
+            runner: '"ubuntu-latest"'
+    runs-on: ${{ fromJSON(matrix.runner) }}
     steps:
       - name: Checkout dispatched head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -636,13 +648,13 @@ jobs:
 
       - name: Provision and validate attestation evidence
         env:
-          ATTESTATION_PLATFORM: linux-arm64
+          ATTESTATION_PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/toolchain-attestation-report.json"
           metadata="$RUNNER_TEMP/toolchain-attestation-metadata.json"
           set +e
-          "$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision --lock config/toolchain.lock.json --platform linux-arm64 --store "$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "$report"
+          "$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision --lock config/toolchain.lock.json --platform "$ATTESTATION_PLATFORM" --store "$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "$report"
           provision_exit=$?
           set -e
           export PROVISION_EXIT="$provision_exit"
@@ -767,7 +779,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: linux-arm64-toolchain-attestations-${{ github.run_id }}
+          name: ${{ matrix.platform }}-toolchain-attestations-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/toolchain-attestation-report.json
             ${{ runner.temp }}/toolchain-attestation-metadata.json
