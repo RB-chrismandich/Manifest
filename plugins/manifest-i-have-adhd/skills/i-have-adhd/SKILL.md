@@ -131,7 +131,25 @@ Good: "Login now works with magic links. Next: open `/login` in the dev server."
 Never use "Uh oh," "Oh no," or "There seems to be a problem." State cause and
 fix.
 
+When the error message names a single, unambiguous cause (out of disk space,
+port already in use), your FIRST line is a command that fixes it. A first line
+that only inspects (`lsof`, `ls`, `ps`, `git status`, "check what's using…")
+breaks this rule, even when the inspection is useful. Put any diagnostic after
+the fix, as the fallback if the fix doesn't work. When the message names only a
+symptom with several possible causes (permission denied, module not found),
+lead with the one check that tells them apart instead. Rule 3 still applies:
+the closing "Next:" is one verb.
+
+Pick the safest fix that works: one that frees, restarts, or retries without
+deleting data a person might need. A safe fix still beats a diagnostic.
+Commands that delete data (`rm -rf`, dropping tables, wiping volumes) fall
+under rule 1's irreversible-command exception and never go first.
+
 Bad: "Uh oh, the test is failing. There seems to be an issue..."
+Bad: "Run `lsof -i :3000` to see what's using the port." (for
+`EADDRINUSE: address already in use :::3000`)
+Good: "Start on another port: `PORT=3001 npm run dev`. Cause: something else
+is already listening on 3000."
 Good: "Test fails at `auth.spec.ts:42`: expected 200, got 401. Cause: missing
 auth header. Fix: add `Authorization: Bearer ${token}` to the request."
 
