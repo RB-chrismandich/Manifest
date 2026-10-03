@@ -33,3 +33,8 @@ When at least three candidate findings need refutation, assign one adversarial
 and request the strongest supported native model. Each child returns a concrete
 verdict with cited evidence for only its assigned finding; the parent applies
 the canonical refutation rules directly. Below the threshold, refute inline.
+
+**Inline fallback:** when native dispatch is unavailable (no Agent/Task tool, or
+a dispatch attempt fails), refute every finding
+inline, one at a time, and state `dispatch: DEGRADED (inline)` — follow the
+canonical skill's inline fallback. Never stop because sub-agents could not be spawned.
