@@ -52,7 +52,9 @@ is not supported. Skip the steps below.
 3. **Merge the bottom PR with a method the repo allows.** Check `gh repo view --json
    mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed` (GitLab: the project's merge method and squash
    option). Record the bottom branch's head as `PRE` = its `$STACK_REC` entry. **Gate the merge first:** required
-   checks green and mergeable — `gh pr checks <n> --required --watch --fail-fast`, then `gh pr view <n> --json
+   checks green and mergeable — `gh pr checks <n> --required --watch --fail-fast` (in a repo with **no** required
+   checks it exits 1 with `no required checks reported`, cli/cli#9682 — that is not a failure; gate on
+   `gh pr checks <n> --watch --fail-fast` over all checks instead), then `gh pr view <n> --json
    mergeable,mergeStateStatus` shows `mergeable` = `MERGEABLE` and `mergeStateStatus` `CLEAN` **or `HAS_HOOKS`**
    (repos with pre-receive hooks report `HAS_HOOKS` on an otherwise-mergeable PR; `merge_decision.sh` treats both as
    merge-ready); GitLab: the MR's own pipeline (`glab mr view <n> --output json` → `head_pipeline`) has `status`
