@@ -9,7 +9,16 @@ from _delegate_inproc import delegate
 
 
 class TestUserConfig:
-    def test_absent_config_returns_factory_defaults(self, tmp_path):
+    def test_absent_config_returns_factory_defaults(self, tmp_path, monkeypatch):
+        # Every search dir must be empty, not just explicit_dir: an empty
+        # explicit_dir falls through to $MANIFEST_CONFIG_DIR, XDG and legacy.
+        monkeypatch.delenv(delegate.CONFIG_DIR_ENV, raising=False)
+        monkeypatch.setattr(
+            delegate.constants, "XDG_CONFIG_DIR", str(tmp_path / "absent-xdg")
+        )
+        monkeypatch.setattr(
+            delegate.constants, "HOME_CONFIG_DIR", str(tmp_path / "absent-home")
+        )
         cfg = delegate.load_user_config(explicit_dir=str(tmp_path))
         assert cfg["default_backend"] == "codex"
         assert cfg["review_gate"]["enabled"] is False
