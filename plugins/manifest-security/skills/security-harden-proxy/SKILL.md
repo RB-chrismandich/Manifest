@@ -12,29 +12,41 @@ text, error responses, or logs. Build it so the secret never escapes.
 2. **Wrap every upstream call and sever the exception chain** — HTTP-client exceptions stringify to text that includes
    the request URL (`urllib.error.HTTPError` holds the URL, status, and *response* headers; `requests` errors embed the
    full URL). If the key rides in the URL (`?api_key=…`), echoing `str(exc)` to the client, or calling
-   `log.exception(...)`/logging the traceback, writes the credential into responses and logs. Raise a clean error
-   **after** the `except` block, so it carries no reference to the original exception:
+   `log.exception(...)`/logging the traceback, writes the credential into responses and logs. Keep every
+   credential-bearing object — the token, the credentialed URL, **and the response/request** (HTTP response objects
+   keep the full URL and often the authenticated request) — inside a helper, and raise a clean error from a caller
+   that holds none of them, **after** the `except` block, so it carries no reference to the original exception:
 
    ```python
-   failed = False
-   try:
-       with _get(url, token, accept) as resp:
-           ...
-   except Exception:
-       failed = True          # keep nothing from the original exception
-   finally:
-       del url, token         # scrub credential-bearing locals from this frame
-   if failed:
-       raise RuntimeError("upstream request failed")   # __context__ and __cause__ are None
+   def _fetch(path, accept):                  # the only frame that holds token, url, resp
+       token = os.environ["UPSTREAM_TOKEN"]
+       url = f"{BASE}{path}?api_key={token}"
+       with _get(url, accept) as resp:
+           return parse(resp)                 # all response processing stays in this frame
+
+   def fetch(path, accept):                   # no secret-bearing locals in this frame
+       failed = False
+       try:
+           return _fetch(path, accept)
+       except Exception:
+           failed = True                      # keep nothing from the original exception
+       if failed:
+           raise RuntimeError("upstream request failed")   # __context__ and __cause__ are None
    ```
+
+   Scrubbing names in the raising frame (`del url, token`) is not enough on its own: a failure while processing
+   the response leaves `resp` bound, and any later-added local reopens the leak. The helper boundary covers every
+   such object at once.
 
    `raise … from None` inside the `except` is **not** enough: it only sets `__suppress_context__`, which hides the
    original exception from standard traceback output and from error reporters that honor suppression (Sentry,
    `traceback`), but the credentialed exception stays reachable on `__context__` for custom handlers, debug
    middleware, and error reporters that walk the exception object graph directly. A cleared chain also does
    **not** cover traceback locals: the replacement exception's `__traceback__` still contains this frame, and
-   Sentry/debug middleware serialize each frame's locals — so `url` and `token` leak unless they are scrubbed
-   (the `del` above) or the raise comes from a frame that never held them.
+   Sentry/debug middleware serialize each frame's locals — so `url`, `token` and `resp` leak unless the raise comes
+   from a frame that never held them (the helper above). Also turn local capture off or scrub the token in the
+   reporter (Sentry `include_local_variables=False`, or a `before_send`/`EventScrubber` denylist) — a caller further
+   up the stack that holds the token would leak it.
 
 3. **Return a generic error to clients** — on failure, send a fixed status + opaque message (e.g. `502 "upstream
    error"`); never include the exception text, URL, or headers in the HTTP response body.
@@ -48,4 +60,8 @@ text, error responses, or logs. Build it so the secret never escapes.
    string does not appear in the raised message or response, **and** that the raised error has `__context__ is
    None` and `__cause__ is None` (or, walking the whole chain, that no exception in it stringifies to text
    containing the token) — plus a check that serializing every frame's `f_locals` along
-   `exc.__traceback__` (the shape Sentry/debug middleware capture) contains no credential.
+   `exc.__traceback__` (the shape Sentry/debug middleware capture) contains no credential, e.g.
+   `"".join(traceback.TracebackException.from_exception(exc, capture_locals=True).format())`. Force **both**
+   failures: the request itself failing, and response processing failing after a successful request (the case
+   that leaves `resp` bound). Run the assertion inside a test function — module-level frames capture every
+   global and give false positives.
