@@ -44,7 +44,7 @@ is not supported. Skip the steps below.
        [ "$cross" = false ] || { echo "PR $n: head is in a fork (or lookup failed) — land by hand" >&2; exit 1; }
        [ "$(git rev-parse "origin/$b")" = "$sha" ] || { echo "origin/$b is not PR $n's head — re-fetch" >&2; exit 1; }
        printf '%s %s\n' "$b" "$sha"
-     done ) > "$STACK_REC" || { rm -f "$STACK_REC"; echo "stack not landable as mapped — stop" >&2; }
+     done ) > "$STACK_REC" || { rm -f "$STACK_REC"; echo "stack not landable as mapped — stop" >&2; false; }
    ```
 
 2. **Ensure CI gates every PR.** A workflow keyed `on: pull_request: branches: [main]` only runs for PRs targeting
@@ -56,11 +56,13 @@ is not supported. Skip the steps below.
    mergeable,mergeStateStatus` shows `mergeable` = `MERGEABLE` and `mergeStateStatus` `CLEAN` **or `HAS_HOOKS`**
    (repos with pre-receive hooks report `HAS_HOOKS` on an otherwise-mergeable PR; `merge_decision.sh` treats both as
    merge-ready); GitLab: the MR's own pipeline (`glab mr view <n> --output json` → `head_pipeline`) has `status`
-   `success` and either `sha` equal to the MR's `sha` (branch/detached pipeline) or `source` =
-   `merge_request_event` **with `source_sha` equal to the MR's current `sha`** (merged-results/merge-train
-   pipelines run on a synthetic merge commit, so their `sha` never equals the MR's `sha`; `source_sha` carries
-   the source head they tested — a leftover `head_pipeline` from before the last push shows the old `source_sha`
-   and must be rejected). Read `head_pipeline`, not
+   `success` and either `sha` equal to the MR's `sha` (branch/detached pipeline), or — for a merged-results /
+   merge-train pipeline (`source` `merge_request_event`, `ref` `refs/merge-requests/<iid>/merge` or `…/train`),
+   which runs on a synthetic merge commit whose `sha` never equals the MR's — prove it tested the current head
+   from fields the API does return: `git fetch origin "<ref>"`, then require `git rev-parse FETCH_HEAD` = the
+   pipeline's `sha` **and** `git rev-parse FETCH_HEAD^2` = the MR's current `sha` (the merge commit's second
+   parent is the source head; `head_pipeline` has no `source_sha`). A leftover pipeline from before the last
+   push fails the second check and must be rejected. Read `head_pipeline`, not
    `glab ci status --branch` (branch pipeline), and confirm `detailed_merge_status` is `mergeable`. Then merge
    **exactly the commit you checked**: `gh pr merge <n> --merge|--squash|--rebase --delete-branch
    --match-head-commit "$PRE"`, or on GitLab `glab mr merge <n> [--squash] --sha "$PRE"` — a push after mapping
@@ -135,8 +137,8 @@ is not supported. Skip the steps below.
    re-running the old run reuses the old merge ref and does not count. Before merging the child, confirm a green
    run that started after the retarget: `gh pr checks <child>` or, on GitLab, the MR's `head_pipeline` (`glab mr
    view <child> --output json`) meeting the step-3 gate — `status` `success` and `sha` equal to the MR's current
-   `sha`, or `source` `merge_request_event` **with `source_sha` equal to the MR's current `sha`** for
-   merged-results/merge-train pipelines.
+   `sha`, or, for merged-results/merge-train pipelines, the fetched merge ref equal to the pipeline's `sha` with
+   its second parent equal to the MR's current `sha` (step 3).
 7. **Repeat 3–6** with the child as the new bottom and `PRE` = its `$STACK_REC` entry (re-recorded after any push).
 8. **Recover a child closed by a deleted base.** Deleting the branch of a parent that was **closed without
    merging** (or any base deleted outside the merge flow) closes the PRs based on it; Reopen stays disabled while
