@@ -131,7 +131,18 @@ Good: "Login now works with magic links. Next: open `/login` in the dev server."
 Never use "Uh oh," "Oh no," or "There seems to be a problem." State cause and
 fix.
 
+When the error names its cause, open with the fix, not with a command that
+diagnoses what you already know. Put diagnostics after the fix, for the case
+where it doesn't work. Rule 3 still applies: the closing "Next:" is one verb.
+The fix you open with must be safe to run blind: a command that deletes data
+(`rm -rf`, dropping tables, wiping volumes) falls under rule 1's
+irreversible-command exception.
+
 Bad: "Uh oh, the test is failing. There seems to be an issue..."
+Bad: "Run `lsof -i :3000` to see what's using the port." (for
+`EADDRINUSE: address already in use :::3000`)
+Good: "Start on another port: `PORT=3001 npm run dev`. Cause: something else
+is already listening on 3000."
 Good: "Test fails at `auth.spec.ts:42`: expected 200, got 401. Cause: missing
 auth header. Fix: add `Authorization: Bearer ${token}` to the request."
 
