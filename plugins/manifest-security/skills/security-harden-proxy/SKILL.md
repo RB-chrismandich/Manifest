@@ -22,6 +22,8 @@ text, error responses, or logs. Build it so the secret never escapes.
            ...
    except Exception:
        failed = True          # keep nothing from the original exception
+   finally:
+       del url, token         # scrub credential-bearing locals from this frame
    if failed:
        raise RuntimeError("upstream request failed")   # __context__ and __cause__ are None
    ```
@@ -29,7 +31,10 @@ text, error responses, or logs. Build it so the secret never escapes.
    `raise … from None` inside the `except` is **not** enough: it only sets `__suppress_context__`, which hides the
    original exception from standard traceback output and from error reporters that honor suppression (Sentry,
    `traceback`), but the credentialed exception stays reachable on `__context__` for custom handlers, debug
-   middleware, and error reporters that walk the exception object graph directly.
+   middleware, and error reporters that walk the exception object graph directly. A cleared chain also does
+   **not** cover traceback locals: the replacement exception's `__traceback__` still contains this frame, and
+   Sentry/debug middleware serialize each frame's locals — so `url` and `token` leak unless they are scrubbed
+   (the `del` above) or the raise comes from a frame that never held them.
 
 3. **Return a generic error to clients** — on failure, send a fixed status + opaque message (e.g. `502 "upstream
    error"`); never include the exception text, URL, or headers in the HTTP response body.
@@ -39,6 +44,8 @@ text, error responses, or logs. Build it so the secret never escapes.
    abort past a byte cap rather than buffering the whole response, keeping memory bounded regardless of upstream size.
 6. **Keep it internal-only** — bind the service to the private network/IP, never expose it through the reverse proxy,
    since it holds a privileged credential.
-7. **Add a review/test that asserts no leak** — a unit test that forces an upstream failure and asserts the token string
-   does not appear in the raised message or response, **and** that the raised error has `__context__ is None` and
-   `__cause__ is None` (or, walking the whole chain, that no exception in it stringifies to text containing the token).
+7. **Add a review/test that asserts no leak** — a unit test that forces an upstream failure and asserts the token
+   string does not appear in the raised message or response, **and** that the raised error has `__context__ is
+   None` and `__cause__ is None` (or, walking the whole chain, that no exception in it stringifies to text
+   containing the token) — plus a check that serializing every frame's `f_locals` along
+   `exc.__traceback__` (the shape Sentry/debug middleware capture) contains no credential.
