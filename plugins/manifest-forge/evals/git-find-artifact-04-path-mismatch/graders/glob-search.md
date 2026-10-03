@@ -5,4 +5,4 @@ match: contains
 flags: i
 weight: 1
 ---
-\*[^\s'\"]*retention[^\s'\"]*\*
+\*[^\s'\"]*retention[^\s'\"]*\*|ls-tree[^\n]*retention

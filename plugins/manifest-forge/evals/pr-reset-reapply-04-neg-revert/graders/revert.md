@@ -5,4 +5,4 @@ match: contains
 flags: i
 weight: 1
 ---
-git revert\s+b4db4d
+git revert(\s+--?[a-zA-Z-]+(\s+\d+)?)*\s+b4db4d

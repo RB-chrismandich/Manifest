@@ -14,8 +14,8 @@ pr_review.sh --json:
 hygiene_gather.py:
   empty_prs: [801]            # 0 changed files
   branches:
-    feat/billing   local+remote  merged via #780 (squash)
-    feat/ui-tweak  local         merged via #790 (squash)
+    feat/billing   local+remote  merged via #780 (squash)   tip = merged PR head (no commits since merge)
+    feat/ui-tweak  local         merged via #790 (squash)   tip = merged PR head (no commits since merge)
     feat/proto     local         closed-unmerged (PR #760 closed without merging)
     old/notes      local         no PR, last commit 2025-12-01
     main           current

@@ -5,4 +5,4 @@ match: contains
 flags: i
 weight: 1
 ---
-cherry-pick[^\n]*c0ffee1
+cherry-pick[^\n]*c0ffee1|rebase\s+--onto

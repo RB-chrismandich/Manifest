@@ -58,7 +58,10 @@ retarget, rebasing after a squash merge, and recovering from a deleted *unmerged
   (xcrun cache write denied), and there is no forge/tracker. Every case therefore
   pastes the situation (command output, PR/issue lists) and grades the advice.
   `allowed_tools: [Skill]`; prompts end with "you can't access my repo" so agents
-  don't mistake the sandbox cwd for the user's repo.
+  don't mistake the sandbox cwd for the user's repo. Exceptions: the seven
+  `pr-merge-stacked-*` prompts allow `[Skill, Read]` (they were authored to read
+  pasted gh output) and, along with `git-commit-03` and `pr-monitor-04`, omit the
+  disclaimer since the scenario states repo access isn't available.
 - **Outcome graders** are per-criterion `llm` rubrics (Sonnet judge) plus `regex`
   where a concrete command is the outcome. `skill-fired` (`tool_used: Skill`) is
   display-only under ablation.
@@ -82,6 +85,3 @@ retarget, rebasing after a squash merge, and recovering from a deleted *unmerged
 - **The skills rarely trigger.** `skill-fired` is 0× on most answer-only cases, so
   descriptions under-match natural phrasing.
 - **The untracked plugin `CLAUDE.md`** mandates `ctx_*` tools the plugin doesn't ship.
-- **`.gitleaks.toml` needs a path allowlist** for
-  `plugins/manifest-forge/evals/git-commit-01-gitleaks/prompt\.md`, which holds a
-  fabricated secret. The edit was blocked in-session, so it must be applied manually.
