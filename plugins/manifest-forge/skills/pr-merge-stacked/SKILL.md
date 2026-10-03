@@ -20,20 +20,31 @@ merge API) instead: a merge lands every unmerged PR below it and rebases the nex
 is not supported. Skip the steps below.
 
 1. **Map the stack and pin its state.** List bottom → top with base and head, per PR:
-   GitHub `gh pr view <n> --json number,baseRefName,headRefName,headRefOid`; GitLab `glab mr view <n> --output
-   json` (`target_branch`, `source_branch`, `sha`). `TRUNK` is the **bottom** PR's base (`main`, `release/x`, …) —
-   use it everywhere below, never a hard-coded `main`. Stop if the base chain is broken (some PR's base is not
-   the PR below it). Record each branch's remote head now — the fetch keeps those commits available after the
-   forge deletes branches, and the recorded table stays pre-rewrite until step 5 pushes. Keep it Bash 3.2-safe
-   (the repo's shell floor): no `declare -A`, and store `branch SHA` pairs as whitespace-delimited words — a
-   `branch=sha` encoding splits at the first `=`, which corrupts valid branch names containing `=` (e.g.
-   `feature=api`). Keep the record in a fresh temp file **outside the worktree** — a tracked or leftover
-   `.stack-rec` in the repo must never be truncated (step 9 removes the temp file):
+   GitHub `gh pr view <n> --json number,baseRefName,headRefName,headRefOid,isCrossRepository`; GitLab
+   `glab mr view <n> --output json` (`target_branch`, `source_branch`, `sha`, `source_project_id`,
+   `target_project_id`). `TRUNK` is the **bottom** PR's base (`main`, `release/x`, …) — use it everywhere below,
+   never a hard-coded `main`. Stop if the base chain is broken (some PR's base is not the PR below it), or if any
+   PR's head is **not in `origin`** (`isCrossRepository` true, or `source_project_id` ≠ `target_project_id`): a
+   fork's branch can share its name with an unrelated `origin` branch, and step 5 would rewrite that branch instead
+   of the PR. Land fork-based stacks by hand. Record each PR's **own** head SHA (`headRefOid` / `sha`) and require
+   `origin/<branch>` to match it — the fetch keeps those commits available after the forge deletes branches, and
+   the recorded table stays pre-rewrite until step 5 pushes. Keep it Bash 3.2-safe (the repo's shell floor): no
+   `declare -A`, and store `branch SHA` pairs as whitespace-delimited words — a `branch=sha` encoding splits at
+   the first `=`, which corrupts valid branch names containing `=` (e.g. `feature=api`). Keep the record in a
+   fresh temp file **outside the worktree** — a tracked or leftover `.stack-rec` in the repo must never be
+   truncated (step 9 removes the temp file). The subshell lets a failed check stop the loop without exiting
+   your terminal:
 
    ```bash
    git fetch origin --prune
    STACK_REC=$(mktemp "${TMPDIR:-/tmp}/stack-rec.XXXXXX")
-   for b in <bottom> … <top>; do printf '%s %s\n' "$b" "$(git rev-parse "origin/$b")" >> "$STACK_REC"; done
+   ( for n in <bottom-PR> … <top-PR>; do                    # GitLab: read source_branch/sha/project ids the same way
+       read -r b sha cross < <(gh pr view "$n" --json headRefName,headRefOid,isCrossRepository \
+         --jq '"\(.headRefName) \(.headRefOid) \(.isCrossRepository)"')
+       [ "$cross" = false ] || { echo "PR $n: head is in a fork (or lookup failed) — land by hand" >&2; exit 1; }
+       [ "$(git rev-parse "origin/$b")" = "$sha" ] || { echo "origin/$b is not PR $n's head — re-fetch" >&2; exit 1; }
+       printf '%s %s\n' "$b" "$sha"
+     done ) > "$STACK_REC" || { rm -f "$STACK_REC"; echo "stack not landable as mapped — stop" >&2; }
    ```
 
 2. **Ensure CI gates every PR.** A workflow keyed `on: pull_request: branches: [main]` only runs for PRs targeting
@@ -72,7 +83,8 @@ is not supported. Skip the steps below.
    (it aborts on the first failure instead of pushing a half-rewritten stack, and never exits your terminal):
 
    ```bash
-   #!/usr/bin/env bash   # STACK_REC=<file from step 1> land-stack.sh TRUNK PRE branch …   (stack bottom → top)
+   #!/usr/bin/env bash
+   # STACK_REC=<file from step 1> land-stack.sh TRUNK PRE branch …   (stack bottom → top)
    set -euo pipefail
    trunk=$1 pre=$2; shift 2
    stack=("$@"); [ "${#stack[@]}" -ge 1 ] || { echo "no remaining branches" >&2; exit 2; }
@@ -111,11 +123,12 @@ is not supported. Skip the steps below.
    git push --atomic origin "${leases[@]}" "${refs[@]}"
    ```
 
-   Afterwards re-record `$STACK_REC` from `origin` (step 1 — a fresh temp file). Why this shape: the fork point comes from the merged
-   parent's head as recorded (`PRE`), so it is right even when the parent gained commits after the child branched;
-   each branch is rebased onto its already-rewritten parent from that parent's **pre-rewrite** SHA, which also
-   covers a middle branch that advanced after its own child branched (a single `--update-refs` rebase of the top
-   branch would leave such a branch behind); every lease names the recorded SHA and the refspecs push nothing else.
+   Afterwards re-record `$STACK_REC` from `origin` (step 1 — a fresh temp file). Why this shape: the fork point
+   comes from the merged parent's head as recorded (`PRE`), so it is right even when the parent gained commits
+   after the child branched; each branch is rebased onto its already-rewritten parent from that parent's
+   **pre-rewrite** SHA, which also covers a middle branch that advanced after its own child branched (a single
+   `--update-refs` rebase of the top branch would leave such a branch behind); every lease names the recorded SHA
+   and the refspecs push nothing else.
 6. **Make CI actually run against the new base.** A base change is a `pull_request` `edited` event, which GitHub
    Actions ignores by default (`opened`, `synchronize`, `reopened`). After a retarget with no push (merge-commit
    path), add `edited` to the workflow's `types:` or trigger a fresh run (empty commit, or close + reopen);
