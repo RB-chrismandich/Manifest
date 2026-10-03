@@ -89,7 +89,7 @@
       ],
       "name": "manifest-i-have-adhd",
       "source": "./plugins/manifest-i-have-adhd",
-      "version": "0.2.1"
+      "version": "0.2.2"
     }
   ]
 }
