@@ -1,12 +1,12 @@
 ---
-description: "Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits."
+description: "Build, harden, or debug the gate of a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Also use when a changed `if:` gate \"didn't take effect\" or you need to test a gate on issue_comment/pull_request_target/workflow_run (those run the default-branch YAML). Counterpart to ci-audit-triggers, which audits."
 globs: ".claude/skills/ci-harden-workflow/**"
 alwaysApply: false
 ---
 
 # ci-harden-workflow
 
-Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits.
+Build, harden, or debug the gate of a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Also use when a changed `if:` gate "didn't take effect" or you need to test a gate on issue_comment/pull_request_target/workflow_run (those run the default-branch YAML). Counterpart to ci-audit-triggers, which audits.
 
 <!-- Auto-generated from .claude/skills/ci-harden-workflow/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

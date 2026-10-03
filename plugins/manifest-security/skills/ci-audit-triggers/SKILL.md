@@ -13,6 +13,12 @@ such a workflow (CODEOWNERS, branch protection, environments), use `ci-harden-wo
 
 ### Step 0: Detect platform
 
+**Pasted input takes precedence.** If the user pasted workflow YAML (or quoted a workflow in the
+prompt), detect the platform from that content first — `on:` + `jobs:` + `runs-on:`/`uses:` → GitHub
+Actions; `stages:`/`rules:`/`workflow:`/`script:`/`$CI_*` → GitLab CI — and apply the matching branch
+below to the pasted text, even when the current checkout is a different platform. Run the script
+only when no workflow was supplied.
+
 Run `../../runtime/bin/ci_platform.sh` relative to this skill directory. The shared audit method below (classify
 trigger trust → enumerate attacker-controlled inputs → trace the ref/code the job
 operates on → hunt injection → audit secret reach → check cheap hardening) applies on
@@ -25,7 +31,10 @@ either platform — only the vocabulary changes:
   variables, `$[[ inputs.* ]]` interpolation, protected variables/branches in place of
   `author_association`) and apply the same method through that vocabulary instead.
 - `none` → report that no CI configuration was detected and stop; don't guess at a
-  platform or improvise generic advice.
+  platform or invent generic advice.
+
+If the script cannot run (read-only session, no shell), skip it and use the same
+content-based detection on the CI files you can read.
 
 1. **Classify the trigger's trust level.** `pull_request_target`, `issue_comment`, `issues`, `workflow_run`,
    and `discussion_comment` run with the **base repo's secrets and a writable token**, and are reachable by
