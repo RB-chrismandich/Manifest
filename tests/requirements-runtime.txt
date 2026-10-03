@@ -2,4 +2,4 @@
 # Core manifest-runtime deps for CI pytest jobs importing configs/claude/scripts/.
 # Direct [project.dependencies] pins only — transitive deps resolve at install time.
 PyYAML==6.0.3
-click==8.3.1
+click==8.3.3
