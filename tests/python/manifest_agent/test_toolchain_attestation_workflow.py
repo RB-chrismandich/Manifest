@@ -44,10 +44,12 @@ def test_dispatch_attestation_preserves_only_machine_parseable_evidence() -> Non
     job = _attestation_job()
 
     assert re.search(
-        r'"\$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision .*--platform linux-arm64 '
+        r'"\$MANIFEST_VERIFIED_UV_BIN" run --frozen manifest provision .*'
+        r'--platform "\$ATTESTATION_PLATFORM" '
         r'--store "\$RUNNER_TEMP/manifest-toolchain" --attest-missing --json > "\$report"',
         job,
     )
+    assert "ATTESTATION_PLATFORM: ${{ matrix.platform }}" in job
     assert "set +e" in job
     assert "provision_exit=$?" in job
     assert 'outcome.get("status") != "UNPINNED"' in job
@@ -59,3 +61,22 @@ def test_dispatch_attestation_preserves_only_machine_parseable_evidence() -> Non
     assert "retention-days:" in job
     assert "toolchain-attestation-report.json" in job
     assert "toolchain-attestation-metadata.json" in job
+
+
+def test_dispatch_attestation_covers_every_pinned_linux_platform() -> None:
+    """Each Linux platform with env pins in the lock must attest on a runner of
+    that architecture; otherwise its pins can only ever be left null."""
+    job = _attestation_job()
+
+    assert "runs-on: ${{ fromJSON(matrix.runner) }}" in job
+    assert re.search(
+        r"- platform: linux-arm64\n\s+label: Linux arm64\n"
+        r"\s+runner: '\[\"self-hosted\", \"Linux\", \"ARM64\", \"grf\"\]'",
+        job,
+    )
+    assert re.search(
+        r"- platform: linux-x64\n\s+label: Linux x64\n"
+        r"\s+runner: '\"ubuntu-latest\"'",
+        job,
+    )
+    assert "name: ${{ matrix.platform }}-toolchain-attestations-" in job
