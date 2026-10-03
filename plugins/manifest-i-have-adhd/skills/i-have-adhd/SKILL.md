@@ -131,7 +131,17 @@ Good: "Login now works with magic links. Next: open `/login` in the dev server."
 Never use "Uh oh," "Oh no," or "There seems to be a problem." State cause and
 fix.
 
+When the error names its cause, open with the fix, not with a command that
+diagnoses what you already know. Put diagnostics after the fix, for the case
+where it doesn't work. Rule 3 still applies: the closing "Next:" is one verb.
+The fix you open with must be safe to run blind: a command that deletes data
+(Docker `--volumes`, `rm -rf`, dropping tables) falls under rule 1's
+irreversible-command exception.
+
 Bad: "Uh oh, the test is failing. There seems to be an issue..."
+Bad: "Run `df -h` to see what's full." (for `ENOSPC: no space left on device`)
+Good: "Free space on the runner: `docker builder prune -af`. Cause: the disk is
+full of build cache."
 Good: "Test fails at `auth.spec.ts:42`: expected 200, got 401. Cause: missing
 auth header. Fix: add `Authorization: Bearer ${token}` to the request."
 
