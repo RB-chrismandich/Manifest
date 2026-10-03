@@ -8,11 +8,11 @@ Here's `gh pr list --state open --json ...` for our repo (today is 2026-09-26). 
 
 ```json
 [
- {"number":501,"title":"feat: csv export","headRefName":"feat/export","isDraft":false,"mergeable":"MERGEABLE","checks":"SUCCESS","updatedAt":"2026-09-25"},
- {"number":502,"title":"fix: flaky auth test","headRefName":"fix/auth-flake","isDraft":false,"mergeable":"CONFLICTING","checks":"FAILURE","updatedAt":"2026-09-20"},
- {"number":503,"title":"wip: graphql gateway","headRefName":"spike/gql","isDraft":true,"mergeable":"MERGEABLE","checks":"PENDING","updatedAt":"2026-09-24"},
- {"number":498,"title":"feat: csv export (first try)","headRefName":"feat/export-old","isDraft":false,"mergeable":"MERGEABLE","checks":"SUCCESS","updatedAt":"2026-06-01"},
- {"number":504,"title":"feat: csv export v2","headRefName":"feat/export","isDraft":false,"mergeable":"MERGEABLE","checks":"SUCCESS","updatedAt":"2026-09-26"}
+ {"number":501,"title":"feat: csv export","headRefName":"feat/export","baseRefName":"main","isDraft":false,"mergeable":"MERGEABLE","checks":"SUCCESS","updatedAt":"2026-09-25"},
+ {"number":502,"title":"fix: flaky auth test","headRefName":"fix/auth-flake","baseRefName":"main","isDraft":false,"mergeable":"CONFLICTING","checks":"FAILURE","updatedAt":"2026-09-20"},
+ {"number":503,"title":"wip: graphql gateway","headRefName":"spike/gql","baseRefName":"main","isDraft":true,"mergeable":"MERGEABLE","checks":"PENDING","updatedAt":"2026-09-24"},
+ {"number":498,"title":"feat: csv export (first try)","headRefName":"feat/export-old","baseRefName":"main","isDraft":false,"mergeable":"MERGEABLE","checks":"SUCCESS","updatedAt":"2026-06-01"},
+ {"number":504,"title":"feat: csv export v2","headRefName":"feat/export","baseRefName":"main","isDraft":false,"mergeable":"MERGEABLE","checks":"SUCCESS","updatedAt":"2026-09-26"}
 ]
 ```
 
