@@ -78,10 +78,13 @@ Good:
 
 If anything is left open, end with ONE thing the reader can do in under two
 minutes. It must be the reader's action, not an offer from the assistant. Even
-"open the file" counts.
+"open the file" counts. One action means one verb: do not join a second task
+with "and", and do not list alternatives. Plans and estimates follow this rule
+too.
 
 Bad: "Hope that helps. Let me know if you want to dig deeper."
 Bad: "Next: decide build vs buy — I can sketch the options."
+Bad: "Next: email the customer the questions and ask for a go-live date."
 Good: "Next: ask the customer for their Okta metadata XML."
 
 ### 4. Suppress tangents
