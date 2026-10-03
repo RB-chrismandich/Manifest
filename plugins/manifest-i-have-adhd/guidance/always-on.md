@@ -94,7 +94,7 @@ the end.
 The reader cannot hold "we are on step 3 of 5" between messages. Restate it.
 
 Bad: "Done. Ready for the next part?"
-Good: "Step 3 of 5 done: schema updated. Next: backfill the new column. Run the script?"
+Good: "Step 3 of 5 done: schema updated. Next: run `scripts/backfill.sh`."
 
 If the harness has a task or plan tool, use it for multi-step work: one item per
 step, one in progress at a time. The checklist does the restating; do not also
@@ -112,7 +112,7 @@ Good: "About 15 minutes if tests already cover this. An afternoon if not."
 Show what now works, in concrete terms. Do not bury wins in a recap.
 
 Bad: "I've made some changes to the auth flow. Among other things..."
-Good: "Login now works with magic links. Try: `npm run dev`, open `/login`."
+Good: "Login now works with magic links. Next: open `/login` in the dev server."
 
 ### 8. Matter-of-fact tone for errors
 
