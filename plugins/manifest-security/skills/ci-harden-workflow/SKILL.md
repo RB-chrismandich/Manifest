@@ -1,6 +1,6 @@
 ---
 name: ci-harden-workflow
-description: Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits.
+description: Build, harden, or debug the gate of a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Also use when a changed `if:` gate "didn't take effect" or you need to test a gate on issue_comment/pull_request_target/workflow_run (those run the default-branch YAML). Counterpart to ci-audit-triggers, which audits.
 ---
 # Secure a Privileged Comment-/Event-Triggered Workflow
 
@@ -11,6 +11,12 @@ existing* workflow for these holes (expression injection, fork head-ref checkout
 is the build/governance side.
 
 ### Step 0: Detect platform
+
+**Pasted input takes precedence.** If the user pasted workflow YAML (or quoted a workflow in the
+prompt), detect the platform from that content first — `on:` + `jobs:` + `runs-on:`/`uses:` → GitHub
+Actions; `stages:`/`rules:`/`workflow:`/`script:`/`$CI_*` → GitLab CI — and apply the matching branch
+below to the pasted text, even when the current checkout is a different platform. Run the script
+only when no workflow was supplied.
 
 Run `../../runtime/bin/ci_platform.sh` relative to this skill directory. The governance method below (name the
 privilege, gate on real identity, protect the control file, least-privilege scoping,
@@ -25,6 +31,9 @@ SHA-pin dependencies) applies on either platform:
   Actions.
 - `none` → report that no CI configuration was detected and stop; don't guess at a
   platform or invent generic advice.
+
+If the script cannot run (read-only session, no shell), skip it and use the same
+content-based detection on the CI files you can read.
 
 1. **Name the privilege.** State exactly which secret or write permission the job can reach. That is the blast radius
    you are gating.

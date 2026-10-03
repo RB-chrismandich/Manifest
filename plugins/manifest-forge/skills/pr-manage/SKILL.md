@@ -20,7 +20,7 @@ specialized PR sub-skills.
 | `review` | `/manifest-forge:pr-review` | Read-only analysis and disposition recommendation for open PRs |
 | `monitor` | `/manifest-forge:pr-monitor` | Track CI/check run progress and review status |
 | `address` / `comments` | `/manifest-forge:pr-address-comments` | Systematically address review feedback on the active PR branch |
-| `merge` / `merge-stacked` | `/manifest-forge:pr-merge-stacked` | Safely merge stacked PR branches without closing child PRs |
+| `merge` / `merge-stacked` | `/manifest-forge:pr-merge-stacked` | Merge stacked PRs bottom-up, verifying each child's automatic retarget |
 | `clean-base` | `/manifest-forge:pr-clean-base` | Clean up and realign base branches |
 | `reset-reapply` | `/manifest-forge:pr-reset-reapply` | Reset tangled branch history and reapply clean net diff |
 | `triage-bots` | `/manifest-forge:pr-triage-bots` | Triage and clean machine-generated bot PRs |

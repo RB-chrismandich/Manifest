@@ -1,6 +1,6 @@
 ---
 name: code-audit
-description: Auto-trigger for changed security-boundary behavior or an explicit security review request. Gives focused security feedback without blocking user flow.
+description: Auto-trigger for changed security-boundary behavior (auth, JWT/token verification, password hashing, crypto, secrets, input validation) or an explicit security review request — including implicit sign-off asks like "ok to ship?", "look good?", "thoughts?" on such a change. Gives focused security feedback without blocking user flow.
 ---
 
 # Code Quality Analysis Skill
@@ -15,7 +15,9 @@ Activate for either:
 
 - an explicit security review request, even when no diff exists; or
 - changed authentication, authorization, cryptography, secret-handling,
-  validation, or another trust-boundary behavior.
+  validation, or another trust-boundary behavior — including when the user only
+  asks for sign-off ("ok to ship?", "look good?", "thoughts?") without saying
+  "security".
 
 Vocabulary such as `input`, `pattern`, `hash`, or `session`, and complexity
 metrics alone are not activation conditions.
@@ -32,7 +34,7 @@ When triggered, this skill:
 
    Include relevant antipattern entries as additional check items. This query is
    advisory and non-blocking: if it fails or returns empty, continue with the
-   standard review.
+   standard review (likewise when `manifest-workspace` is not installed).
 2. Scan the affected behavior and its boundary for security and quality risks.
 3. Review inline by default with one capable reviewing agent.
 4. Add independent review only when at least one escalation condition is
@@ -43,7 +45,18 @@ When triggered, this skill:
    - a public compatibility or deployment change with broad impact;
    - conflicting evidence or unresolved reviewer uncertainty; or
    - a codebase-wide investigation with genuinely independent analysis tracks.
-5. Report findings inline without blocking user workflow.
+
+   **Degraded path:** when native sub-agent dispatch is unavailable — the host
+   exposes no Agent/Task tool, or a dispatch attempt fails — run the independent review
+   inline as a second, separate pass: re-read the change as an attacker, try to
+   refute each finding from the first pass, and record `review_mode: escalated`
+   with `dispatch: inline (degraded)`. Never skip the verdict because a
+   reviewer could not be dispatched. A read-only session or pasted code is not
+   evidence that dispatch is unavailable; when the Agent/Task tool exists, dispatch
+   the independent reviewer (hand it the pasted code directly if there is no repo).
+5. Report findings inline without blocking user workflow. When the input is
+   pasted code with no repository, review the pasted code as the change and say
+   which callers or config you could not see.
 
 Use the [bundle-local dispatch selection rules](references/code-audit-dispatch.md).
 File, package, module, language, keyword, and independent-unit counts never
@@ -135,6 +148,7 @@ When triggered, report findings in this format:
 **File**: `path/to/file.py`
 **Triggered by**: [Explicit security review | Security-boundary behavior change]
 **review_mode**: `single-agent` | `escalated`
+**dispatch**: `native` | `inline (degraded)` | `n/a` (single-agent)
 **escalation_reason**: `none` | concrete risk condition(s)
 
 ### Checks
