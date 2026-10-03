@@ -81,8 +81,13 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "7384631f05064ab100646bab2c1c15fa5f934da5d0d229596976f766185ebb64",
           "project_sha256": "38773fe4269646a990c670b3d78077ef49c49f889dd2701a62666136597d1c53",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "4fb9bd3b4b2a2da5aa1f936523aad05a23a7619c9f1d970266d7f52da225bdc1",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",
@@ -110,8 +115,13 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "7384631f05064ab100646bab2c1c15fa5f934da5d0d229596976f766185ebb64",
           "project_sha256": "38773fe4269646a990c670b3d78077ef49c49f889dd2701a62666136597d1c53",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "cbe4d4683435bf59712cf0ca0187c8ee2a6ba296a85da62d6666894413c3142c",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",
@@ -249,7 +259,7 @@
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "788ff4e80571d45c9bbaa70423511499f6532644c686a5f045409e6c93e9a4e4",
           "package_json_sha256": "0b866b29b8404c98e13763a58196f31662a209cb30f4a629d69405394d1c8d48",
-          "exe_sha256": null,
+          "exe_sha256": "1fa5fa820a2f7e59a2d8a1db46f31516102c750c5fae4fb6ce8b92e9e2814a11",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -262,7 +272,7 @@
           "url": "file://config/toolchain/package-lock.json",
           "sha256": "788ff4e80571d45c9bbaa70423511499f6532644c686a5f045409e6c93e9a4e4",
           "package_json_sha256": "0b866b29b8404c98e13763a58196f31662a209cb30f4a629d69405394d1c8d48",
-          "exe_sha256": null,
+          "exe_sha256": "1fa5fa820a2f7e59a2d8a1db46f31516102c750c5fae4fb6ce8b92e9e2814a11",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -342,8 +352,13 @@
           "url": "file://configs/claude/uv.lock",
           "sha256": "dfc12a34264a7e0bb17b66f22c61c37471bfabdb476f9b345de1a6343fef3ffa",
           "project_sha256": "373878d69a617e6e4d725b1c19703d99d4d5b603ba763f66a548ddc13e592550",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "16e6f86801d3d74ef2d45dd213bfa8826721e2c81c2ba6c4eb1da07db994f025",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.3",
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/manifest"
@@ -353,8 +368,13 @@
           "url": "file://configs/claude/uv.lock",
           "sha256": "dfc12a34264a7e0bb17b66f22c61c37471bfabdb476f9b345de1a6343fef3ffa",
           "project_sha256": "373878d69a617e6e4d725b1c19703d99d4d5b603ba763f66a548ddc13e592550",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "97c6d9a4529c9ae15bf11faa585710d2ef66d95ef4c059e05e63f4d0c6fb70ec",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.14.7",
+            "build": "main:Aug 25 2026 13:59:49",
+            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/manifest"
@@ -381,10 +401,10 @@
           "digest": null
         },
         "linux-x64": {
-          "digest": null
+          "digest": "6b792dc22525a53f1abf89afa028325a711ab753a8ac3cd2ff854f376ecfe103"
         },
         "linux-arm64": {
-          "digest": null
+          "digest": "c871b06d980abc795b703af21547a6f27512b5a808afa1c307b4c0b81a2b0b12"
         }
       }
     }
