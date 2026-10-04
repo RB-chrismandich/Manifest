@@ -5,7 +5,7 @@ description: Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin,
 
 # Delegate Setup
 
-Runs `plugins/manifest-delegate/scripts/delegate.py setup` to report readiness
+Runs `<plugin root>/scripts/delegate.py setup` to report readiness
 for every backend in the registry (`config/backends.json`), or one backend
 with `--backend <id>`. Use before delegating a task when unsure a backend is
 usable, or when a `task`/`review` call fails with "backend unavailable".
@@ -69,7 +69,7 @@ Gate-toggle flags (`--enable-review-gate`, `--gate-backend`,
 
 ## Soft review gate (US4)
 
-The gate is a Stop hook (`plugins/manifest-delegate/hooks/hooks.json`) that,
+The gate is a Stop hook (`<plugin root>/hooks/hooks.json`) that,
 when enabled, runs one read-only review delegation on the finishing turn's
 edits and can block with `{"decision":"block","reason":...}` for the
 developer to see. It is OFF by default.
@@ -87,7 +87,7 @@ missing backend, or any other failure emits `allow` plus a
 **One gate at a time.** This gate and the legacy `openai-codex` /
 `codex-plugin-cc` stop-time review gate are mutually exclusive — running both
 double-reviews every Stop and can double-block. Disable the baseline gate
-before enabling this one (see `plugins/manifest-delegate/MIGRATION.md`), and
+before enabling this one (see `<plugin root>/MIGRATION.md`), and
 never enable both simultaneously.
 
 ## Native-host prerequisites
