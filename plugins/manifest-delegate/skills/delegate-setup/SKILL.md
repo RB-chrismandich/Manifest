@@ -5,8 +5,9 @@ description: Check backend readiness (Codex, Claude, Antigravity, Cursor, Devin,
 
 # Delegate Setup
 
-Runs `<plugin root>/scripts/delegate.py setup` to report readiness
-for every backend in the registry (`config/backends.json`), or one backend
+Runs `<plugin root>/scripts/delegate.py setup` (`<plugin root>` is the
+installed plugin directory, resolved from this skill's location) to report readiness
+for every backend in the registry (`<plugin root>/config/backends.json`), or one backend
 with `--backend <id>`. Use before delegating a task when unsure a backend is
 usable, or when a `task`/`review` call fails with "backend unavailable".
 
