@@ -1,5 +1,5 @@
 ---
 type: tool_used
 tool: Skill
-input_match: (?<![\w-])refactor\b
+input_match: '"skill"\s*:\s*"(?:[\w-]+:)?refactor"'
 ---
