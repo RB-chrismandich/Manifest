@@ -51,6 +51,28 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
   });
 });
 
+test('falls back to unbound reads when a bound task goes stale, keeping mutations fail-closed', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+
+  await withApproval(definition, async () => {
+    const status = await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+  });
+
+  // Binding is now stale: the env digest is gone, so the bound path rejects —
+  // reads fall through instead of stranding, mutations still block.
+  for (const toolName of ['mcp__stitch_get_screen', 'mcp__stitch_list_projects']) {
+    assert.equal(await hook({ toolName, input: { projectId: 'project-17' }, toolCallId: `stale-${toolName}` }), undefined, `${toolName} must pass once the binding is stale`);
+  }
+  const mutation = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'stale-edit-1' });
+  assert.equal(mutation.block, true);
+  assert.match(mutation.reason, /stale|not authorized|digest|invalid/i);
+});
+
 test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definition = taskWithStitchGrant(input);
