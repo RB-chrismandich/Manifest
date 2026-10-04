@@ -8,7 +8,9 @@ import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, readEvidence, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
 import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
-import { createStitchPolicy, stitchObservation, stitchProjectIdFrom, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
+import { createStitchPolicy, stitchObservation, stitchProjectIdFrom, STITCH_READ_TOOL_NAMES, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
+
+const STITCH_READS: Record<string, true> = Object.fromEntries(STITCH_READ_TOOL_NAMES.map((name) => [name, true]));
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
 const result = (details: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
@@ -337,7 +339,13 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   pi.on('tool_call', async (event) => {
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
-      if (!stitch) throw new Error('Stitch tool call is not authorized');
+      // Known read-only Stitch tools need no grant: they cannot forge a mutation,
+      // and gating them breaks every read (e.g. list_projects) outside a
+      // ui-delivery session. Mutations and unlisted stitch tools stay fail-closed.
+      if (!stitch) {
+        if (STITCH_READS[event.toolName]) return undefined;
+        throw new Error('Stitch tool call is not authorized');
+      }
       const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: true });
       assertActiveRuntimeQualification(task);
       if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
