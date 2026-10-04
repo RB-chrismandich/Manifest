@@ -6,9 +6,10 @@ description: Delegate work to local agent CLIs or Jules remote GitHub sessions; 
 # Delegate
 
 Dispatches work to a backend registered in
-`plugins/manifest-delegate/config/backends.json` (currently `codex`,
+`<plugin root>/config/backends.json` (currently `codex`,
 `claude`, `antigravity`/`agy`, `cursor`, `devin`, `jules`) through
-`scripts/delegate.py`. This skill is
+`<plugin root>/scripts/delegate.py`, where `<plugin root>` is the installed
+plugin directory resolved from this skill's location. This skill is
 the human-facing entry point; it never talks to a backend CLI directly.
 
 ## Verbs
