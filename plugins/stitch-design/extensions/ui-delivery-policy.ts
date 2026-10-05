@@ -194,12 +194,13 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   let stitch: StitchBinding | undefined;
   // Re-verifies the bound task each call and flips `live` to false on
   // rejection; the object stays so in-flight results still report "stale".
-  const refreshBinding = async (requireApproved: boolean): Promise<void> => {
+  const refreshBinding = async (requireApproved: boolean): Promise<StitchBinding | undefined> => {
     const binding = stitch;
-    if (!binding?.live) return;
+    if (!binding?.live) return binding;
     try { await assertBindingCurrent({ repo: binding.repo, taskFile: binding.taskFile, digest: binding.authorizationDigest, requireApproved }); } catch {
       if (stitch === binding) binding.live = false; // only invalidate the object that actually failed
     }
+    return binding;
   };
   pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) {
     const taskFile = (params as { taskFile?: string }).taskFile;
@@ -213,8 +214,10 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       const canonicalRepo = await realpath(ctx.cwd);
       const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
       if (!stitch?.live || stitch.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
-        // Carry in-flight correlations so late results still reconcile.
-        const correlations = stitch ? { mutationCalls: stitch.policy.pendingToolCalls(), readbacks: stitch.policy.correlatedReadbacks() } : undefined;
+        // Carry in-flight correlations only for a same-task revival; keys are
+        // toolName:inputHash with no task identity, so a task switch must not
+        // inherit another task's pending-call IDs.
+        const correlations = stitch && stitch.authorizationDigest === digest && stitch.taskFile === canonicalTaskFile ? { mutationCalls: stitch.policy.pendingToolCalls(), readbacks: stitch.policy.correlatedReadbacks() } : undefined;
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
         stitch = {
           authorizationDigest: digest,
@@ -355,15 +358,15 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     try {
       // Known read-only Stitch tools need no grant; mutations and unlisted
       // stitch tools stay fail-closed.
-      if (stitch) await refreshBinding(true);
-      if (!stitch?.live) {
+      const binding = stitch ? await refreshBinding(true) : undefined;
+      if (!binding?.live) {
         if (STITCH_READS[event.toolName]) return undefined;
-        throw new Error(stitch ? 'Stitch task authorization is stale' : 'Stitch tool call is not authorized');
+        throw new Error(binding ? 'Stitch task authorization is stale' : 'Stitch tool call is not authorized');
       }
       const input = event.input;
       const projectId = stitchProjectIdFrom(input);
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
-      await stitch.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
+      await binding.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
       return undefined;
     } catch (error) {
       return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
@@ -374,21 +377,21 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const observation = stitchObservation(event.content, event.details);
     const projectId = stitchProjectIdFrom(observation) ?? stitchProjectIdFrom(event.details) ?? stitchProjectIdFrom(event.input);
     if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
-    await refreshBinding(false);
-    if (!stitch.live) {
+    const binding = await refreshBinding(false);
+    if (!binding?.live) {
       // Uncorrelated read results need nothing. Correlated readbacks and
       // mutation results stay loud: reconciling on a dead binding would
       // persist grant state after authorization already failed.
-      if (STITCH_READS[event.toolName] && !stitch.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
+      if (binding && STITCH_READS[event.toolName] && !binding.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
       throw new Error('Stitch task authorization is stale');
     }
-    if (stitch.policy.classify(event.toolName) === 'mutation') {
-      if (event.isError) await stitch.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
-      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: observation, succeeded: true });
+    if (binding.policy.classify(event.toolName) === 'mutation') {
+      if (event.isError) await binding.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
+      else await binding.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: observation, succeeded: true });
     }
-    if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.hasCorrelatedReadback(event.toolCallId)) {
+    if (binding.policy.classify(event.toolName) === 'read' && binding.policy.hasCorrelatedReadback(event.toolCallId)) {
       if (!projectId) throw new Error('Stitch project binding is required');
-      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation });
+      await binding.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation });
     }
     return undefined;
   });
