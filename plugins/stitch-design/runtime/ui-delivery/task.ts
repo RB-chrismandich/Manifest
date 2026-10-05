@@ -42,6 +42,12 @@ export function assertActiveRuntimeQualification(task: DeliveryTask): void {
   if (process.env.UI_DELIVERY_ACTIVE_QUALIFICATION_SHA256 !== task.qualification_hash) invalid('active runtime qualification mismatch');
 }
 
+export async function assertBindingCurrent({ repo, taskFile, digest, requireApproved }: { repo: string; taskFile: string; digest: string; requireApproved: boolean }): Promise<void> {
+  const task = await loadTask({ repo, taskFile, mutation: requireApproved });
+  assertActiveRuntimeQualification(task);
+  if ((requireApproved && task.state !== 'approved') || authorizationDigest(task) !== digest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== digest) invalid('Stitch task authorization is stale');
+}
+
 function validate(task: unknown): asserts task is DeliveryTask {
   if (!task || typeof task !== 'object' || Array.isArray(task)) invalid('must be an object');
   const value = task as DeliveryTask;

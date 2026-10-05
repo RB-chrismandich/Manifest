@@ -30,6 +30,9 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
   const prematureMutation = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' });
   assert.equal(prematureMutation.block, true);
   assert.match(prematureMutation.reason, /not authorized/i);
+  for (const toolName of ['mcp__stitch_get_screen', 'mcp__stitch_list_screens', 'mcp__stitch_get_project', 'mcp__stitch_list_projects', 'mcp__stitch_list_design_systems', 'mcp__stitch_read_url_content']) {
+    assert.equal(await hook({ toolName, input: {}, toolCallId: `read-${toolName}` }), undefined, `${toolName} must pass without a bound task`);
+  }
 
   await withApproval(definition, async () => {
     const status = await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
@@ -47,6 +50,7 @@ test('OMP hooks pass unrelated calls through and enforce the task-bound mcp__sti
     });
   });
 });
+
 
 test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };

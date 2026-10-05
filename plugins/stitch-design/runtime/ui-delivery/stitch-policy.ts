@@ -79,6 +79,16 @@ export interface StitchPolicy {
   recordDispatchFailed(request: { toolCallId: string }): Promise<void>;
   recordMutationResult(request: { toolName: string; toolCallId: string; projectId?: string; result?: unknown; succeeded: boolean }): Promise<void>;
   hasCorrelatedReadback(toolCallId: string): boolean;
+  // In-flight call correlations so a policy rebuilt after re-approval keeps
+  // reconciling results dispatched by the prior binding.
+  pendingToolCalls(): Record<string, string>;
+  correlatedReadbacks(): Record<string, string>;
+  // Drop a call ID whose result was rejected (e.g. stale binding) so it is not
+  // carried into a revived policy where it would block pending recovery.
+  settleCorrelation(toolCallId: string): void;
+  // Persist a learned resource identity (e.g. a late create/generate result
+  // rejected as stale) so a revived binding can reconcile the pending entry.
+  preserveResultIdentity(request: { toolCallId: string; result: unknown }): Promise<void>;
   state(): string;
 }
 
@@ -90,14 +100,14 @@ type PersistedStitchState = { entries: Record<string, MutationLifecycle>; identi
 type StitchReadback = { tool_name: string; response_hash?: string; predictable_fields?: Record<string, unknown>; resource_identity?: StitchIdentityKind };
 type StitchGrant = { project_id?: string; expires_at?: string; mutations?: { tool_name: string; input_hash: string; max_uses: number; expected_readback: StitchReadback }[]; readback_tools?: string[] };
 
-export function createStitchPolicy({ task, registry, now = () => new Date(), state, persist }: { task: Record<string, unknown>; registry: unknown[]; now?: () => Date; state?: StitchState; persist?: (state: PersistedStitchState) => Promise<PersistedStitchState> }): StitchPolicy {
+export function createStitchPolicy({ task, registry, now = () => new Date(), state, persist, correlations }: { task: Record<string, unknown>; registry: unknown[]; now?: () => Date; state?: StitchState; persist?: (state: PersistedStitchState) => Promise<PersistedStitchState>; correlations?: { mutationCalls?: Record<string, string>; readbacks?: Record<string, string> } }): StitchPolicy {
   const identities = new Map<string, StitchIdentity>(Object.entries(state?.identities ?? {}).filter((entry): entry is [string, StitchIdentity] => {
     const value = entry[1];
     return Boolean(value) && typeof value === 'object' && ['project', 'screen', 'design_system'].includes(value.kind) && typeof value.value === 'string' && Boolean(value.value);
   }));
   const entries = new Map<string, MutationLifecycle>(Object.entries(state?.entries ?? {}).filter((entry): entry is [string, MutationLifecycle] => ['pending', 'consumed', 'reconciled'].includes(entry[1])));
-  const mutationCalls = new Map<string, string>();
-  const readbacks = new Map<string, string>();
+  const mutationCalls = new Map<string, string>(Object.entries(correlations?.mutationCalls ?? {}));
+  const readbacks = new Map<string, string>(Object.entries(correlations?.readbacks ?? {}));
   let discoveredProjectId = typeof state?.projectId === 'string' && state.projectId ? state.projectId : undefined;
   const classified = new Map(registry.filter(isStitchRegistryTool).map((tool) => [tool.name, kindFor(tool)]).filter((entry): entry is [string, StitchToolKind] => Boolean(entry[1])));
   const grant = task.stitch_grant as StitchGrant | undefined;
@@ -253,6 +263,33 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       entries.set(entryKey, 'consumed'); await save();
     },
     hasCorrelatedReadback(toolCallId: string): boolean { return readbacks.has(toolCallId); },
+    pendingToolCalls(): Record<string, string> { return Object.fromEntries(mutationCalls); },
+    correlatedReadbacks(): Record<string, string> { return Object.fromEntries(readbacks); },
+    settleCorrelation(toolCallId: string) {
+      for (const [key, value] of mutationCalls) if (value === toolCallId) mutationCalls.delete(key);
+      readbacks.delete(toolCallId);
+    },
+    async preserveResultIdentity({ toolCallId, result }: { toolCallId: string; result: unknown }) {
+      const entryKey = unresolvedEntry();
+      const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
+      // Persist learned identity only for a pending mutation whose dispatch
+      // correlation is still held; settle it before the await so a concurrent
+      // re-approval never copies a result ID that was already rejected.
+      if (!entryKey || !mutation || mutationCalls.get(entryKey) !== toolCallId) return;
+      const identityKind = mutation.expected_readback?.resource_identity;
+      const identity = validIdentityKind(identityKind) ? identityFrom(result, identityKind) : undefined;
+      for (const [key, value] of mutationCalls) if (value === toolCallId) mutationCalls.delete(key);
+      readbacks.delete(toolCallId);
+      if (!identity) return;
+      if (identity.kind === 'project' && !grant?.project_id) discoveredProjectId = identity.value;
+      identities.set(entryKey, identity);
+      try { await save(); } catch (error) {
+        // Restore the correlation: a failed save leaves the entry pending, and
+        // without its call ID a revival can never reconcile it.
+        mutationCalls.set(entryKey, toolCallId);
+        throw error;
+      }
+    },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
       const boundProjectId = grant?.project_id ?? discoveredProjectId;
       const entryKey = unresolvedEntry();

@@ -8,7 +8,8 @@ import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, readEvidence, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
 import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
-import { createStitchPolicy, stitchObservation, stitchProjectIdFrom, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
+import { createStitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
+import { registerStitchHooks, type StitchBindingState } from './ui-delivery-stitch-hooks.ts';
 
 const STATUS = { extension: 'ui-delivery-policy', status: 'ready' } as const;
 const result = (details: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
@@ -185,10 +186,10 @@ async function updateTask(repo: string, taskFile: string, task: Record<string, u
 function evidenceRecord(task: any, attemptId: string, attemptPhase: 'started' | 'completed', operation: string, selector: Record<string, string>, outcome: string, artifacts: unknown[], elapsedMs: number, checked?: any): Record<string, unknown> { return { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, authorizationDigest: authorizationDigest(task), attemptId, attemptPhase, operation, ...selector, outcome, elapsedMs, artifacts, stdoutHash: checked?.stdout?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', stderrHash: checked?.stderr?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' }; }
 async function appendAttempt(repo: string, task: any, record: Record<string, unknown>): Promise<void> { await appendEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record }); }
 
-export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck } = {}): void {
+export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck; persistMutationState?: typeof updateStitchMutationState } = {}): void {
   if (typeof pi.on !== 'function') throw new Error('required tool_call and tool_result enforcement hooks are unavailable');
   const checkRunner = deps.runCheck ?? defaultRunCheck;
-  let stitch: { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string } | undefined;
+  const bindingState: StitchBindingState = {};
   pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) {
     const taskFile = (params as { taskFile?: string }).taskFile;
     if (!taskFile) return result(STATUS);
@@ -200,17 +201,29 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (approved && task.state === 'approved') {
       const canonicalRepo = await realpath(ctx.cwd);
       const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
-      if (stitch?.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
+      if (!bindingState.current?.live || bindingState.current.authorizationDigest !== digest || bindingState.current.repo !== canonicalRepo || bindingState.current.taskFile !== canonicalTaskFile) {
+        // Same-task revival carries in-flight correlations; a task switch
+        // (different digest/taskFile) must not inherit another task's call IDs.
+        // Await the old binding's in-flight persistence so loaded state is current.
+        const prior = bindingState.current;
+        // Await the op queue until its tail is stable: a stale result can chain
+        // a new persistence op while we wait, and only a settled tail means
+        // the disk state is complete.
+        if (prior) { let tail; do { tail = prior.op; await tail; } while (prior.op !== tail); }
+        const correlations = prior && prior.authorizationDigest === digest && prior.taskFile === canonicalTaskFile ? { mutationCalls: prior.policy.pendingToolCalls(), readbacks: prior.policy.correlatedReadbacks() } : undefined;
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
-        stitch = {
+        bindingState.current = {
           authorizationDigest: digest,
           repo: canonicalRepo,
           taskFile: canonicalTaskFile,
+          live: true,
+          op: Promise.resolve(),
           policy: createStitchPolicy({
             task,
             registry,
             state,
-            persist: async (next) => updateStitchMutationState({
+            correlations,
+            persist: async (next) => (deps.persistMutationState ?? updateStitchMutationState)({
               repo: canonicalRepo,
               taskId: task.task_id,
               authorizationDigest: digest,
@@ -334,39 +347,6 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       throw error;
     }
   } });
-  pi.on('tool_call', async (event) => {
-    if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
-    try {
-      if (!stitch) throw new Error('Stitch tool call is not authorized');
-      const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: true });
-      assertActiveRuntimeQualification(task);
-      if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
-      const input = event.input;
-      const projectId = stitchProjectIdFrom(input);
-      if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
-      await stitch.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
-      return undefined;
-    } catch (error) {
-      return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
-    }
-  });
-  pi.on('tool_result', async (event) => {
-    if (!stitch || typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
-    const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
-    assertActiveRuntimeQualification(task);
-    if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
-    const observation = stitchObservation(event.content, event.details);
-    const projectId = stitchProjectIdFrom(observation) ?? stitchProjectIdFrom(event.details) ?? stitchProjectIdFrom(event.input);
-    if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
-    if (stitch.policy.classify(event.toolName) === 'mutation') {
-      if (event.isError) await stitch.policy.recordDispatchFailed({ toolCallId: event.toolCallId });
-      else await stitch.policy.recordMutationResult({ toolName: event.toolName, toolCallId: event.toolCallId, projectId, result: observation, succeeded: true });
-    }
-    if (stitch.policy.classify(event.toolName) === 'read' && stitch.policy.hasCorrelatedReadback(event.toolCallId)) {
-      if (!projectId) throw new Error('Stitch project binding is required');
-      await stitch.policy.recordReadback({ projectId, toolName: event.toolName, toolCallId: event.toolCallId, reconciled: !event.isError, observation });
-    }
-    return undefined;
-  });
+  registerStitchHooks(pi, bindingState);
 }
 export default function uiDeliveryPolicy(pi: ExtensionAPI): void { registerUiDeliveryPolicy(pi); }
