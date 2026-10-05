@@ -7,7 +7,7 @@ import type { ExtensionAPI } from '@oh-my-pi/pi-coding-agent';
 import { runCheck as defaultRunCheck } from '../runtime/ui-delivery/checks.ts';
 import { appendEvidence, loadStitchMutationState, prepareEvidenceDirectory, readEvidence, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 import { authorizePath } from '../runtime/ui-delivery/paths.ts';
-import { assertActiveRuntimeQualification, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
+import { assertActiveRuntimeQualification, assertBindingCurrent, authorizationDigest, beginPatchJournal, candidateHash, loadTask, releasePatchJournal, replaceTaskFile, resolveTaskFile } from '../runtime/ui-delivery/task.ts';
 import { createStitchPolicy, stitchObservation, stitchProjectIdFrom, STITCH_READ_TOOL_NAMES, type StitchPolicy } from '../runtime/ui-delivery/stitch-policy.ts';
 
 const STITCH_READS: Record<string, true> = Object.fromEntries(STITCH_READ_TOOL_NAMES.map((name) => [name, true]));
@@ -197,14 +197,8 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   const refreshBinding = async (requireApproved: boolean): Promise<void> => {
     const binding = stitch;
     if (!binding?.live) return;
-    try {
-      const task = await loadTask({ repo: binding.repo, taskFile: binding.taskFile, mutation: requireApproved });
-      assertActiveRuntimeQualification(task);
-      if ((requireApproved && task.state !== 'approved') || authorizationDigest(task) !== binding.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== binding.authorizationDigest) throw new Error('Stitch task authorization is stale');
-    } catch {
-      // Snapshot check: a concurrent re-approval may already have replaced
-      // `stitch`; only invalidate the same object that actually failed.
-      if (stitch === binding) binding.live = false;
+    try { await assertBindingCurrent({ repo: binding.repo, taskFile: binding.taskFile, digest: binding.authorizationDigest, requireApproved }); } catch {
+      if (stitch === binding) binding.live = false; // only invalidate the object that actually failed
     }
   };
   pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) {
@@ -219,8 +213,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       const canonicalRepo = await realpath(ctx.cwd);
       const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
       if (!stitch?.live || stitch.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
-        // Carry in-flight correlations across the rebind so results dispatched
-        // under the old binding still reconcile against persisted pending entries.
+        // Carry in-flight correlations so late results still reconcile.
         const correlations = stitch ? { mutationCalls: stitch.policy.pendingToolCalls(), readbacks: stitch.policy.correlatedReadbacks() } : undefined;
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
         stitch = {
@@ -360,16 +353,12 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   pi.on('tool_call', async (event) => {
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
-      // Known read-only Stitch tools need no grant and cannot forge a
-      // mutation. Mutations and unlisted stitch tools stay fail-closed.
-      if (!stitch) {
+      // Known read-only Stitch tools need no grant; mutations and unlisted
+      // stitch tools stay fail-closed.
+      if (stitch) await refreshBinding(true);
+      if (!stitch?.live) {
         if (STITCH_READS[event.toolName]) return undefined;
-        throw new Error('Stitch tool call is not authorized');
-      }
-      await refreshBinding(true);
-      if (!stitch.live) {
-        if (STITCH_READS[event.toolName]) return undefined;
-        throw new Error('Stitch task authorization is stale');
+        throw new Error(stitch ? 'Stitch task authorization is stale' : 'Stitch tool call is not authorized');
       }
       const input = event.input;
       const projectId = stitchProjectIdFrom(input);
