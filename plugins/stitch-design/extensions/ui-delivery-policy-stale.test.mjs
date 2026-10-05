@@ -110,6 +110,7 @@ test('an in-flight mutation reconciles through a re-approved binding via carried
 test('switching task files does not carry correlations across grants', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definitionA = taskWithStitchGrant(input);
+  definitionA.stitch_grant.mutations[0].expected_readback = { tool_name: 'mcp__stitch_get_screen', predictable_fields: { title: 'Compact header' }, resource_identity: 'screen' };
   const definitionB = taskWithStitchGrant(input); // same grant, different task
   definitionB.task_id = 'task-42';
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
@@ -135,7 +136,7 @@ test('switching task files does not carry correlations across grants', async () 
     const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task-b.json' }, repo);
     assert.equal(status.details.approved, true);
     await assert.rejects(
-      () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-a', isError: false, details: { projectId: 'project-17' } }),
+      () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-a', isError: false, details: { projectId: 'project-17', screenId: 'screen-created' } }),
       /reconcil|stale/i,
     );
     // B's own pending grant is also protected: a new mutation must wait for
@@ -143,6 +144,11 @@ test('switching task files does not carry correlations across grants', async () 
     const blocked = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-b' });
     assert.equal(blocked.block, true);
     assert.match(blocked.reason, /reconcil/i);
+    // A stays recoverable: its late result stayed on dead A, so the learned
+    // screen identity was persisted for A's own pending entry.
+    const stateA = await loadStitchMutationState({ repo, taskId: definitionA.task_id, authorizationDigest: digest(definitionA) });
+    assert.equal(stateA?.entries[entryKey], 'pending');
+    assert.deepEqual(stateA?.identities[entryKey], { kind: 'screen', value: 'screen-created' });
   });
 });
 
@@ -320,3 +326,47 @@ test('re-approval during a stale result save observes the persisted identity', a
   await revived;
   await assert.rejects(() => stale, /stale/i);
 });
+
+test('a rebind during authorize rolls the persisted grant back to consumed', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definitionA = taskWithStitchGrant(input);
+  const definitionB = taskWithStitchGrant(input);
+  definitionB.task_id = 'task-42';
+  const { api, tools, handlers } = extensionApi();
+  // Gate the first persist (authorize's pending marker) so the rebind lands
+  // before the post-authorize currency recheck runs.
+  let release = () => {};
+  const gate = new Promise((resolve) => { release = resolve; });
+  let persistCalls = 0;
+  const persistMutationState = (options) => {
+    persistCalls += 1;
+    return persistCalls === 1 ? gate.then(() => updateStitchMutationState(options)) : updateStitchMutationState(options);
+  };
+  registerUiDeliveryPolicy(api, { persistMutationState });
+  const { repo } = await fixture(definitionA);
+  const hook = handlers.get('tool_call');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+  await writeFile(join(repo, '.omp/ui-delivery/tasks/task-b.json'), JSON.stringify(definitionB));
+
+  let blocked;
+  await withApproval(definitionA, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    const call = hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-a' });
+    for (let i = 0; i < 200 && persistCalls < 1; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(persistCalls, 1, 'authorize persist must be in flight');
+    // Rebind to task B while A's authorize save is parked behind the gate.
+    await withApproval(definitionB, async () => {
+      const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task-b.json' }, repo);
+      assert.equal(status.details.approved, true);
+    });
+    release();
+    blocked = await call;
+  });
+
+  assert.equal(blocked.block, true);
+  assert.match(blocked.reason, /stale/i);
+  // The superseded grant must be consumed, not left pending to wedge later calls.
+  const stateA = await loadStitchMutationState({ repo, taskId: definitionA.task_id, authorizationDigest: digest(definitionA) });
+  const entryKey = `mcp__stitch_generate_screen_from_text:${hashStitchInput(input)}`;
+  assert.equal(stateA?.entries[entryKey], 'consumed');
+ });
