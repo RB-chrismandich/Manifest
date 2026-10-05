@@ -206,7 +206,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (approved && task.state === 'approved') {
       const canonicalRepo = await realpath(ctx.cwd);
       const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
-      if (stitch?.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
+      if (!stitch?.live || stitch.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
         stitch = {
           authorizationDigest: digest,

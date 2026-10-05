@@ -99,6 +99,30 @@ test('an in-flight mutation result still surfaces loudly after the binding goes 
   );
 });
 
+test('re-approving a task revives a stale binding instead of staying dead', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+
+  await withApproval(definition, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+  });
+  // Drive staleness once so live flips false.
+  const staleMutation = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'stale-1' });
+  assert.equal(staleMutation.block, true);
+
+  // Re-approve the same task: status must rebind (live flag no longer blocks),
+  // and the granted mutation is authorized again.
+  await withApproval(definition, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-2' }), undefined);
+  });
+});
+
 test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definition = taskWithStitchGrant(input);
