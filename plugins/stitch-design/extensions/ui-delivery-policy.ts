@@ -341,28 +341,31 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     try {
       // Known read-only Stitch tools need no grant: they cannot forge a
       // mutation, and gating them breaks every read (e.g. list_projects)
-      // outside a ui-delivery session. Bound reads still run authorize() so
-      // correlated readbacks are recorded; if the bound path rejects a read
-      // (stale task, expired binding), it falls through to allow rather than
-      // strand the call. Mutations and unlisted stitch tools stay fail-closed.
+      // outside a ui-delivery session. Mutations and unlisted stitch tools
+      // stay fail-closed.
       if (!stitch) {
         if (STITCH_READS[event.toolName]) return undefined;
         throw new Error('Stitch tool call is not authorized');
       }
-      const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: true });
-      assertActiveRuntimeQualification(task);
-      if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
+      try {
+        const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: true });
+        assertActiveRuntimeQualification(task);
+        if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
+      } catch {
+        // Binding went stale (task left approved, qualification or digest
+        // mismatch, file unreadable): drop it so known reads fall through to
+        // the unbound rule instead of stranding. Policy state is immutable —
+        // the grant cannot become valid again — so clearing loses nothing.
+        stitch = undefined;
+        if (STITCH_READS[event.toolName]) return undefined;
+        throw new Error('Stitch tool call is not authorized');
+      }
       const input = event.input;
       const projectId = stitchProjectIdFrom(input);
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
       await stitch.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
       return undefined;
     } catch (error) {
-      // A bound-session read that the bound path rejects (stale task, expired
-      // grant, project mismatch) still can't reconcile a mutation — allow it
-      // through as unbound rather than stranding the call. The pending entry
-      // keeps every later mutation blocked, so the grant stays fail-closed.
-      if (STITCH_READS[event.toolName]) return undefined;
       return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
     }
   });

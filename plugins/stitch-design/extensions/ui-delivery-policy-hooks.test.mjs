@@ -61,10 +61,13 @@ test('falls back to unbound reads when a bound task goes stale, keeping mutation
   await withApproval(definition, async () => {
     const status = await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
     assert.equal(status.details.approved, true);
+    // Live binding: reads outside the approved project stay fail-closed.
+    const foreignRead = await hook({ toolName: 'mcp__stitch_get_project', input: { projectId: 'project-999' }, toolCallId: 'foreign-read-1' });
+    assert.equal(foreignRead.block, true);
   });
 
-  // Binding is now stale: the env digest is gone, so the bound path rejects —
-  // reads fall through instead of stranding, mutations still block.
+  // Binding is now stale: the env digest is gone, so the binding checks reject
+  // and stitch is cleared — reads pass unbound, mutations still block.
   for (const toolName of ['mcp__stitch_get_screen', 'mcp__stitch_list_projects']) {
     assert.equal(await hook({ toolName, input: { projectId: 'project-17' }, toolCallId: `stale-${toolName}` }), undefined, `${toolName} must pass once the binding is stale`);
   }
