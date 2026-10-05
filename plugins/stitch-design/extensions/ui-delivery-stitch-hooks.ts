@@ -7,25 +7,30 @@ const STITCH_READS: Record<string, true> = Object.fromEntries(STITCH_READ_TOOL_N
 export type StitchBinding = { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string; live: boolean; op: Promise<void> };
 export type StitchBindingState = { current?: StitchBinding };
 
-// Re-verifies the bound task per call; a failed object stays so late results report "stale".
-async function refreshBinding(state: StitchBindingState, requireApproved: boolean): Promise<StitchBinding | undefined> {
-  const binding = state.current;
+async function refreshBinding(state: StitchBindingState, binding: StitchBinding | undefined, requireApproved: boolean): Promise<StitchBinding | undefined> {
   if (!binding?.live) return binding;
   try { await assertBindingCurrent({ repo: binding.repo, taskFile: binding.taskFile, digest: binding.authorizationDigest, requireApproved }); } catch {
-    if (state.current === binding) binding.live = false; // only invalidate the object that actually failed
+    binding.live = false; // mark the object that actually failed
   }
   return binding;
 }
 
 export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState): void {
+  // Routes each dispatched call's result to the binding that authorized it,
+  // so rebinds mid-call never orphan in-flight grant state.
+  const calls = new Map<string, StitchBinding>();
   pi.on('tool_call', async (event) => {
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
-      // Reads need no grant; mutations stay fail-closed. Loop so the
-      // validated binding is still the current global before authorizing.
+      // Reads need no grant; mutations stay fail-closed. Revalidate until the
+      // checked binding is still current; never converge → stay fail-closed.
       let binding = state.current;
-      while (binding?.live && (binding = await refreshBinding(state, true)) !== state.current) { /* a concurrent rebind swapped stitch mid-refresh; revalidate it */ }
-      if (!binding?.live) {
+      for (let attempts = 0; attempts < 3 && binding?.live; attempts += 1) {
+        binding = await refreshBinding(state, binding, true);
+        if (binding === state.current) break;
+        binding = state.current;
+      }
+      if (!binding?.live || binding !== state.current) {
         if (STITCH_READS[event.toolName]) return undefined;
         throw new Error(binding ? 'Stitch task authorization is stale' : 'Stitch tool call is not authorized');
       }
@@ -33,28 +38,35 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
       const projectId = stitchProjectIdFrom(input);
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
       await binding.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
+      calls.set(event.toolCallId, binding);
       return undefined;
     } catch (error) {
       return { block: true, reason: error instanceof Error ? error.message : 'Stitch tool call is not authorized' };
     }
   });
   pi.on('tool_result', async (event) => {
-    if (!state.current || typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
+    if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
+    const routed = calls.get(event.toolCallId ?? '');
+    if (event.toolCallId) calls.delete(event.toolCallId);
+    let binding = routed !== undefined ? await refreshBinding(state, routed, false) : (state.current ? await refreshBinding(state, state.current, false) : undefined);
+    // A dead routed binding defers to the refreshed current binding: same-task
+    // revival carried its correlations, so the result can still reconcile.
+    if (binding && !binding.live && state.current && state.current !== binding) binding = await refreshBinding(state, state.current, false);
+    if (!binding) return undefined;
     const observation = stitchObservation(event.content, event.details);
     const projectId = stitchProjectIdFrom(observation) ?? stitchProjectIdFrom(event.details) ?? stitchProjectIdFrom(event.input);
     if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
-    const binding = await refreshBinding(state, false);
-    if (!binding?.live) {
+    if (!binding.live) {
       // Uncorrelated reads need nothing; correlated results stay loud. A
       // successful mutation has no rollback: preserve its learned identity,
       // then settle the call ID so revival can recover the pending entry.
-      if (binding && STITCH_READS[event.toolName] && !binding.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
-      if (binding && !event.isError && !STITCH_READS[event.toolName]) {
+      if (STITCH_READS[event.toolName] && !binding.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
+      if (!event.isError && !STITCH_READS[event.toolName]) {
         const op = binding.policy.preserveResultIdentity({ toolCallId: event.toolCallId, result: observation });
-        binding.op = binding.op.then(() => op).catch(() => {});
+        binding.op = binding.op.then(() => op).then(() => undefined, () => undefined);
         await op; // persistence failures still surface as a rejected result
       }
-      binding?.policy.settleCorrelation(event.toolCallId);
+      binding.policy.settleCorrelation(event.toolCallId);
       throw new Error('Stitch task authorization is stale');
     }
     if (binding.policy.classify(event.toolName) === 'mutation') {

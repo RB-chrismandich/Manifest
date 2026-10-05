@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import uiDeliveryPolicy from './ui-delivery-policy.ts';
+import uiDeliveryPolicy, { registerUiDeliveryPolicy } from './ui-delivery-policy.ts';
 import { digest, execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 import { loadStitchMutationState, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
@@ -269,4 +269,54 @@ test('a stale generate-screen result preserves its screen identity for revival',
     assert.deepEqual(state?.identities[`mcp__stitch_generate_screen_from_text:${hashStitchInput(generation)}`], { kind: 'screen', value: 'screen-created' });
     assert.equal(state?.entries[`mcp__stitch_generate_screen_from_text:${hashStitchInput(generation)}`], 'reconciled');
   });
+});
+
+test('re-approval during a stale result save observes the persisted identity', async () => {
+  const generation = { projectId: 'project-17', prompt: 'Create a checkout screen' };
+  const definition = task({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(generation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_screen', predictable_fields: { title: 'Checkout' }, resource_identity: 'screen' } }],
+      readback_tools: ['mcp__stitch_get_screen'],
+    },
+  });
+  const { api, tools, handlers } = extensionApi();
+  // Gate only the preserve-write (the second persist: first is authorize's
+  // pending marker) so re-approval provably interleaves mid-save.
+  let release = () => {};
+  const gate = new Promise((resolve) => { release = resolve; });
+  let persistCalls = 0;
+  const persistMutationState = (options) => {
+    persistCalls += 1;
+    return persistCalls === 2 ? gate.then(() => updateStitchMutationState(options)) : updateStitchMutationState(options);
+  };
+  registerUiDeliveryPolicy(api, { persistMutationState });
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+  const result = handlers.get('tool_result');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+
+  await withApproval(definition, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' }), undefined);
+  });
+  // The stale result's preserve-write parks behind the gate (persist #2).
+  const stale = result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'generate-1', isError: false, details: { projectId: 'project-17', screenId: 'screen-created' } });
+  stale.catch(() => {});
+  for (let i = 0; i < 200 && persistCalls < 2; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(persistCalls, 2, 'preserve persist must be in flight');
+
+  // Re-approval must wait on binding.op, so it loads the saved identity.
+  const revived = withApproval(definition, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+    const readback = await hook({ toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17', screenId: 'screen-created' }, toolCallId: 'read-1' });
+    assert.equal(readback, undefined);
+    assert.equal(await result({ toolName: 'mcp__stitch_get_screen', toolCallId: 'read-1', isError: false, details: { projectId: 'project-17', screenId: 'screen-created', title: 'Checkout' } }), undefined);
+    const saved = await loadStitchMutationState({ repo, taskId: definition.task_id, authorizationDigest: digest(definition) });
+    assert.deepEqual(saved?.identities[`mcp__stitch_generate_screen_from_text:${hashStitchInput(generation)}`], { kind: 'screen', value: 'screen-created' });
+  });
+  release();
+  await revived;
+  await assert.rejects(() => stale, /stale/i);
 });

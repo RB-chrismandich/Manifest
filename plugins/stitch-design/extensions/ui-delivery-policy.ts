@@ -186,7 +186,7 @@ async function updateTask(repo: string, taskFile: string, task: Record<string, u
 function evidenceRecord(task: any, attemptId: string, attemptPhase: 'started' | 'completed', operation: string, selector: Record<string, string>, outcome: string, artifacts: unknown[], elapsedMs: number, checked?: any): Record<string, unknown> { return { taskId: task.task_id, approvedDesignHash: task.design_revision, candidateRevision: task.candidate_revision, candidateHash: task.candidate_hash, modelRoute: task.model_route, authorizationDigest: authorizationDigest(task), attemptId, attemptPhase, operation, ...selector, outcome, elapsedMs, artifacts, stdoutHash: checked?.stdout?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', stderrHash: checked?.stderr?.hash ?? 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' }; }
 async function appendAttempt(repo: string, task: any, record: Record<string, unknown>): Promise<void> { await appendEvidence({ repo, evidenceFile: join(repo, '.omp/ui-delivery/evidence', `${task.task_id}.jsonl`), record }); }
 
-export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck } = {}): void {
+export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck; persistMutationState?: typeof updateStitchMutationState } = {}): void {
   if (typeof pi.on !== 'function') throw new Error('required tool_call and tool_result enforcement hooks are unavailable');
   const checkRunner = deps.runCheck ?? defaultRunCheck;
   const bindingState: StitchBindingState = {};
@@ -220,7 +220,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
             registry,
             state,
             correlations,
-            persist: async (next) => updateStitchMutationState({
+            persist: async (next) => (deps.persistMutationState ?? updateStitchMutationState)({
               repo: canonicalRepo,
               taskId: task.task_id,
               authorizationDigest: digest,
