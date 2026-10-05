@@ -150,6 +150,37 @@ test('an in-flight mutation reconciles through a re-approved binding via carried
   });
 });
 
+test('switching task files does not carry correlations across grants', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definitionA = taskWithStitchGrant(input);
+  const definitionB = taskWithStitchGrant(input); // same grant, different task
+  definitionB.task_id = 'task-42';
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definitionA);
+  const hook = handlers.get('tool_call');
+  const result = handlers.get('tool_result');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+  await writeFile(join(repo, '.omp/ui-delivery/tasks/task-b.json'), JSON.stringify(definitionB));
+
+  // Bind task A, dispatch its granted mutation (pending, in-flight).
+  await withApproval(definitionA, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-a' }), undefined);
+  });
+
+  // Re-approve onto task B: A's toolCallId must not be carried, so B's grant
+  // stays unconsumed and A's late result fails loudly instead of reconciling.
+  await withApproval(definitionB, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task-b.json' }, repo);
+    assert.equal(status.details.approved, true);
+    await assert.rejects(
+      () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-a', isError: false, details: { projectId: 'project-17' } }),
+      /reconcil|stale/i,
+    );
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-b' }), undefined);
+  });
+});
+
 test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definition = taskWithStitchGrant(input);
