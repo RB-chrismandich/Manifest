@@ -379,9 +379,10 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     const binding = await refreshBinding(false);
     if (!binding?.live) {
       // Uncorrelated reads need nothing; correlated results stay loud rather
-      // than reconciling on a dead binding. Drop the rejected call ID so a
-      // same-task revival can recover the pending entry.
+      // than reconciling on a dead binding. A successful create has no
+      // rollback: preserve its project ID, settle the call ID for revival.
       if (binding && STITCH_READS[event.toolName] && !binding.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
+      if (binding && event.toolName === 'mcp__stitch_create_project' && !event.isError) await binding.policy.preserveProjectIdentity({ projectId: projectId ?? '', toolCallId: event.toolCallId });
       binding?.policy.settleCorrelation(event.toolCallId);
       throw new Error('Stitch task authorization is stale');
     }

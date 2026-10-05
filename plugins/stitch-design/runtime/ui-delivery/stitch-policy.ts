@@ -86,6 +86,9 @@ export interface StitchPolicy {
   // Drop a call ID whose result was rejected (e.g. stale binding) so it is not
   // carried into a revived policy where it would block pending recovery.
   settleCorrelation(toolCallId: string): void;
+  // Persist a learned project ID (e.g. a late create_project result rejected
+  // as stale) so a revived binding can reconcile the pending entry.
+  preserveProjectIdentity(request: { projectId: string; toolCallId: string }): Promise<void>;
   state(): string;
 }
 
@@ -265,6 +268,21 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     settleCorrelation(toolCallId: string) {
       for (const [key, value] of mutationCalls) if (value === toolCallId) mutationCalls.delete(key);
       readbacks.delete(toolCallId);
+    },
+    async preserveProjectIdentity({ projectId, toolCallId }: { projectId: string; toolCallId: string }) {
+      const entryKey = unresolvedEntry();
+      const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
+      // Only a pending create_project whose dispatch correlation is still held
+      // may rebind project scope; anything else is an untrusted late result.
+      if (!entryKey || !mutation || !entryKey.startsWith('mcp__stitch_create_project:')) return;
+      if (mutationCalls.get(entryKey) !== toolCallId) return;
+      if (grant?.project_id || discoveredProjectId) return;
+      const id = canonicalProjectId(projectId);
+      if (!id) return;
+      discoveredProjectId = id;
+      const identityKind = mutation.expected_readback.resource_identity;
+      if (validIdentityKind(identityKind)) identities.set(entryKey, { kind: identityKind, value: id });
+      await save();
     },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
       const boundProjectId = grant?.project_id ?? discoveredProjectId;

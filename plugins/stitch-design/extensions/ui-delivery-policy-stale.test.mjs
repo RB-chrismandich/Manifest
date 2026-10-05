@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
-import { digest, execute, extensionApi, fixture, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
+import { digest, execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
 import { loadStitchMutationState, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 
@@ -181,5 +181,53 @@ test('a late result rejected as stale does not poison the revived binding', asyn
     assert.equal(await result({ toolName: 'mcp__stitch_get_screen', toolCallId: 'read-1', isError: false, details: { projectId: 'project-17' } }), undefined);
     const state = await loadStitchMutationState({ repo, taskId: definition.task_id, authorizationDigest: digest(definition) });
     assert.equal(state?.entries[`mcp__stitch_generate_screen_from_text:${hashStitchInput(input)}`], 'reconciled');
+  });
+});
+
+test('a stale create_project result preserves the returned project ID for revival', async () => {
+  const creation = { title: 'Bounded project' };
+  const project = { name: 'projects/12552015941655436857', title: creation.title };
+  const definition = task({
+    stitch_grant: {
+      expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_create_project', input_hash: hashStitchInput(creation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_project', predictable_fields: { title: creation.title }, resource_identity: 'project' } }],
+      readback_tools: ['mcp__stitch_get_project'],
+    },
+  });
+  const { api, tools, handlers } = extensionApi();
+  api.getAllTools = () => ['create_project', 'get_project'].map((name) => ({
+    name: `mcp__stitch_${name}`, sourceInfo: { source: 'mcp', path: '<mcp:stitch>' }, parameters: { type: 'object' },
+  }));
+  uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+  const result = handlers.get('tool_result');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+  const created = {
+    content: [{ type: 'text', text: JSON.stringify(project) }],
+    details: { serverName: 'stitch', mcpToolName: 'create_project', rawContent: [{ type: 'text', text: JSON.stringify(project) }] },
+  };
+
+  // Dispatch create_project; the success result lands after staleness.
+  await withApproval(definition, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_create_project', input: creation, toolCallId: 'create-1' }), undefined);
+  });
+  await assert.rejects(
+    () => result({ toolName: 'mcp__stitch_create_project', toolCallId: 'create-1', isError: false, ...created }),
+    /stale/i,
+  );
+
+  // The created project survives re-approval: the pending entry reconciles
+  // through get_project instead of orphaning the external resource.
+  await withApproval(definition, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+    const readback = await hook({ toolName: 'mcp__stitch_get_project', input: { name: project.name }, toolCallId: 'readback-1' });
+    assert.equal(readback, undefined);
+    assert.equal(await result({ toolName: 'mcp__stitch_get_project', toolCallId: 'readback-1', isError: false, ...created }), undefined);
+    const state = await loadStitchMutationState({ repo, taskId: definition.task_id, authorizationDigest: digest(definition) });
+    assert.equal(state?.projectId, '12552015941655436857');
+    assert.equal(state?.entries[`mcp__stitch_create_project:${hashStitchInput(creation)}`], 'reconciled');
   });
 });
