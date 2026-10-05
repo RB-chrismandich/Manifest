@@ -74,6 +74,29 @@ test('falls back to unbound reads when a bound task goes stale, keeping mutation
   const mutation = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'stale-edit-1' });
   assert.equal(mutation.block, true);
   assert.match(mutation.reason, /stale|not authorized|digest|invalid/i);
+  // A read result that was in flight when the binding died is ignored, not thrown.
+  assert.equal(await handlers.get('tool_result')({ toolName: 'mcp__stitch_list_projects', toolCallId: 'stale-mcp__stitch_list_projects', isError: false, details: {} }), undefined);
+});
+
+test('an in-flight mutation result still surfaces loudly after the binding goes stale', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+
+  await withApproval(definition, async () => {
+    await execute(tools.find((entry) => entry.name === 'ui_delivery_status'), { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+  });
+
+  // Env digest is gone: the dispatch was authorized but the binding is stale
+  // by the time the result arrives. The result must report "stale", not be
+  // silently ignored as if no mutation was ever dispatched.
+  await assert.rejects(
+    () => handlers.get('tool_result')({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } }),
+    /stale/i,
+  );
 });
 
 test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
