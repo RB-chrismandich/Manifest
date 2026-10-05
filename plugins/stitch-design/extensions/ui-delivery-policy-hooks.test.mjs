@@ -6,7 +6,7 @@ import test from 'node:test';
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
 import { bindCandidate, digest, execute, extensionApi, fixture, task, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
-import { loadStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
+import { loadStitchMutationState, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 
 test('fails package activation before registering tools when required enforcement hooks are unavailable', () => {
   const { api, tools, handlers } = extensionApi({ hooks: false });
@@ -161,6 +161,10 @@ test('switching task files does not carry correlations across grants', async () 
   const result = handlers.get('tool_result');
   const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
   await writeFile(join(repo, '.omp/ui-delivery/tasks/task-b.json'), JSON.stringify(definitionB));
+  // Seed task B's persisted mutation state with a pending entry for the same
+  // toolName:inputHash, so an incorrectly carried edit-a could consume it.
+  const entryKey = `mcp__stitch_generate_screen_from_text:${hashStitchInput(input)}`;
+  await updateStitchMutationState({ repo, taskId: 'task-42', authorizationDigest: digest(definitionB), expectedVersion: 0, state: { entries: { [entryKey]: 'pending' } } });
 
   // Bind task A, dispatch its granted mutation (pending, in-flight).
   await withApproval(definitionA, async () => {
@@ -177,7 +181,11 @@ test('switching task files does not carry correlations across grants', async () 
       () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-a', isError: false, details: { projectId: 'project-17' } }),
       /reconcil|stale/i,
     );
-    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-b' }), undefined);
+    // B's own pending grant is also protected: a new mutation must wait for
+    // its readback, not silently reuse the same input hash.
+    const blocked = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-b' });
+    assert.equal(blocked.block, true);
+    assert.match(blocked.reason, /reconcil/i);
   });
 });
 
