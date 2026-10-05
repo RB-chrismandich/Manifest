@@ -378,11 +378,11 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
     const binding = await refreshBinding(false);
     if (!binding?.live) {
-      // Uncorrelated reads need nothing; correlated results stay loud rather
-      // than reconciling on a dead binding. A successful create has no
-      // rollback: preserve its project ID, settle the call ID for revival.
+      // Uncorrelated reads need nothing; correlated results stay loud. A
+      // successful mutation has no rollback: preserve its learned identity,
+      // then settle the call ID so revival can recover the pending entry.
       if (binding && STITCH_READS[event.toolName] && !binding.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
-      if (binding && event.toolName === 'mcp__stitch_create_project' && !event.isError) await binding.policy.preserveProjectIdentity({ projectId: projectId ?? '', toolCallId: event.toolCallId });
+      if (binding && !event.isError && !STITCH_READS[event.toolName]) await binding.policy.preserveResultIdentity({ toolCallId: event.toolCallId, result: observation });
       binding?.policy.settleCorrelation(event.toolCallId);
       throw new Error('Stitch task authorization is stale');
     }

@@ -86,9 +86,9 @@ export interface StitchPolicy {
   // Drop a call ID whose result was rejected (e.g. stale binding) so it is not
   // carried into a revived policy where it would block pending recovery.
   settleCorrelation(toolCallId: string): void;
-  // Persist a learned project ID (e.g. a late create_project result rejected
-  // as stale) so a revived binding can reconcile the pending entry.
-  preserveProjectIdentity(request: { projectId: string; toolCallId: string }): Promise<void>;
+  // Persist a learned resource identity (e.g. a late create/generate result
+  // rejected as stale) so a revived binding can reconcile the pending entry.
+  preserveResultIdentity(request: { toolCallId: string; result: unknown }): Promise<void>;
   state(): string;
 }
 
@@ -269,19 +269,20 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       for (const [key, value] of mutationCalls) if (value === toolCallId) mutationCalls.delete(key);
       readbacks.delete(toolCallId);
     },
-    async preserveProjectIdentity({ projectId, toolCallId }: { projectId: string; toolCallId: string }) {
+    async preserveResultIdentity({ toolCallId, result }: { toolCallId: string; result: unknown }) {
       const entryKey = unresolvedEntry();
       const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
-      // Only a pending create_project whose dispatch correlation is still held
-      // may rebind project scope; anything else is an untrusted late result.
-      if (!entryKey || !mutation || !entryKey.startsWith('mcp__stitch_create_project:')) return;
-      if (mutationCalls.get(entryKey) !== toolCallId) return;
-      if (grant?.project_id || discoveredProjectId) return;
-      const id = canonicalProjectId(projectId);
-      if (!id) return;
-      discoveredProjectId = id;
-      const identityKind = mutation.expected_readback.resource_identity;
-      if (validIdentityKind(identityKind)) identities.set(entryKey, { kind: identityKind, value: id });
+      // Persist learned identity only for a pending mutation whose dispatch
+      // correlation is still held; settle it before the await so a concurrent
+      // re-approval never copies a result ID that was already rejected.
+      if (!entryKey || !mutation || mutationCalls.get(entryKey) !== toolCallId) return;
+      const identityKind = mutation.expected_readback?.resource_identity;
+      const identity = validIdentityKind(identityKind) ? identityFrom(result, identityKind) : undefined;
+      for (const [key, value] of mutationCalls) if (value === toolCallId) mutationCalls.delete(key);
+      readbacks.delete(toolCallId);
+      if (!identity) return;
+      if (identity.kind === 'project' && !grant?.project_id) discoveredProjectId = identity.value;
+      identities.set(entryKey, identity);
       await save();
     },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
