@@ -192,9 +192,8 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   const checkRunner = deps.runCheck ?? defaultRunCheck;
   type StitchBinding = { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string; live: boolean };
   let stitch: StitchBinding | undefined;
-  // Re-verifies the bound task each call and flips `live` to false on any
-  // rejection. The object itself stays so in-flight tool_result calls still
-  // report "stale" instead of being silently ignored.
+  // Re-verifies the bound task each call and flips `live` to false on
+  // rejection; the object stays so in-flight results still report "stale".
   const refreshBinding = async (requireApproved: boolean): Promise<void> => {
     const binding = stitch;
     if (!binding?.live) return;
@@ -221,8 +220,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
       if (!stitch?.live || stitch.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
         // Carry in-flight correlations across the rebind so results dispatched
-        // under the old binding still reconcile against the pending entries
-        // reloaded from disk.
+        // under the old binding still reconcile against persisted pending entries.
         const correlations = stitch ? { mutationCalls: stitch.policy.pendingToolCalls(), readbacks: stitch.policy.correlatedReadbacks() } : undefined;
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
         stitch = {
@@ -390,9 +388,8 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     await refreshBinding(false);
     if (!stitch.live) {
       // Uncorrelated read results need nothing. Correlated readbacks and
-      // mutation results surface loudly: reconciling on a dead binding would
-      // persist grant state after authorization has already failed, so the
-      // pending entry waits for a re-approved binding to finish it.
+      // mutation results stay loud: reconciling on a dead binding would
+      // persist grant state after authorization already failed.
       if (STITCH_READS[event.toolName] && !stitch.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
       throw new Error('Stitch task authorization is stale');
     }
