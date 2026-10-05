@@ -83,6 +83,9 @@ export interface StitchPolicy {
   // reconciling results dispatched by the prior binding.
   pendingToolCalls(): Record<string, string>;
   correlatedReadbacks(): Record<string, string>;
+  // Drop a call ID whose result was rejected (e.g. stale binding) so it is not
+  // carried into a revived policy where it would block pending recovery.
+  settleCorrelation(toolCallId: string): void;
   state(): string;
 }
 
@@ -259,11 +262,16 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
     hasCorrelatedReadback(toolCallId: string): boolean { return readbacks.has(toolCallId); },
     pendingToolCalls(): Record<string, string> { return Object.fromEntries(mutationCalls); },
     correlatedReadbacks(): Record<string, string> { return Object.fromEntries(readbacks); },
+    settleCorrelation(toolCallId: string) {
+      for (const [key, value] of mutationCalls) if (value === toolCallId) mutationCalls.delete(key);
+      readbacks.delete(toolCallId);
+    },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
       const boundProjectId = grant?.project_id ?? discoveredProjectId;
       const entryKey = unresolvedEntry();
       const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
-      if (!entryKey || !mutation || !validExpectedReadback(mutation) || readbacks.get(toolCallId) !== entryKey || !boundProjectId || boundProjectId !== projectId || mutation.expected_readback.tool_name !== toolName || !matchesReadback(mutation, entryKey, observation, projectId) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled');
+      const recoveredReadback = Boolean(entryKey) && readbacks.size === 0 && mutationCalls.size === 0;
+      if (!entryKey || !mutation || !validExpectedReadback(mutation) || (!recoveredReadback && readbacks.get(toolCallId) !== entryKey) || !boundProjectId || boundProjectId !== projectId || mutation.expected_readback.tool_name !== toolName || !matchesReadback(mutation, entryKey, observation, projectId) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled');
       readbacks.delete(toolCallId);
       entries.set(entryKey, 'reconciled'); await save();
     },

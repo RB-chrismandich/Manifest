@@ -145,3 +145,39 @@ test('switching task files does not carry correlations across grants', async () 
     assert.match(blocked.reason, /reconcil/i);
   });
 });
+
+test('a late result rejected as stale does not poison the revived binding', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+  const result = handlers.get('tool_result');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+
+  // Dispatch the granted mutation; the result arrives only after staleness.
+  await withApproval(definition, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+  });
+  // Late result on the stale binding: loud rejection, and the correlation is
+  // settled so it cannot be carried into the revival.
+  await assert.rejects(
+    () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } }),
+    /stale/i,
+  );
+
+  // Re-approve the same task: the replayed result still rejects (its call ID
+  // was settled), but the pending entry reconciles via the readback.
+  await withApproval(definition, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+    await assert.rejects(
+      () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } }),
+      /reconcil/i,
+    );
+    const readback = await hook({ toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17' }, toolCallId: 'read-1' });
+    assert.equal(readback, undefined);
+    assert.equal(await result({ toolName: 'mcp__stitch_get_screen', toolCallId: 'read-1', isError: false, details: { projectId: 'project-17' } }), undefined);
+  });
+});

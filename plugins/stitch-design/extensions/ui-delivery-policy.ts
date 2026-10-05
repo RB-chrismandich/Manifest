@@ -192,8 +192,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   const checkRunner = deps.runCheck ?? defaultRunCheck;
   type StitchBinding = { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string; live: boolean };
   let stitch: StitchBinding | undefined;
-  // Re-verifies the bound task each call and flips `live` to false on
-  // rejection; the object stays so in-flight results still report "stale".
+  // Re-verifies the bound task per call; a failed object stays so late results report "stale".
   const refreshBinding = async (requireApproved: boolean): Promise<StitchBinding | undefined> => {
     const binding = stitch;
     if (!binding?.live) return binding;
@@ -214,9 +213,8 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
       const canonicalRepo = await realpath(ctx.cwd);
       const canonicalTaskFile = await resolveTaskFile({ repo: ctx.cwd, taskFile });
       if (!stitch?.live || stitch.authorizationDigest !== digest || stitch.repo !== canonicalRepo || stitch.taskFile !== canonicalTaskFile) {
-        // Carry in-flight correlations only for a same-task revival; keys are
-        // toolName:inputHash with no task identity, so a task switch must not
-        // inherit another task's pending-call IDs.
+        // Same-task revival carries in-flight correlations; a task switch
+        // (different digest/taskFile) must not inherit another task's call IDs.
         const correlations = stitch && stitch.authorizationDigest === digest && stitch.taskFile === canonicalTaskFile ? { mutationCalls: stitch.policy.pendingToolCalls(), readbacks: stitch.policy.correlatedReadbacks() } : undefined;
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
         stitch = {
@@ -356,9 +354,10 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   pi.on('tool_call', async (event) => {
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
-      // Known read-only Stitch tools need no grant; mutations and unlisted
-      // stitch tools stay fail-closed.
-      const binding = stitch ? await refreshBinding(true) : undefined;
+      // Reads need no grant; mutations stay fail-closed. Loop so the
+      // validated binding is still the current global before authorizing.
+      let binding = stitch;
+      while (binding?.live && (binding = await refreshBinding(true)) !== stitch) { /* a concurrent rebind swapped stitch mid-refresh; revalidate it */ }
       if (!binding?.live) {
         if (STITCH_READS[event.toolName]) return undefined;
         throw new Error(binding ? 'Stitch task authorization is stale' : 'Stitch tool call is not authorized');
@@ -379,10 +378,11 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
     if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
     const binding = await refreshBinding(false);
     if (!binding?.live) {
-      // Uncorrelated read results need nothing. Correlated readbacks and
-      // mutation results stay loud: reconciling on a dead binding would
-      // persist grant state after authorization already failed.
+      // Uncorrelated reads need nothing; correlated results stay loud rather
+      // than reconciling on a dead binding. Drop the rejected call ID so a
+      // same-task revival can recover the pending entry.
       if (binding && STITCH_READS[event.toolName] && !binding.policy.hasCorrelatedReadback(event.toolCallId)) return undefined;
+      binding?.policy.settleCorrelation(event.toolCallId);
       throw new Error('Stitch task authorization is stale');
     }
     if (binding.policy.classify(event.toolName) === 'mutation') {
