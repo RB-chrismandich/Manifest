@@ -7,7 +7,7 @@ const STITCH_READS: Record<string, true> = Object.fromEntries(STITCH_READ_TOOL_N
 export type StitchBinding = { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string; live: boolean; op: Promise<void> };
 export type StitchBindingState = { current?: StitchBinding };
 
-async function refreshBinding(state: StitchBindingState, binding: StitchBinding | undefined, requireApproved: boolean): Promise<StitchBinding | undefined> {
+async function refreshBinding(binding: StitchBinding | undefined, requireApproved: boolean): Promise<StitchBinding | undefined> {
   if (!binding?.live) return binding;
   try { await assertBindingCurrent({ repo: binding.repo, taskFile: binding.taskFile, digest: binding.authorizationDigest, requireApproved }); } catch {
     binding.live = false; // mark the object that actually failed
@@ -26,7 +26,7 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
       // checked binding is still current; never converge → stay fail-closed.
       let binding = state.current;
       for (let attempts = 0; attempts < 3 && binding?.live; attempts += 1) {
-        binding = await refreshBinding(state, binding, true);
+        binding = await refreshBinding(binding, true);
         if (binding === state.current) break;
         binding = state.current;
       }
@@ -48,10 +48,10 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     const routed = calls.get(event.toolCallId ?? '');
     if (event.toolCallId) calls.delete(event.toolCallId);
-    let binding = routed !== undefined ? await refreshBinding(state, routed, false) : (state.current ? await refreshBinding(state, state.current, false) : undefined);
+    let binding = routed !== undefined ? await refreshBinding(routed, false) : (state.current ? await refreshBinding(state.current, false) : undefined);
     // A dead routed binding defers to the refreshed current binding: same-task
     // revival carried its correlations, so the result can still reconcile.
-    if (binding && !binding.live && state.current && state.current !== binding) binding = await refreshBinding(state, state.current, false);
+    if (binding && !binding.live && state.current && state.current !== binding) binding = await refreshBinding(state.current, false);
     if (!binding) return undefined;
     const observation = stitchObservation(event.content, event.details);
     const projectId = stitchProjectIdFrom(observation) ?? stitchProjectIdFrom(event.details) ?? stitchProjectIdFrom(event.input);
