@@ -231,3 +231,42 @@ test('a stale create_project result preserves the returned project ID for reviva
     assert.equal(state?.entries[`mcp__stitch_create_project:${hashStitchInput(creation)}`], 'reconciled');
   });
 });
+
+test('a stale generate-screen result preserves its screen identity for revival', async () => {
+  const generation = { projectId: 'project-17', prompt: 'Create a checkout screen' };
+  const definition = task({
+    stitch_grant: {
+      project_id: 'project-17', expires_at: '2030-01-01T00:00:00Z',
+      mutations: [{ tool_name: 'mcp__stitch_generate_screen_from_text', input_hash: hashStitchInput(generation), max_uses: 1, expected_readback: { tool_name: 'mcp__stitch_get_screen', predictable_fields: { title: 'Checkout' }, resource_identity: 'screen' } }],
+      readback_tools: ['mcp__stitch_get_screen'],
+    },
+  });
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+  const result = handlers.get('tool_result');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+
+  // Dispatch the granted mutation; the success result lands after staleness.
+  await withApproval(definition, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input: generation, toolCallId: 'generate-1' }), undefined);
+  });
+  await assert.rejects(
+    () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'generate-1', isError: false, details: { projectId: 'project-17', screenId: 'screen-created' } }),
+    /stale/i,
+  );
+
+  // Re-approve: the preserved screen identity lets get_screen reconcile the
+  // pending entry instead of leaving the grant permanently unresolved.
+  await withApproval(definition, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+    const readback = await hook({ toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17', screenId: 'screen-created' }, toolCallId: 'read-1' });
+    assert.equal(readback, undefined);
+    assert.equal(await result({ toolName: 'mcp__stitch_get_screen', toolCallId: 'read-1', isError: false, details: { projectId: 'project-17', screenId: 'screen-created', title: 'Checkout' } }), undefined);
+    const state = await loadStitchMutationState({ repo, taskId: definition.task_id, authorizationDigest: digest(definition) });
+    assert.deepEqual(state?.identities[`mcp__stitch_generate_screen_from_text:${hashStitchInput(generation)}`], { kind: 'screen', value: 'screen-created' });
+    assert.equal(state?.entries[`mcp__stitch_generate_screen_from_text:${hashStitchInput(generation)}`], 'reconciled');
+  });
+});
