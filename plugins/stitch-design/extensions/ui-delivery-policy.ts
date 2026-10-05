@@ -190,11 +190,21 @@ async function appendAttempt(repo: string, task: any, record: Record<string, unk
 export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: typeof defaultRunCheck } = {}): void {
   if (typeof pi.on !== 'function') throw new Error('required tool_call and tool_result enforcement hooks are unavailable');
   const checkRunner = deps.runCheck ?? defaultRunCheck;
-  // `live` flips to false the first time the binding checks fail (task left
-  // approved, qualification or digest mismatch, file unreadable). The object
-  // itself stays so in-flight tool_result calls can still report "stale"
-  // instead of being silently ignored.
-  let stitch: { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string; live: boolean } | undefined;
+  type StitchBinding = { authorizationDigest: string; policy: StitchPolicy; repo: string; taskFile: string; live: boolean };
+  let stitch: StitchBinding | undefined;
+  // Re-verifies the bound task each call and flips `live` to false on any
+  // rejection. The object itself stays so in-flight tool_result calls still
+  // report "stale" instead of being silently ignored.
+  const refreshBinding = async (requireApproved: boolean): Promise<void> => {
+    if (!stitch?.live) return;
+    try {
+      const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: requireApproved });
+      assertActiveRuntimeQualification(task);
+      if ((requireApproved && task.state !== 'approved') || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
+    } catch {
+      stitch.live = false;
+    }
+  };
   pi.registerTool({ name: 'ui_delivery_status', label: 'UI delivery status', description: 'Read bounded UI delivery task status.', parameters: pi.zod.object({ taskFile: pi.zod.string().optional() }).strict(), approval: 'read', strict: true, async execute(_id, params, _signal, _onUpdate, ctx) {
     const taskFile = (params as { taskFile?: string }).taskFile;
     if (!taskFile) return result(STATUS);
@@ -344,26 +354,13 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   pi.on('tool_call', async (event) => {
     if (typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
     try {
-      // Known read-only Stitch tools need no grant: they cannot forge a
-      // mutation, and gating them breaks every read (e.g. list_projects)
-      // outside a ui-delivery session. Mutations and unlisted stitch tools
-      // stay fail-closed.
+      // Known read-only Stitch tools need no grant and cannot forge a
+      // mutation. Mutations and unlisted stitch tools stay fail-closed.
       if (!stitch) {
         if (STITCH_READS[event.toolName]) return undefined;
         throw new Error('Stitch tool call is not authorized');
       }
-      if (stitch.live) {
-        try {
-          const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile, mutation: true });
-          assertActiveRuntimeQualification(task);
-          if (task.state !== 'approved' || authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
-        } catch {
-          // Binding went stale: mark it dead but keep the object so a
-          // concurrent in-flight mutation's tool_result still reports
-          // "stale" instead of being silently ignored.
-          stitch.live = false;
-        }
-      }
+      await refreshBinding(true);
       if (!stitch.live) {
         if (STITCH_READS[event.toolName]) return undefined;
         throw new Error('Stitch task authorization is stale');
@@ -379,15 +376,7 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
   });
   pi.on('tool_result', async (event) => {
     if (!stitch || typeof event?.toolName !== 'string' || !event.toolName.startsWith('mcp__stitch_')) return undefined;
-    if (stitch.live) {
-      try {
-        const task = await loadTask({ repo: stitch.repo, taskFile: stitch.taskFile });
-        assertActiveRuntimeQualification(task);
-        if (authorizationDigest(task) !== stitch.authorizationDigest || process.env.UI_DELIVERY_APPROVED_TASK_SHA256 !== stitch.authorizationDigest) throw new Error('Stitch task authorization is stale');
-      } catch {
-        stitch.live = false;
-      }
-    }
+    await refreshBinding(false);
     if (!stitch.live) {
       // Read results dispatched before the binding died need nothing;
       // mutation results keep surfacing loudly rather than being skipped.
