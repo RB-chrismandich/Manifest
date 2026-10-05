@@ -110,6 +110,7 @@ test('an in-flight mutation reconciles through a re-approved binding via carried
 test('switching task files does not carry correlations across grants', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definitionA = taskWithStitchGrant(input);
+  definitionA.stitch_grant.mutations[0].expected_readback = { tool_name: 'mcp__stitch_get_screen', predictable_fields: { title: 'Compact header' }, resource_identity: 'screen' };
   const definitionB = taskWithStitchGrant(input); // same grant, different task
   definitionB.task_id = 'task-42';
   const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
@@ -135,16 +136,19 @@ test('switching task files does not carry correlations across grants', async () 
     const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task-b.json' }, repo);
     assert.equal(status.details.approved, true);
     await assert.rejects(
-      () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-a', isError: false, details: { projectId: 'project-17' } }),
+      () => result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-a', isError: false, details: { projectId: 'project-17', screenId: 'screen-created' } }),
       /reconcil|stale/i,
     );
     // B's own pending grant is also protected: a new mutation must wait for
     // its readback, not silently reuse the same input hash.
     const blocked = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-b' });
     assert.equal(blocked.block, true);
-    // A stays recoverable: its pending entry was not consumed by B's binding.
+    assert.match(blocked.reason, /reconcil/i);
+    // A stays recoverable: its late result stayed on dead A, so the learned
+    // screen identity was persisted for A's own pending entry.
     const stateA = await loadStitchMutationState({ repo, taskId: definitionA.task_id, authorizationDigest: digest(definitionA) });
     assert.equal(stateA?.entries[entryKey], 'pending');
+    assert.deepEqual(stateA?.identities[entryKey], { kind: 'screen', value: 'screen-created' });
   });
 });
 
