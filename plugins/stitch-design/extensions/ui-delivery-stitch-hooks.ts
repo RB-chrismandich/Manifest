@@ -37,7 +37,11 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
       const input = event.input;
       const projectId = stitchProjectIdFrom(input);
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) throw new Error('Stitch tool call identity is required');
-      await binding.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
+      // Recheck currency after the awaited authorize: a concurrent rebind must
+      // not dispatch a mutation under a superseded authorization.
+      const grant = binding.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
+      await grant;
+      if (binding !== state.current || !binding.live) throw new Error('Stitch task authorization is stale');
       calls.set(event.toolCallId, binding);
       return undefined;
     } catch (error) {
@@ -51,7 +55,7 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
     let binding = routed !== undefined ? await refreshBinding(routed, false) : (state.current ? await refreshBinding(state.current, false) : undefined);
     // A dead routed binding defers to the refreshed current binding: same-task
     // revival carried its correlations, so the result can still reconcile.
-    if (binding && !binding.live && state.current && state.current !== binding) binding = await refreshBinding(state.current, false);
+    if (binding && !binding.live && state.current && state.current !== binding && state.current.authorizationDigest === binding.authorizationDigest && state.current.taskFile === binding.taskFile) binding = await refreshBinding(state.current, false);
     if (!binding) return undefined;
     const observation = stitchObservation(event.content, event.details);
     const projectId = stitchProjectIdFrom(observation) ?? stitchProjectIdFrom(event.details) ?? stitchProjectIdFrom(event.input);

@@ -206,7 +206,10 @@ export function registerUiDeliveryPolicy(pi: ExtensionAPI, deps: { runCheck?: ty
         // (different digest/taskFile) must not inherit another task's call IDs.
         // Await the old binding's in-flight persistence so loaded state is current.
         const prior = bindingState.current;
-        if (prior) await prior.op;
+        // Await the op queue until its tail is stable: a stale result can chain
+        // a new persistence op while we wait, and only a settled tail means
+        // the disk state is complete.
+        if (prior) { let tail; do { tail = prior.op; await tail; } while (prior.op !== tail); }
         const correlations = prior && prior.authorizationDigest === digest && prior.taskFile === canonicalTaskFile ? { mutationCalls: prior.policy.pendingToolCalls(), readbacks: prior.policy.correlatedReadbacks() } : undefined;
         const state = await loadStitchMutationState({ repo: canonicalRepo, taskId: task.task_id, authorizationDigest: digest });
         bindingState.current = {

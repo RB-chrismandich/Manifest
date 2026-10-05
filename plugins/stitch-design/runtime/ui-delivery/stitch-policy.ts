@@ -283,7 +283,12 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       if (!identity) return;
       if (identity.kind === 'project' && !grant?.project_id) discoveredProjectId = identity.value;
       identities.set(entryKey, identity);
-      await save();
+      try { await save(); } catch (error) {
+        // Restore the correlation: a failed save leaves the entry pending, and
+        // without its call ID a revival can never reconcile it.
+        mutationCalls.set(entryKey, toolCallId);
+        throw error;
+      }
     },
     async recordReadback({ projectId, toolName, toolCallId, reconciled, observation }: { projectId: string; toolName: string; toolCallId: string; reconciled: boolean; observation: unknown }): Promise<void> {
       const boundProjectId = grant?.project_id ?? discoveredProjectId;
