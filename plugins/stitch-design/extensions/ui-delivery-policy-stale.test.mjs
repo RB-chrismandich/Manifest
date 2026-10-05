@@ -142,7 +142,9 @@ test('switching task files does not carry correlations across grants', async () 
     // its readback, not silently reuse the same input hash.
     const blocked = await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-b' });
     assert.equal(blocked.block, true);
-    assert.match(blocked.reason, /reconcil/i);
+    // A stays recoverable: its pending entry was not consumed by B's binding.
+    const stateA = await loadStitchMutationState({ repo, taskId: definitionA.task_id, authorizationDigest: digest(definitionA) });
+    assert.equal(stateA?.entries[entryKey], 'pending');
   });
 });
 

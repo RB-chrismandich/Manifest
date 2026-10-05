@@ -41,7 +41,12 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
       // not dispatch a mutation under a superseded authorization.
       const grant = binding.policy.authorize({ projectId, toolName: event.toolName, input, toolCallId: event.toolCallId });
       await grant;
-      if (binding !== state.current || !binding.live) throw new Error('Stitch task authorization is stale');
+      if (binding !== state.current || !binding.live) {
+        // The grant is persisted pending but no dispatch will follow — roll it
+        // back to consumed or it blocks every later mutation forever.
+        await binding.policy.recordDispatchInterrupted({ toolCallId: event.toolCallId }).catch(() => {});
+        throw new Error('Stitch task authorization is stale');
+      }
       calls.set(event.toolCallId, binding);
       return undefined;
     } catch (error) {
