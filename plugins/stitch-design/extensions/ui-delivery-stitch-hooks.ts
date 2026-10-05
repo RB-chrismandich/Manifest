@@ -44,7 +44,7 @@ export function registerStitchHooks(pi: ExtensionAPI, state: StitchBindingState)
       if (binding !== state.current || !binding.live) {
         // The grant is persisted pending but no dispatch will follow — roll it
         // back to consumed or it blocks every later mutation forever.
-        await binding.policy.recordDispatchInterrupted({ toolCallId: event.toolCallId }).catch(() => {});
+        await binding.policy.recordDispatchInterrupted({ toolCallId: event.toolCallId });
         throw new Error('Stitch task authorization is stale');
       }
       calls.set(event.toolCallId, binding);
