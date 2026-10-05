@@ -6,7 +6,7 @@ import test from 'node:test';
 import uiDeliveryPolicy from './ui-delivery-policy.ts';
 import { digest, execute, extensionApi, fixture, taskWithStitchGrant, withApproval } from './ui-delivery-policy-helpers.test.mjs';
 import { hashStitchInput } from '../runtime/ui-delivery/stitch-policy.ts';
-import { updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
+import { loadStitchMutationState, updateStitchMutationState } from '../runtime/ui-delivery/evidence.ts';
 
 test('falls back to unbound reads when a bound task goes stale, keeping mutations fail-closed', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
@@ -179,5 +179,7 @@ test('a late result rejected as stale does not poison the revived binding', asyn
     const readback = await hook({ toolName: 'mcp__stitch_get_screen', input: { projectId: 'project-17' }, toolCallId: 'read-1' });
     assert.equal(readback, undefined);
     assert.equal(await result({ toolName: 'mcp__stitch_get_screen', toolCallId: 'read-1', isError: false, details: { projectId: 'project-17' } }), undefined);
+    const state = await loadStitchMutationState({ repo, taskId: definition.task_id, authorizationDigest: digest(definition) });
+    assert.equal(state?.entries[`mcp__stitch_generate_screen_from_text:${hashStitchInput(input)}`], 'reconciled');
   });
 });

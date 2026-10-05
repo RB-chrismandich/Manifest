@@ -270,8 +270,7 @@ export function createStitchPolicy({ task, registry, now = () => new Date(), sta
       const boundProjectId = grant?.project_id ?? discoveredProjectId;
       const entryKey = unresolvedEntry();
       const mutation = grant?.mutations?.find((entry) => `${entry.tool_name}:${entry.input_hash}` === entryKey);
-      const recoveredReadback = Boolean(entryKey) && readbacks.size === 0 && mutationCalls.size === 0;
-      if (!entryKey || !mutation || !validExpectedReadback(mutation) || (!recoveredReadback && readbacks.get(toolCallId) !== entryKey) || !boundProjectId || boundProjectId !== projectId || mutation.expected_readback.tool_name !== toolName || !matchesReadback(mutation, entryKey, observation, projectId) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled');
+      if (!entryKey || !mutation || !validExpectedReadback(mutation) || readbacks.get(toolCallId) !== entryKey || !boundProjectId || boundProjectId !== projectId || mutation.expected_readback.tool_name !== toolName || !matchesReadback(mutation, entryKey, observation, projectId) || classified.get(toolName) !== 'read' || !reconciled) throw new Error('Stitch mutation cannot be reconciled');
       readbacks.delete(toolCallId);
       entries.set(entryKey, 'reconciled'); await save();
     },
