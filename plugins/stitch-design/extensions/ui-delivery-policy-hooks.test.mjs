@@ -123,6 +123,33 @@ test('re-approving a task revives a stale binding instead of staying dead', asyn
   });
 });
 
+test('an in-flight mutation reconciles through a re-approved binding via carried correlations', async () => {
+  const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
+  const definition = taskWithStitchGrant(input);
+  const { api, tools, handlers } = extensionApi(); uiDeliveryPolicy(api);
+  const { repo } = await fixture(definition);
+  const hook = handlers.get('tool_call');
+  const result = handlers.get('tool_result');
+  const statusTool = tools.find((entry) => entry.name === 'ui_delivery_status');
+
+  // Dispatch a granted mutation; its result never arrives before staleness.
+  await withApproval(definition, async () => {
+    await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(await hook({ toolName: 'mcp__stitch_generate_screen_from_text', input, toolCallId: 'edit-1' }), undefined);
+  });
+  // Force the staleness flip while the mutation is still pending.
+  const staleRead = await hook({ toolName: 'mcp__stitch_list_projects', input: {}, toolCallId: 'probe-1' });
+  assert.equal(staleRead, undefined);
+
+  // Re-approve the same task: the new binding must carry edit-1's correlation
+  // or the late result throws 'cannot be reconciled' and orphans the grant.
+  await withApproval(definition, async () => {
+    const status = await execute(statusTool, { taskFile: '.omp/ui-delivery/tasks/task.json' }, repo);
+    assert.equal(status.details.approved, true);
+    assert.equal(await result({ toolName: 'mcp__stitch_generate_screen_from_text', toolCallId: 'edit-1', isError: false, details: { projectId: 'project-17' } }), undefined);
+  });
+});
+
 test('returns unrelated authorized reads while a Stitch mutation awaits its correlated readback', async () => {
   const input = { screenId: 'screen-17', projectId: 'project-17', prompt: 'compact header' };
   const definition = taskWithStitchGrant(input);
