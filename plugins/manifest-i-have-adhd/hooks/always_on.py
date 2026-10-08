@@ -22,7 +22,7 @@ MAX_RECORDS = 100
 MAX_DIAGNOSTIC_FIELD = 512
 MAX_DIAGNOSTIC_TOTAL = 4096
 PLUGIN = "manifest-i-have-adhd"
-VERSION = "0.2.3"
+VERSION = "0.2.6"
 ALLOWED_REASONS = frozenset(
     {
         "invalid-event",

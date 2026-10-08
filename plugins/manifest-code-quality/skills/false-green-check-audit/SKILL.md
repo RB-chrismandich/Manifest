@@ -15,6 +15,14 @@ broken thing. Close the blind spot, don't only fix the instance.
    with the remediation, never folded into the pass count. Count and surface every non-OK class (including
    always-UNSUPPORTED ones) — a reviewer or bot will correctly flag a summary that claims "all verified" while some
    checks were skipped.
+   Local/dev advisory runs may exit zero with a clearly non-green PARTIAL/UNVERIFIED summary.
+   In any CI-gating run, green/pass requires zero failures AND zero skipped/unverified checks,
+   even when a check is optional (including an optional Slack webhook check in PR CI).
+   Run all remaining checks to completion, then exit non-zero or set an explicit non-passing
+   CI status for every skip/unverified result. Optionality never permits an overall green/pass
+   or exit-zero-only CI result when verification was skipped.
+   A per-check `return 0` may only mean "no crash"; SKIPPED must not be a truthy value in a
+   pass reduction or make the final aggregate green.
 3. **Ask why it skipped.** Usually the check assumed one access path — an API key, a specific binary, a network
    listing endpoint — that the real environment lacks because the user authenticates differently (OAuth/subscription
    CLI login, SSO, a proxy). The blind spot is the gap between the assumed path and the real one.

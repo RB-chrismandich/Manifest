@@ -27,6 +27,6 @@
     ],
     "name": "manifest-i-have-adhd",
     "source": "./plugins/manifest-i-have-adhd",
-    "version": "0.2.3"
+    "version": "0.2.6"
   }
 ]

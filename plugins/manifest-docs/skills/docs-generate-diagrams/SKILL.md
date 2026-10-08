@@ -34,8 +34,9 @@ Draw a diagram only when prose cannot carry the shape. Start here:
 | Component architecture | class | "What implements this interface?" |
 | State lifecycle | state | "What states can this entity be in?" |
 
-Add decision-flow, data-model, or config-layer diagrams only when someone has
-actually asked. Four per page is the ceiling.
+Add decision-flow, data-model (ER), or config-layer diagrams only when someone
+has actually asked; unasked, use only the four types above. Four per page is
+the ceiling.
 
 ### 3. Keep each diagram readable
 
