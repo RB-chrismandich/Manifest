@@ -95,3 +95,5 @@ plugins/*/CLAUDE.md
 
 # plugin eval run output (claude plugin eval)
 plugins/*/evals/results/
+plugins/*/evals-safe/results/
+plugins/*/evals-safe/*.json

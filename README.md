@@ -9,7 +9,7 @@
 `--enable-jules`, authenticate through browser OAuth, and submit through `/delegate`
 or the official `jules` issue-label workflow.
 
-**Last Updated**: 2026-09-12
+**Last Updated**: 2026-10-07
 
 Manifest deploys shared guides, skills, prompts, and scripts to `~/.claude/`,
 `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`. Interactive
@@ -71,6 +71,36 @@ SkillClaw) resolve their provider CLI and model tier from `model_policy.yml`.
 
 **Visual Documentation**: [Architecture Diagrams](docs/diagrams/README.md) -
 Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
+
+---
+
+## Plugin Eval Scorecard
+
+<!-- eval-scorecard:begin -->
+
+Each plugin is measured with `claude plugin eval --ablation with-without --judge-model opus`.
+Cases normally run 3× with and without the plugin; Δ is the mean score lift. Coverage below
+is partial where shown. Tool-restricted, unscaffolded, or provider-session-limited runs are not valid scores;
+the two single-case suites are newly added coverage.
+
+| Plugin | Coverage / suite | Passed | With | Without | Δ | Evidence-backed update |
+|---|---:|---:|---:|---:|---:|---|
+| `manifest-code-quality` | 188/188 reconciled; false-green remeasured on v0.6.6 | 162/188 | 0.960 | 0.884 | +0.075 | Case 04 scorer passed 2/3 after two edits; the failed answer specifies CI skips as non-passing, but judges still failed it (content/rubric disagreement) |
+| `manifest-forge` | 91/91 reconciled; five skill batches rerun after reset | 81/91 | 0.972 | 0.837 | +0.135 | Merged complete case-level runs; rerun batches had zero session errors |
+| `manifest-workspace` | 86/86 reconciled; five skill batches rerun after reset | 64/86 | 0.890 | 0.544 | +0.347 | Merged complete case-level runs; rerun batches had zero session errors |
+| `manifest-ops` | 84 scenarios measured: 69 original + 15 safe re-authored equivalents | 64/84 | 0.916 | 0.643 | +0.273 | Latest safe ablation: 10/15 pass, 0 run errors; `cdd-04`/`crf-04` remain 0/3; original scaffold scripts untouched |
+| `manifest-security` | 53/53 reconciled; seven skill batches rerun after reset | 48/53 | 0.953 | 0.845 | +0.108 | Corrected `chw-01` tool access; replaced all session-limited cases; rerun batches had zero session errors |
+| `manifest-docs` | 20/20 (v0.6.5) | 14/20 | 0.958 | 0.854 | +0.104 | Case 06 improved; case 01 edit reverted; cases 09/13 regress; 17/18 fail in both arms |
+| `manifest-delegate` | 15/15 (v0.2.2) | 13/15 | 0.953 | 0.782 | +0.171 | Case 08 remains 1/3 with vs 2/3 without; `skill-fired` was 0x in with runs, so skill effect is unverified; follow-up omission remains |
+| `manifest-i-have-adhd` | 7/7 (v0.2.6) | 6/7 | 0.968 | 0.493 | +0.475 | Cases 02/04 pass all runs; case 01 remains 2/3 (tangent offer displaced next action) |
+| `manifest-spec-planning` | 1/1 | 1/1 | 1.000 | 1.000 | +0.000 | Added webhook-storage trade-off case |
+| `stitch-design` | 1/1 | 1/1 | 1.000 | 1.000 | +0.000 | Added modal accessibility audit case |
+
+Recorded spend across 71 result JSONs: $672.76, including failed, confounded, and provider-limited runs.
+The 15 original Ops scaffold scripts were not executed; safe equivalents are documented in `plugins/manifest-ops/evals-safe/README.md`.
+Case-level failures and the code-quality grader disagreement remain visible; these are not counted as passes.
+
+<!-- eval-scorecard:end -->
 
 ---
 

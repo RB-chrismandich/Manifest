@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: spec-decide-tradeoffs-01-webhook-storage
+context:
+  scaffold_script: scaffold.sh
