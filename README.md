@@ -91,7 +91,7 @@ the two single-case suites are newly added coverage.
 | `manifest-ops` | 84 scenarios measured: 69 original + 15 safe re-authored equivalents | 64/84 | 0.916 | 0.643 | +0.273 | Latest safe ablation: 10/15 pass, 0 run errors; `cdd-04`/`crf-04` remain 0/3; original scaffold scripts untouched |
 | `manifest-security` | 53/53 reconciled; seven skill batches rerun after reset | 48/53 | 0.953 | 0.845 | +0.108 | Corrected `chw-01` tool access; replaced all session-limited cases; rerun batches had zero session errors |
 | `manifest-docs` | 20/20 (v0.6.5) | 14/20 | 0.958 | 0.854 | +0.104 | Case 06 improved; case 01 edit reverted; cases 09/13 regress; 17/18 fail in both arms |
-| `manifest-delegate` | 15/15 (v0.2.2) | 13/15 | 0.953 | 0.782 | +0.171 | Case 08 remains 1/3 with vs 2/3 without; `skill-fired` was 0x in with runs, so skill effect is unverified; follow-up omission remains |
+| `manifest-delegate` | 15/15 (v0.2.1) | 13/15 | 0.944 | 0.657 | +0.287 | Envelope-trigger description: case 08 0.20 → 1.00 with the skill firing 3/3, no rerun regression; setup-01/06 fail in both arms without a Bash grant |
 | `manifest-i-have-adhd` | 7/7 (v0.2.6) | 6/7 | 0.968 | 0.493 | +0.475 | Cases 02/04 pass all runs; case 01 remains 2/3 (tangent offer displaced next action) |
 | `manifest-spec-planning` | 1/1 | 1/1 | 1.000 | 1.000 | +0.000 | Added webhook-storage trade-off case |
 | `stitch-design` | 1/1 | 1/1 | 1.000 | 1.000 | +0.000 | Added modal accessibility audit case |
