@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up.
+description: Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up. Also use to interpret a delegated job's result envelope or output a user shares.
 ---
 
 # Delegate
@@ -130,6 +130,9 @@ non-resumable `dispatch_unknown` instead of risking a duplicate submission.
 result envelope. See `references/result-envelope.md` before relaying a
 result to the user — it governs presentation (what to surface first on
 failure, never fabricating a `changes` entry, and so on), not extraction.
+If `follow_ups` is non-empty, finish the response with a `Follow-ups:` section
+listing every item as given, including on failure. Omit the section only when
+the field is empty; relaying a follow-up does not imply success.
 
 ## Model tiers
 

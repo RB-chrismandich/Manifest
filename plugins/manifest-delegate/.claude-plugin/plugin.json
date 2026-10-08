@@ -1,6 +1,6 @@
 {
   "name": "manifest-delegate",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Delegate tasks to local agent CLIs (Codex, Claude, Antigravity, Cursor, Devin) or remote Jules sessions, with second opinions, reviews, and resumable follow-ups where the backend supports them, background jobs, and an optional finish-time review gate.",
   "author": {
     "name": "ReefBytes"
