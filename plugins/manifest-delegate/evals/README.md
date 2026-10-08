@@ -67,11 +67,27 @@ delegate-03 1.00/1.00 · delegate-04 1.00/0.50 · delegate-05 1.00/0.78 · deleg
 delegate-08 0.33/0.20 (re-run after adding the `keeps-follow-up` regex; the judge let a dropped follow-up
 pass in the baseline run, which had read 1.00/0.56).
 
+## Opus re-baseline (2026-10-08, runs: 3, opus judge, no `--allow-tools`)
+
+Measured after the description started covering shared result envelopes (0.3.0). Run per case or per
+suite: `--case` takes one glob without character classes, so `'delegate-0[678]-*'` matches nothing.
+
+| suite | mean Δ |
+|---|---|
+| delegate-setup | **+0.35** |
+| delegate | **+0.23** |
+
+Per case (with / without): setup-01 0.50/0.50 · setup-02 1.00/0.00 · setup-03 1.00/0.56 · setup-04 1.00/0.00 ·
+setup-05 1.00/1.00 · setup-06 (neg) 0.67/0.67 · setup-07 (neg) 1.00/1.00 · delegate-01 1.00/0.50 ·
+delegate-02 1.00/1.00 · delegate-03 1.00/1.00 · delegate-04 1.00/0.50 · delegate-05 1.00/0.67 (2 of 3
+without runs) · delegate-06/07 (neg) 1.00/1.00 · delegate-08 1.00/0.47 (0.20/0.20 before the description change).
+
 ## Unsure / known limits
 
 - setup-01 without-arm failed `consistent-with-probe` on a fairly well-hedged answer; judge may be strict. Spot-check.
 - setup-05 and delegate-03 show Δ 0 in pilot: the base model already gets these right. Kept as regression guards, not uplift signals. delegate-05 is +0.33 (without-arm offers a CLI submit off the wrong base).
-- Pasted-envelope cases (02, 03, 08): the `delegate` skill never fires, so any uplift there is incidental. delegate-08 drops the `add jitter to backoff` follow-up in most runs of both arms; `keeps-follow-up` (regex) enforces it because the judge missed it.
+- Pasted-envelope cases (02, 03, 08): since 0.3.0 the `delegate` description covers interpreting a shared result envelope, and the skill fires 3/3 in the with arm. Before that it never fired and delegate-08 dropped the `add jitter to backoff` follow-up in both arms; `keeps-follow-up` (regex) enforces it because the judge missed it.
+- setup-01 and setup-06 fail identically in both arms without a Bash grant: setup-01 answers report that no probe could run; setup-06 is presumed the same cause (its answer text was not retained).
 - Envelope fixtures are validated against `manifest_delegate/envelope.py` (`attempted` is a string; list fields are string arrays; findings are `{severity, text}`). Re-validate if the schema changes.
 - Positive `delegate-*` trigger graders use `input_match: 'delegate("|$)'`, verified in pilot to match `manifest-delegate:delegate` and reject `delegate-setup`. Negative cases keep the broad `delegate` on purpose (either skill firing is wrong).
 - A score jump without a plugin change should be treated as judge-gaming until hand-checked.

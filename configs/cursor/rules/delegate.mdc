@@ -1,12 +1,12 @@
 ---
-description: "Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up."
+description: "Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up. Also use to interpret a delegated job's result envelope or output a user shares."
 globs: ".claude/skills/delegate/**"
 alwaysApply: false
 ---
 
 # delegate
 
-Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up.
+Delegate work to local agent CLIs or Jules remote GitHub sessions; task submission, status, results, and capability-aware follow-up. Also use to interpret a delegated job's result envelope or output a user shares.
 
 <!-- Auto-generated from .claude/skills/delegate/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
