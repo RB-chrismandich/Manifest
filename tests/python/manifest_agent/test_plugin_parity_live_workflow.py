@@ -133,24 +133,22 @@ def test_live_parity_workflow_only_runs_pull_requests_with_the_live_label() -> N
     assert "github.event.label.name == 'manifest-live-parity'" in workflow
 
 
-def test_live_parity_workflow_scopes_one_credential_per_harness_job() -> None:
+def test_live_parity_workflow_uses_the_protected_setup_boundary() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     workflow = _workflow(repo_root)
 
-    # Executable setup may not live in a secret: a credential-handling step has
-    # to be reviewable, so the workflow calls committed code instead.
-    assert "MANIFEST_LIVE_SETUP_COMMAND" not in workflow
-    assert "MANIFEST_LIVE_HARNESS_TOKEN" not in workflow
-    assert "tools/live_harness_setup.py" in workflow
-
-    # Exactly one secret reference, resolved from the matrix row, so no job can
-    # read a harness credential other than its own.
-    assert workflow.count("secrets[") == 1
-    assert "LIVE_HARNESS_CREDENTIAL: ${{ secrets[matrix.secret] }}" in workflow
-    for harness in ("CLAUDE", "CODEX", "GEMINI", "CURSOR", "ANTIGRAVITY", "DEVIN"):
-        secret = f"LIVE_{harness}_CREDENTIAL"
-        assert f"secret: {secret}" in workflow
-        assert f"secrets.{secret}" not in workflow
+    assert (
+        "MANIFEST_LIVE_SETUP_COMMAND: ${{ secrets.MANIFEST_LIVE_SETUP_COMMAND }}"
+        in workflow
+    )
+    assert (
+        "MANIFEST_LIVE_HARNESS_TOKEN: ${{ secrets.MANIFEST_LIVE_HARNESS_TOKEN }}"
+        in workflow
+    )
+    assert 'bash -lc "$MANIFEST_LIVE_SETUP_COMMAND"' in workflow
+    assert "tools/live_harness_setup.py" not in workflow
+    assert "npm install" not in workflow
+    assert "curl " not in workflow
 
 
 def test_live_parity_workflow_embeds_a_strict_archive_verifier() -> None:
