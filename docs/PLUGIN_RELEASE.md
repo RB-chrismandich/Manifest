@@ -89,32 +89,14 @@ pre-commit run `python3 tools/sync_i_have_adhd.py --check` to reject drift.
 The skill was adapted from `ayghri/i-have-adhd` at `2d19ad20`; its MIT license
 remains in `plugins/manifest-i-have-adhd/LICENSE.upstream`.
 
-## Live Parity Credentials
+## Live Parity Setup
 
 `.github/workflows/plugin-parity-live.yml` proves READY parity against real,
-licensed, authenticated CLIs. It runs one job per harness, and each job may read
-exactly **one** credential, resolved from its matrix row
-(`secrets[matrix.secret]`). Configure these in the protected
-`manifest-plugin-live` environment:
-
-| Secret | Value | How the CLI reads it |
-|--------|-------|----------------------|
-| `LIVE_CLAUDE_CREDENTIAL` | Anthropic API key | `ANTHROPIC_API_KEY` |
-| `LIVE_CODEX_CREDENTIAL` | OpenAI API key | `OPENAI_API_KEY` |
-| `LIVE_GEMINI_CREDENTIAL` | AI Studio API key | `GEMINI_API_KEY` |
-| `LIVE_CURSOR_CREDENTIAL` | Cursor dashboard API key | `CURSOR_API_KEY` |
-| `LIVE_ANTIGRAVITY_CREDENTIAL` | AI Studio API key | `GEMINI_API_KEY` plus a pinned `modelProvider: gemini` |
-| `LIVE_DEVIN_CREDENTIAL` | Full `credentials.toml` document | `~/.local/share/devin/credentials.toml`, mode 0600 |
-
-Set one without exposing it to your shell history:
-
-```bash
-gh secret set LIVE_CLAUDE_CREDENTIAL --env manifest-plugin-live < key.txt
-```
-
-`tools/live_harness_setup.py` performs the install, credential placement, and
-the CLI's own authentication probe. It is committed code on purpose: a step that
-handles credentials must be reviewable, so no secret may carry executable shell.
-The credential is withheld from the third-party installer's environment, the
-probe failing fails the job, and a missing secret is an explicit `BLOCKED`
-error rather than a silent skip.
+licensed, authenticated CLIs. Configure `MANIFEST_LIVE_SETUP_COMMAND` and
+`MANIFEST_LIVE_HARNESS_TOKEN` in the protected `manifest-plugin-live`
+environment. The setup command owns harness-specific installation and
+authentication and must select only reviewed, version-pinned artifacts whose
+checksums or signatures it verifies before exposing credentials. Repository
+workflow code deliberately does not download CLI installers because code from a
+mutable package or installer channel must not cross the protected credential
+boundary. A missing setup command or token is an explicit `BLOCKED` failure.

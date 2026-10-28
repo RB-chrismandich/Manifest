@@ -27,23 +27,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Each row names the ONE protected secret its job may read, so a job
-        # never receives another harness's credential.
-        include:
-          - harness: claude
-            secret: LIVE_CLAUDE_CREDENTIAL
-          - harness: codex
-            secret: LIVE_CODEX_CREDENTIAL
-          - harness: gemini
-            secret: LIVE_GEMINI_CREDENTIAL
-          - harness: cursor
-            secret: LIVE_CURSOR_CREDENTIAL
-          - harness: antigravity
-            secret: LIVE_ANTIGRAVITY_CREDENTIAL
-          - harness: devin
-            secret: LIVE_DEVIN_CREDENTIAL
+        harness: [claude, codex, gemini, cursor, antigravity, devin]
     env:
       HARNESS: ${{ matrix.harness }}
+      # Installation and authentication are owned by the protected environment.
+      # The command must install a reviewed, cryptographically verified artifact
+      # for HARNESS and authenticate it without exposing credentials to this job.
+      MANIFEST_LIVE_SETUP_COMMAND: ${{ secrets.MANIFEST_LIVE_SETUP_COMMAND }}
+      MANIFEST_LIVE_HARNESS_TOKEN: ${{ secrets.MANIFEST_LIVE_HARNESS_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
@@ -54,18 +45,28 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install and authenticate the requested native harness
+      - name: Require audited native harness setup
         shell: bash
-        env:
-          # A public PR runner cannot manufacture a licensed CLI: the credential
-          # comes from the protected environment, and only this step sees it.
-          LIVE_HARNESS_CREDENTIAL: ${{ secrets[matrix.secret] }}
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.local/bin"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          PATH="$HOME/.local/bin:$PATH" python3 tools/live_harness_setup.py \
-            --harness "$HARNESS"
+          if [[ -z "${MANIFEST_LIVE_HARNESS_TOKEN:-}" || -z "${MANIFEST_LIVE_SETUP_COMMAND:-}" ]]; then
+            echo "BLOCKED: protected MANIFEST_LIVE_HARNESS_TOKEN and MANIFEST_LIVE_SETUP_COMMAND are required"
+            exit 1
+          fi
+          # Artifact selection and authentication stay behind the protected,
+          # audited setup boundary; repository code must not fetch mutable CLI
+          # installers and then hand the resulting binaries provider secrets.
+          bash -lc "$MANIFEST_LIVE_SETUP_COMMAND"
+          case "$HARNESS" in
+            claude) native=claude ;;
+            codex) native=codex ;;
+            gemini) native=gemini ;;
+            cursor) native=cursor-agent ;;
+            antigravity) native=agy ;;
+            devin) native=devin ;;
+          esac
+          command -v "$native" >/dev/null || { echo "BLOCKED: $native is absent after protected setup"; exit 1; }
+          "$native" --version
 
       - name: Build immutable coordinator and release artifacts
         shell: bash
