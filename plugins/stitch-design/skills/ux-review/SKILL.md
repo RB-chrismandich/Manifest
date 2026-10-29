@@ -145,6 +145,14 @@ Static analysis checks that indicate Core Web Vitals risk:
 - Skip binary files and minified bundles
 - Cap findings at 100 per file to avoid context overflow
 
+## Screen-reader review boundary
+
+- Do not launch, operate, or require evidence from VoiceOver.
+- Assess screen-reader compatibility through static review of semantic HTML,
+  accessible names, ARIA usage, and keyboard/focus behavior.
+- Continue reporting accessibility defects found by those checks; this boundary
+  is not an accessibility exemption.
+
 ## Sub-agent dispatch
 
 Follow the [shared dispatch contract](references/sub-agent-dispatch.md).
