@@ -37,7 +37,8 @@ Key ingest parameters (from `~/.claude/config/skillclaw.yml`):
 - **`settle_minutes: 5`** — files whose mtime is newer than 5 minutes are skipped
   to avoid reading sessions that are still being written.
 - **`max_tool_output_chars: 500`** — raw tool stdout/stderr (including base64
-  blobs) is truncated beyond this to control noise and token consumption.
+  blobs) is truncated beyond this to control noise and token consumption, after
+  structured sanitation and verification of the retained transcript.
 
 Incremental state is tracked in `~/.skillclaw/.ingest-state.json` so re-runs
 only process new content.
@@ -104,8 +105,25 @@ The log records counts, names, timings, and URLs only — never session content
 
 - Storage `~/.skillclaw/` and its subdirectories (`sessions/`, `skills/`) are
   `chmod 700` — set at enable time and re-enforced on each `skillclaw_apply_state` call.
-- `skillclaw_scrub.py` redacts API keys and auth headers from ingested sessions
-  before any content is passed to the evolve engine.
+- Ingest, scrub and evolve require **Gitleaks on PATH** (tested with the repository
+  pin, 8.30.1). The deployed runtime ships its own detector configuration; project
+  allowlists, environment overrides and inline allow comments cannot waive checks.
+- Structured credential fields and known key/header forms are sanitized before
+  tool truncation. Ambiguous unstructured assignments and incomplete private keys
+  block processing. Settled malformed transcripts and unreadable session files are
+  errors, rather than silently omitted records.
+- Every complete prompt, including template and library descriptions, is scrubbed
+  and independently scanned before provider use. All chunks pass preflight before
+  the first call; direct evolve and subprocess-runner entry points are protected.
+  Existing text, reasoning and tool context remain within the explicit renderer's
+  field selection. Unknown fields are not added to prompts.
+- Ingest, scrub and evolve failures stop the promotion pipeline. `--no-evolve` can
+  still classify existing candidates without processing transcripts or calling a
+  provider. Security diagnostics do not include transcript content or scan reports.
+- This is a **finite detection policy**, not proof that arbitrary text is free of
+  secrets. Unknown formats, context-dependent secrets, pre-existing truncation and
+  unsupported encodings can evade detection. Keep sensitive material local and
+  trust only deliberately configured providers and installed detector binaries.
 
 ## Follow-ups (not in V1)
 

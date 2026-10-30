@@ -182,20 +182,27 @@ if [[ "$DO_EVOLVE" == true ]]; then
     # count → status.json totals.ingested is populated for --status/troubleshooting.
     ingest_json="$(skillclaw_cmd ingest "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
         --window-days "$WINDOW_DAYS" 2> /dev/null)" ||
-        err "ingest returned non-zero (continuing)"
+        {
+            err "ingest failed; provider invocation blocked"
+            exit 1
+        }
     ingested_count="$(printf '%s' "$ingest_json" |
         python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("ingested",0)))' \
             2> /dev/null || echo 0)"
     audit log "$run_id" ingest stage_end seconds=$((SECONDS - _t0)) ingested="$ingested_count"
 fi
 
-# 2. Scrub captured sessions (best-effort; never blocks).
-if [[ -d "$SESSIONS" ]]; then
+# 2. Scrub and independently verify sessions before any provider invocation.
+if [[ "$DO_EVOLVE" == true ]]; then
     CUR_STAGE="scrub"
     _t0=$SECONDS
     echo "▸ scrub…"
     audit log "$run_id" scrub stage_start
-    skillclaw_cmd scrub "$SESSIONS" > /dev/null 2>&1 || true
+    skillclaw_cmd scrub "$SESSIONS" > /dev/null 2>&1 ||
+        {
+            err "scrub failed; provider invocation blocked"
+            exit 1
+        }
     audit log "$run_id" scrub stage_end seconds=$((SECONDS - _t0))
 fi
 
@@ -206,7 +213,10 @@ if [[ "$DO_EVOLVE" == true ]]; then
     skillclaw_cmd evolve "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
         --committed-dir "$COMMITTED" --token-budget "$TOKEN_BUDGET" \
         --run-id "$run_id" > /dev/null ||
-        err "evolve returned non-zero (continuing)"
+        {
+            err "evolve failed; promotion blocked"
+            exit 1
+        }
 fi
 
 # 4. Classify + validate. A crash here (empty/non-JSON output) must fail loudly,
