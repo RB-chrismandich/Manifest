@@ -15,8 +15,9 @@ Pinned artifact:
 
 - Official source: [Homebrew/install](https://github.com/Homebrew/install), linked
   by [brew.sh](https://brew.sh/).
-- Commit: [`df3c2556141c012eaba0453ede7a1bd4f05b824c`](https://github.com/Homebrew/install/commit/df3c2556141c012eaba0453ede7a1bd4f05b824c).
-- File: [`install.sh`](https://raw.githubusercontent.com/Homebrew/install/df3c2556141c012eaba0453ede7a1bd4f05b824c/install.sh), 33,763 bytes.
+- Commit: [`df3c2556141c`](https://github.com/Homebrew/install/commit/df3c2556141c012eaba0453ede7a1bd4f05b824c).
+- File: [`install.sh`](https://github.com/Homebrew/install/blob/df3c2556141c012eaba0453ede7a1bd4f05b824c/install.sh),
+  33,763 bytes.
 - Git blob: `473f31b90873ff25018ed7b086ee60c567910b37`.
 - SHA-256: `151a786c066af55f61bd32bd4804470fdb2b872e6a42a8ef1335c29760e37404`.
 
