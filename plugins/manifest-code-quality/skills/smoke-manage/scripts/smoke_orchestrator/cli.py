@@ -105,6 +105,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         for e in exc.errors:
             _err(f"  - {e}")
         return 2
+    except OSError as exc:
+        _err(f"I/O error reading catalog: {exc}")
+        return 1
     except RuntimeError as exc:  # e.g. Playwright missing for ui/api steps
         _err(str(exc))
         return 2
@@ -121,10 +124,18 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 def _cmd_list(args: argparse.Namespace) -> int:
     from .appender import SmokeTestAppender
+    from .validation import ValidationError
 
     appender = SmokeTestAppender(catalog_dir=args.catalog_dir)
     apps = [args.app] if args.app else _discover_apps(args.catalog_dir)
-    coverage = {app: appender.list_coverage(app) for app in apps}
+    try:
+        coverage = {app: appender.list_coverage(app) for app in apps}
+    except ValidationError as exc:
+        _err(str(exc))
+        return 2
+    except OSError as exc:
+        _err(f"I/O error reading catalog: {exc}")
+        return 1
     if args.json:
         print(json.dumps(coverage, indent=2))
     else:
@@ -139,10 +150,14 @@ def _cmd_list(args: argparse.Namespace) -> int:
 
 def _cmd_prune(args: argparse.Namespace) -> int:
     from .appender import SmokeTestAppender
+    from .validation import ValidationError
 
     appender = SmokeTestAppender(catalog_dir=args.catalog_dir)
     try:
         removed = appender.prune(args.app, args.id)
+    except ValidationError as exc:
+        _err(str(exc))
+        return 2
     except OSError as exc:
         _err(f"I/O error pruning catalog: {exc}")
         return 1

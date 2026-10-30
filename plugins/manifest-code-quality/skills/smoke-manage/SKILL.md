@@ -86,6 +86,21 @@ python3 "<this-skill-dir>/scripts/smoke.py" prune --app billing --id old-test   
 
 ## Safety
 
+Catalog mutation opens a caller-owned, single-link regular lock file without
+truncating it. Lock symlinks, hardlinks and nonregular files are rejected, as are
+symlinks at the selected catalog root or catalog file. Configured parent aliases
+(such as macOS `/tmp`) remain supported. Reads and atomic writes stay relative to
+one directory descriptor throughout the lock lifetime, so replacing the root
+pathname cannot redirect the transaction. Existing regular lock contents and
+inodes are retained. A catalog hardlink is replaced atomically without changing
+its other links.
+
+App names must be lowercase alphanumeric/hyphen slugs for append, prune, list and
+run. Filesystem rejection is an I/O error (exit 1); invalid app names are usage
+errors (exit 2). Locks remain advisory: a process with permission to replace lock
+entries can defeat serialization, though descriptor-relative I/O prevents the
+pathname redirection described above. Do not delete sidecars to unlock them.
+
 - CLI steps are **argument arrays only** (never a shell string); resolved state
   lands in discrete argv elements, so a captured value can never inject a command.
 - Every step runs under a bounded timeout. There is **no automatic retry** by

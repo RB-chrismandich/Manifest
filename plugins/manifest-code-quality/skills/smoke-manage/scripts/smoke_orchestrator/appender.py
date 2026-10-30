@@ -38,8 +38,8 @@ class SmokeTestAppender:
         app = workflow["app"]
         path = cat.catalog_path(self.catalog_dir, app)
         test = _to_test(workflow)
-        with cat.file_lock(path):
-            catalog = cat.load_catalog(path, app)
+        with cat.file_lock(path) as locked:
+            catalog = locked.load(app)
             tests = catalog.setdefault("tests", [])
             updated = False
             for i, existing in enumerate(tests):
@@ -51,7 +51,7 @@ class SmokeTestAppender:
                 tests.append(test)
             validate_catalog(catalog)  # never write an invalid catalog
             if not dry_run:
-                cat.atomic_write(path, catalog)
+                locked.write(catalog)
         return AppendResult(id=test["id"], updated=updated, path=str(path))
 
     def list_coverage(self, app: str) -> list[dict]:
@@ -65,12 +65,12 @@ class SmokeTestAppender:
     def prune(self, app: str, test_id: str) -> bool:
         """Remove a test by id (FR-018). Idempotent: absent id is a no-op. Returns removed?"""
         path = cat.catalog_path(self.catalog_dir, app)
-        with cat.file_lock(path):
-            catalog = cat.load_catalog(path, app)
+        with cat.file_lock(path) as locked:
+            catalog = locked.load(app)
             tests = catalog.get("tests", [])
             kept = [t for t in tests if t.get("id") != test_id]
             removed = len(kept) != len(tests)
             if removed:
                 catalog["tests"] = kept
-                cat.atomic_write(path, catalog)
+                locked.write(catalog)
         return removed
