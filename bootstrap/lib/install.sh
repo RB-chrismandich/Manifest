@@ -33,6 +33,9 @@ check_platform() {
     esac
 }
 
+# shellcheck source=bootstrap/lib/verified_homebrew.sh
+source "$(dirname "${BASH_SOURCE[0]}")/verified_homebrew.sh"
+
 # Check and install Homebrew (macOS) or ensure package manager is available (Linux)
 install_package_manager() {
     if [[ "$PLATFORM" == "macos" ]]; then
@@ -46,7 +49,7 @@ install_package_manager() {
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then
                 print_step "Installing Homebrew..."
-                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                install_homebrew_verified || return 1
 
                 # Add Homebrew to PATH for Apple Silicon
                 if [[ -f "/opt/homebrew/bin/brew" ]]; then
