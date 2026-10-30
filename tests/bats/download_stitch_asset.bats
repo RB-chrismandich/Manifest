@@ -87,7 +87,10 @@ start_server() {
 
 @test "real local redirect succeeds without ambient curl trace or write-out leakage" {
     start_server redirect
-    printf 'verbose\nwrite-out = "%%{url_effective}\n"\ntrace-ascii = "%s"\n' "$SANDBOX/curl-trace" > "$HOME/.curlrc"
+    printf 'verbose\nwrite-out = "%%{url_effective}"\ntrace-ascii = "%s"\n' "$SANDBOX/curl-trace" > "$HOME/.curlrc"
+    run /usr/bin/curl -q --config "$HOME/.curlrc" --version
+    assert_success
+    rm -f "$SANDBOX/curl-trace"
     run --separate-stderr env PATH=/usr/bin:/bin /bin/bash "$SCRIPT" "$URL" "$OUTPUT"
     assert_success
     assert_no_capability
