@@ -118,9 +118,9 @@
           "exe_sha256": "cbe4d4683435bf59712cf0ca0187c8ee2a6ba296a85da62d6666894413c3142c",
           "python_provider": {
             "implementation": "cpython",
-            "version": "3.14.7",
-            "build": "main:Aug 25 2026 13:59:49",
-            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+            "version": "3.12.3",
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "c86f21d0da9290ece2d7d49a3f7ed52aed59cb029abdf0ea25c79634f6cbe960"
           },
           "path_in_archive": ".",
           "console_scripts": [
@@ -323,9 +323,9 @@
           "exe_sha256": "bb0cd00dd224e88a3bcc4baf0c93ab00385d857f52dc3c5354b2d5d587cf191b",
           "python_provider": {
             "implementation": "cpython",
-            "version": "3.14.7",
-            "build": "main:Aug 25 2026 13:59:49",
-            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+            "version": "3.12.3",
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "c86f21d0da9290ece2d7d49a3f7ed52aed59cb029abdf0ea25c79634f6cbe960"
           },
           "path_in_archive": ".",
           "console_scripts": [
@@ -371,9 +371,9 @@
           "exe_sha256": "97c6d9a4529c9ae15bf11faa585710d2ef66d95ef4c059e05e63f4d0c6fb70ec",
           "python_provider": {
             "implementation": "cpython",
-            "version": "3.14.7",
-            "build": "main:Aug 25 2026 13:59:49",
-            "exe_sha256": "90996cc55efb063bf6264e05ea0f6868bcdd0d9a43530dd91158cdc41c5e6de7"
+            "version": "3.12.3",
+            "build": "main:Aug 31 2026 10:18:26",
+            "exe_sha256": "c86f21d0da9290ece2d7d49a3f7ed52aed59cb029abdf0ea25c79634f6cbe960"
           },
           "path_in_archive": ".",
           "console_scripts": [

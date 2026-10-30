@@ -945,7 +945,7 @@ jobs:
             --lock config/toolchain.lock.json \
             --platform linux-arm64 \
             --store "${RUNNER_TEMP}/manifest-toolchain" \
-            --only python-env
+            --only python-env --only project-env --only config-env --json
 
       - name: Run shared checks
         id: shadow
