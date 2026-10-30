@@ -7,16 +7,10 @@ type Reference = { start: number; end: number; url: string; prefix: string; suff
 export class ResourceEmbedder {
   readonly budget: ResourceBudget;
   readonly cache = new Map<string, Promise<string>>();
-  readonly isSafeUrl: (url: URL) => boolean;
   readonly isImageUrl: (url: string) => boolean;
 
-  constructor(options: {
-    isSafeUrl: (url: URL) => boolean;
-    isImageUrl: (url: string) => boolean;
-    budget?: ResourceBudget;
-  }) {
+  constructor(options: { isImageUrl: (url: string) => boolean; budget?: ResourceBudget }) {
     this.budget = options.budget ?? new ResourceBudget();
-    this.isSafeUrl = options.isSafeUrl;
     this.isImageUrl = options.isImageUrl;
   }
 
@@ -33,7 +27,6 @@ export class ResourceEmbedder {
     const pending = fetchResource(url, {
       budget: this.budget,
       timeout,
-      isSafeUrl: this.isSafeUrl,
     }).catch((error) => {
       console.warn(
         `  WARN: ${String(error.message)

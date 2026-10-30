@@ -11,11 +11,17 @@ async function server(t, handler) {
     instance.closeAllConnections();
     instance.close();
   });
-  return `http://127.0.0.1:${instance.address().port}`;
+  const get = http.get;
+  t.mock.method(http, 'get', (url, options, callback) => {
+    const routed = new URL(url);
+    assert.equal(routed.hostname, '93.184.216.34');
+    routed.hostname = '127.0.0.1';
+    return get(routed, options, callback);
+  });
+  return `http://93.184.216.34:${instance.address().port}`;
 }
-const options = (budget) => ({ budget, timeout: 500, isSafeUrl: () => true });
-const embedder = (budget) =>
-  new ResourceEmbedder({ budget, isSafeUrl: () => true, isImageUrl: () => true });
+const options = (budget) => ({ budget, timeout: 500 });
+const embedder = (budget) => new ResourceEmbedder({ budget, isImageUrl: () => true });
 
 test('exact byte cap succeeds; chunked overflow aborts without retained listeners', async (t) => {
   const url = await server(t, (req, res) => {

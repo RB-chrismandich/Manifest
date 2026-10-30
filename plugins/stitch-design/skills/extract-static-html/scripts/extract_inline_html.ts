@@ -204,38 +204,6 @@ function isImageUrl(url: string): boolean {
  * URLs parsed from HTML files could be attacker-controlled, so we must
  * ensure they only target public internet hosts.
  */
-function isSafeUrl(parsed: URL): boolean {
-  // Only allow http and https protocols
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return false;
-  }
-
-  const hostname = parsed.hostname.toLowerCase();
-
-  // Block localhost variants
-  if (hostname === 'localhost' || hostname === '[::1]') {
-    return false;
-  }
-
-  // Block private/reserved IPv4 ranges
-  const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4Match) {
-    const [, a, b] = ipv4Match.map(Number);
-    if (
-      a === 127 ||          // 127.0.0.0/8  (loopback)
-      a === 10 ||           // 10.0.0.0/8   (private)
-      a === 0 ||            // 0.0.0.0/8    (unspecified)
-      (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12 (private)
-      (a === 192 && b === 168) ||          // 192.168.0.0/16 (private)
-      (a === 169 && b === 254)             // 169.254.0.0/16 (link-local)
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 // ---------------------------------------------------------------------------
 // JSX → HTML conversion using Babel AST
 // ---------------------------------------------------------------------------
@@ -635,7 +603,7 @@ async function main(): Promise<void> {
   validateOpts(opts);
 
   const startTime = Date.now();
-  const embedder = new ResourceEmbedder({ isSafeUrl, isImageUrl });
+  const embedder = new ResourceEmbedder({ isImageUrl });
   const head = buildHead(opts);
   const stats: AllStats = {
     pages: [],
