@@ -2,11 +2,14 @@
 
 import json
 import os
-import subprocess
 import sys
+import time
 
-from . import backend, jobstore, registry, task, worker
+from . import backend, jobstore, registry, review_git, task, worker
 from . import envelope as envelope_mod
+from .review_git import ReviewDiffError
+
+MAX_UNTRACKED_FILES = 128
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
@@ -35,45 +38,70 @@ _REVIEW_OUTPUT_CONTRACT = (
 )
 
 
-class ReviewDiffError(Exception):
-    """Raised when git invocations backing a review diff fail visibly."""
-
-
-def _run_git(args_list, cwd):
-    """Run git, treating exit codes 0/1 as success (1 = "differs", not error)."""
-    try:
-        proc = subprocess.run(
-            ["git", *args_list], capture_output=True, text=True, cwd=cwd
-        )
-    except OSError as exc:
-        raise ReviewDiffError(
-            "git {} failed to launch: {}".format(" ".join(args_list), exc)
-        ) from exc
+def _run_git(args_list, cwd, *, max_bytes=backend.TASK_LIMIT, deadline=None):
+    """Run bounded Git, accepting exit 1 for no-index differences."""
+    proc = review_git.capture_git(
+        args_list, cwd, max_bytes=max_bytes, deadline=deadline
+    )
     if proc.returncode not in (0, 1):
         raise ReviewDiffError(
             f"git {' '.join(args_list)} failed (exit {proc.returncode}): "
             f"{(proc.stderr or '').strip()[:300]}"
         )
-    return proc.stdout or ""
+    return proc.stdout
 
 
-def _untracked_diff(cwd):
-    """Synthesize diff text for untracked files (git diff HEAD omits these)."""
-    listing = _run_git(["ls-files", "--others", "--exclude-standard"], cwd)
+def _untracked_diff(cwd, *, max_bytes=backend.TASK_LIMIT, deadline=None):
+    """Include every untracked file within the remaining diff and work budgets."""
+    deadline = (
+        deadline
+        if deadline is not None
+        else time.monotonic() + review_git.GIT_TIMEOUT_SECONDS
+    )
+    listing = _run_git(
+        ["ls-files", "--others", "--exclude-standard", "-z"], cwd, deadline=deadline
+    )
+    if listing.count("\0") > MAX_UNTRACKED_FILES:
+        raise ReviewDiffError(
+            f"untracked file count limit exceeded ({MAX_UNTRACKED_FILES})"
+        )
+    paths = [path for path in listing.split("\0") if path]
     parts = []
-    for path in filter(None, listing.splitlines()):
+    for path in paths:
         numstat = _run_git(
-            ["diff", "--no-index", "--numstat", "--", "/dev/null", path], cwd
+            ["diff", "--no-index", "--numstat", "--", "/dev/null", path],
+            cwd,
+            max_bytes=65536,
+            deadline=deadline,
         )
         if numstat.strip().startswith("-\t-\t"):
-            parts.append(f"Binary file {path} (untracked)\n")
-            continue
-        parts.append(_run_git(["diff", "--no-index", "--", "/dev/null", path], cwd))
+            part = f"Binary file {path} (untracked)\n"
+        else:
+            part = _run_git(
+                ["diff", "--no-index", "--", "/dev/null", path],
+                cwd,
+                max_bytes=max_bytes,
+                deadline=deadline,
+            )
+        max_bytes -= len(part.encode("utf-8"))
+        if max_bytes < 0:
+            raise ReviewDiffError("git review diff byte limit exceeded")
+        parts.append(part)
     return "".join(parts)
 
 
-def _scope_diff(diff_args, cwd):
-    return _run_git(["diff", *diff_args], cwd) + _untracked_diff(cwd)
+def _scope_diff(diff_args, cwd, *, deadline=None):
+    deadline = (
+        deadline
+        if deadline is not None
+        else time.monotonic() + review_git.GIT_TIMEOUT_SECONDS
+    )
+    tracked = _run_git(["diff", *diff_args], cwd, deadline=deadline)
+    return tracked + _untracked_diff(
+        cwd,
+        max_bytes=backend.TASK_LIMIT - len(tracked.encode("utf-8")),
+        deadline=deadline,
+    )
 
 
 # Candidate refs to merge-base HEAD against when no explicit --base is given,
@@ -88,19 +116,13 @@ _BRANCH_BASE_CANDIDATES = (
 )
 
 
-def _git_or_none(args_list, cwd):
-    """Run git and return stripped stdout on success, or None on any failure —
-    for probing refs that may not exist (upstream, default branch)."""
-    try:
-        proc = subprocess.run(
-            ["git", *args_list], capture_output=True, text=True, cwd=cwd
-        )
-    except OSError:
-        return None
+def _git_or_none(args_list, cwd, *, deadline=None):
+    """Missing refs return None; incomplete or oversized observations fail closed."""
+    proc = review_git.capture_git(args_list, cwd, max_bytes=4096, deadline=deadline)
     return proc.stdout.strip() if proc.returncode == 0 else None
 
 
-def _resolve_branch_base(base, cwd):
+def _resolve_branch_base(base, cwd, *, deadline=None):
     """Resolve the base ref for a branch-scope diff.
 
     An explicit --base wins. Otherwise merge-base HEAD against the branch's
@@ -112,7 +134,7 @@ def _resolve_branch_base(base, cwd):
     if base:
         return base
     for ref in _BRANCH_BASE_CANDIDATES:
-        merge_base = _git_or_none(["merge-base", "HEAD", ref], cwd)
+        merge_base = _git_or_none(["merge-base", "HEAD", ref], cwd, deadline=deadline)
         if merge_base:
             return merge_base
     raise ReviewDiffError(
@@ -123,22 +145,25 @@ def _resolve_branch_base(base, cwd):
 
 
 def assemble_review_diff(scope, base, cwd=None):
-    """Build the review/gate diff: tracked+staged+untracked, fail open visibly.
+    """Build the review/gate diff: tracked+staged+untracked, fail closed visibly.
 
     Raises ReviewDiffError (developer-visible) instead of silently returning
     an empty diff when any underlying git invocation fails.
+    Collection permits at most 1 MiB of diff, 128 untracked files, and 30 seconds;
+    each Git stderr stream is limited to 64 KiB. No partial diff is returned.
     """
+    deadline = time.monotonic() + review_git.GIT_TIMEOUT_SECONDS
     if scope == "working-tree":
-        return _scope_diff(["HEAD"], cwd)
+        return _scope_diff(["HEAD"], cwd, deadline=deadline)
     if scope == "branch":
-        ref = _resolve_branch_base(base, cwd)
-        return _scope_diff([f"{ref}...HEAD"], cwd)
+        ref = _resolve_branch_base(base, cwd, deadline=deadline)
+        return _scope_diff([f"{ref}...HEAD"], cwd, deadline=deadline)
     # auto: prefer working-tree changes; fall back to the full branch diff.
-    diff = _scope_diff(["HEAD"], cwd)
+    diff = _scope_diff(["HEAD"], cwd, deadline=deadline)
     if diff.strip():
         return diff
-    ref = _resolve_branch_base(base, cwd)
-    return _scope_diff([f"{ref}...HEAD"], cwd)
+    ref = _resolve_branch_base(base, cwd, deadline=deadline)
+    return _scope_diff([f"{ref}...HEAD"], cwd, deadline=deadline)
 
 
 def _build_review_prompt(args):
@@ -272,7 +297,11 @@ def cmd_review(args, backends, user_config, services_disabled):
         print(ready_error, file=sys.stderr)
         return ready_code
 
-    prompt = _build_review_prompt(args)
+    try:
+        prompt = _build_review_prompt(args)
+    except ReviewDiffError as exc:
+        print(f"delegate: {exc}", file=sys.stderr)
+        return 2
     prompt_bytes = prompt.encode("utf-8")
     limit_error = backend.check_payload_limits(entry, prompt_bytes)
     if limit_error:
