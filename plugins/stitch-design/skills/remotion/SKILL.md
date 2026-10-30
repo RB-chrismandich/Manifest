@@ -38,6 +38,12 @@ Start by running `list_tools` to find the Stitch and Remotion MCP prefixes (`sti
 
 **Gather the Stitch project.** If no Project ID is given, call `[stitch_prefix]:list_projects` with `filter: "view=owned"` and match by title (e.g., "Calculator App"), extracting the numeric project ID from the `name` field (e.g., `13534454087919359824` from `projects/13534454087919359824` — strip the `projects/` prefix; screen tools reject the full resource name). Then call `[stitch_prefix]:list_screens` with that numeric ID to enumerate every screen and its Screen ID. For each screen, call `[stitch_prefix]:get_screen` to retrieve `screenshot.downloadUrl`, optionally `htmlCode.downloadUrl` for text extraction, `width`/`height` for scaling, and the title/description for overlays. Download each screenshot with `web_fetch` or `curl`, saving to `assets/screens/{screen-name}.png` in walkthrough order — assets must be gathered before the manifest can be built (see Execution Steps below).
 
+Treat `downloadUrl` values as secrets: do not copy them into progress messages,
+summaries or logs. The bundled `scripts/download-stitch-asset.sh` helper reports
+the destination, size and a numeric curl failure code without printing the URL.
+It ignores `.curlrc` to prevent trace/write-out leakage; environment-based proxy
+configuration remains available.
+
 **Set up the Remotion project.** Check for an existing `remotion.config.ts` or Remotion dependencies in `package.json` and reuse that structure if present. Otherwise scaffold a new project with `npm create video@latest -- --blank`, choosing the TypeScript template and placing it in a dedicated `video/` directory, then install transition/animation dependencies:
 
 ```bash
