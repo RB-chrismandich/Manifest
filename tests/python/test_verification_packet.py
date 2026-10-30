@@ -214,3 +214,14 @@ def test_json_escaped_token_is_scanned(gate):
     packet.write_text("+" + encoded)
     assert invoke(gate)["reviewer_error"] is True
     assert not observed.exists()
+
+
+@pytest.mark.parametrize("operator", [" + ", " "])
+def test_non_json_credential_expression_never_reaches_reviewer(gate, operator):
+    real_scanner(gate)
+    _, _, packet, observed, _ = gate
+    packet.write_text(
+        'settings = {"password": ""' + operator + '"synthetic-private-value"}'
+    )
+    assert invoke(gate)["reviewer_error"] is True
+    assert not observed.exists()

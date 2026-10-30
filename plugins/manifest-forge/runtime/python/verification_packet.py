@@ -42,6 +42,9 @@ def scrub_fields(text: str) -> str:
             continue
         _, size = decoder.raw_decode(text[match.end() :])
         end = match.end() + size
+        suffix = text[end:].lstrip()
+        if suffix and suffix[0] not in ",}]":
+            raise ValueError("non-JSON credential expression requires local review")
         spans.append((match.end(), end))
     for start, end in reversed(spans):
         text = text[:start] + '"<REDACTED>"' + text[end:]
