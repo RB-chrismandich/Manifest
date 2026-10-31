@@ -28,6 +28,8 @@ from manifest_model_policy import (
 )
 
 from .candidate_store import validate_candidates, write_candidates
+from .provider_safety import prepare_prompt
+from .scrub import redact_value
 
 DEFAULT_TOKEN_BUDGET = 100_000
 DEFAULT_CHUNK_TIMEOUT = 600  # seconds per `claude -p` chunk (FR-010)
@@ -72,9 +74,9 @@ def load_sessions(sessions_dir) -> list[dict]:
     out = []
     for f in sorted(sessions_dir.glob("*.json")):
         try:
-            out.append(json.loads(f.read_text(encoding="utf-8")))
-        except json.JSONDecodeError:
-            continue
+            out.append(redact_value(json.loads(f.read_text(encoding="utf-8"))))
+        except (OSError, ValueError) as exc:
+            raise RuntimeError("SkillClaw session could not be loaded safely") from exc
     return out
 
 
@@ -133,6 +135,7 @@ def subprocess_runner(prompt: str) -> str:
     Provider invocation remains stdin-driven where its configured command shape
     supports it, so large transcript chunks never hit ARG_MAX.
     """
+    prompt = prepare_prompt(prompt)
     try:
         config = load_default_policy()
     except (OSError, ValueError) as exc:
@@ -246,11 +249,15 @@ def evolve(
     if not sessions:
         return {"candidates": 0, "chunks": 0, "written": []}
 
+    # Preflight the whole batch so a later unsafe chunk cannot follow a send.
+    prompts = [
+        prepare_prompt(build_prompt(template, chunk, library)) for chunk in chunks
+    ]
     mapped: list[dict] = []
     start = time.monotonic()
     prev_elapsed = 0.0
-    for idx, chunk in enumerate(chunks, 1):
-        out = runner(build_prompt(template, chunk, library))
+    for idx, prompt in enumerate(prompts, 1):
+        out = runner(prompt)
         mapped.extend(parse_candidates(out))
         if audit_mod and run_id:
             elapsed = time.monotonic() - start
@@ -318,7 +325,7 @@ def main(argv: list[str]) -> int:
             token_budget=args.token_budget,
             run_id=args.run_id,
         )
-    except (RuntimeError, FileNotFoundError) as e:
+    except (RuntimeError, OSError) as e:
         print(f"skillclaw_evolve: {e}", file=sys.stderr)
         return 1
     print(json.dumps(summary))

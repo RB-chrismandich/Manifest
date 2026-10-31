@@ -1,0 +1,13 @@
+# This deployed runtime is independent of Forge and repository allowlists.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "skillclaw-credential-field"
+description = "Residual credential field before provider invocation"
+regex = '''(?i)(?:password|passwd|secret|token|api[_-]?key|private[_-]?key|credentials?|cookie|authorization)["']?\s*[:=]\s*["']?([^\s"'`,;{}]+)'''
+secretGroup = 1
+
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^\[REDACTED\]$''']

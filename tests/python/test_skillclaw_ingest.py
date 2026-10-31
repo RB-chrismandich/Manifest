@@ -2,6 +2,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
 from skillclaw import ingest as ing
 
@@ -115,7 +117,7 @@ def test_parse_transcript_builds_session(tmp_path):
     }
 
 
-def test_parse_transcript_tolerates_partial_trailing_line(tmp_path):
+def test_parse_transcript_rejects_partial_trailing_line(tmp_path):
     f = tmp_path / "sess-x.jsonl"
     f.write_text(
         json.dumps(
@@ -128,9 +130,8 @@ def test_parse_transcript_tolerates_partial_trailing_line(tmp_path):
         + "\n"
         + '{"type":"assistant","message":{"role":"assist'  # truncated, no newline
     )
-    rec = ing.parse_transcript(f)  # must not raise
-    assert rec["session_id"] == "sess-x"
-    assert len(rec["turns"]) == 1
+    with pytest.raises(RuntimeError, match="incomplete or invalid"):
+        ing.parse_transcript(f)
 
 
 def test_parse_transcript_returns_none_when_no_turns(tmp_path):
@@ -139,7 +140,7 @@ def test_parse_transcript_returns_none_when_no_turns(tmp_path):
     assert ing.parse_transcript(f) is None
 
 
-def test_parse_transcript_skips_plaintext_noise_line(tmp_path):
+def test_parse_transcript_rejects_invalid_record(tmp_path):
     f = tmp_path / "sess-noise.jsonl"
     f.write_text(
         "this is not json at all\n"
@@ -152,10 +153,8 @@ def test_parse_transcript_skips_plaintext_noise_line(tmp_path):
         )
         + "\n"
     )
-    rec = ing.parse_transcript(f)
-    assert rec["session_id"] == "sess-noise"
-    assert len(rec["turns"]) == 1
-    assert rec["turns"][0]["blocks"] == [{"kind": "text", "text": "hi"}]
+    with pytest.raises(RuntimeError, match="incomplete or invalid"):
+        ing.parse_transcript(f)
 
 
 def test_parse_transcript_keeps_whitespace_padded_json(tmp_path):

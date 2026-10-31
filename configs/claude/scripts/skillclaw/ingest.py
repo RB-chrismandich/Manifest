@@ -19,6 +19,9 @@ import sys
 import time
 from pathlib import Path
 
+from .provider_safety import assert_clean
+from .scrub import redact_value
+
 DEFAULT_MAX_TOOL_OUTPUT = 500
 
 
@@ -32,6 +35,7 @@ def normalize_content(
     content, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUTPUT
 ) -> list[dict]:
     """Normalize a message.content (str or block list) into kept blocks."""
+    content = redact_value(content)
     if isinstance(content, str):
         return [{"kind": "text", "text": content}] if content.strip() else []
     if not isinstance(content, list):
@@ -84,30 +88,41 @@ def parse_transcript(
 ) -> dict | None:
     """Parse one transcript .jsonl into a session record, or None if no turns.
 
-    Defensive: skips unparseable lines (including a truncated trailing line from
-    a still-active session) rather than raising.
+    Settled transcripts must be readable and complete; corrupt input blocks use.
     """
     session_id = path.stem
     cwd = git_branch = None
     turns: list[dict] = []
-    with path.open(encoding="utf-8", errors="replace") as fh:
+    observations = []
+    with path.open(encoding="utf-8") as fh:
         for line in fh:
+            if not line.strip():
+                continue
             try:
                 obj = json.loads(line)
-            except json.JSONDecodeError:
-                continue  # partial/corrupt line — skip
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    "SkillClaw transcript JSON is incomplete or invalid"
+                ) from exc
             if not isinstance(obj, dict) or obj.get("type") not in (
                 "user",
                 "assistant",
             ):
                 continue
+            obj = redact_value(obj)
+            assert isinstance(obj, dict)
+            observations.append(json.dumps(obj))
             session_id = obj.get("sessionId", session_id)
             cwd = obj.get("cwd", cwd)
             git_branch = obj.get("gitBranch", git_branch)
             msg = obj.get("message", {})
+            if not isinstance(msg, dict):
+                raise RuntimeError("SkillClaw transcript message is invalid")
             blocks = normalize_content(msg.get("content"), max_tool_output_chars)
             if blocks:
                 turns.append({"role": msg.get("role", "?"), "blocks": blocks})
+    if observations:
+        assert_clean("\n".join(observations))
     if not turns:
         return None
     return {
@@ -153,6 +168,8 @@ def ingest(
     """Ingest new, settled, in-window transcripts into out_dir. Returns counts."""
     now = time.time() if now is None else now
     transcripts_dir = Path(transcripts_dir).expanduser()
+    if not transcripts_dir.is_dir():
+        raise RuntimeError("SkillClaw transcript directory is unavailable")
     out_dir = Path(out_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
     state_path = Path(state_path).expanduser()
@@ -202,14 +219,18 @@ def main(argv: list[str]) -> int:
         "--max-tool-output-chars", type=int, default=DEFAULT_MAX_TOOL_OUTPUT
     )
     args = ap.parse_args(argv)
-    summary = ingest(
-        args.transcripts_dir,
-        args.out_dir,
-        args.state,
-        window_days=args.window_days,
-        settle_minutes=args.settle_minutes,
-        max_tool_output_chars=args.max_tool_output_chars,
-    )
+    try:
+        summary = ingest(
+            args.transcripts_dir,
+            args.out_dir,
+            args.state,
+            window_days=args.window_days,
+            settle_minutes=args.settle_minutes,
+            max_tool_output_chars=args.max_tool_output_chars,
+        )
+    except (OSError, ValueError, RuntimeError):
+        print("skillclaw_ingest: input or sanitation failed", file=sys.stderr)
+        return 1
     print(json.dumps(summary))
     return 0
 

@@ -197,11 +197,8 @@ EOF
     assert_success
 }
 
-# Repo-side fail-open contract for capture (docs/SKILLCLAW.md: capture is passive,
-# no daemon/socket/proxy). The equivalent decision point is here: ingest reading a
-# transcript it cannot access must not abort the pipeline — it degrades to "0
-# ingested, continue" rather than blocking scrub/evolve/classify.
-@test "ingest failure on an unreadable transcript is fail-open: pipeline continues" {
+# Provider-bound processing must stop on failed capture or sanitation.
+@test "ingest failure on an unreadable transcript blocks the pipeline" {
     if [[ "$(id -u)" -eq 0 ]]; then
         skip "root ignores file permissions"
     fi
@@ -215,9 +212,10 @@ EOF
     chmod 000 "$tf"
     run bash "$SCRIPT"
     chmod 644 "$tf" # restore so teardown's rm -rf can remove it
-    assert_success
-    assert_output --partial "ingest returned non-zero (continuing)"
-    assert_output --partial "classify"
+    assert_failure
+    assert_output --partial "ingest failed; provider invocation blocked"
+    refute_output --partial "▸ evolve"
+    refute_output --partial "▸ classify"
 }
 
 @test "EVOLVE_CLI seam: evolve stage invokes the stub named by EVOLVE_CLI, not a hardcoded claude" {
@@ -261,7 +259,7 @@ EOF
     assert_output "1"
 }
 
-@test "ingest failure still reaches and logs the classify stage in the audit log" {
+@test "ingest failure records an error without classifying stale candidates" {
     if [[ "$(id -u)" -eq 0 ]]; then
         skip "root ignores file permissions"
     fi
@@ -273,7 +271,43 @@ EOF
     chmod 000 "$tf"
     run bash "$SCRIPT"
     chmod 644 "$tf"
-    assert_success
+    assert_failure
     run grep -c '"stage": "classify", "event": "stage_start"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    assert_output "0"
+    run grep -c '"event": "run_error"' "$SKILLCLAW_AUDIT_DIR/promote.log"
     assert_output "1"
+}
+
+@test "scrub failure blocks provider and classify stages" {
+    export MANIFEST="$MOCK_BIN/failing_manifest"
+    cat > "$MANIFEST" <<'EOF'
+#!/bin/sh
+case "$2" in
+  ingest) printf '{"ingested":0}' ;;
+  scrub) exit 1 ;;
+  evolve|promote) touch "$SKILLCLAW_EVOLVED/UNSAFE_STAGE" ;;
+esac
+EOF
+    chmod +x "$MANIFEST"
+    run bash "$SCRIPT"
+    assert_failure
+    assert_output --partial "scrub failed; provider invocation blocked"
+    [ ! -e "$SKILLCLAW_EVOLVED/UNSAFE_STAGE" ]
+}
+
+@test "scrub write failure blocks the provider" {
+    if [[ "$(id -u)" -eq 0 ]]; then
+        skip "root ignores file permissions"
+    fi
+    export SKILLCLAW_TRANSCRIPTS="$SANDBOX/empty-transcripts"
+    mkdir -p "$SKILLCLAW_TRANSCRIPTS"
+    local sf="$SKILLCLAW_SESSIONS/private.json"
+    printf '{"session_id":"test","password":"synthetic-value","turns":[]}' > "$sf"
+    chmod 444 "$sf"
+    run bash "$SCRIPT"
+    chmod 644 "$sf"
+    assert_failure
+    assert_output --partial "scrub failed; provider invocation blocked"
+    refute_output --partial "▸ evolve"
+    refute_output --partial "▸ classify"
 }
