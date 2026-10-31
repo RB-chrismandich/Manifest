@@ -27,9 +27,11 @@ from manifest_model_policy import (
     run_headless_prompt,
 )
 
+from .candidate_store import validate_candidates, write_candidates
+
 DEFAULT_TOKEN_BUDGET = 100_000
 DEFAULT_CHUNK_TIMEOUT = 600  # seconds per `claude -p` chunk (FR-010)
-_SKILL_RE = re.compile(r"~~~skill name=(?P<name>[^\n]+)\n(?P<body>.*?)~~~", re.DOTALL)
+_SKILL_RE = re.compile(r"~~~skill name=(?P<name>[^\n]*)\n(?P<body>.*?)~~~", re.DOTALL)
 
 
 def _load_audit():
@@ -84,7 +86,7 @@ def build_prompt(template: str, sessions: list[dict], library_names: list[str]) 
 
 def parse_candidates(output: str) -> list[dict]:
     return [
-        {"name": m.group("name").strip(), "content": m.group("body")}
+        {"name": m.group("name").removesuffix("\r"), "content": m.group("body")}
         for m in _SKILL_RE.finditer(output)
     ]
 
@@ -161,17 +163,6 @@ def subprocess_runner(prompt: str) -> str:
             f"{route.binary_override or route.provider} timed out after {timeout}s "
             "(chunk abandoned)"
         ) from exc
-
-
-def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
-    evolved_dir = Path(evolved_dir).expanduser()
-    written = []
-    for c in candidates:
-        d = evolved_dir / c["name"]
-        d.mkdir(parents=True, exist_ok=True)
-        (d / "SKILL.md").write_text(c["content"], encoding="utf-8")
-        written.append(c["name"])
-    return written
 
 
 _DESC_MAX = 200
@@ -279,6 +270,8 @@ def evolve(
                 f"[skillclaw] evolve · chunk {idx}/{len(chunks)} · {_fmt_elapsed(elapsed)} · {label}",
                 file=sys.stderr,
             )
+
+    validate_candidates(mapped)
 
     # reduce: dedupe by name (last write wins); a single chunk skips a 2nd call
     if len(chunks) > 1 and mapped:
