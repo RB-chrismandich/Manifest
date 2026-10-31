@@ -481,3 +481,17 @@ def test_stitch_contract_declares_generated_runtime(stitch_bundle: Path) -> None
         "chromium",
         "curl",
     )
+
+
+def test_installed_extractor_resource_boundaries(
+    stitch_bundle: Path, tmp_path: Path
+) -> None:
+    """Exercise the shipped artifact against bounded local HTTP fixtures."""
+    script = (
+        stitch_bundle
+        / "skills/extract-static-html/scripts/resource_integration.test.mjs"
+    )
+    result = _run_node(
+        Path("--test"), str(script), cwd=tmp_path, env=_offline_env(tmp_path)
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

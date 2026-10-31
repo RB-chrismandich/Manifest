@@ -182,3 +182,26 @@ Inline local images:
 node ../../runtime/dist/post-process.mjs \
   .stitch/Page.html --base-dir <app-directory>
 ```
+
+
+## Remote resource limits
+
+The extractor shares one budget across all pages: 8 MiB per response, 32 MiB of
+received response data, 48 MiB of encoded cache data, and 256 request attempts
+(including redirects) and cache entries. URLs are limited to 8 KiB. Each page
+allows at most 10,000 resource references/CSS URL tokens and 64 MiB of UTF-8
+output; cumulative output is capped at 128 MiB. These fixed limits are defined in
+`scripts/bounded_resources.ts`.
+
+Declared and streamed sizes are checked before retaining data. Overflowing or
+failed resources use the existing transparent placeholder. Aggregate exhaustion
+cancels active requests and prevents further network work. The timeout covers the
+whole redirect chain; redirect and error bodies are destroyed instead of drained.
+Duplicate references share a request and encoded result. Image, font and other
+previously supported MIME types remain supported within the byte limits.
+
+Output size includes every repeated embedded reference and is checked before
+building the replacement string or writing the page. Output/reference overflow
+fails extraction; previously completed pages can remain. This bounds remote
+embedding, not arbitrary local JSX parsing or execution of trusted build tools.
+The separate URL/DNS safety policy is unchanged by these limits.

@@ -30,9 +30,8 @@
 import * as parser from '@babel/parser';
 import fs from 'node:fs';
 import path from 'node:path';
-import https from 'node:https';
-import http from 'node:http';
 import type { Node } from '@babel/types';
+import { ResourceEmbedder } from './embed_resources.ts';
 import { extractCssUrls } from './css_url_parser.ts';
 
 // ---------------------------------------------------------------------------
@@ -192,42 +191,6 @@ function validateOpts(opts: Opts): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Concurrency limiter
-// ---------------------------------------------------------------------------
-function createLimiter(concurrency: number): <T>(fn: () => Promise<T>) => Promise<T> {
-  let active = 0;
-  const queue: Array<() => void> = [];
-
-  return function limit<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const run = async () => {
-        active++;
-        try {
-          resolve(await fn());
-        } catch (e) {
-          reject(e);
-        } finally {
-          active--;
-          if (queue.length > 0) queue.shift()!();
-        }
-      };
-
-      if (active < concurrency) {
-        run();
-      } else {
-        queue.push(run);
-      }
-    });
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Image embedding (with concurrency, redirect-loop protection, timeouts)
-// ---------------------------------------------------------------------------
-const imgCache = new Map<string, string>();
-const MAX_REDIRECTS = 5;
-
 function isImageUrl(url: string): boolean {
   const skip = ['cdn.tailwindcss.com', 'fonts.googleapis.com', '.js', '.css'];
   return !skip.some((s) => url.includes(s));
@@ -271,209 +234,6 @@ function isSafeUrl(parsed: URL): boolean {
   }
 
   return true;
-}
-
-// Intentional outbound requests: this function fetches remote images
-// referenced in HTML source files and embeds them as base64 data URIs to
-// produce self-contained HTML snapshots. URLs are validated by isSafeUrl()
-// to block SSRF against private/internal networks.  [CodeQL js/file-access-to-http]
-function fetchAndEncode(url: string, timeout: number, redirectCount = 0): Promise<string> {
-  if (imgCache.has(url)) return Promise.resolve(imgCache.get(url)!);
-  if (!isImageUrl(url)) {
-    imgCache.set(url, url);
-    return Promise.resolve(url);
-  }
-
-  // Redirect-loop protection
-  if (redirectCount >= MAX_REDIRECTS) {
-    const fallback =
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    console.warn(`  WARN: Too many redirects (${MAX_REDIRECTS}) <- ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
-    imgCache.set(url, fallback);
-    return Promise.resolve(fallback);
-  }
-
-  return new Promise((resolve) => {
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    } catch (e) {
-      console.warn(`  WARN: Failed to parse URL: ${e instanceof Error ? e.message : String(e)}`);
-      const fallback =
-        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      console.warn(`  WARN: Invalid URL: ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
-      imgCache.set(url, fallback);
-      resolve(fallback);
-      return;
-    }
-
-    // SSRF protection: block requests to private/internal networks
-    if (!isSafeUrl(parsedUrl)) {
-      const fallback =
-        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      console.warn(`  WARN: Blocked request to non-public URL: ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
-      imgCache.set(url, fallback);
-      resolve(fallback);
-      return;
-    }
-
-    const client = parsedUrl.protocol === 'https:' ? https : http;
-    const req = client.get(
-      url,
-      {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SnapshotBot/2.0)' },
-        timeout,
-      },
-      (resp) => {
-        if (
-          resp.statusCode! >= 300 &&
-          resp.statusCode! < 400 &&
-          resp.headers.location
-        ) {
-          // Resolve relative redirect URLs
-          let redirectUrl: string;
-          try {
-            redirectUrl = new URL(resp.headers.location, url).href;
-          } catch (e) {
-            console.warn(`  WARN: Failed to resolve redirect URL: ${e instanceof Error ? e.message : String(e)}`);
-            redirectUrl = resp.headers.location;
-          }
-          // Consume response body to free the socket
-          resp.resume();
-          fetchAndEncode(redirectUrl, timeout, redirectCount + 1).then(resolve);
-          return;
-        }
-
-        if (resp.statusCode! >= 400) {
-          const fallback =
-            'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-          console.warn(
-            `  WARN: HTTP ${resp.statusCode} <- ${url.slice(0, 70).replace(/\n|\r/g, '')}...`,
-          );
-          resp.resume();
-          imgCache.set(url, fallback);
-          resolve(fallback);
-          return;
-        }
-
-        const chunks: Buffer[] = [];
-        resp.on('data', (d: Buffer) => chunks.push(d));
-        resp.on('end', () => {
-          const buf = Buffer.concat(chunks);
-          const ct = resp.headers['content-type'] || 'image/jpeg';
-          const result = `data:${ct};base64,${buf.toString('base64')}`;
-          imgCache.set(url, result);
-          console.log(
-            `  Embedded ${buf.length.toLocaleString()} bytes <- ${url.slice(0, 70).replace(/\n|\r/g, '')}...`,
-          );
-          resolve(result);
-        });
-        resp.on('error', (e: Error) => {
-          const fallback =
-            'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-          console.warn(`  WARN: Stream error: ${e.message.replace(/\n|\r/g, '')} <- ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
-          imgCache.set(url, fallback);
-          resolve(fallback);
-        });
-      },
-    );
-
-    req.on('error', (e: Error) => {
-      const fallback =
-        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      console.warn(`  WARN: ${e.message.replace(/\n|\r/g, '')} <- ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
-      imgCache.set(url, fallback);
-      resolve(fallback);
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      const fallback =
-        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      console.warn(`  WARN: Timeout after ${timeout}ms <- ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
-      imgCache.set(url, fallback);
-      resolve(fallback);
-    });
-  });
-}
-
-// Robust CSS url() parsing is shared — see ./css_url_parser.ts.
-/**
- * Replace CSS url() references using pre-computed positions.
- * Replaces from end-to-start to preserve earlier indices.
- */
-function replaceCssUrlsInText(
-  text: string,
-  replacements: Array<{ start: number; end: number; dataUri: string }>,
-): string {
-  const sorted = [...replacements].sort((a, b) => b.start - a.start);
-  for (const r of sorted) {
-    text = text.substring(0, r.start) + "url('" + r.dataUri + "')" + text.substring(r.end);
-  }
-  return text;
-}
-
-// ---------------------------------------------------------------------------
-// Image & CSS url() embedding with concurrency
-// ---------------------------------------------------------------------------
-async function embedImages(html: string, concurrency: number, timeout: number): Promise<string> {
-  const limit = createLimiter(concurrency);
-
-  // --- Embed <img src="https://..."> ---
-  const srcMatches = [...html.matchAll(/src="(https?:\/\/[^"]+)"/g)];
-  const srcImageMatches = srcMatches.filter((m) => isImageUrl(m[1]));
-
-  // Prefetch all URLs concurrently
-  await Promise.all(
-    srcImageMatches.map((m) => limit(() => fetchAndEncode(m[1], timeout))),
-  );
-
-  // Replace (cache is now warm — synchronous lookups)
-  for (const m of srcImageMatches) {
-    const encoded = imgCache.get(m[1]);
-    if (encoded && encoded !== m[1]) {
-      html = html.replace(m[0], `src="${encoded}"`);
-    }
-  }
-
-  // --- Embed CSS url("https://...") using robust parser ---
-  const cssUrlRefs = extractCssUrls(html);
-  const httpUrlRefs = cssUrlRefs.filter(
-    (ref) =>
-      (ref.url.startsWith('http://') || ref.url.startsWith('https://')) &&
-      isImageUrl(ref.url),
-  );
-
-  // Prefetch all CSS url() references concurrently
-  await Promise.all(
-    httpUrlRefs.map((ref) => limit(() => fetchAndEncode(ref.url, timeout))),
-  );
-
-  // Replace from end-to-start to preserve indices
-  const replacements: Array<{ start: number; end: number; dataUri: string }> = [];
-  for (const ref of httpUrlRefs) {
-    const encoded = imgCache.get(ref.url);
-    if (encoded && encoded !== ref.url) {
-      replacements.push({ start: ref.start, end: ref.end, dataUri: encoded });
-    }
-  }
-  if (replacements.length > 0) {
-    html = replaceCssUrlsInText(html, replacements);
-  }
-
-  // --- Embed <video poster="https://..."> ---
-  const posterMatches = [...html.matchAll(/poster="(https?:\/\/[^"]+)"/g)];
-  await Promise.all(
-    posterMatches.map((m) => limit(() => fetchAndEncode(m[1], timeout))),
-  );
-  for (const m of posterMatches) {
-    const encoded = imgCache.get(m[1]);
-    if (encoded && encoded !== m[1]) {
-      html = html.replace(m[0], `poster="${encoded}"`);
-    }
-  }
-
-  return html;
 }
 
 // ---------------------------------------------------------------------------
@@ -875,6 +635,7 @@ async function main(): Promise<void> {
   validateOpts(opts);
 
   const startTime = Date.now();
+  const embedder = new ResourceEmbedder({ isSafeUrl, isImageUrl });
   const head = buildHead(opts);
   const stats: AllStats = {
     pages: [],
@@ -921,9 +682,9 @@ async function main(): Promise<void> {
     }
 
     // Embed remote images with concurrency
-    const cacheCountBefore = imgCache.size;
-    fullHtml = await embedImages(fullHtml, opts.concurrency, opts.timeout);
-    const imagesEmbedded = imgCache.size - cacheCountBefore;
+    const cacheCountBefore = embedder.cache.size;
+    fullHtml = await embedder.embed(fullHtml, opts.concurrency, opts.timeout);
+    const imagesEmbedded = embedder.cache.size - cacheCountBefore;
 
     fs.writeFileSync(dst, fullHtml, 'utf-8');
     const fileSize = fs.statSync(dst).size;
@@ -937,11 +698,11 @@ async function main(): Promise<void> {
     });
   }
 
-  stats.totalImages = imgCache.size;
+  stats.totalImages = embedder.cache.size;
   stats.durationMs = Date.now() - startTime;
 
   console.log(
-    `\nDONE: ${imgCache.size} unique images embedded in ${stats.durationMs}ms.`,
+    `\nDONE: ${embedder.cache.size} unique images embedded in ${stats.durationMs}ms.`,
   );
 
   if (opts.json) {
