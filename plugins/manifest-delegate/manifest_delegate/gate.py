@@ -2,10 +2,9 @@
 
 import json
 import os
-import subprocess
 import sys
 
-from . import backend, config, jobstore, registry, review, worker
+from . import backend, config, jobstore, registry, review, review_git, worker
 
 # Imported by name, not as `from . import envelope`: several functions here take
 # a parameter called `envelope` (the dict), which would shadow the module.
@@ -318,13 +317,8 @@ def _finishing_turn_has_edits(transcript_path):
 def _working_tree_has_changes(cwd=None):
     """Return change state, or ``None`` when git cannot make the observation."""
     try:
-        proc = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            cwd=cwd,
-        )
-    except OSError:
+        proc = review_git.capture_git(["status", "--porcelain"], cwd)
+    except review.ReviewDiffError:
         return None
     if proc.returncode != 0:
         return None

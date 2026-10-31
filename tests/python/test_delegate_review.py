@@ -362,7 +362,7 @@ class TestBranchBaseResolution:
     def test_resolves_first_available_candidate_merge_base(self, monkeypatch):
         seen = []
 
-        def fake_git_or_none(args_list, cwd):
+        def fake_git_or_none(args_list, cwd, **kwargs):
             # merge-base against @{upstream} "fails" (no upstream); origin/main hits.
             ref = args_list[-1]
             seen.append(ref)
@@ -374,7 +374,7 @@ class TestBranchBaseResolution:
 
     def test_no_resolvable_base_fails_visibly(self, monkeypatch):
         monkeypatch.setattr(
-            delegate.review, "_git_or_none", lambda args_list, cwd: None
+            delegate.review, "_git_or_none", lambda args_list, cwd, **kwargs: None
         )
         try:
             delegate.review._resolve_branch_base(None, cwd=".")
