@@ -71,7 +71,7 @@ def test_dispatch_attestation_covers_every_pinned_linux_platform() -> None:
     assert "runs-on: ${{ fromJSON(matrix.runner) }}" in job
     assert re.search(
         r"- platform: linux-arm64\n\s+label: Linux arm64\n"
-        r"\s+runner: '\[\"self-hosted\", \"Linux\", \"ARM64\", \"grf\"\]'",
+        r"\s+runner: '\"ubuntu-24.04-arm\"'",
         job,
     )
     assert re.search(

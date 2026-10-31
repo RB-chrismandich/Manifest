@@ -596,13 +596,14 @@ jobs:
     timeout-minutes: 30
     # Env digests and providers are per-platform observations, so each Linux
     # platform pinned in config/toolchain.lock.json attests on its own runner.
+    # Dispatched refs also execute checkout-owned code, so use hosted VMs here.
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: linux-arm64
             label: Linux arm64
-            runner: '["self-hosted", "Linux", "ARM64", "grf"]'
+            runner: '"ubuntu-24.04-arm"'
           - platform: linux-x64
             label: Linux x64
             runner: '"ubuntu-latest"'
@@ -792,10 +793,12 @@ jobs:
   # entry and preserve current-run evidence. This slice is intentionally
   # advisory: the aggregate verdict is published verbatim while the next
   # slice validates repeatability before making it required.
+  # Checkout-owned code and check commands are untrusted until reviewed.
+  # Use a fresh hosted ARM64 VM for each job; token scopes do not isolate a host.
   shadow-checks-structure:
     name: Shadow Checks (structure)
     timeout-minutes: 15
-    runs-on: [self-hosted, Linux, ARM64, grf]
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
     outputs:
@@ -890,7 +893,7 @@ jobs:
   shadow-checks-lint:
     name: Shadow Checks (lint)
     timeout-minutes: 20
-    runs-on: [self-hosted, Linux, ARM64, grf]
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
     outputs:
@@ -985,7 +988,7 @@ jobs:
     # (Correction 8 rule 3, C7j) -- re-derive if any test.* budget_evidence
     # changes.
     timeout-minutes: 37
-    runs-on: [self-hosted, Linux, ARM64, grf]
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
     outputs:
@@ -1077,7 +1080,7 @@ jobs:
   shadow-checks-security:
     name: Shadow Checks (security)
     timeout-minutes: 15
-    runs-on: [self-hosted, Linux, ARM64, grf]
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
     outputs:
@@ -1164,7 +1167,7 @@ jobs:
   shadow-checks-package:
     name: Shadow Checks (package)
     timeout-minutes: 15
-    runs-on: [self-hosted, Linux, ARM64, grf]
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
     outputs:
