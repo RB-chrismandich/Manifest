@@ -3,6 +3,8 @@
 # Download Stitch screen asset with proper handling of Google Cloud Storage URLs
 # Usage: ./download-stitch-asset.sh "https://storage.googleapis.com/..." "output-path.png"
 
+# Signed URLs are capabilities; stop inherited tracing before reading arguments.
+set +x
 set -e
 
 if [ $# -ne 2 ]; then
@@ -18,12 +20,14 @@ OUTPUT_PATH="$2"
 OUTPUT_DIR=$(dirname "$OUTPUT_PATH")
 mkdir -p "$OUTPUT_DIR"
 
-echo "Downloading from: $DOWNLOAD_URL"
+echo "Downloading Stitch asset..."
 echo "Saving to: $OUTPUT_PATH"
 
 # Use curl with follow redirects; -f fails on HTTP errors so an error
 # response (e.g. an expired signed URL) is not saved as the asset
-if curl -L -f -o "$OUTPUT_PATH" "$DOWNLOAD_URL"; then
+# Ignore curlrc tracing/write-out settings and suppress raw diagnostics, which
+# can repeat signed URLs. Keep the numeric exit code as the failure diagnostic.
+if curl -q -s -L -f -o "$OUTPUT_PATH" --url "$DOWNLOAD_URL" > /dev/null 2>&1; then
     echo "✓ Successfully downloaded to $OUTPUT_PATH"
 
     # Display file size for verification
@@ -32,7 +36,8 @@ if curl -L -f -o "$OUTPUT_PATH" "$DOWNLOAD_URL"; then
         echo "  File size: $FILE_SIZE bytes"
     fi
 else
-    echo "✗ Download failed"
+    CURL_STATUS=$?
+    echo "✗ Download failed (curl exit $CURL_STATUS)"
     rm -f "$OUTPUT_PATH"
     exit 1
 fi
