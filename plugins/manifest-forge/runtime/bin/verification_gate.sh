@@ -12,6 +12,7 @@
 #   decide [<gate>]    Pure core: map gate JSON (arg/stdin) to {action,label,annotation,reason}.
 #
 # Env: VERIFICATION_GATE_REVIEW_CMD  required reviewer seam.
+# review requires Gitleaks on PATH; see ../references/verification-packet.md.
 
 set -euo pipefail
 
@@ -35,7 +36,8 @@ usage() {
 Usage: verification_gate.sh <review <issue> | decide [<gate-json>]>
 
   review <issue>   Run the gate reviewer (behind VERIFICATION_GATE_REVIEW_CMD seam);
-                   emit gate JSON. Reviewer failure -> reviewer_error sentinel (fail closed).
+                   Requires Gitleaks (tested with 8.30.1) on PATH.
+                   Control/reviewer failure -> reviewer_error sentinel (fail closed).
   decide [<gate>]  Map gate JSON to {action,label,annotation,reason}. Always exits 0.
 USAGE
 }
@@ -74,11 +76,11 @@ cmd_review() {
         err "review: issue number required"
         return 64
     }
-    local packet platform
-    packet="$(mktemp "${TMPDIR:-/tmp}/vgate-packet.XXXXXX")"
+    local packet platform packet_dir
+    packet_dir="$(mktemp -d "${TMPDIR:-/tmp}/vgate-packet.XXXXXX")"
+    packet="${packet_dir}/packet"
     platform="$(bash "${SCRIPT_DIR}/git_platform.sh" 2> /dev/null || printf git)"
-    # shellcheck disable=SC2064
-    trap "rm -f '$packet'" RETURN
+    trap 'rm -rf -- "$packet_dir"' RETURN
 
     # Best-effort packet: acceptance criteria + branch diff (errors tolerated — the reviewer
     # still gets whatever context is available; a thin packet is not a safety failure).
@@ -97,27 +99,16 @@ cmd_review() {
         esac
     } > "$packet" 2> /dev/null || true
 
-    # Redact before the packet leaves the process.
-    #
-    # Two defects fixed here (2026-08-22, Codex + Cursor both HIGH):
-    #  1. `redact "$(cat "$packet")"` passed the whole packet as one ARGV
-    #     element. A multi-megabyte PR diff exceeds ARG_MAX, exec fails, and
-    #     nothing is redacted. Feed it on stdin instead -- no size ceiling.
-    #  2. The trailing `|| true` then let execution continue with the ORIGINAL
-    #     unredacted packet, which was handed straight to the configured
-    #     reviewer. Any secret in that raw diff left the process. Redaction is
-    #     a security control, so its failure must fail the gate, not be
-    #     swallowed: fall through to reviewer_error/BLOCKED instead.
-    if [[ -x "${SCRIPT_DIR}/audit_log.sh" ]]; then
-        if "${SCRIPT_DIR}/audit_log.sh" redact < "$packet" > "${packet}.r" 2> /dev/null &&
-            [[ -s "${packet}.r" || ! -s "$packet" ]]; then
-            mv "${packet}.r" "$packet"
-        else
-            rm -f "${packet}.r"
-            err "redaction failed — refusing to send an unredacted review packet"
-            printf '%s\n' '{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED","reviewer_error":true}'
-            return 0
-        fi
+    # Mandatory sanitation and an independent residual scan precede handoff.
+    # Failures, missing tools, and candidate secrets retain the infrastructure
+    # failure contract so the merge loop cannot cache a successful observation.
+    if python3 "${SCRIPT_DIR}/../python/verification_packet.py" < "$packet" > "${packet}.r" 2> /dev/null &&
+        [[ -s "${packet}.r" || ! -s "$packet" ]]; then
+        mv "${packet}.r" "$packet"
+    else
+        err "packet sanitation or residual scan failed — reviewer not invoked (requires Gitleaks)"
+        printf '%s\n' '{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED","reviewer_error":true}'
+        return 0
     fi
 
     local raw="" rc=0 shaped=""

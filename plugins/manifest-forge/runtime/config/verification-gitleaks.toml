@@ -1,0 +1,15 @@
+# Reviewer egress uses maintained built-in rules, without project allowlists.
+[extend]
+useDefault = true
+
+# Unlike entropy-based generic rules, reviewer egress rejects even short
+# credential assignments left behind by a malfunctioning sanitizer.
+[[rules]]
+id = "verification-credential-field"
+description = "Residual credential field at reviewer handoff"
+regex = '''(?i)(?:password|passwd|secret|token|api[_-]?key|private[_-]?key|credentials?)["']?\s*[:=]\s*["']?([^\s"'`,;{}\[\]]+)'''
+secretGroup = 1
+
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^<REDACTED(?::[a-z-]+)?>$''']

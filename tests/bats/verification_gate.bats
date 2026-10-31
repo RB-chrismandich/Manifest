@@ -6,6 +6,11 @@ SCRIPT="$BATS_TEST_DIRNAME/../../plugins/manifest-forge/runtime/bin/verification
 
 setup() {
     TMP=$(mktemp -d "${BATS_TMPDIR:-/tmp}/vgate.XXXXXX")
+    mkdir -p "$TMP/commands"
+    printf '#!/bin/sh\nprintf "[]"\n' > "$TMP/commands/gitleaks"
+    printf '#!/bin/sh\nexit 1\n' > "$TMP/commands/git"
+    chmod +x "$TMP/commands/"*
+    export PATH="$TMP/commands:$PATH"
 }
 teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 
@@ -121,15 +126,18 @@ EOF
 # `audit_log.sh` it resolves via SCRIPT_DIR can be replaced with a failing one.
 
 _isolated_gate() { # $1 = audit_log.sh body
-    cp "$SCRIPT" "$TMP/verification_gate.sh"
-    printf '%s\n' '#!/usr/bin/env bash' "$1" > "$TMP/audit_log.sh"
+    mkdir -p "$TMP/bin" "$TMP/python" "$TMP/config"
+    cp "$SCRIPT" "$TMP/bin/verification_gate.sh"
+    cp "${SCRIPT%/bin/*}/python/verification_packet.py" "$TMP/python/"
+    cp "${SCRIPT%/bin/*}/config/verification-gitleaks.toml" "$TMP/config/"
+    printf '%s\n' '#!/usr/bin/env bash' "$1" > "$TMP/bin/audit_log.sh"
     printf '%s\n' '#!/usr/bin/env bash' "touch '$TMP/REVIEWER_RAN'" 'echo "{\"tier1\":{\"passed\":true},\"consensus_score\":0.9,\"verdict\":\"APPROVED\"}"' > "$TMP/seam.sh"
-    chmod +x "$TMP"/*.sh
+    chmod +x "$TMP"/*.sh "$TMP/bin/"*.sh
 }
 
 @test "review: redaction failure blocks and never invokes the reviewer" {
     _isolated_gate 'exit 1'
-    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$TMP/verification_gate.sh" review 123
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$TMP/bin/verification_gate.sh" review 123
     [ "$status" -eq 0 ]
     [ ! -f "$TMP/REVIEWER_RAN" ]
     echo "$output" | python3 -c 'import json,sys;d=json.loads([l for l in sys.stdin if l.startswith("{")][-1]);assert d["reviewer_error"] is True;assert d["verdict"]=="BLOCKED"'
@@ -138,7 +146,7 @@ _isolated_gate() { # $1 = audit_log.sh body
 @test "review: working redaction still reaches the reviewer" {
     _isolated_gate '[ "$1" = redact ] && exec cat
 exit 0'
-    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$TMP/verification_gate.sh" review 123
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$TMP/bin/verification_gate.sh" review 123
     [ "$status" -eq 0 ]
     [ -f "$TMP/REVIEWER_RAN" ]
 }
