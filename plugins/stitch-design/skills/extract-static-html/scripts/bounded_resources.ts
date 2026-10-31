@@ -1,6 +1,7 @@
-/** Invocation-wide response/cache/output budgets. No URL policy lives here. */
+/** Invocation-wide response/cache/output budgets. Mandatory destination validation precedes each connection. */
 import http from 'node:http';
 import https from 'node:https';
+import { isAllowedResourceUrl, publicLookup } from './public_resource_url.ts';
 
 export const DEFAULT_LIMITS = Object.freeze({
   resourceBytes: 8 * 1024 * 1024,
@@ -94,6 +95,9 @@ function collect(url: URL, budget: ResourceBudget, deadline: number): Promise<Re
       request = (url.protocol === 'https:' ? https : http).get(
         url,
         {
+          agent: false,
+          lookup: publicLookup(() => !settled),
+          ...(url.protocol === 'https:' ? { rejectUnauthorized: true } : {}),
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SnapshotBot/2.0)' },
           timeout: Math.max(1, deadline - Date.now()),
         },
@@ -178,10 +182,9 @@ export async function fetchResource(
   options: {
     budget: ResourceBudget;
     timeout: number;
-    isSafeUrl: (url: URL) => boolean;
   },
 ): Promise<string> {
-  const { budget, timeout, isSafeUrl } = options;
+  const { budget, timeout } = options;
   const deadline = Date.now() + timeout;
   const visited = new Set<string>();
   for (let hop = 0; hop < 5; hop++) {
@@ -189,7 +192,7 @@ export async function fetchResource(
       throw new Error('Resource redirect limit exceeded');
     visited.add(url);
     const parsed = new URL(url);
-    if (!isSafeUrl(parsed)) throw new Error('Blocked resource URL');
+    if (!isAllowedResourceUrl(parsed)) throw new Error('Blocked resource URL');
     const result = await collect(parsed, budget, deadline);
     if ('redirect' in result) {
       url = result.redirect;

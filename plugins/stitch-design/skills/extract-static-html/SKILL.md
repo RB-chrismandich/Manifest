@@ -204,4 +204,20 @@ Output size includes every repeated embedded reference and is checked before
 building the replacement string or writing the page. Output/reference overflow
 fails extraction; previously completed pages can remain. This bounds remote
 embedding, not arbitrary local JSX parsing or execution of trusted build tools.
-The separate URL/DNS safety policy is unchanged by these limits.
+Resource connections allow HTTP(S) public destinations only. Each DNS lookup
+validates every returned address and gives that validated snapshot directly to
+the socket; mixed public/private answers are rejected. Literal addresses and
+every redirect receive the same policy. Private, loopback, link-local, multicast,
+documentation and reserved destinations are blocked, including mapped IPv6 and
+private destinations encoded in the well-known NAT64 prefix. Transition IPv6
+ranges without a globally reachable designation are rejected. Blocked resources
+use the transparent placeholder, so local/intranet resources are not embedded.
+
+Requests retain the original Host/TLS server name and certificate verification;
+shared connection pools are disabled. DNS resolution shares the request deadline,
+and late answers cannot initiate connections after cancellation. This controls
+addresses visible to Node, not custom routing/NAT or a compromised runtime. The
+address tables in `scripts/public_resource_url.ts` follow the
+[IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry) and
+[IANA IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry) registries
+and need maintenance as allocations change.
