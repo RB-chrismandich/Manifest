@@ -27,7 +27,7 @@ expected_total: 123
 # automatic routing and discovery entry points implicit; every other installed
 # skill remains available through explicit `$bundle:skill` invocation.
 codex_implicit_invocation_allowlist:
-  - manifest-ops:renovate-config
+  - manifest-ops:config-renovate
   - manifest-code-quality:antipattern-detect
   - manifest-security:code-audit
   - manifest-workspace:help
@@ -164,7 +164,7 @@ bundles:
     - docker-compose-commandments
     - docker-probe-internal
     - process-diagnose-stall
-    - renovate-config
+    - config-renovate
     - version-pin
 
   manifest-security:  # 10 skills

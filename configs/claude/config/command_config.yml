@@ -508,7 +508,7 @@ tool_policies:
 
     subagents: never
     subagent_rationale: Session-mode mutator that changes output behavior; nothing to dispatch.
-  renovate-config:
+  config-renovate:
     allowed:
       - Read
       - Glob

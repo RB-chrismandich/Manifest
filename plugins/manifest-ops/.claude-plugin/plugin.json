@@ -68,7 +68,7 @@
     "./skills/docker-compose-commandments",
     "./skills/docker-probe-internal",
     "./skills/process-diagnose-stall",
-    "./skills/renovate-config",
+    "./skills/config-renovate",
     "./skills/version-pin"
   ],
   "version": "0.7.0"

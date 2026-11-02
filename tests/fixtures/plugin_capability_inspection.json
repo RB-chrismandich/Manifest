@@ -140,7 +140,7 @@
           "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
-          "skill:renovate-config",
+          "skill:config-renovate",
           "skill:version-pin"
         ],
         "manifest-security": [
@@ -412,7 +412,7 @@
           "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
-          "skill:renovate-config",
+          "skill:config-renovate",
           "skill:version-pin"
         ],
         "manifest-security": [
@@ -686,7 +686,7 @@
           "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
-          "skill:renovate-config",
+          "skill:config-renovate",
           "skill:version-pin"
         ],
         "manifest-security": [
@@ -962,7 +962,7 @@
           "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
-          "skill:renovate-config",
+          "skill:config-renovate",
           "skill:version-pin"
         ],
         "manifest-security": [
@@ -1234,7 +1234,7 @@
           "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
-          "skill:renovate-config",
+          "skill:config-renovate",
           "skill:version-pin"
         ],
         "manifest-security": [
@@ -1506,7 +1506,7 @@
           "skill:docker-compose-commandments",
           "skill:docker-probe-internal",
           "skill:process-diagnose-stall",
-          "skill:renovate-config",
+          "skill:config-renovate",
           "skill:version-pin"
         ],
         "manifest-security": [

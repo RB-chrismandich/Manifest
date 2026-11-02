@@ -640,7 +640,7 @@ nothing rested on them) and found two real gaps:
 
 ### Added
 
-- Add the automatically discoverable `renovate-config` skill with seven-day
+- Add the automatically discoverable `config-renovate` skill with seven-day
   routine release aging, grouping across managers including majors, and immediate
   security exceptions with manual merging. Include pinned, isolated Renovate
   integration fixtures and explicit shared-preset consumer override guidance.
