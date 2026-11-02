@@ -36,7 +36,7 @@ EXPECTED_ADDON_ENTRIES = tuple(
 )
 CODEX_IMPLICIT_INVOCATION_ALLOWLIST = {
     "manifest-code-quality:antipattern-detect",
-    "manifest-ops:renovate-config",
+    "manifest-ops:config-renovate",
     "manifest-security:code-audit",
     "manifest-workspace:help",
 }
@@ -265,7 +265,7 @@ def test_generator_emits_release_command_catalog(
 
     assert len(catalog["commands"]) == 120
     assert any(
-        command["qualified_name"] == "manifest-ops:renovate-config"
+        command["qualified_name"] == "manifest-ops:config-renovate"
         for command in catalog["commands"]
     )
     assert not any(

@@ -14,7 +14,7 @@ const load = (path) => import(pathToFileURL(join(modules, 'renovate', path)));
 const readJson = async (url) => JSON.parse(await readFile(url, 'utf8'));
 const fixture = await readJson(new URL('./cases.json', import.meta.url));
 const starter = await readJson(new URL(
-  '../../../plugins/manifest-ops/skills/renovate-config/assets/renovate.json', import.meta.url,
+  '../../../plugins/manifest-ops/skills/config-renovate/assets/renovate.json', import.meta.url,
 ));
 assert.equal((await readJson(join(modules, 'renovate/package.json'))).version, '44.199.2');
 

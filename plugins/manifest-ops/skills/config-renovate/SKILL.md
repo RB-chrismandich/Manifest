@@ -1,5 +1,5 @@
 ---
-name: renovate-config
+name: config-renovate
 description: Create, audit, or repair Renovate dependency-update configuration with a seven-day release cooldown and maximum consolidation into one routine PR, including major updates. Use for renovate.json, JSON5, package.json renovate settings, shared presets, or Renovate grouping and release-age troubleshooting.
 ---
 

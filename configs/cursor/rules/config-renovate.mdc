@@ -1,15 +1,15 @@
 ---
 description: "Create, audit, or repair Renovate dependency-update configuration with a seven-day release cooldown and maximum consolidation into one routine PR, including major updates. Use for renovate.json, JSON5, package.json renovate settings, shared presets, or Renovate grouping and release-age troubleshooting."
-globs: ".claude/skills/renovate-config/**"
+globs: ".claude/skills/config-renovate/**"
 alwaysApply: false
 ---
 
-# renovate-config
+# config-renovate
 
 Create, audit, or repair Renovate dependency-update configuration with a seven-day release cooldown and maximum consolidation into one routine PR, including major updates. Use for renovate.json, JSON5, package.json renovate settings, shared presets, or Renovate grouping and release-age troubleshooting.
 
-<!-- Auto-generated from .claude/skills/renovate-config/SKILL.md -->
+<!-- Auto-generated from .claude/skills/config-renovate/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
-Refer to `.cursor/skills/renovate-config/SKILL.md` for the full skill definition.
+Refer to `.cursor/skills/config-renovate/SKILL.md` for the full skill definition.
 
