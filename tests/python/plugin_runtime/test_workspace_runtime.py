@@ -169,7 +169,11 @@ def test_generated_catalog_covers_all_domain_skills(
 
     assert result.returncode == 0, result.stderr
     catalog = json.loads(result.stdout)
-    assert len(catalog["commands"]) == 119
+    assert len(catalog["commands"]) == 120
+    assert any(
+        item["qualified_name"] == "manifest-ops:renovate-config"
+        for item in catalog["commands"]
+    )
     assert not any(
         item["qualified_name"]
         in ("manifest-workspace:parallel-agent", "manifest-workspace:metrics-report")
