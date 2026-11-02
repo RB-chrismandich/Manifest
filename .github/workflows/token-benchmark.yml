@@ -107,6 +107,7 @@ jobs:
             cli-only)    ARGS+=(--cli-only) ;;
             api-and-cli) ;;
           esac
+          ARGS+=(--suite academic)
           ARGS+=(--conditions "$BENCHMARK_CONDITIONS")
           python3 tests/token_benchmark/harness.py "${ARGS[@]}"
 
