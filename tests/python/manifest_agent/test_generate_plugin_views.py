@@ -36,6 +36,7 @@ EXPECTED_ADDON_ENTRIES = tuple(
 )
 CODEX_IMPLICIT_INVOCATION_ALLOWLIST = {
     "manifest-code-quality:antipattern-detect",
+    "manifest-ops:renovate-config",
     "manifest-security:code-audit",
     "manifest-workspace:help",
 }
@@ -262,7 +263,11 @@ def test_generator_emits_release_command_catalog(
     catalog_path = tmp_path / "manifest-workspace/skills/help/catalog/commands.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 
-    assert len(catalog["commands"]) == 119
+    assert len(catalog["commands"]) == 120
+    assert any(
+        command["qualified_name"] == "manifest-ops:renovate-config"
+        for command in catalog["commands"]
+    )
     assert not any(
         command["qualified_name"]
         in ("manifest-workspace:parallel-agent", "manifest-workspace:metrics-report")

@@ -248,6 +248,13 @@
     {
       "bundle": "manifest-ops",
       "category": "deployment",
+      "description": "Create, audit, or repair Renovate dependency-update configuration with a seven-day release cooldown and maximum consolidation into one routine PR, including major updates. Use for renovate.json, JSON5, package.json renovate settings, shared presets, or Renovate grouping and release-age troubleshooting.",
+      "name": "renovate-config",
+      "qualified_name": "manifest-ops:renovate-config"
+    },
+    {
+      "bundle": "manifest-ops",
+      "category": "deployment",
       "description": "Enforce hashed version pins in requirements.txt, docker-compose.yaml, and Dockerfiles \u2014 detects loose refs (latest, missing hash, unbounded range), resolves version+hash via native package managers, auto-fixes or warns on save hook. Per-entry bypass supported.",
       "name": "version-pin",
       "qualified_name": "manifest-ops:version-pin"

@@ -9,24 +9,25 @@
 # A PR that adds or removes a skill MUST change the matching partition count and
 # catalog expected_total in the same commit, and give the new skill a bundle or
 # classify it as an independent marketplace addon.
-domain_expected_total: 122
+domain_expected_total: 123
 addon_expected_total: 0
 # Eight canonical domains plus the policy addon. This deliberately excludes
 # independent marketplace addons from the policy partition.
-policy_expected_total: 122
+policy_expected_total: 123
 independent_addon_expected_total: 0
 # Marketplace addons are intentionally installable without selecting a domain
 # bundle, but still appear in the global catalog and reference-validation gate.
 independent_addons: {}
 # The exact global mirror/catalog count, including independent marketplace
 # addons. Consumers that inspect every installed skill must use this field.
-expected_total: 122
+expected_total: 123
 
 # Codex loads skill names, descriptions, and paths into the initial model prompt,
 # capped at 2% of context (or 8,000 characters when context is unknown). Keep only
 # automatic routing and discovery entry points implicit; every other installed
 # skill remains available through explicit `$bundle:skill` invocation.
 codex_implicit_invocation_allowlist:
+  - manifest-ops:renovate-config
   - manifest-code-quality:antipattern-detect
   - manifest-security:code-audit
   - manifest-workspace:help
@@ -151,7 +152,7 @@ bundles:
     - repo-clean
 
 
-  manifest-ops:  # 12 skills
+  manifest-ops:  # 13 skills
     - cache-warm-oob
     - ci-diagnose-drift
     - ci-reproduce-failure
@@ -163,6 +164,7 @@ bundles:
     - docker-compose-commandments
     - docker-probe-internal
     - process-diagnose-stall
+    - renovate-config
     - version-pin
 
   manifest-security:  # 10 skills

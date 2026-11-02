@@ -1,0 +1,40 @@
+{
+  "clock": "2026-11-01T12:00:00.000Z",
+  "packages": [
+    {"name": "six-day", "version": "1.1.0", "timestamp": "2026-10-26T12:00:00.000Z"},
+    {"name": "seven-day", "version": "1.1.0", "timestamp": "2026-10-25T12:00:00.000Z"},
+    {"name": "no-time", "version": "1.1.0", "timestamp": null},
+    {"name": "major", "version": "2.0.0", "timestamp": "2026-10-24T12:00:00.000Z"},
+    {"name": "minor", "version": "1.1.0", "timestamp": "2026-10-24T12:00:00.000Z"},
+    {"name": "patch", "version": "1.0.1", "timestamp": "2026-10-24T12:00:00.000Z"},
+    {"name": "urgent", "version": "1.0.1", "timestamp": "2026-11-01T11:00:00.000Z"}
+  ],
+  "inherited": {
+    "separateMajorMinor": true,
+    "packageRules": [
+      {"matchDatasources": ["npm"], "minimumReleaseAge": "3 days", "groupName": "inherited npm"},
+      {"matchUpdateTypes": ["major"], "groupName": "inherited majors"}
+    ]
+  },
+  "consumer": {
+    "packageRules": [
+      {"matchPackageNames": ["six-day"], "minimumReleaseAge": "3 days", "groupName": "consumer override", "groupSlug": "consumer"}
+    ]
+  },
+  "alerts": [
+    {
+      "security_vulnerability": {
+        "package": {"ecosystem": "npm", "name": "urgent"},
+        "first_patched_version": {"identifier": "1.0.1"},
+        "severity": "high"
+      },
+      "security_advisory": {
+        "summary": "Controlled fixture advisory",
+        "description": "Local fixture only",
+        "severity": "high",
+        "identifiers": [],
+        "references": []
+      }
+    }
+  ]
+}
