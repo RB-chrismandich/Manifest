@@ -4,7 +4,7 @@
 > [specs/480-skill-naming-taxonomy](../specs/480-skill-naming-taxonomy/spec.md)
 > (issue #478), enforced by `tests/bats/skill_naming.bats`.
 
-**Last Updated**: 2026-07-02
+**Last Updated**: 2026-11-02
 **Audience**: Contributors and AI assistants adding or renaming skills
 **Purpose**: Keep skill names predictable, lexicographically clustered by domain, and
 enforceable by CI
@@ -85,6 +85,7 @@ react-native
 react-vite-dashboard
 refactor
 remotion
+renovate-config
 render-verify
 review-round
 screen-prompts
@@ -106,6 +107,7 @@ upload-to-stitch
 | `delegate` | spec 675 delegation surface; name is the user-facing verb. |
 | `refactor` | Router over the five `<lang>-refactor` engines; the bare verb is the user-facing entry point, as with `help` and `delegate`. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
+| `renovate-config` | Names the Renovate configuration surface directly, matching `renovate.json` and the approved user-facing invocation. Product-first naming with the artifact noun `config` is an explicit exception, not a new domain or action verb. |
 | `loop-scaffold`, `render-verify`, `review-round`, `screen-prompts` | Internal phase names of the `adversarial-design-loop` plugin (merged from #674). They are `<phase>-<noun>` within one closed loop, not catalog-wide verbs, and the plugin's own bodies, README and cross-references key on them. |
 
 ## Examples

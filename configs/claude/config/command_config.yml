@@ -508,6 +508,17 @@ tool_policies:
 
     subagents: never
     subagent_rationale: Session-mode mutator that changes output behavior; nothing to dispatch.
+  renovate-config:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # Pinned Renovate validation and isolated behavioral checks
+      - Edit
+      - Write
+    validation_tier: 1
+    subagents: never
+    subagent_rationale: One target configuration and its resolved presets are inspected and validated sequentially.
   version-pin:
     allowed:
       - Read

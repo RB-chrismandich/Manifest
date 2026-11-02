@@ -35,7 +35,7 @@ The table below is generated from the skill catalog — do not edit it by hand.
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_122 commands, generated from `.apm/skills/*/SKILL.md`._
+_123 commands, generated from `.apm/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -143,6 +143,7 @@ _122 commands, generated from `.apm/skills/*/SKILL.md`._
 | `/pass-cli` | Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass via pass-cli. Use when a task needs a login/secret or user mentions Proton Pass, a vault, or "get the credentials/token for X". Covers PAT session setup and expired-session recovery. | Use when a task needs a login/secret or user mentions Proton Pass, a vault, or "get the credentials/token for X". | available |
 | `/process-diagnose-stall` | Use when a long-running background job (data pipeline, batch fetch, analysis run) stops making progress — measure its resource signature to classify the stall instead of guessing fixes. | Use when a long-running background job (data pipeline, batch fetch, analysis run) stops making progress — measure its resource signature to classify the stall instead of guessing fixes. | available |
 | `/project-scaffold` | Initialize new projects with language-specific quality gates, linting configs, test frameworks, pre-commit hooks, and Manifest integration. | Initialize new projects with language-specific quality gates, linting configs, test frameworks, pre-commit hooks, and Manifest integration. | available |
+| `/renovate-config` | Create, audit, or repair Renovate dependency-update configuration with a seven-day release cooldown and maximum consolidation into one routine PR, including major updates. Use for renovate.json, JSON5, package.json renovate settings, shared presets, or Renovate grouping and release-age troubleshooting. | Create, audit, or repair Renovate dependency-update configuration with a seven-day release cooldown and maximum consolidation into one routine PR, including major updates. | available |
 | `/shell-audit-errexit` | Use when a bash script under `set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`). Complements shell-audit-pipefail. | Use when a bash script under `set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`). | available |
 | `/shell-audit-pipefail` | Audit bash scripts using set -euo pipefail for silent-abort risks in $() command substitutions that parse empty or malformed input. Complements shell-audit-errexit (non-$() control-flow triggers). | Audit bash scripts using set -euo pipefail for silent-abort risks in $() command substitutions that parse empty or malformed input. | available |
 | `/version-pin` | Enforce hashed version pins in requirements.txt, docker-compose.yaml, and Dockerfiles — detects loose refs (latest, missing hash, unbounded range), resolves version+hash via native package managers, auto-fixes or warns on save hook. Per-entry bypass supported. | Enforce hashed version pins in requirements. | available |

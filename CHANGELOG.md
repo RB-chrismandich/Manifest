@@ -640,6 +640,11 @@ nothing rested on them) and found two real gaps:
 
 ### Added
 
+- Add the automatically discoverable `renovate-config` skill with seven-day
+  routine release aging, grouping across managers including majors, and immediate
+  security exceptions with manual merging. Include pinned, isolated Renovate
+  integration fixtures and explicit shared-preset consumer override guidance.
+
 - Exit-code and empty-result conventions for new Python CLI entry points in
   `docs/CODING_STANDARDS.md`; `--help` coverage for Python entry points in
   `tests/bats/help_coverage.bats`.
