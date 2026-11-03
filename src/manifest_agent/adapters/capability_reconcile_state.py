@@ -36,7 +36,7 @@ class ReconcileStateMixin:
     def _desired_reconcile_inventory(
         self, desired: DesiredState
     ) -> tuple[AdapterPluginState, ...]:
-        suffix = "@manifest" if self.name in {"claude", "codex"} else ""
+        suffix = "@manifest" if self.name in {"claude", "codex", "omp"} else ""
         return tuple(
             AdapterPluginState(
                 f"{contract.name}{suffix}",

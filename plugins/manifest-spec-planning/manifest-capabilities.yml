@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-spec-planning
-  version: 0.7.0
+  version: 0.7.1
   description: Specification, planning, trade-off, and implementation-loop workflows.
   category: project-management
 components:
@@ -34,6 +34,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

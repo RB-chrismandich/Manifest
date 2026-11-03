@@ -293,6 +293,80 @@
         "skills/pr-triage-bots",
         "skills/repo-clean"
       ]
+    },
+    "omp": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "forge-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "forge-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "forge-python",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/python"
+          },
+          {
+            "component_id": "forge-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "forge-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "forge-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "forge-python",
+            "path": "runtime/python"
+          },
+          {
+            "id": "forge-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "qualified": false,
+      "skills": [
+        "skills/branch-clean",
+        "skills/git-commit",
+        "skills/git-find-artifact",
+        "skills/issue-dev-auto",
+        "skills/issue-manage",
+        "skills/issue-prep-auto",
+        "skills/issue-prioritize",
+        "skills/issue-sync-commit",
+        "skills/issue-sync-pr",
+        "skills/issue-triage",
+        "skills/lifecycle-run",
+        "skills/pr-address-comments",
+        "skills/pr-clean-base",
+        "skills/pr-manage",
+        "skills/pr-merge-stacked",
+        "skills/pr-monitor",
+        "skills/pr-reset-reapply",
+        "skills/pr-review",
+        "skills/pr-triage-bots",
+        "skills/repo-clean"
+      ]
     }
   },
   "name": "manifest-forge",
@@ -320,5 +394,5 @@
     "skills/pr-triage-bots",
     "skills/repo-clean"
   ],
-  "version": "0.7.0"
+  "version": "0.7.1"
 }

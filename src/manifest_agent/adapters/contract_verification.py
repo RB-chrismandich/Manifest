@@ -124,6 +124,22 @@ def combine_results(*results: HarnessResult) -> HarnessResult:
                 for diagnostic in result.declared_degradations
             )
         ),
+        native_version=next(
+            (
+                result.native_version
+                for result in reversed(results)
+                if result.native_version
+            ),
+            None,
+        ),
+        native_inspection=next(
+            (
+                result.native_inspection
+                for result in reversed(results)
+                if result.native_inspection is not None
+            ),
+            None,
+        ),
     )
 
 

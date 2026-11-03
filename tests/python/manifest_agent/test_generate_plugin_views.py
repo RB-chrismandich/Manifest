@@ -61,7 +61,9 @@ def test_generator_emits_three_native_views_per_domain(
     generic_path = tmp_path / "manifest-docs/plugin.json"
     assert generic_path.is_file()
     generic = json.loads(generic_path.read_text())
-    assert set(report.harnesses) == {"claude", "gemini", *generic["harnesses"]}
+    native_harnesses = set(generic["harnesses"]) - {"omp"}
+    assert set(report.harnesses) == {"claude", "gemini", *native_harnesses}
+    assert generic["harnesses"]["omp"]["qualified"] is False
 
 
 def test_generator_emits_codex_invocation_policy_for_every_skill(

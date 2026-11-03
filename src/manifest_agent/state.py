@@ -16,9 +16,11 @@ from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntr
 from manifest_agent.ownership import (
     OWNED_STATUS,
     authenticate_codex_receipt,
+    authenticate_omp_receipt,
     capability_ownership_errors,
     codex_catalog_ownership,
     codex_receipt_ownership_errors,
+    omp_receipt_ownership_errors,
     owned_file_ownership,
 )
 from manifest_agent.paths import xdg_paths
@@ -31,7 +33,7 @@ _FULL_COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 _RETIREMENT_PHASES = frozenset({"prepared", "cleanup-complete"})
 _SUPPORTED_HARNESSES = frozenset(
-    {"claude", "codex", "gemini", "cursor", "antigravity", "devin"}
+    {"claude", "codex", "gemini", "cursor", "antigravity", "devin", "omp"}
 )
 _NON_SUCCESS_CAPABILITY_VALUES = frozenset(
     {
@@ -143,18 +145,18 @@ def receipt_for_persistence(
     destination: Path, receipt: InstallationReceipt
 ) -> InstallationReceipt:
     """Return the exact ownership-authenticated receipt bytes will represent."""
-    codex = receipt.harnesses.get("codex")
-    if codex is None:
-        return receipt
-    return replace(
-        receipt,
-        harnesses={
-            **receipt.harnesses,
-            "codex": authenticate_codex_receipt(
-                codex, key_path=destination.parent / "ownership.key"
-            ),
-        },
-    )
+    harnesses = dict(receipt.harnesses)
+    codex = harnesses.get("codex")
+    if codex is not None:
+        harnesses["codex"] = authenticate_codex_receipt(
+            codex, key_path=destination.parent / "ownership.key"
+        )
+    omp = harnesses.get("omp")
+    if omp is not None:
+        harnesses["omp"] = authenticate_omp_receipt(
+            omp, key_path=destination.parent / "ownership.key"
+        )
+    return replace(receipt, harnesses=harnesses)
 
 
 def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
@@ -377,6 +379,16 @@ def _special_owned_entry_errors(
         errors.extend(
             codex_receipt_ownership_errors(receipt, key_path=ownership_key_path)
         )
+    if receipt.harness == "omp":
+        errors.extend(
+            omp_receipt_ownership_errors(receipt, key_path=ownership_key_path)
+        )
+        from manifest_agent.adapters.omp_identity import receipt_entries
+
+        try:
+            receipt_entries(receipt)
+        except ValueError as error:
+            errors.append(str(error))
     for entry in receipt.owned_entries:
         if entry.kind == "codex-skill-source":
             if (
@@ -409,6 +421,12 @@ def _special_owned_entry_errors(
             or entry.target_path is not None
         ):
             errors.append("invalid full Codex ownership entry")
+        elif entry.kind == "omp-receipt-auth" and (
+            receipt.harness != "omp"
+            or entry.ownership_marker != "manifest"
+            or entry.target_path is not None
+        ):
+            errors.append("invalid full OMP ownership entry")
         elif entry.kind == "owned-file":
             _prior, _installed, file_errors = owned_file_ownership(
                 entry, key_path=ownership_key_path

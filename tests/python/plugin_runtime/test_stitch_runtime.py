@@ -210,7 +210,7 @@ def test_stitch_contract_inventories_omp_delivery_assets(
     extension_inventory = runtime["stitch-omp-extension"]
     compatibility = extension_inventory.get("compatibility")
     assert compatibility is not None
-    assert set(compatibility) == {
+    non_omp_harnesses = {
         "claude",
         "codex",
         "gemini",
@@ -218,7 +218,12 @@ def test_stitch_contract_inventories_omp_delivery_assets(
         "antigravity",
         "devin",
     }
-    assert all(status["mode"] != "native" for status in compatibility.values())
+    assert set(compatibility) == {*non_omp_harnesses, "omp"}
+    assert all(
+        compatibility[harness]["mode"] == "not_applicable"
+        for harness in non_omp_harnesses
+    )
+    assert compatibility["omp"]["mode"] == "native"
 
 
 def test_upload_skill_limits_mcp_upload_to_markdown(stitch_bundle: Path) -> None:

@@ -146,6 +146,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
         "cursor": "1",
         "devin": "1",
         "gemini": "1",
+        "omp": "1",
     }
     assert tuple(metadata["bundles"]) == DOMAIN_BUNDLES
     assert {name: set(bundle) for name, bundle in metadata["bundles"].items()} == {

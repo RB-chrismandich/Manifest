@@ -120,7 +120,14 @@ def _assert_native_views(views: dict[str, dict[str, Any]]) -> None:
 
 
 def _assert_generic_view(generic: dict[str, Any]) -> None:
-    assert tuple(sorted(generic["harnesses"])) == GENERIC_HARNESSES
+    assert (
+        tuple(sorted(h for h in generic["harnesses"] if h != "omp"))
+        == GENERIC_HARNESSES
+    )
+    assert all(
+        "qualified" not in generic["harnesses"][harness]
+        for harness in GENERIC_HARNESSES
+    )
     expected_modes = {
         "antigravity": "imported",
         "codex": "native",
@@ -151,6 +158,17 @@ def _assert_generic_view(generic: dict[str, Any]) -> None:
         assert runtime["mode"] == runtime_modes[harness]
     assert generic["harnesses"]["devin"]["reason"] == "devin fixture bundle"
 
+    omp = generic["harnesses"]["omp"]
+    assert omp["qualified"] is False
+    assert omp["mode"] == "native"
+    assert omp["skills"] == ["skills/example"]
+    inherited_runtime = next(
+        record
+        for record in omp["compatibility"]["native"]
+        if record["component_id"] == "runner"
+    )
+    assert inherited_runtime["mode"] == "native"
+
 
 def test_every_component_is_exposed_or_explicitly_degraded(
     repo_root: Path, tmp_path: Path
@@ -172,3 +190,44 @@ def test_every_component_is_exposed_or_explicitly_degraded(
     _assert_native_views(views)
     generic = json.loads((output_root / "manifest-docs/plugin.json").read_text())
     _assert_generic_view(generic)
+
+
+def test_generic_omp_component_only_and_absence_are_honest(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    fixture_root = tmp_path / "fixture-repo"
+    build_fixture_repo(repo_root, fixture_root)
+    _configure_component_fixture(fixture_root)
+    contract_path = fixture_root / "plugins/manifest-docs/manifest-capabilities.yml"
+    document = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
+    document["compatibility"].pop("omp")
+    runtime = document["components"]["runtime"][0]
+    runtime["compatibility"]["omp"] = {
+        "mode": "degraded",
+        "reason": "OMP fixture runtime is source-root limited",
+    }
+    contract_path.write_text(
+        yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
+    )
+
+    component_output = tmp_path / "component-only"
+    render_views(fixture_root, output_root=component_output, check=False)
+    generic = json.loads((component_output / "manifest-docs/plugin.json").read_text())
+    omp = generic["harnesses"]["omp"]
+    assert omp["qualified"] is False
+    assert "mode" not in omp
+    assert "reason" not in omp
+    assert "skills" not in omp
+    assert "components" not in omp
+    record = omp["compatibility"]["degraded"][0]
+    assert (record["component_id"], record["mode"]) == ("runner", "degraded")
+    assert record["reason"] == "OMP fixture runtime is source-root limited"
+
+    runtime["compatibility"].pop("omp")
+    contract_path.write_text(
+        yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
+    )
+    absent_output = tmp_path / "undeclared"
+    render_views(fixture_root, output_root=absent_output, check=False)
+    absent = json.loads((absent_output / "manifest-docs/plugin.json").read_text())
+    assert "omp" not in absent["harnesses"]

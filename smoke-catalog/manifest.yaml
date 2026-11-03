@@ -823,3 +823,121 @@ tests:
               || { echo "FAIL: expected approve (gate off by default) or fail-open systemMessage, got: $out"; exit 1; }
             echo "$out" | grep -q '"decision"\s*:\s*"block"' && { echo "FAIL: gate blocked while disabled: $out"; exit 1; } || true
             echo 'delegate gate disabled-no-pause verified'
+  - id: omp-contract-metadata
+    title: OMP declarations flow through contracts, generic views, matrix, and drift gates
+    tier: Lite
+    steps:
+      - name: omp_contract_metadata
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT omp_contract_metadata=(ok)
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            python="$root/.venv/bin/python"
+            export MANIFEST_ROOT="$root"
+            export PYTHONPATH="$root/src:$root/tools:$root/configs/claude/scripts${PYTHONPATH:+:$PYTHONPATH}"
+            "$python" - <<'PY'
+            import copy
+            import importlib.util
+            import os
+            import sys
+            import tempfile
+            from pathlib import Path
+
+            import yaml
+
+            root = Path(os.environ["MANIFEST_ROOT"]).resolve()
+            sys.path.insert(0, str(root / "src"))
+            from manifest_agent.contracts import load_contract
+            from manifest_agent.plugin_view_renderers import generic_view
+
+            contract_path = root / "plugins/manifest-docs/manifest-capabilities.yml"
+            document = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
+            skills = ("docs-all",)
+            native = generic_view(load_contract(contract_path), skills, {})
+            native_omp = native["harnesses"]["omp"]
+            assert native_omp["qualified"] is False
+            assert native_omp["mode"] == "native"
+            assert native_omp["skills"] == ["skills/docs-all"]
+
+            runtime = document["components"]["runtime"][0]
+            component_compatibility = dict(document["compatibility"])
+            component_compatibility["omp"] = {
+                "mode": "degraded",
+                "reason": "smoke component-only source limitation",
+            }
+            runtime["compatibility"] = component_compatibility
+            with tempfile.TemporaryDirectory() as directory:
+                fixture_contract = Path(directory) / "manifest-capabilities.yml"
+                fixture_contract.write_text(
+                    yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
+                )
+                override = generic_view(load_contract(fixture_contract), skills, {})
+                override_omp = override["harnesses"]["omp"]
+                assert override_omp["mode"] == "native"
+                overridden = next(
+                    record
+                    for record in override_omp["compatibility"]["degraded"]
+                    if record["component_id"] == "docs-lint"
+                )
+                assert overridden["reason"] == "smoke component-only source limitation"
+
+                document["compatibility"].pop("omp")
+                fixture_contract.write_text(
+                    yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
+                )
+                component_only = generic_view(
+                    load_contract(fixture_contract), skills, {}
+                )["harnesses"]["omp"]
+                assert component_only["qualified"] is False
+                assert "mode" not in component_only
+                assert "skills" not in component_only
+
+                runtime["compatibility"].pop("omp")
+                fixture_contract.write_text(
+                    yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
+                )
+                absent = generic_view(
+                    load_contract(fixture_contract), skills, {}
+                )
+                assert "omp" not in absent["harnesses"]
+
+            matrix_spec = importlib.util.spec_from_file_location(
+                "omp_contract_matrix",
+                root / "tools/render_plugin_capability_matrix.py",
+            )
+            matrix = importlib.util.module_from_spec(matrix_spec)
+            matrix_spec.loader.exec_module(matrix)
+            inspection = matrix._load_inspection(
+                root / "tests/fixtures/plugin_capability_inspection.json"
+            )
+            injected = copy.deepcopy(inspection)
+            injected["harnesses"]["omp"] = {
+                "state": "READY",
+                "version": "injected",
+                "verified": True,
+                "installed_plugin_ids": ["manifest-docs"],
+                "components": {"manifest-docs": ["skill:docs-all"]},
+                "capabilities": {"manifest-docs": ["executable:git"]},
+            }
+            rendered = matrix.render(injected)
+            rows = [line for line in rendered.splitlines() if line.startswith("|")][2:]
+            assert rows
+            assert all(
+                line.split("|")[-2].strip().startswith("UNVERIFIED(")
+                for line in rows
+            )
+            docs_skill = next(
+                line for line in rows if "`manifest-docs:skill:docs-all`" in line
+            )
+            assert "UNVERIFIED(declared=native;" in docs_skill
+            print("RESULT omp_contract_metadata=ok")
+            PY
+            "$python" "$root/tools/generate_plugin_views.py" --check
+            "$python" "$root/tools/render_plugin_capability_matrix.py" --check \
+              --inspection "$root/tests/fixtures/plugin_capability_inspection.json"
