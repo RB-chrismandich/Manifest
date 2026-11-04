@@ -20,6 +20,40 @@ from manifest_agent.adapters.omp_inventory import (
 )
 
 
+def _authorize_source_replacement(changed, entries, registry):
+    if changed and (MARKETPLACE_KIND, OMP_MARKETPLACE) not in entries:
+        raise OmpInventoryError("refusing replacement of an unowned OMP marketplace")
+    owned_ids = {identifier for kind, identifier in entries if kind == PLUGIN_KIND}
+    if changed and any(
+        plugin_id.endswith("@manifest") and rows and plugin_id not in owned_ids
+        for plugin_id, rows in registry.items()
+    ):
+        raise OmpInventoryError(
+            "OMP source replacement is referenced by foreign/unowned packages"
+        )
+
+
+def _plugin_identity_conflict(plugin_id, identity, previous):
+    if previous is not None and identity != decode_identity(previous):
+        raise OmpInventoryError(
+            f"{plugin_id}: native identity changed after signing; refusing repair"
+        )
+    if previous is None and identity is not None:
+        return f"{plugin_id}: existing unowned plugin will not be adopted"
+    return None
+
+
+def _require_prior_source_catalog(row):
+    catalog = read_object(
+        Path(row["sourceUri"]) / ".claude-plugin/marketplace.json",
+        "prior source catalog",
+    )
+    if catalog is None:
+        raise OmpInventoryError(
+            "OMP prior source is unavailable for source replacement recovery"
+        )
+
+
 class OmpSourceMixin:
     def _preflight(self, desired, prior):
         catalog = desired_catalog(desired)
@@ -47,33 +81,15 @@ class OmpSourceMixin:
             or native_catalog is None
             or catalog_versions(native_catalog) != catalog_versions(catalog)
         )
-        if changed and owned_market is None:
-            raise OmpInventoryError(
-                "refusing replacement of an unowned OMP marketplace"
-            )
-        owned_ids = {identifier for kind, identifier in entries if kind == PLUGIN_KIND}
-        if changed and any(
-            plugin_id.endswith("@manifest") and rows and plugin_id not in owned_ids
-            for plugin_id, rows in registry.items()
-        ):
-            raise OmpInventoryError(
-                "OMP source replacement is referenced by foreign/unowned packages"
-            )
+        _authorize_source_replacement(changed, entries, registry)
         observed, conflicts = {}, {}
         for contract in desired.all_contracts:
             plugin_id = f"{contract.name}@{OMP_MARKETPLACE}"
             identity = self._identity(snapshot, plugin_id)
             previous = entries.get((PLUGIN_KIND, plugin_id))
-            if previous is not None:
-                if identity != decode_identity(previous):
-                    raise OmpInventoryError(
-                        f"{plugin_id}: native identity changed after signing; "
-                        "refusing repair"
-                    )
-            elif identity is not None:
-                conflicts[plugin_id] = (
-                    f"{plugin_id}: existing unowned plugin will not be adopted"
-                )
+            conflict = _plugin_identity_conflict(plugin_id, identity, previous)
+            if conflict is not None:
+                conflicts[plugin_id] = conflict
             target = (
                 root
                 / "plugins/cache/plugins"
@@ -104,16 +120,7 @@ class OmpSourceMixin:
         row = snapshot[1][OMP_MARKETPLACE]
         expected = decode_identity(entries[(MARKETPLACE_KIND, OMP_MARKETPLACE)])
         # Native compensation must be possible before changing the registry.
-        if (
-            read_object(
-                Path(row["sourceUri"]) / ".claude-plugin/marketplace.json",
-                "prior source catalog",
-            )
-            is None
-        ):
-            raise OmpInventoryError(
-                "OMP prior source is unavailable for source replacement recovery"
-            )
+        _require_prior_source_catalog(row)
         removed = [False]
         try:
             self._preserve(
@@ -156,9 +163,7 @@ class OmpSourceMixin:
                     replacement,
                     ("omp", "plugin", "marketplace", "remove", OMP_MARKETPLACE),
                 )
-            self._command(
-                ("omp", "plugin", "marketplace", "add", row["sourceUri"])
-            )
+            self._command(("omp", "plugin", "marketplace", "add", row["sourceUri"]))
             self._capture_owned(
                 entries,
                 {identifier for kind, identifier in entries if kind == PLUGIN_KIND},

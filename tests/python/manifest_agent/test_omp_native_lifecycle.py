@@ -53,9 +53,12 @@ def test_explicit_and_conservative_automatic_selection(tmp_path, automatic):
     assert receipt.verified
     assert any(command == ("/native/omp", "--version") for command in runner.calls)
     assert all(context[1] == tmp_path for context in runner.contexts)
-    assert omp_receipt_ownership_errors(
-        receipt, key_path=service.receipt_path.parent / "ownership.key"
-    ) == ()
+    assert (
+        omp_receipt_ownership_errors(
+            receipt, key_path=service.receipt_path.parent / "ownership.key"
+        )
+        == ()
+    )
     assert not (tmp_path / "home/.claude").exists()
 
 
@@ -114,10 +117,14 @@ def test_differing_unowned_marketplace_is_not_removed_or_replaced(tmp_path):
     assert adapter._snapshot()[1]["manifest"]["sourceUri"] == str(other.release_root)
 
 
-def test_partial_native_install_records_creations_and_repairs_missing_packages(tmp_path):
+def test_partial_native_install_records_creations_and_repairs_missing_packages(
+    tmp_path,
+):
     desired = make_desired(tmp_path / "release")
     adapter, runner = make_adapter(tmp_path)
-    runner.fail(("omp", "plugin", "install", "manifest-docs@manifest", "--scope", "user"))
+    runner.fail(
+        ("omp", "plugin", "install", "manifest-docs@manifest", "--scope", "user")
+    )
     service = make_service(tmp_path, adapter, desired)
     result = service.install()
     assert result.state is ResultState.BLOCKED
@@ -126,9 +133,12 @@ def test_partial_native_install_records_creations_and_repairs_missing_packages(t
     assert partial.errors
     assert len(partial.plugin_ids) == 8
     assert any(entry.kind == MARKETPLACE_KIND for entry in partial.owned_entries)
-    assert omp_receipt_ownership_errors(
-        partial, key_path=service.receipt_path.parent / "ownership.key"
-    ) == ()
+    assert (
+        omp_receipt_ownership_errors(
+            partial, key_path=service.receipt_path.parent / "ownership.key"
+        )
+        == ()
+    )
     assert service.reconcile(apply=True).state is ResultState.READY
     repaired = owned(service)
     assert repaired.verified
@@ -151,7 +161,9 @@ def test_native_command_failure_after_creation_preserves_partial_authority(tmp_p
     assert service.uninstall().state is ResultState.READY
 
 
-def test_owned_upgrade_replaces_receipt_identity_and_preserves_every_old_cache(tmp_path):
+def test_owned_upgrade_replaces_receipt_identity_and_preserves_every_old_cache(
+    tmp_path,
+):
     desired, adapter, runner, service = setup_install(tmp_path, git=True)
     prior = owned(service)
     old_trees = trees(prior)
@@ -175,7 +187,9 @@ def test_owned_upgrade_replaces_receipt_identity_and_preserves_every_old_cache(t
     }
     assert {path: directory_sha256(path) for path in old_packages} == old_packages
     assert read_receipt(update.receipt_path).release_version == "1.0.1"
-    assert len([command for command in runner.mutations if command[2] == "upgrade"]) == 8
+    assert (
+        len([command for command in runner.mutations if command[2] == "upgrade"]) == 8
+    )
     new_trees = trees(current)
     assert update.uninstall().state is ResultState.READY
     assert {path: directory_sha256(path) for path in new_trees} == new_trees
@@ -184,11 +198,15 @@ def test_owned_upgrade_replaces_receipt_identity_and_preserves_every_old_cache(t
     assert desired.release_version == "1.0.0"
 
 
-def test_partial_upgrade_persists_new_native_proofs_without_false_release_commit(tmp_path):
+def test_partial_upgrade_persists_new_native_proofs_without_false_release_commit(
+    tmp_path,
+):
     _desired, adapter, runner, service = setup_install(tmp_path)
     prior = owned(service)
     target = make_desired(tmp_path / "next", "1.0.1")
-    runner.fail(("omp", "plugin", "upgrade", "manifest-docs@manifest", "--scope", "user"))
+    runner.fail(
+        ("omp", "plugin", "upgrade", "manifest-docs@manifest", "--scope", "user")
+    )
     update = make_service(tmp_path, adapter, target)
     assert update.reconcile(apply=True).state is ResultState.BLOCKED
     partial = read_receipt(update.receipt_path)
@@ -201,7 +219,9 @@ def test_partial_upgrade_persists_new_native_proofs_without_false_release_commit
     }
     assert identities["manifest-docs@manifest"]["version"] == "1.0.0"
     assert identities["manifest-workspace@manifest"]["version"] == "1.0.1"
-    assert identities["manifest-workspace@manifest"]["source"] == str(target.release_root)
+    assert identities["manifest-workspace@manifest"]["source"] == str(
+        target.release_root
+    )
     assert partial.harnesses["omp"].owned_entries != prior.owned_entries
     assert update.reconcile(apply=True).state is ResultState.READY
     assert owned(update).verified
@@ -220,7 +240,9 @@ def test_source_replacement_native_failure_restores_prior_registration(tmp_path)
     assert update.uninstall().state is ResultState.READY
 
 
-def test_foreign_native_rows_settings_and_outside_sentinels_survive_unregister(tmp_path):
+def test_foreign_native_rows_settings_and_outside_sentinels_survive_unregister(
+    tmp_path,
+):
     _desired, adapter, _runner, service = setup_install(tmp_path)
     root = adapter._native_root()
     registry_path = root / "plugins/installed_plugins.json"
@@ -292,7 +314,9 @@ def test_marketplace_unregister_failure_after_mutation_can_resume_without_cache_
 @pytest.mark.parametrize(
     "change", ["marketplace-cache", "plugin-cache", "registration", "native-root"]
 )
-def test_marketplace_unregister_retry_refuses_changed_authenticated_state(tmp_path, change):
+def test_marketplace_unregister_retry_refuses_changed_authenticated_state(
+    tmp_path, change
+):
     _desired, adapter, runner, service = setup_install(tmp_path)
     receipt = read_receipt(service.receipt_path)
     native = receipt.harnesses["omp"]
@@ -320,7 +344,9 @@ def test_marketplace_unregister_retry_refuses_changed_authenticated_state(tmp_pa
 
 
 @pytest.mark.parametrize("change", ["foreign-registration", "runtime", "link"])
-def test_marketplace_unregister_retry_refuses_stale_native_plugin_state(tmp_path, change):
+def test_marketplace_unregister_retry_refuses_stale_native_plugin_state(
+    tmp_path, change
+):
     _desired, adapter, runner, service = setup_install(tmp_path)
     receipt = read_receipt(service.receipt_path)
     native = receipt.harnesses["omp"]
@@ -402,7 +428,9 @@ def test_owned_disabled_package_upgrade_preserves_native_disabled_state(tmp_path
     target = make_desired(tmp_path / "next", "1.0.1")
     result = adapter.install(with_receipt(target, owned(service)))
     assert result.state is ResultState.DRIFTED
-    assert adapter._snapshot()[3]["plugins"]["@manifest/manifest-docs"]["enabled"] is False
+    assert (
+        adapter._snapshot()[3]["plugins"]["@manifest/manifest-docs"]["enabled"] is False
+    )
     assert adapter.inspect(desired).state is not ResultState.READY
 
 

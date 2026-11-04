@@ -662,7 +662,11 @@ class MigrationService:
             desired = replace(
                 desired,
                 prior_harness_receipts=(
-                    *tuple(item for item in desired.prior_harness_receipts if item.harness != harness),
+                    *tuple(
+                        item
+                        for item in desired.prior_harness_receipts
+                        if item.harness != harness
+                    ),
                     pending,
                 ),
             )
@@ -768,7 +772,9 @@ class MigrationService:
                 errors=("adapter cannot create an isolated migration home",),
             )
         shadow._env = environment
-        bind_adapter_authorities({adapter.name: shadow}, home / ".local/state/manifest/installation.json")
+        bind_adapter_authorities(
+            {adapter.name: shadow}, home / ".local/state/manifest/installation.json"
+        )
         desired = replace(desired, prior_harness_receipts=())
         return getattr(shadow, operation)(desired)
 
@@ -814,49 +820,56 @@ class MigrationService:
         adapter: HarnessAdapter,
         result: HarnessResult | None,
     ) -> str | None:
-        uninstall_error = None
+        cleanup_error = self._cleanup_failed_native(harness, state, adapter, result)
+        if cleanup_error is not None:
+            return cleanup_error
+        self._restore_legacy_harness(harness, state)
+        return None
+
+    def _cleanup_failed_native(
+        self,
+        harness: str,
+        state: dict[str, Any],
+        adapter: HarnessAdapter,
+        result: HarnessResult | None,
+    ) -> str | None:
         cleanup = result or HarnessResult(
             harness, ResultState.BLOCKED, (), {}, errors=("native install interrupted",)
         )
-        if cleanup is not None:
-            saved = state["harnesses"][harness].get("native_receipt")
-            # In-memory asdict() receipts retain tuples until a JSON round trip.
-            pending = (
-                _decode_harness(json.loads(json.dumps(saved)))
-                if saved is not None
-                else None
+        saved = state["harnesses"][harness].get("native_receipt")
+        # In-memory asdict() receipts retain tuples until a JSON round trip.
+        pending = (
+            _decode_harness(json.loads(json.dumps(saved)))
+            if saved is not None
+            else None
+        )
+        recovery = _provisional_receipt(adapter, cleanup, pending)
+        provisional = recovery
+        filter_cleanup = getattr(adapter, "migration_cleanup_receipt", None)
+        if callable(filter_cleanup):
+            previous = read_receipt(self.receipt_path)
+            prior = previous.harnesses.get(harness) if previous else None
+            provisional = filter_cleanup(provisional, prior)
+        requires_resume = getattr(adapter, "migration_cleanup_requires_resume", None)
+        if callable(requires_resume) and requires_resume(provisional):
+            # Unregistering a preserved cache can make a native retry
+            # impossible without overwriting it. Keep the one-writer
+            # quarantine and its authenticated install authority instead.
+            state["harnesses"][harness]["phase"] = "legacy-disabled"
+            state["harnesses"][harness]["native_receipt"] = asdict(recovery)
+            self._write_state(state)
+            return (
+                "cleanup deferred to preserve native caches; retry migration to resume"
             )
-            recovery = _provisional_receipt(adapter, cleanup, pending)
-            provisional = recovery
-            filter_cleanup = getattr(adapter, "migration_cleanup_receipt", None)
-            if callable(filter_cleanup):
-                previous = read_receipt(self.receipt_path)
-                prior = previous.harnesses.get(harness) if previous else None
-                provisional = filter_cleanup(provisional, prior)
-            requires_resume = getattr(adapter, "migration_cleanup_requires_resume", None)
-            if callable(requires_resume) and requires_resume(provisional):
-                # Unregistering a preserved cache can make a native retry
-                # impossible without overwriting it. Keep the one-writer
-                # quarantine and its authenticated install authority instead.
-                state["harnesses"][harness]["phase"] = "legacy-disabled"
-                state["harnesses"][harness]["native_receipt"] = asdict(recovery)
-                self._write_state(state)
-                return (
-                    "cleanup deferred to preserve native caches; "
-                    "retry migration to resume"
-                )
-            try:
-                removed = adapter.uninstall(provisional)
-                if removed.state is not ResultState.READY:
-                    uninstall_error = (
-                        "; ".join(removed.errors) or "native cleanup was not ready"
-                    )
-            except Exception as exception:
-                uninstall_error = diagnostic(exception)
-        if uninstall_error is not None:
-            # Restoring legacy output while an unverified native copy remains
-            # would create two writers. Leave the durable quarantine in place.
-            return uninstall_error
+        try:
+            removed = adapter.uninstall(provisional)
+            if removed.state is not ResultState.READY:
+                return "; ".join(removed.errors) or "native cleanup was not ready"
+        except Exception as exception:
+            return diagnostic(exception)
+        return None
+
+    def _restore_legacy_harness(self, harness: str, state: dict[str, Any]) -> None:
         backup = Path(state["backup"])
         for record in state["harnesses"][harness]["entries"]:
             source = _expand_home(record["path"], self.home)
@@ -875,7 +888,6 @@ class MigrationService:
         state["harnesses"][harness]["phase"] = "snapshot"
         state["harnesses"][harness].pop("native_receipt", None)
         self._write_state(state)
-        return uninstall_error
 
     def _read_state(self) -> dict[str, Any] | None:
         if not self.state_path.exists():

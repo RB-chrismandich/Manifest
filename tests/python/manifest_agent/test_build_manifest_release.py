@@ -267,9 +267,7 @@ def test_release_reads_immutable_head_blobs_after_inventory(
     metadata = json.loads(release.metadata.read_text(encoding="utf-8"))
     assert metadata["files"][relative]["sha256"] == hashlib.sha256(expected).hexdigest()
     with tarfile.open(release.archive, mode="r:gz") as bundle:
-        member = bundle.getmember(
-            f"manifest-plugins-{version}/{relative}"
-        )
+        member = bundle.getmember(f"manifest-plugins-{version}/{relative}")
         payload = bundle.extractfile(member)
         assert payload is not None
         assert payload.read() == expected

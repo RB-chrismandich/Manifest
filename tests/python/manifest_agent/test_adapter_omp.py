@@ -299,7 +299,8 @@ def test_combine_results_keeps_native_inspection_when_later_result_has_none():
     assert combined.native_inspection is native
     document = ServiceReport("inspect", ResultState.READY, {"omp": combined}).to_dict()
     assert (
-        document["harnesses"]["omp"]["native_inspection"]["activation"] == "not-observed"
+        document["harnesses"]["omp"]["native_inspection"]["activation"]
+        == "not-observed"
     )
 
 

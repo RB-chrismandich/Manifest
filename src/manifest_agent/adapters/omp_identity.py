@@ -144,6 +144,11 @@ def decode_identity(entry: OwnedEntry) -> dict[str, Any]:
             len(item) != 64 or any(char not in "0123456789abcdef" for char in item)
         ):
             raise OmpInventoryError("OMP receipt native identity digest is invalid")
+    _validate_identity_location(entry, value)
+    return value
+
+
+def _validate_identity_location(entry: OwnedEntry, value: Mapping[str, Any]) -> None:
     root = Path(value["native_root"])
     if not root.is_absolute() or root.name != ".omp" or ".." in root.parts:
         raise OmpInventoryError("OMP receipt native root is unsafe")
@@ -155,26 +160,25 @@ def decode_identity(entry: OwnedEntry) -> dict[str, Any]:
             or Path(value["path"]) != root / "plugins/cache/marketplaces/manifest"
         ):
             raise OmpInventoryError("OMP receipt marketplace identity is unsafe")
-    else:
-        name, separator, marketplace = entry.identifier.partition("@")
-        if not separator or marketplace != OMP_MARKETPLACE:
-            raise OmpInventoryError("OMP receipt plugin identity is unsafe")
-        expected = (
-            root
-            / "plugins/cache/plugins"
-            / cache_directory_name(name, marketplace, value["version"])
-        )
-        if Path(value["path"]) != expected:
-            raise OmpInventoryError("OMP receipt plugin path is unsafe")
-        runtime = value["runtime_name"]
-        link = root / "plugins/node_modules" / runtime
-        if (
-            ".." in Path(runtime).parts
-            or Path(runtime).is_absolute()
-            or str(link) != value["link_path"]
-        ):
-            raise OmpInventoryError("OMP receipt runtime link identity is unsafe")
-    return value
+        return
+    name, separator, marketplace = entry.identifier.partition("@")
+    if not separator or marketplace != OMP_MARKETPLACE:
+        raise OmpInventoryError("OMP receipt plugin identity is unsafe")
+    expected = (
+        root
+        / "plugins/cache/plugins"
+        / cache_directory_name(name, marketplace, value["version"])
+    )
+    if Path(value["path"]) != expected:
+        raise OmpInventoryError("OMP receipt plugin path is unsafe")
+    runtime = value["runtime_name"]
+    link = root / "plugins/node_modules" / runtime
+    if (
+        ".." in Path(runtime).parts
+        or Path(runtime).is_absolute()
+        or str(link) != value["link_path"]
+    ):
+        raise OmpInventoryError("OMP receipt runtime link identity is unsafe")
 
 
 def receipt_entries(

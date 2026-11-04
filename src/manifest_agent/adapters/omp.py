@@ -27,29 +27,7 @@ from manifest_agent.ownership import (
 from manifest_agent.process import CommandRunner, redact_text
 
 
-class OmpAdapter(
-    OmpSourceMixin, OmpLifecycleMixin, OmpInspectionMixin, CapabilityAdapterMixin
-):
-    """Delegate registration to OMP; authorize only exact coordinator creations."""
-
-    name = "omp"
-    adapter_version = "1"
-    preserves_partial_ownership = True
-
-    def __init__(
-        self,
-        runner: CommandRunner | None = None,
-        *,
-        which: Callable[[str], str | None] = shutil.which,
-        env: Mapping[str, str] | None = None,
-        cwd: Path | None = None,
-    ) -> None:
-        self.runner = runner or CommandRunner()
-        self._which = which
-        self._env = dict(env) if env is not None else None
-        self._cwd = (cwd or Path.cwd()).resolve(strict=True)
-        self._ownership_key_path = ownership_key_path(env)
-
+class _OmpReceiptMixin:
     def bind_ownership_authority(self, key_path: Path) -> None:
         """Trust service-supplied authority, never a key carried by a receipt."""
         self._ownership_key_path = Path(key_path)
@@ -109,6 +87,44 @@ class OmpAdapter(
             ),
         )
 
+    def _prior_receipt(self, desired):
+        receipts = tuple(
+            receipt
+            for receipt in desired.prior_harness_receipts
+            if receipt.harness == self.name
+        )
+        if len(receipts) > 1:
+            raise OmpInventoryError("duplicate prior OMP receipts")
+        return receipts[0] if receipts else None
+
+    def _authenticated_entries(self, receipt):
+        if receipt is None:
+            return {}
+        errors = omp_receipt_ownership_errors(
+            receipt, key_path=self._ownership_key_path
+        )
+        if errors:
+            raise OmpInventoryError("; ".join(errors))
+        return receipt_entries(receipt)
+
+    def merge_owned_entries(self, previous, result):
+        entries = self._authenticated_entries(previous)
+        for entry in result.owned_entries:
+            if entry.kind != "omp-receipt-auth":
+                entries[(entry.kind, entry.identifier)] = entry
+        return tuple(entries.values())
+
+    def receipt_plugin_ids(self, result, previous):
+        return tuple(
+            sorted(
+                entry.identifier
+                for entry in self.merge_owned_entries(previous, result)
+                if entry.kind == PLUGIN_KIND
+            )
+        )
+
+
+class _OmpShadowMixin:
     def shadow_install(self, desired, home):
         return self._shadow_operation("install", desired, home)
 
@@ -152,6 +168,35 @@ class OmpAdapter(
             write_receipt_atomic(path, receipt)
         return result
 
+
+class OmpAdapter(
+    _OmpReceiptMixin,
+    _OmpShadowMixin,
+    OmpSourceMixin,
+    OmpLifecycleMixin,
+    OmpInspectionMixin,
+    CapabilityAdapterMixin,
+):
+    """Delegate registration to OMP; authorize only exact coordinator creations."""
+
+    name = "omp"
+    adapter_version = "1"
+    preserves_partial_ownership = True
+
+    def __init__(
+        self,
+        runner: CommandRunner | None = None,
+        *,
+        which: Callable[[str], str | None] = shutil.which,
+        env: Mapping[str, str] | None = None,
+        cwd: Path | None = None,
+    ) -> None:
+        self.runner = runner or CommandRunner()
+        self._which = which
+        self._env = dict(env) if env is not None else None
+        self._cwd = (cwd or Path.cwd()).resolve(strict=True)
+        self._ownership_key_path = ownership_key_path(env)
+
     def _native_root(self) -> Path:
         return omp_native_root(self._env)
 
@@ -170,7 +215,10 @@ class OmpAdapter(
             version = text.splitlines()[0] if text else None
             if version is None:
                 return Detection(
-                    False, executable, None, "OMP native version probe returned no version"
+                    False,
+                    executable,
+                    None,
+                    "OMP native version probe returned no version",
                 )
             return Detection(True, executable, redact_text(version))
         except (OSError, ValueError) as error:
@@ -196,42 +244,6 @@ class OmpAdapter(
             native_inspection=NativeInspection(
                 self.name, "user", None, inventory_errors=(diagnostic,)
             ),
-        )
-
-    def _prior_receipt(self, desired):
-        receipts = tuple(
-            receipt
-            for receipt in desired.prior_harness_receipts
-            if receipt.harness == self.name
-        )
-        if len(receipts) > 1:
-            raise OmpInventoryError("duplicate prior OMP receipts")
-        return receipts[0] if receipts else None
-
-    def _authenticated_entries(self, receipt):
-        if receipt is None:
-            return {}
-        errors = omp_receipt_ownership_errors(
-            receipt, key_path=self._ownership_key_path
-        )
-        if errors:
-            raise OmpInventoryError("; ".join(errors))
-        return receipt_entries(receipt)
-
-    def merge_owned_entries(self, previous, result):
-        entries = self._authenticated_entries(previous)
-        for entry in result.owned_entries:
-            if entry.kind != "omp-receipt-auth":
-                entries[(entry.kind, entry.identifier)] = entry
-        return tuple(entries.values())
-
-    def receipt_plugin_ids(self, result, previous):
-        return tuple(
-            sorted(
-                entry.identifier
-                for entry in self.merge_owned_entries(previous, result)
-                if entry.kind == PLUGIN_KIND
-            )
         )
 
     def prepare_reconcile(self, receipt, prior, desired):

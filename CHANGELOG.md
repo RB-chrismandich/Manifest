@@ -13,6 +13,8 @@
   while unsafe durable cross-harness rollback is rejected before mutation.
   Coordinator/release metadata includes seven adapters; live credential and
   capability qualification remains six-harness, with OMP optional/UNVERIFIED.
+- Preserve OMP prior-source recovery when the runner raises after marketplace
+  removal; register Stitch test fixtures for independent module runs.
 - Close the delegate cancel-vs-spawn race: a background worker now takes a
   `dispatch.backend_launched` authorization under the job lock immediately
   before `Popen`, so a cancel that landed first denies the fork outright, and a

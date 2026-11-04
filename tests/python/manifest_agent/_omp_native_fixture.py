@@ -31,6 +31,31 @@ def get_json(path, default):
     return json.loads(path.read_text()) if path.exists() else default
 
 
+def _bundle_contract(name, package_version):
+    components = Components(
+        "skills",
+        ("*/SKILL.md",),
+        (Component("reviewer", "agents/reviewer.md"),),
+        (),
+        (),
+        (),
+    )
+    capabilities = Capabilities(
+        {CapabilityTier.REQUIRED: ("context7",)},
+        {CapabilityTier.REQUIRED: ("git",)},
+    )
+    return BundleContract(
+        name,
+        package_version,
+        name,
+        "test",
+        components,
+        capabilities,
+        None,
+        None,
+    )
+
+
 def make_desired(path: Path, version="1.0.0", *, git=False):
     names = (*DOMAIN_BUNDLES, "manifest-i-have-adhd")
     contracts, catalog = [], []
@@ -48,23 +73,7 @@ def make_desired(path: Path, version="1.0.0", *, git=False):
             bundle / "package.json",
             {"name": f"@manifest/{name}", "version": package_version},
         )
-        components = Components(
-            "skills",
-            ("*/SKILL.md",),
-            (Component("reviewer", "agents/reviewer.md"),),
-            (),
-            (),
-            (),
-        )
-        capabilities = Capabilities(
-            {CapabilityTier.REQUIRED: ("context7",)},
-            {CapabilityTier.REQUIRED: ("git",)},
-        )
-        contracts.append(
-            BundleContract(
-                name, package_version, name, "test", components, capabilities, None, None
-            )
-        )
+        contracts.append(_bundle_contract(name, package_version))
         catalog.append(
             {
                 "name": name,
@@ -121,8 +130,7 @@ class NativeRunner:
         return [
             argv
             for argv in self.calls
-            if argv[1:3] != ("plugin", "list")
-            and argv[1] not in {"--version", "read"}
+            if argv[1:3] != ("plugin", "list") and argv[1] not in {"--version", "read"}
         ]
 
     def run(self, argv, *, env=None, cwd=None):
@@ -170,79 +178,14 @@ class NativeRunner:
             ]
             return json.dumps({"marketplace": rows})
         if action == "marketplace":
-            if command[3] == "add":
-                source = Path(command[4])
-                catalog_path = (
-                    root / "plugins/cache/marketplaces/manifest/marketplace.json"
-                )
-                put_json(
-                    catalog_path,
-                    get_json(source / ".claude-plugin/marketplace.json", {}),
-                )
-                self.clock += 1
-                marketplaces["marketplaces"].append(
-                    {
-                        "name": "manifest",
-                        "sourceType": "local",
-                        "sourceUri": str(source),
-                        "catalogPath": str(catalog_path),
-                        "addedAt": str(self.clock),
-                        "updatedAt": str(self.clock),
-                    }
-                )
-            elif command[3] == "remove":
-                marketplaces["marketplaces"] = [
-                    row
-                    for row in marketplaces["marketplaces"]
-                    if row["name"] != command[4]
-                ]
-                shutil.rmtree(root / "plugins/cache/marketplaces" / command[4])
-            put_json(marketplace_path, marketplaces)
-            return ""
+            return self._dispatch_marketplace(
+                command, root, marketplace_path, marketplaces
+            )
         plugin_id = command[3]
-        name, _, marketplace = plugin_id.partition("@")
+        name, _, _marketplace = plugin_id.partition("@")
         old = registry["plugins"].get(plugin_id)
         if action in {"install", "upgrade"}:
-            market = next(
-                row
-                for row in marketplaces["marketplaces"]
-                if row["name"] == marketplace
-            )
-            catalog = get_json(Path(market["catalogPath"]), {})
-            entry = next(row for row in catalog["plugins"] if row["name"] == name)
-            source = Path(market["sourceUri"]) / entry["source"]
-            cache = (
-                root
-                / "plugins/cache/plugins"
-                / f"{marketplace}___{name}___{entry['version']}"
-            )
-            cache.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(source, cache)
-            package_name = get_json(cache / "package.json", {}).get("name", name)
-            link = root / "plugins/node_modules" / package_name
-            link.parent.mkdir(parents=True, exist_ok=True)
-            if link.is_symlink():
-                link.unlink()
-            link.symlink_to(cache)
-            prior = lock["plugins"].get(package_name, {})
-            enabled = old[0].get("enabled", True) if old else True
-            lock["plugins"][package_name] = {
-                "version": entry["version"],
-                "enabled": enabled,
-                "enabledFeatures": prior.get("enabledFeatures"),
-            }
-            self.clock += 1
-            registry["plugins"][plugin_id] = [
-                {
-                    "scope": "user",
-                    "version": entry["version"],
-                    "installPath": str(cache),
-                    "installedAt": str(self.clock),
-                    "enabled": enabled,
-                }
-            ]
-            if old:
-                shutil.rmtree(old[0]["installPath"])
+            self._install_plugin(command, root, marketplaces, registry, lock)
         elif action == "uninstall":
             path = Path(old[0]["installPath"])
             # Native OMP reads the package name BEFORE deleting the cache.
@@ -257,6 +200,76 @@ class NativeRunner:
         put_json(registry_path, registry)
         put_json(lock_path, lock)
         return ""
+
+    def _dispatch_marketplace(self, command, root, marketplace_path, marketplaces):
+        if command[3] == "add":
+            source = Path(command[4])
+            catalog_path = root / "plugins/cache/marketplaces/manifest/marketplace.json"
+            put_json(
+                catalog_path,
+                get_json(source / ".claude-plugin/marketplace.json", {}),
+            )
+            self.clock += 1
+            marketplaces["marketplaces"].append(
+                {
+                    "name": "manifest",
+                    "sourceType": "local",
+                    "sourceUri": str(source),
+                    "catalogPath": str(catalog_path),
+                    "addedAt": str(self.clock),
+                    "updatedAt": str(self.clock),
+                }
+            )
+        elif command[3] == "remove":
+            marketplaces["marketplaces"] = [
+                row for row in marketplaces["marketplaces"] if row["name"] != command[4]
+            ]
+            shutil.rmtree(root / "plugins/cache/marketplaces" / command[4])
+        put_json(marketplace_path, marketplaces)
+        return ""
+
+    def _install_plugin(self, command, root, marketplaces, registry, lock):
+        plugin_id = command[3]
+        name, _, marketplace = plugin_id.partition("@")
+        old = registry["plugins"].get(plugin_id)
+        market = next(
+            row for row in marketplaces["marketplaces"] if row["name"] == marketplace
+        )
+        catalog = get_json(Path(market["catalogPath"]), {})
+        entry = next(row for row in catalog["plugins"] if row["name"] == name)
+        source = Path(market["sourceUri"]) / entry["source"]
+        cache = (
+            root
+            / "plugins/cache/plugins"
+            / f"{marketplace}___{name}___{entry['version']}"
+        )
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, cache)
+        package_name = get_json(cache / "package.json", {}).get("name", name)
+        link = root / "plugins/node_modules" / package_name
+        link.parent.mkdir(parents=True, exist_ok=True)
+        if link.is_symlink():
+            link.unlink()
+        link.symlink_to(cache)
+        prior = lock["plugins"].get(package_name, {})
+        enabled = old[0].get("enabled", True) if old else True
+        lock["plugins"][package_name] = {
+            "version": entry["version"],
+            "enabled": enabled,
+            "enabledFeatures": prior.get("enabledFeatures"),
+        }
+        self.clock += 1
+        registry["plugins"][plugin_id] = [
+            {
+                "scope": "user",
+                "version": entry["version"],
+                "installPath": str(cache),
+                "installedAt": str(self.clock),
+                "enabled": enabled,
+            }
+        ]
+        if old:
+            shutil.rmtree(old[0]["installPath"])
 
 
 def make_adapter(tmp_path, runner=None):

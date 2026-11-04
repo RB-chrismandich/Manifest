@@ -374,21 +374,7 @@ def _validate_receipt(
 def _special_owned_entry_errors(
     receipt: HarnessReceipt, ownership_key_path: Path
 ) -> tuple[str, ...]:
-    errors: list[str] = []
-    if receipt.harness == "codex":
-        errors.extend(
-            codex_receipt_ownership_errors(receipt, key_path=ownership_key_path)
-        )
-    if receipt.harness == "omp":
-        errors.extend(
-            omp_receipt_ownership_errors(receipt, key_path=ownership_key_path)
-        )
-        from manifest_agent.adapters.omp_identity import receipt_entries
-
-        try:
-            receipt_entries(receipt)
-        except ValueError as error:
-            errors.append(str(error))
+    errors = list(_harness_receipt_ownership_errors(receipt, ownership_key_path))
     for entry in receipt.owned_entries:
         if entry.kind == "codex-skill-source":
             if (
@@ -433,6 +419,27 @@ def _special_owned_entry_errors(
             )
             if file_errors:
                 errors.extend(file_errors)
+    return tuple(errors)
+
+
+def _harness_receipt_ownership_errors(
+    receipt: HarnessReceipt, ownership_key_path: Path
+) -> tuple[str, ...]:
+    errors = []
+    if receipt.harness == "codex":
+        errors.extend(
+            codex_receipt_ownership_errors(receipt, key_path=ownership_key_path)
+        )
+    if receipt.harness == "omp":
+        errors.extend(
+            omp_receipt_ownership_errors(receipt, key_path=ownership_key_path)
+        )
+        from manifest_agent.adapters.omp_identity import receipt_entries
+
+        try:
+            receipt_entries(receipt)
+        except ValueError as error:
+            errors.append(str(error))
     return tuple(errors)
 
 

@@ -205,7 +205,9 @@ def test_target_cache_collision_rejects_upgrade_before_source_mutation(tmp_path)
 def test_same_version_changed_source_is_rejected_before_registration_change(tmp_path):
     _desired, adapter, runner, _service = setup_install(tmp_path)
     target = make_desired(tmp_path / "next")
-    (target.bundle_path("manifest-docs") / "user-visible-content").write_text("changed\n")
+    (target.bundle_path("manifest-docs") / "user-visible-content").write_text(
+        "changed\n"
+    )
     before = tuple(runner.mutations)
     result = make_service(tmp_path, adapter, target).reconcile(apply=True)
     assert result.state is ResultState.BLOCKED
@@ -225,7 +227,9 @@ def test_foreign_same_marketplace_reference_preserves_catalog_on_removal(tmp_pat
     assert result.state is ResultState.READY
     assert result.harnesses["omp"].warnings
     assert "manifest" in adapter._snapshot()[1]
-    assert not any(command[2:4] == ("marketplace", "remove") for command in runner.mutations)
+    assert not any(
+        command[2:4] == ("marketplace", "remove") for command in runner.mutations
+    )
 
 
 def test_foreign_reference_blocks_owned_source_rebind_before_mutation(tmp_path):
@@ -280,3 +284,29 @@ def test_signed_record_path_escape_is_rejected_even_with_correct_full_auth(tmp_p
     assert tuple(runner.mutations) == before
     assert any(entry.kind == MARKETPLACE_KIND for entry in owned(service).owned_entries)
     assert trees(owned(service))
+
+
+def test_marketplace_remove_exception_compensates_and_preserves_caches(tmp_path):
+    desired, adapter, runner, service = setup_install(tmp_path)
+    target = make_desired(tmp_path / "next", "1.0.1")
+    before = trees(owned(service))
+
+    def crash_after_remove(command, _root):
+        if command == ("omp", "plugin", "marketplace", "remove", "manifest"):
+            runner.callback = None
+            raise RuntimeError("runner crashed after marketplace removal")
+
+    runner.callback = crash_after_remove
+    update = make_service(tmp_path, adapter, target)
+    result = update.reconcile(apply=True)
+    assert runner.callback is None
+    assert result.state is ResultState.BLOCKED
+    errors = result.harnesses["omp"].errors
+    assert any("prior native source restored" in error for error in errors)
+    assert any("RuntimeError" in error for error in errors)
+    assert adapter._snapshot()[1]["manifest"]["sourceUri"] == str(desired.release_root)
+    assert {path: directory_sha256(path) for path in before} == before
+    marketplaces = adapter._native_root() / "plugins/cache/marketplaces"
+    assert not tuple(marketplaces.glob(".*manifest-preserve-*"))
+    assert update.reconcile(apply=True).state is ResultState.READY
+    assert update.uninstall().state is ResultState.READY

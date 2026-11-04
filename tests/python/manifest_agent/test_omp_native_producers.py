@@ -1,8 +1,9 @@
 """Actual service, migration, shadow, and mutation-boundary ownership producers."""
 
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from manifest_agent.adapters.omp import OmpAdapter
 from manifest_agent.adapters.omp_identity import (
     MARKETPLACE_KIND,
     PLUGIN_KIND,
@@ -14,12 +15,14 @@ from manifest_agent.migration import (
     MigrationService,
     OwnershipProof,
 )
-from manifest_agent.models import ResultState
+from manifest_agent.models import DesiredState, HarnessReceipt, ResultState
 from manifest_agent.ownership import omp_receipt_ownership_errors
 from manifest_agent.paths import xdg_paths
+from manifest_agent.service import ManifestService
 from manifest_agent.service_state import bundle_checksums
 from manifest_agent.state import _decode_harness, read_receipt
 from tests.python.manifest_agent._omp_native_fixture import (
+    NativeRunner,
     get_json,
     make_adapter,
     make_desired,
@@ -118,7 +121,9 @@ def test_target_source_change_at_owned_mutation_boundary_never_unregisters(tmp_p
     assert (target.bundle_path("manifest-docs") / "changed").read_text() == "keep\n"
 
 
-def test_actual_migration_commits_full_creation_authority_and_isolates_shadow_key(tmp_path):
+def test_actual_migration_commits_full_creation_authority_and_isolates_shadow_key(
+    tmp_path,
+):
     desired = make_desired(tmp_path / "release")
     adapter, _runner = make_adapter(tmp_path)
     service = make_service(tmp_path, adapter, desired)
@@ -150,7 +155,24 @@ def test_actual_migration_commits_full_creation_authority_and_isolates_shadow_ke
     assert get_json(shadow / ".omp/plugins/installed_plugins.json", {})["plugins"]
 
 
-def test_actual_migration_retains_signed_partial_creation_for_native_retry(tmp_path):
+@dataclass
+class _MigrationRetry:
+    desired: DesiredState
+    adapter: OmpAdapter
+    runner: NativeRunner
+    service: ManifestService
+    migration: MigrationService
+    state: DesiredState
+    install: tuple[str, ...]
+    hub: Path
+    sentinel: Path
+    legacy: Path
+    pending: HarnessReceipt | None = None
+    caches: dict[Path, str] = field(default_factory=dict)
+    disabled: Path | None = None
+
+
+def _new_migration_retry(tmp_path: Path) -> _MigrationRetry:
     desired = make_desired(tmp_path / "release")
     adapter, runner = make_adapter(tmp_path)
     service = make_service(tmp_path, adapter, desired)
@@ -184,7 +206,7 @@ def test_actual_migration_retains_signed_partial_creation_for_native_retry(tmp_p
     install = ("omp", "plugin", "install", "manifest-docs@manifest", "--scope", "user")
     failed = False
 
-    def event(name):
+    def event(name: str) -> None:
         nonlocal failed
         original_event(name)
         if name == "native-install" and not failed:
@@ -194,15 +216,31 @@ def test_actual_migration_retains_signed_partial_creation_for_native_retry(tmp_p
     migration._event = event
     state, error = service._desired_state()
     assert error is None
-    assert migration.migrate(state).state is ResultState.BLOCKED
-    assert not service.receipt_path.exists()
-    journal = get_json(migration.state_path, {})["harnesses"]["omp"]
+    assert state is not None
+    return _MigrationRetry(
+        desired,
+        adapter,
+        runner,
+        service,
+        migration,
+        state,
+        install,
+        hub,
+        sentinel,
+        legacy,
+    )
+
+
+def _assert_initial_partial(context: _MigrationRetry) -> None:
+    assert context.migration.migrate(context.state).state is ResultState.BLOCKED
+    assert not context.service.receipt_path.exists()
+    journal = get_json(context.migration.state_path, {})["harnesses"]["omp"]
     assert journal["phase"] == "legacy-disabled"
     pending = _decode_harness(journal["native_receipt"])
     assert not pending.verified
     assert len(pending.plugin_ids) == 8
     assert not omp_receipt_ownership_errors(
-        pending, key_path=service.receipt_path.parent / "ownership.key"
+        pending, key_path=context.service.receipt_path.parent / "ownership.key"
     )
     caches = {
         Path(entry.target_path): decode_identity(entry)["tree_sha256"]
@@ -215,71 +253,98 @@ def test_actual_migration_retains_signed_partial_creation_for_native_retry(tmp_p
         item for item in journal["entries"] if item["id"] == "omp-shared-skills"
     )
     disabled = Path(record["disabled_path"])
-    assert not legacy.is_symlink()
+    assert not context.legacy.is_symlink()
     assert disabled.is_symlink()
-    assert disabled.resolve() == hub
-    assert "manifest" in adapter._snapshot()[1]
-    assert len(adapter._snapshot()[2]) == 8
+    assert disabled.resolve() == context.hub
+    assert "manifest" in context.adapter._snapshot()[1]
+    assert len(context.adapter._snapshot()[2]) == 8
+    context.pending = pending
+    context.caches = caches
+    context.disabled = disabled
 
-    # An exact-prior preflight refusal must not erase the pending ownership.
-    changed = desired.bundle_path("manifest-docs") / "changed"
+
+def _assert_exact_prior_refusal(context: _MigrationRetry) -> None:
+    assert context.pending is not None and context.disabled is not None
+    changed = context.desired.bundle_path("manifest-docs") / "changed"
     changed.write_bytes(b"changed source\n")
-    before = tuple(runner.mutations)
-    assert migration.migrate(state).state is ResultState.BLOCKED
-    assert tuple(runner.mutations) == before
-    refused = get_json(migration.state_path, {})["harnesses"]["omp"]
+    before = tuple(context.runner.mutations)
+    assert context.migration.migrate(context.state).state is ResultState.BLOCKED
+    assert tuple(context.runner.mutations) == before
+    refused = get_json(context.migration.state_path, {})["harnesses"]["omp"]
     refused_receipt = _decode_harness(refused["native_receipt"])
     assert refused["phase"] == "legacy-disabled"
     assert not refused_receipt.verified
-    assert adapter._authenticated_entries(
+    assert context.adapter._authenticated_entries(
         refused_receipt
-    ) == adapter._authenticated_entries(pending)
+    ) == context.adapter._authenticated_entries(context.pending)
     assert not omp_receipt_ownership_errors(
-        refused_receipt, key_path=service.receipt_path.parent / "ownership.key"
+        refused_receipt,
+        key_path=context.service.receipt_path.parent / "ownership.key",
     )
     assert changed.read_bytes() == b"changed source\n"
-    assert disabled.is_symlink()
-    assert not legacy.is_symlink()
-    assert {path: directory_sha256(path) for path in caches} == caches
+    assert context.disabled.is_symlink()
+    assert not context.legacy.is_symlink()
+    assert {path: directory_sha256(path) for path in context.caches} == context.caches
     changed.unlink()
 
-    # Another failure after creation replaces, rather than loses, that authority.
-    runner.fail(install, after=True)
-    assert migration.migrate(state).state is ResultState.BLOCKED
-    retried = get_json(migration.state_path, {})["harnesses"]["omp"]
+
+def _assert_retry_after_creation_failure(context: _MigrationRetry) -> None:
+    assert context.disabled is not None
+    context.runner.fail(context.install, after=True)
+    assert context.migration.migrate(context.state).state is ResultState.BLOCKED
+    retried = get_json(context.migration.state_path, {})["harnesses"]["omp"]
     retried_receipt = _decode_harness(retried["native_receipt"])
     assert retried["phase"] == "legacy-disabled"
     assert not retried_receipt.verified
     assert len(retried_receipt.plugin_ids) == 9
     assert not omp_receipt_ownership_errors(
-        retried_receipt, key_path=service.receipt_path.parent / "ownership.key"
+        retried_receipt,
+        key_path=context.service.receipt_path.parent / "ownership.key",
     )
-    assert not service.receipt_path.exists()
-    assert disabled.is_symlink()
-    assert not legacy.is_symlink()
-    assert {path: directory_sha256(path) for path in caches} == caches
+    assert not context.service.receipt_path.exists()
+    assert context.disabled.is_symlink()
+    assert not context.legacy.is_symlink()
+    assert {path: directory_sha256(path) for path in context.caches} == context.caches
 
-    assert migration.migrate(state).state is ResultState.READY
-    committed = read_receipt(service.receipt_path)
+
+def _assert_successful_native_retry(context: _MigrationRetry) -> None:
+    assert context.disabled is not None
+    assert context.migration.migrate(context.state).state is ResultState.READY
+    committed = read_receipt(context.service.receipt_path)
     assert committed.migration_complete
     assert committed.harnesses["omp"].verified
     assert len(committed.harnesses["omp"].plugin_ids) == 9
     assert not omp_receipt_ownership_errors(
         committed.harnesses["omp"],
-        key_path=service.receipt_path.parent / "ownership.key",
+        key_path=context.service.receipt_path.parent / "ownership.key",
     )
-    assert get_json(migration.state_path, {})["harnesses"]["omp"]["phase"] == "committed"
-    assert not legacy.is_symlink()
-    assert not disabled.is_symlink()
-    assert sentinel.read_bytes() == b"keep legacy user data\n"
-    assert {path: directory_sha256(path) for path in caches} == caches
+    assert (
+        get_json(context.migration.state_path, {})["harnesses"]["omp"]["phase"]
+        == "committed"
+    )
+    assert not context.legacy.is_symlink()
+    assert not context.disabled.is_symlink()
+    assert context.sentinel.read_bytes() == b"keep legacy user data\n"
+    assert {path: directory_sha256(path) for path in context.caches} == context.caches
     assert not any(
         command[2] == "uninstall" or command[1:4] == ("plugin", "marketplace", "remove")
-        for command in runner.mutations
+        for command in context.runner.mutations
     )
 
 
-def test_shadow_partial_receipts_support_retry_without_actual_authority_adoption(tmp_path):
+def test_actual_migration_retains_signed_partial_creation_for_native_retry(
+    tmp_path: Path,
+) -> None:
+    context = _new_migration_retry(tmp_path)
+    _assert_initial_partial(context)
+    _assert_exact_prior_refusal(context)
+    _assert_retry_after_creation_failure(context)
+    _assert_successful_native_retry(context)
+
+
+def test_shadow_partial_receipts_support_retry_without_actual_authority_adoption(
+    tmp_path,
+):
     desired = make_desired(tmp_path / "release")
     adapter, runner = make_adapter(tmp_path)
     service = make_service(tmp_path, adapter, desired)

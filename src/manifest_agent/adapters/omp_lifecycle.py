@@ -25,6 +25,141 @@ from manifest_agent.adapters.omp_preservation import preserve_native_tree
 from manifest_agent.models import HarnessResult, ResultState
 
 
+def _register_marketplace(adapter, desired, entries):
+    started = [False]
+    try:
+        adapter._native_mutation_boundary(OMP_MARKETPLACE)
+        live = adapter._snapshot()
+        target = live[0] / "plugins/cache/marketplaces/manifest"
+        if OMP_MARKETPLACE in live[1] or target.exists() or target.is_symlink():
+            raise OmpInventoryError(
+                "OMP marketplace target appeared at mutation boundary"
+            )
+        adapter._command(
+            (
+                "omp",
+                "plugin",
+                "marketplace",
+                "add",
+                str(desired.release_root.resolve(strict=True)),
+            ),
+            desired=desired,
+            started=started,
+        )
+    finally:
+        live = adapter._snapshot()
+        created = live[1].get(OMP_MARKETPLACE)
+        if started[0] and created is not None:
+            identity = marketplace_identity(live[0], created)
+            if identity["source"] != str(desired.release_root.resolve()):
+                raise OmpInventoryError("OMP created marketplace has unexpected source")
+            key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
+            entries[key] = identity_entry(MARKETPLACE_KIND, OMP_MARKETPLACE, identity)
+    return (MARKETPLACE_KIND, OMP_MARKETPLACE) in entries
+
+
+def _install_plugin(adapter, desired, contract, old, entries, failures):
+    plugin_id = f"{contract.name}@{OMP_MARKETPLACE}"
+    live = adapter._snapshot()
+    if old is None and adapter._identity(live, plugin_id) is not None:
+        raise OmpInventoryError(f"{plugin_id}: native row appeared concurrently")
+    argv = (
+        "omp",
+        "plugin",
+        "upgrade" if old else "install",
+        plugin_id,
+        "--scope",
+        "user",
+    )
+    started = [False]
+    try:
+        if old is not None:
+            current = decode_identity(entries[(PLUGIN_KIND, plugin_id)])
+            adapter._preserve(PLUGIN_KIND, plugin_id, current, argv, started, desired)
+        else:
+            adapter._native_mutation_boundary(plugin_id)
+            target = (
+                live[0]
+                / "plugins/cache/plugins"
+                / cache_directory_name(contract.name, OMP_MARKETPLACE, contract.version)
+            )
+            if (
+                target.exists()
+                or target.is_symlink()
+                or adapter._identity(adapter._snapshot(), plugin_id) is not None
+            ):
+                raise OmpInventoryError(
+                    f"{plugin_id}: target appeared at mutation boundary"
+                )
+            adapter._command(argv, desired=desired, started=started)
+    except (OSError, ValueError) as error:
+        failures.append(str(error))
+    finally:
+        created = adapter._identity(adapter._snapshot(), plugin_id)
+        if (
+            started[0]
+            and created is not None
+            and created["version"] == contract.version
+        ):
+            entries[(PLUGIN_KIND, plugin_id)] = identity_entry(
+                PLUGIN_KIND, plugin_id, created
+            )
+
+
+def _authorize_uninstall(adapter, entries, snapshot):
+    for (kind, identifier), entry in entries.items():
+        identity = decode_identity(entry)
+        if identity["native_root"] != str(snapshot[0]):
+            raise OmpInventoryError("OMP receipt belongs to a different native root")
+        missing = (
+            kind == PLUGIN_KIND and adapter._identity(snapshot, identifier) is None
+        ) or (kind == MARKETPLACE_KIND and identifier not in snapshot[1])
+        if not missing:
+            adapter._assert_identity(kind, identifier, identity)
+            continue
+        if kind == MARKETPLACE_KIND and any(
+            plugin_id.endswith("@manifest") and rows
+            for plugin_id, rows in snapshot[2].items()
+        ):
+            raise OmpInventoryError("OMP plugin references a missing marketplace")
+        if kind == PLUGIN_KIND:
+            link = Path(identity["link_path"])
+            if (
+                identity["runtime_name"] in snapshot[3]["plugins"]
+                or link.exists()
+                or link.is_symlink()
+            ):
+                raise OmpInventoryError(
+                    f"{identifier}: runtime-only inventory conflict"
+                )
+        if directory_sha256(Path(identity["path"])) != identity["tree_sha256"]:
+            raise OmpInventoryError("OMP retained cache changed after unregister")
+
+
+def _unregister_plugins(adapter, entries):
+    failures = []
+    for (kind, identifier), entry in entries.items():
+        if (
+            kind != PLUGIN_KIND
+            or adapter._identity(adapter._snapshot(), identifier) is None
+        ):
+            continue
+        try:
+            adapter._preserve(
+                kind,
+                identifier,
+                decode_identity(entry),
+                ("omp", "plugin", "uninstall", identifier, "--scope", "user"),
+            )
+            if adapter._identity(adapter._snapshot(), identifier) is not None:
+                raise OmpInventoryError(
+                    "OMP native unregister did not remove its registration"
+                )
+        except (ValueError, OSError) as error:
+            failures.append(str(error))
+    return failures
+
+
 class OmpLifecycleMixin:
     def _identity(self, snapshot, plugin_id):
         root, markets, registry, runtime, cli = snapshot
@@ -105,49 +240,8 @@ class OmpLifecycleMixin:
                 }
                 market_owned = (MARKETPLACE_KIND, OMP_MARKETPLACE) in entries
                 failures.extend(conflicts.values())
-                row = snapshot[1].get(OMP_MARKETPLACE)
-                if row is None:
-                    started = [False]
-                    try:
-                        self._native_mutation_boundary(OMP_MARKETPLACE)
-                        live = self._snapshot()
-                        target = live[0] / "plugins/cache/marketplaces/manifest"
-                        if (
-                            OMP_MARKETPLACE in live[1]
-                            or target.exists()
-                            or target.is_symlink()
-                        ):
-                            raise OmpInventoryError(
-                                "OMP marketplace target appeared at mutation boundary"
-                            )
-                        self._command(
-                            (
-                                "omp",
-                                "plugin",
-                                "marketplace",
-                                "add",
-                                str(desired.release_root.resolve(strict=True)),
-                            ),
-                            desired=desired,
-                            started=started,
-                        )
-                    finally:
-                        live = self._snapshot()
-                        created = live[1].get(OMP_MARKETPLACE)
-                        if started[0] and created is not None:
-                            # Preflight observed neither registration nor cache.
-                            identity = marketplace_identity(live[0], created)
-                            if identity["source"] != str(
-                                desired.release_root.resolve()
-                            ):
-                                raise OmpInventoryError(
-                                    "OMP created marketplace has unexpected source"
-                                )
-                            key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
-                            entries[key] = identity_entry(
-                                MARKETPLACE_KIND, OMP_MARKETPLACE, identity
-                            )
-                            market_owned = True
+                if snapshot[1].get(OMP_MARKETPLACE) is None:
+                    market_owned = _register_marketplace(self, desired, entries)
                 elif changed:
                     self._replace_source(desired, snapshot, entries)
                 self._capture_owned(
@@ -164,56 +258,7 @@ class OmpLifecycleMixin:
                     old = observed[plugin_id]
                     if old is not None and old["version"] == contract.version:
                         continue
-                    live = self._snapshot()
-                    if old is None and self._identity(live, plugin_id) is not None:
-                        raise OmpInventoryError(
-                            f"{plugin_id}: native row appeared concurrently"
-                        )
-                    argv = (
-                        "omp",
-                        "plugin",
-                        "upgrade" if old else "install",
-                        plugin_id,
-                        "--scope",
-                        "user",
-                    )
-                    started = [False]
-                    try:
-                        if old is not None:
-                            current = decode_identity(entries[(PLUGIN_KIND, plugin_id)])
-                            self._preserve(
-                                PLUGIN_KIND, plugin_id, current, argv, started, desired
-                            )
-                        else:
-                            self._native_mutation_boundary(plugin_id)
-                            target = (
-                                live[0]
-                                / "plugins/cache/plugins"
-                                / cache_directory_name(
-                                    contract.name, OMP_MARKETPLACE, contract.version
-                                )
-                            )
-                            if (
-                                target.exists()
-                                or target.is_symlink()
-                                or self._identity(self._snapshot(), plugin_id) is not None
-                            ):
-                                raise OmpInventoryError(
-                                    f"{plugin_id}: target appeared at mutation boundary"
-                                )
-                            self._command(argv, desired=desired, started=started)
-                    except (OSError, ValueError) as error:
-                        failures.append(str(error))
-                    finally:
-                        created = self._identity(self._snapshot(), plugin_id)
-                        if (
-                            started[0]
-                            and created is not None
-                            and created["version"] == contract.version
-                        ):
-                            entries[(PLUGIN_KIND, plugin_id)] = identity_entry(
-                                PLUGIN_KIND, plugin_id, created
-                            )
+                    _install_plugin(self, desired, contract, old, entries, failures)
         except (OSError, ValueError) as error:
             failures.append(str(error))
         owned = tuple(entries.values())
@@ -227,7 +272,12 @@ class OmpLifecycleMixin:
         return result
 
     def _capture_owned(
-        self, entries, authorized_ids, market_owned, *, source_changed=False,
+        self,
+        entries,
+        authorized_ids,
+        market_owned,
+        *,
+        source_changed=False,
         expected_source=None,
     ):
         live = self._snapshot()
@@ -272,73 +322,8 @@ class OmpLifecycleMixin:
             entries = self._authenticated_entries(receipt)
             with self._native_mutation_lock():
                 snapshot = self._snapshot()
-                # Authorize the whole operation before removing its first row.
-                for (kind, identifier), entry in entries.items():
-                    identity = decode_identity(entry)
-                    if identity["native_root"] != str(snapshot[0]):
-                        raise OmpInventoryError(
-                            "OMP receipt belongs to a different native root"
-                        )
-                    if (
-                        (
-                            kind == PLUGIN_KIND
-                            and self._identity(snapshot, identifier) is None
-                        )
-                        or (kind == MARKETPLACE_KIND and identifier not in snapshot[1])
-                    ):
-                        if kind == MARKETPLACE_KIND and any(
-                            plugin_id.endswith("@manifest") and rows
-                            for plugin_id, rows in snapshot[2].items()
-                        ):
-                            raise OmpInventoryError(
-                                "OMP plugin references a missing marketplace"
-                            )
-                        if kind == PLUGIN_KIND:
-                            link = Path(identity["link_path"])
-                            if (
-                                identity["runtime_name"] in snapshot[3]["plugins"]
-                                or link.exists()
-                                or link.is_symlink()
-                            ):
-                                raise OmpInventoryError(
-                                    f"{identifier}: runtime-only inventory conflict"
-                                )
-                        if (
-                            directory_sha256(Path(identity["path"]))
-                            != identity["tree_sha256"]
-                        ):
-                            raise OmpInventoryError(
-                                "OMP retained cache changed after unregister"
-                            )
-                    else:
-                        self._assert_identity(kind, identifier, identity)
-                failures = []
-                for (kind, identifier), entry in entries.items():
-                    if (
-                        kind != PLUGIN_KIND
-                        or self._identity(self._snapshot(), identifier) is None
-                    ):
-                        continue
-                    try:
-                        self._preserve(
-                            kind,
-                            identifier,
-                            decode_identity(entry),
-                            (
-                                "omp",
-                                "plugin",
-                                "uninstall",
-                                identifier,
-                                "--scope",
-                                "user",
-                            ),
-                        )
-                        if self._identity(self._snapshot(), identifier) is not None:
-                            raise OmpInventoryError(
-                                "OMP native unregister did not remove its registration"
-                            )
-                    except (ValueError, OSError) as error:
-                        failures.append(str(error))
+                _authorize_uninstall(self, entries, snapshot)
+                failures = _unregister_plugins(self, entries)
                 if failures:
                     return self._blocked("; ".join(failures))
                 marketplace = entries.get((MARKETPLACE_KIND, OMP_MARKETPLACE))

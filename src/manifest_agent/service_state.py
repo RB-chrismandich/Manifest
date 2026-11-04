@@ -22,7 +22,8 @@ from manifest_agent.ownership import (
     advance_owned_file_entry,
     ownership_key_path,
 )
-from manifest_agent.process import names_credential_field, redact_text
+from manifest_agent.process import redact_text
+from manifest_agent.service_redaction import _safe_result
 from manifest_agent.state import write_receipt_atomic
 
 STATE_PRIORITY = {
@@ -200,71 +201,6 @@ def operation_desired_state(desired, adapter, result):
     return hook(desired, result) if callable(hook) and result is not None else desired
 
 
-def _safe_result(result: HarnessResult) -> HarnessResult:
-    capabilities = {}
-    for index, (key, value) in enumerate(result.capabilities.items()):
-        safe_key = f"[REDACTED-{index}]" if names_credential_field(key) else key
-        capabilities[redact_text(safe_key)] = redact_text(value)
-    native = result.native_inspection
-    if native is not None:
-        native = replace(
-            native,
-            harness=redact_text(native.harness),
-            profile=redact_text(native.profile) if native.profile else None,
-            native_root=redact_text(native.native_root) if native.native_root else None,
-            packages=tuple(
-                replace(
-                    package,
-                    package_id=redact_text(package.package_id),
-                    package_name=redact_text(package.package_name),
-                    marketplace=redact_text(package.marketplace)
-                    if package.marketplace
-                    else None,
-                    source_uri=redact_text(package.source_uri)
-                    if package.source_uri
-                    else None,
-                    source_provenance=redact_text(package.source_provenance)
-                    if package.source_provenance
-                    else None,
-                    version=redact_text(package.version) if package.version else None,
-                    scope=redact_text(package.scope) if package.scope else None,
-                    native_root=redact_text(package.native_root)
-                    if package.native_root
-                    else None,
-                    install_path=redact_text(package.install_path)
-                    if package.install_path
-                    else None,
-                    status=redact_text(package.status),
-                )
-                for package in native.packages
-            ),
-            components=tuple(
-                replace(
-                    component,
-                    kind=redact_text(component.kind),
-                    identifier=redact_text(component.identifier),
-                    status=redact_text(component.status),
-                    provenance=redact_text(component.provenance),
-                    resolved_path=redact_text(component.resolved_path)
-                    if component.resolved_path
-                    else None,
-                )
-                for component in native.components
-            ),
-            activation=redact_text(native.activation),
-            inventory_errors=tuple(map(redact_text, native.inventory_errors)),
-        )
-    return replace(
-        result,
-        installed_plugin_ids=tuple(map(redact_text, result.installed_plugin_ids)),
-        capabilities=capabilities,
-        errors=tuple(map(redact_text, result.errors)),
-        warnings=tuple(map(redact_text, result.warnings)),
-        owned_entries=(),
-        native_inspection=native,
-    )
-
-
 def ordered(values, harness_order):
     """Return harness-keyed values in the public deterministic order."""
     unknown = set(values) - set(harness_order)
@@ -308,7 +244,9 @@ def with_source_fingerprints(desired: DesiredState) -> DesiredState:
         desired,
         source_bundle_checksums=tuple(sorted(bundle_checksums(desired).items())),
         source_catalog_sha256=(
-            hashlib.sha256(catalog.read_bytes()).hexdigest() if catalog.is_file() else None
+            hashlib.sha256(catalog.read_bytes()).hexdigest()
+            if catalog.is_file()
+            else None
         ),
     )
 

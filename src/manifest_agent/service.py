@@ -892,7 +892,11 @@ def _persist_reconcile(service, receipt, desired, outcome):
         ):
             partial = build_receipt(
                 desired,
-                {name: result for name, result in results.items() if name in receipt.harnesses},
+                {
+                    name: result
+                    for name, result in results.items()
+                    if name in receipt.harnesses
+                },
                 outcome.detections,
                 service.adapters,
                 HARNESS_ORDER,
