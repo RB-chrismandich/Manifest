@@ -207,3 +207,47 @@ def test_foreign_marketplace_source_blocks_plugin_install(tmp_path, monkeypatch)
     assert result.state is ResultState.BLOCKED
     assert any("unexpected source" in error for error in result.errors), result.errors
     assert plugin_mutations == [], plugin_mutations
+
+
+def test_failed_restore_add_is_reported_as_restore_diagnostic(
+    tmp_path: Path, monkeypatch
+):
+    """When the forward add and the restore add both fail, the restore failure must be reported."""
+    from manifest_agent.adapters.omp_identity import MARKETPLACE_KIND, decode_identity
+    from manifest_agent.adapters.omp_inventory import OMP_MARKETPLACE, OmpInventoryError
+    from manifest_agent.adapters.omp_source import OmpSourceMixin
+
+    desired, adapter, _runner, service = setup_install(tmp_path)
+    entries = {(e.kind, e.identifier): e for e in owned(service).owned_entries}
+    root, markets, registry, runtime, cli = adapter._snapshot()
+    expected = decode_identity(entries[(MARKETPLACE_KIND, OMP_MARKETPLACE)])
+    prior = tmp_path / "prior-source"
+    (prior / ".claude-plugin").mkdir(parents=True)
+    (prior / ".claude-plugin" / "marketplace.json").write_bytes(
+        (Path(expected["path"]) / "marketplace.json").read_bytes()
+    )
+    markets = {
+        **markets,
+        OMP_MARKETPLACE: {**markets[OMP_MARKETPLACE], "sourceUri": str(prior)},
+    }
+    snapshot = (root, markets, registry, runtime, cli)
+    add_calls = []
+    real_command = adapter._command
+
+    def fake_command(argv, **kwargs):
+        if tuple(argv[:4]) == ("omp", "plugin", "marketplace", "add"):
+            add_calls.append(tuple(argv))
+            if len(add_calls) == 1:
+                raise OSError("forward add boom")
+            raise OmpInventoryError("restore add boom")
+        return real_command(argv, **kwargs)
+
+    monkeypatch.setattr(adapter, "_command", fake_command)
+    try:
+        OmpSourceMixin._replace_source(adapter, desired, snapshot, entries)
+    except OmpInventoryError as error:
+        message = str(error)
+    else:
+        raise AssertionError("source replacement must fail")
+    assert len(add_calls) == 2, add_calls
+    assert "restore diagnostic" in message and "restore add boom" in message, message
