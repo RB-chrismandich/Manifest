@@ -348,3 +348,42 @@ def test_pending_source_refuses_owned_plugin_non_source_drift(tmp_path: Path):
     )
     (Path(plugin.target_path) / "drift.txt").write_text("not from the release")
     _assert_pending_refused(adapter, update, target, old_source)
+
+
+def test_old_checkout_edit_does_not_block_version_reconcile(tmp_path: Path):
+    """Same-version packages compare the signed install digest, not the live checkout."""
+    desired, adapter, _runner, _service = setup_install(tmp_path)
+    skill = next(desired.bundle_path("manifest-i-have-adhd").glob("skills/*/SKILL.md"))
+    skill.write_text(skill.read_text() + "\nlocal edit after install\n")
+    target = make_desired(tmp_path / "next", "1.0.1")
+    update = make_service(tmp_path, adapter, target)
+
+    result = update.reconcile(apply=True)
+
+    assert result.state is ResultState.READY, result.harnesses["omp"].errors
+    assert _marketplace_source(update) == str(target.release_root.resolve())
+
+
+def test_restore_with_missing_prior_bundle_persists_null_source_digest(
+    tmp_path: Path,
+):
+    """A restored identity whose checkout bundle is gone must still persist."""
+    import shutil
+
+    desired, adapter, runner, _service = setup_install(tmp_path)
+    shutil.rmtree(desired.release_root / "plugins/manifest-docs")
+    target = make_desired(tmp_path / "next", "1.0.1")
+    runner.fail(("omp", "plugin", "marketplace", "add", str(target.release_root)))
+    update = make_service(tmp_path, adapter, target)
+
+    result = update.reconcile(apply=True)
+
+    assert result.state is not ResultState.READY
+    assert "omp" in result.harnesses, result.errors
+    assert "prior native source restored" in " ".join(result.harnesses["omp"].errors)
+    docs = next(
+        entry
+        for entry in owned(update).owned_entries
+        if entry.kind == PLUGIN_KIND and entry.identifier == "manifest-docs@manifest"
+    )
+    assert decode_identity(docs)["source_tree_sha256"] is None

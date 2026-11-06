@@ -48,6 +48,17 @@ def _plugin_identity_conflict(plugin_id, identity, previous):
     return None
 
 
+def _require_installed_source(plugin_id, identity, previous, bundle):
+    """Compare the digest signed at install; the live checkout may have changed."""
+    signed = identity if previous is None else decode_identity(previous)
+    installed = signed["source_tree_sha256"]
+    if installed is not None and installed != directory_sha256(bundle):
+        raise OmpInventoryError(
+            f"{plugin_id}: same-version source changed in place; "
+            "cannot be force-overwritten"
+        )
+
+
 def _require_prior_source_catalog(row, expected):
     source = read_object(
         Path(row["sourceUri"]) / ".claude-plugin/marketplace.json",
@@ -162,12 +173,9 @@ class OmpSourceMixin:
                         f"{plugin_id}: target cache collision; "
                         "no force overwrite permitted"
                     )
-            elif identity["source_tree_sha256"] is not None and identity[
-                "source_tree_sha256"
-            ] != directory_sha256(desired.bundle_path(contract.name)):
-                raise OmpInventoryError(
-                    f"{plugin_id}: same-version source changed in place; "
-                    "cannot be force-overwritten"
+            else:
+                _require_installed_source(
+                    plugin_id, identity, previous, desired.bundle_path(contract.name)
                 )
             observed[plugin_id] = identity
         if row is None:
