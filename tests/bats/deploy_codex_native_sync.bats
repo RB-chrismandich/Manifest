@@ -18,7 +18,7 @@ setup() {
     chmod +x "$SANDBOX/bin/codex"
     cat > "$HOME/.local/bin/uv" <<'STUB'
 #!/bin/sh
-printf '%s\n' "$*" > "$UV_LOG"
+printf '%s\n' "$*" >> "$UV_LOG"
 printf '{"state":"READY"}\n'
 STUB
     chmod +x "$HOME/.local/bin/uv"
@@ -44,6 +44,128 @@ teardown() {
     assert_success
     assert_equal "$(cat "$UV_LOG")" \
         "run --project $REPO_ROOT manifest bootstrap-sync --source $REPO_ROOT --harness codex --non-interactive --json"
+}
+
+@test "Codex native sync advances existing installation receipt via manifest update before bootstrap-sync" {
+    mkdir -p "$HOME/.local/state/manifest"
+    printf '{"schema_version":1}\n' > "$HOME/.local/state/manifest/installation.json"
+
+    run sync_native_plugins
+
+    assert_success
+    assert_equal "$(sed -n '1p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest update --source $REPO_ROOT --non-interactive --json"
+    assert_equal "$(sed -n '2p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest bootstrap-sync --source $REPO_ROOT --harness codex --non-interactive --json"
+}
+
+@test "Codex native sync honors XDG_STATE_HOME when checking for an installation receipt" {
+    export XDG_STATE_HOME="$SANDBOX/xdg-state"
+    mkdir -p "$XDG_STATE_HOME/manifest"
+    printf '{"schema_version":1}\n' > "$XDG_STATE_HOME/manifest/installation.json"
+
+    run sync_native_plugins
+
+    assert_success
+    assert_equal "$(sed -n '1p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest update --source $REPO_ROOT --non-interactive --json"
+    assert_equal "$(sed -n '2p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest bootstrap-sync --source $REPO_ROOT --harness codex --non-interactive --json"
+}
+
+@test "sync_all_native_harnesses advances existing receipt when Codex is disabled" {
+    export ENABLE_CODEX=false
+    mkdir -p "$HOME/.local/state/manifest"
+    printf '{"schema_version":1}\n' > "$HOME/.local/state/manifest/installation.json"
+
+    run sync_native_plugins
+    assert_success
+    assert_equal "$( [[ -f "$UV_LOG" ]] && echo present || echo absent )" "absent"
+
+    sync_all_native_harnesses > /dev/null
+    assert_equal "$(sed -n '1p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest update --source $REPO_ROOT --non-interactive --json"
+    assert_equal "$(sed -n '2p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest install --source $REPO_ROOT --non-interactive --json"
+}
+
+@test "sync_all_native_harnesses advances existing receipt when Codex CLI is absent" {
+    rm -f "$SANDBOX/bin/codex"
+    mkdir -p "$HOME/.local/state/manifest"
+    printf '{"schema_version":1}\n' > "$HOME/.local/state/manifest/installation.json"
+
+    run sync_native_plugins
+    assert_success
+    assert_equal "$( [[ -f "$UV_LOG" ]] && echo present || echo absent )" "absent"
+
+    sync_all_native_harnesses > /dev/null
+    assert_equal "$(sed -n '1p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest update --source $REPO_ROOT --non-interactive --json"
+    assert_equal "$(sed -n '2p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest install --source $REPO_ROOT --non-interactive --json"
+}
+
+@test "deploy sequence updates existing receipt once across sync_native_plugins and sync_all_native_harnesses" {
+    mkdir -p "$HOME/.local/state/manifest"
+    printf '{"schema_version":1}\n' > "$HOME/.local/state/manifest/installation.json"
+
+    sync_native_plugins > /dev/null
+    sync_all_native_harnesses > /dev/null
+
+    assert_equal "$(wc -l < "$UV_LOG" | tr -d ' ')" "3"
+    assert_equal "$(sed -n '1p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest update --source $REPO_ROOT --non-interactive --json"
+    assert_equal "$(sed -n '2p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest bootstrap-sync --source $REPO_ROOT --harness codex --non-interactive --json"
+    assert_equal "$(sed -n '3p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest install --source $REPO_ROOT --non-interactive --json"
+}
+
+@test "sync_all_native_harnesses ignores uv stderr chatter and clears fallback native_harnesses state after per-harness parse" {
+    mkdir -p "$HOME/.local/state/manifest"
+    printf '{"schema_version":1}\n' > "$HOME/.local/state/manifest/installation.json"
+    cat > "$HOME/.local/bin/uv" <<'STUB'
+#!/bin/sh
+printf '%s\n' "$*" >> "$UV_LOG"
+case "$*" in
+    *"manifest update"*)
+        printf 'update failed before report\n' >&2
+        exit 1
+        ;;
+    *"manifest install"*)
+        printf 'Resolved 5 packages in 12ms\n' >&2
+        printf '{"operation":"install","state":"READY","harnesses":{"claude":{"state":"READY"}}}\n'
+        exit 0
+        ;;
+esac
+STUB
+    chmod +x "$HOME/.local/bin/uv"
+
+    sync_all_native_harnesses > "$SANDBOX/install.out" 2> "$SANDBOX/install.err"
+    run cat "$SANDBOX/install.out"
+    refute_output --partial "unreadable JSON"
+    assert_output --partial "Manifest bundles installed natively in every detected harness"
+
+    run _collect_degraded_harness_states
+    assert_success
+    assert_output ""
+}
+
+@test "report parser preserves top-level failures when harness rows are READY" {
+    unset MANIFEST_HARNESS_STATES XDG_STATE_HOME
+    _record_manifest_report_states native_harnesses 0 \
+        '{"operation":"install","state":"BLOCKED","errors":["receipt write failed"],"harnesses":{"claude":{"state":"READY"}}}'
+    assert_equal "$MANIFEST_HARNESS_STATES" $'claude=READY\nnative_harnesses=BLOCKED'
+    run _collect_degraded_harness_states
+    assert_success
+    assert_output "native_harnesses=BLOCKED"
+
+    _record_manifest_report_states native_harnesses 1 \
+        '{"operation":"install","state":"READY","errors":[],"harnesses":{"claude":{"state":"READY"}}}'
+    assert_equal "$MANIFEST_HARNESS_STATES" $'claude=READY\nnative_harnesses=BLOCKED'
+    run _collect_degraded_harness_states
+    assert_success
+    assert_output "native_harnesses=BLOCKED"
 }
 
 @test "repository-local Manifest runtime state is ignored" {

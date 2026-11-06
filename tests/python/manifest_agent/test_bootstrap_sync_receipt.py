@@ -1,13 +1,18 @@
 """Receipt promotion and prepared-target restart after crash."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 import manifest_agent.bootstrap_sync as bootstrap_module
 from manifest_agent.bootstrap_sync import (
+    HarnessMutationCheckpoint,
+    ReconciliationSaga,
     _read_journal,
+    _serialize_handle,
+    _write_journal,
 )
 from manifest_agent.models import (
     ResultState,
@@ -21,6 +26,8 @@ from tests.python.manifest_agent._bootstrap_sync_helpers import (
     legacy_skill_home,
 )
 from tests.python.manifest_agent.test_service_install import (
+    FakeAdapter,
+    harness_result,
     make_service_factory,
 )
 
@@ -226,3 +233,171 @@ def test_absent_upstream_enabled_state_is_receipt_owned_for_exact_restore(
     assert metadata["current"] is False
     assert metadata["table_existed"] is True
     assert metadata["separator_added"] is False
+
+
+def _installed_codex_service(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg-state"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex})
+    assert service.install().state is ResultState.READY
+    service.harnesses = ("codex",)
+    legacy_skill_home(tmp_path, monkeypatch)
+    journal = bootstrap_module._journal_path(service.receipt_path)
+    return service, claude, codex, journal
+
+
+def test_stale_empty_prepared_journal_is_unlinked_and_sync_proceeds(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, _claude, codex, journal = _installed_codex_service(
+        service_factory, tmp_path, monkeypatch
+    )
+    _write_journal(
+        journal,
+        ReconciliationSaga(
+            "prepared",
+            "codex",
+            prior_receipt_digest="b" * 64,
+            target_identity="c" * 64,
+        ),
+    )
+    codex.calls.clear()
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.READY, result.errors
+    assert not journal.exists()
+    assert "install" in codex.calls
+
+
+def test_non_empty_prepared_journal_with_stale_binding_is_refused(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, claude, codex, journal = _installed_codex_service(
+        service_factory, tmp_path, monkeypatch
+    )
+    previous = read_receipt(service.receipt_path)
+    assert previous is not None
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+    handle = claude.prepare_reconcile(previous.harnesses["claude"], desired, desired)
+    non_empty = ReconciliationSaga(
+        "prepared",
+        "codex",
+        harness_mutations=(
+            HarnessMutationCheckpoint("claude", "prepared", _serialize_handle(handle)),
+        ),
+        prior_receipt_digest="b" * 64,
+        target_identity=bootstrap_module._target_identity(desired),
+    )
+    _write_journal(journal, non_empty)
+    journal_before = journal.read_text(encoding="utf-8")
+    codex.calls.clear()
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.BLOCKED
+    assert (
+        "receipt/target binding does not match" in result.harnesses["codex"].errors[0]
+    )
+    assert journal.read_text(encoding="utf-8") == journal_before
+    assert "install" not in codex.calls
+
+
+def test_mid_flight_journal_without_mutations_is_refused(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, _claude, codex, journal = _installed_codex_service(
+        service_factory, tmp_path, monkeypatch
+    )
+    previous = read_receipt(service.receipt_path)
+    assert previous is not None
+    mid_flight = ReconciliationSaga(
+        "harness-convergence",
+        "codex",
+        prior_receipt_digest=receipt_digest(previous),
+        target_identity="c" * 64,
+    )
+    _write_journal(journal, mid_flight)
+    codex.calls.clear()
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.BLOCKED
+    assert "unrecoverable state" in result.harnesses["codex"].errors[0]
+    assert _read_journal(journal) == mid_flight
+    assert "install" not in codex.calls
+
+
+def test_corrupt_journal_is_refused_and_preserved(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, _claude, codex, journal = _installed_codex_service(
+        service_factory, tmp_path, monkeypatch
+    )
+    journal.write_text("{corrupt-json\n", encoding="utf-8")
+    codex.calls.clear()
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.BLOCKED
+    assert (
+        "bootstrap reconciliation journal is invalid"
+        in result.harnesses["codex"].errors[0]
+    )
+    assert journal.read_text(encoding="utf-8") == "{corrupt-json\n"
+    assert "install" not in codex.calls
+
+
+def test_durable_codex_recovers_empty_journal_on_unresolvable_local_receipt(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg-state"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+    adapter = _ProbeAdapter()
+    service = service_factory({"codex": adapter}, harnesses=("codex",))
+    initial = replace(_addon_desired(service), release_version="local-111111111111")
+    service._desired_state = lambda selector=None, *, exact_release=False: (
+        (None, "ReleaseError: published release selector must be an immutable version")
+        if exact_release
+        else (initial, None)
+    )
+    legacy_skill_home(tmp_path, monkeypatch)
+    assert service.install().state is ResultState.READY
+    adapter.runner = object()
+    mutated = replace(
+        initial,
+        release_version="local-222222222222",
+        source_commit="c" * 40,
+        archive_sha256="d" * 64,
+    )
+    service._desired_state = lambda selector=None, *, exact_release=False: (
+        (None, "ReleaseError: published release selector must be an immutable version")
+        if exact_release
+        else (mutated, None)
+    )
+    journal = bootstrap_module._journal_path(service.receipt_path)
+    _write_journal(
+        journal,
+        ReconciliationSaga(
+            "prepared",
+            "codex",
+            prior_receipt_digest="e" * 64,
+            target_identity="f" * 64,
+        ),
+    )
+    adapter.calls.clear()
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.READY, result.errors
+    assert adapter.calls == ["detect", "install", "inspect", "probe"]
+    updated = read_receipt(service.receipt_path)
+    assert updated is not None and updated.release_version == "local-222222222222"
+    assert not journal.exists()

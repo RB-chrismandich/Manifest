@@ -8,6 +8,7 @@ set_bootstrap_defaults() {
     SKIP_AUTH=false
     INSTALL_MCP=false
     FORCE=false
+    UPDATE_CONFIG=false
     RECONFIGURE=false
 
     # MCP scope defaults (server URLs are parsed from configs/claude/config/mcp_servers.yml)
@@ -84,8 +85,8 @@ print_bootstrap_help() {
     echo "  --disable-devin        Disable Devin CLI"
     echo "  --enable-jules         Enable Jules remote CLI (default: disabled; browser OAuth)"
     echo "  --disable-jules        Disable Jules remote CLI"
-    echo "  --enable-apm           Enable the apm (Agent Package Manager) CLI (default: disabled)"
-    echo "  --disable-apm          Disable the apm CLI"
+    echo "  --enable-apm           No-op compatibility flag (apm install retired; default: disabled)"
+    echo "  --disable-apm          No-op compatibility flag (apm install retired)"
     echo "  --enable-skillclaw     Enable SkillClaw session capture (default: disabled)"
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-pilotfish     Enable pilotfish cost-tiered role-agents (default: disabled)"
@@ -106,6 +107,7 @@ print_bootstrap_help() {
     echo "  --skip-auth         Skip authentication checks"
     echo "  --install-mcp       Configure MCP servers (interactive selection from registry)"
     echo "  --force             Overwrite existing ~/.claude without prompting"
+    echo "  --update-config     Refresh repo-owned config in ~/.claude, keeping runtime state"
     echo "  --reconfigure       Only update service toggles (skip full setup)"
     echo ""
     echo "Examples:"
@@ -291,6 +293,11 @@ parse_bootstrap_args() {
                 FORCE=true
                 shift
                 ;;
+            --update-config)
+                # shellcheck disable=SC2034
+                UPDATE_CONFIG=true
+                shift
+                ;;
             --reconfigure)
                 # shellcheck disable=SC2034
                 RECONFIGURE=true
@@ -307,6 +314,11 @@ parse_bootstrap_args() {
                 ;;
         esac
     done
+
+    if [[ "$FORCE" == true && "$UPDATE_CONFIG" == true ]]; then
+        echo -e "${RED}Cannot combine --force and --update-config${NC}" >&2
+        exit 1
+    fi
 }
 # Parse service configuration using awk (single pass)
 parse_services_config() {

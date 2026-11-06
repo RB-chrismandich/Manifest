@@ -119,3 +119,68 @@ def test_restart_after_retirement_crash_restores_prior_and_checkpoints_rollback(
     assert not journal.exists()
     assert not installed.exists()
     assert not Path(backup["archive_path"]).exists()
+
+
+def test_restart_after_backup_cleanup_failure_recovers_retired_journal(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    legacy_skill_home(tmp_path, monkeypatch)
+    service, adapter, _runner, installed, _desired, journal = _retirement_service(
+        service_factory, tmp_path
+    )
+    real_write = bootstrap_module._write_journal
+
+    monkeypatch.setattr(
+        bootstrap_module, "_write_journal", journal_crash_after_removal(real_write)
+    )
+    with pytest.raises(SystemExit, match="post-removal crash"):
+        service.bootstrap_sync()
+
+    monkeypatch.setattr(
+        bootstrap_module,
+        "_write_journal",
+        journal_stop_at_codex_tombstone(real_write),
+    )
+    restarted = service.bootstrap_sync()
+    assert restarted.state is ResultState.BLOCKED
+    retired = _read_journal(journal)
+    assert retired is not None
+    assert retired.harness_mutations
+    assert all(item.phase == "tombstoned" for item in retired.harness_mutations)
+    codex_mutation = next(
+        item for item in retired.harness_mutations if item.harness == "codex"
+    )
+    restored_handle = bootstrap_module._deserialize_handle(codex_mutation.handle)
+    backup = next(
+        item.rollback_data
+        for item in restored_handle.prior_inventory
+        if item.identifier == "manifest-retired@manifest"
+    )
+    assert backup is not None
+    backup_path = Path(backup["archive_path"])
+    assert backup_path.exists()
+    real_cleanup = bootstrap_module._cleanup_saga_backups
+    monkeypatch.setattr(bootstrap_module, "_write_journal", real_write)
+
+    def fail_cleanup(_saga):
+        raise OSError("injected backup cleanup failure")
+
+    monkeypatch.setattr(bootstrap_module, "_cleanup_saga_backups", fail_cleanup)
+    with pytest.raises(OSError, match="injected backup cleanup failure"):
+        bootstrap_module._retire_compensated_transaction(service, journal, retired)
+    persisted = _read_journal(journal)
+    assert persisted is not None
+    assert persisted.phase == "retired"
+    assert all(item.phase == "tombstoned" for item in persisted.harness_mutations)
+
+    monkeypatch.setattr(bootstrap_module, "_cleanup_saga_backups", real_cleanup)
+    monkeypatch.setattr(bootstrap_module, "_write_journal", real_write)
+    prepared = record_prepared_handles(adapter)
+    stub_codex_convergence(adapter)
+    recovered = service.bootstrap_sync()
+
+    assert recovered.state is ResultState.READY
+    assert prepared
+    assert not journal.exists()
+    assert not installed.exists()
+    assert not backup_path.exists()

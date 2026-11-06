@@ -18,8 +18,8 @@
 #   --disable-antigravity Disable Antigravity IDE
 #   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
 #   --disable-skillclaw   Disable SkillClaw session capture
-#   --enable-apm          Enable the apm (Agent Package Manager) CLI (default: disabled)
-#   --disable-apm         Disable the apm CLI
+#   --enable-apm          No-op compatibility flag (apm install retired; default: disabled)
+#   --disable-apm         No-op compatibility flag (apm install retired)
 #   --enable-browser-use  Enable browser-use for smoke-manage UI steps (default: disabled)
 #   --disable-browser-use Disable browser-use
 #   --enable-gh           Enable GitHub CLI (default: auto-detect)
@@ -32,6 +32,7 @@
 #   --skip-auth         Skip authentication checks
 #   --install-mcp       Configure default MCP servers for enabled agents
 #   --force             Overwrite existing ~/.claude without prompting
+#   --update-config     Refresh repo-owned config in ~/.claude, keeping runtime state
 #   --reconfigure       Update service toggles and refresh Python/browser-use
 #                       dependencies (skips install and config deployment)
 
@@ -251,7 +252,7 @@ main() {
     echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
-    if ! prompt_yes_no "Continue with setup?"; then
+    if [[ "$UPDATE_CONFIG" != true ]] && ! prompt_yes_no "Continue with setup?"; then
         print_info "Setup cancelled"
         exit 0
     fi
@@ -295,7 +296,11 @@ main() {
     check_uv || print_warning "uv not available — home runtime sync may be skipped"
 
     # Deploy configurations
-    deploy_configs
+    if [[ "$UPDATE_CONFIG" == true ]]; then
+        deploy_configs <<< "4"
+    else
+        deploy_configs
+    fi
     run_bootstrap_hook "after_deploy"
     skillclaw_apply_state
 

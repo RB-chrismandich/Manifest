@@ -9,6 +9,7 @@ from pathlib import Path
 
 from manifest_agent import __version__
 from manifest_agent.adapters.base import Detection, HarnessAdapter
+from manifest_agent.adapters.convergence import has_undeclared_degradation
 from manifest_agent.models import (
     DesiredState,
     HarnessReceipt,
@@ -72,6 +73,11 @@ class ServiceReport:
                 "installed_plugin_ids": list(result.installed_plugin_ids),
                 "capabilities": dict(sorted(result.capabilities.items())),
                 "components": _grouped_components(result.capabilities),
+                "converged": result.state is ResultState.READY
+                or (
+                    result.state is ResultState.DEGRADED
+                    and not has_undeclared_degradation(result)
+                ),
                 "verified": result.state in {ResultState.READY, ResultState.DEGRADED},
                 "version": result.native_version,
                 "errors": list(result.errors),
@@ -149,6 +155,7 @@ def _safe_result(result: HarnessResult) -> HarnessResult:
         capabilities=capabilities,
         errors=tuple(map(redact_text, result.errors)),
         warnings=tuple(map(redact_text, result.warnings)),
+        declared_degradations=tuple(map(redact_text, result.declared_degradations)),
         owned_entries=(),
     )
 

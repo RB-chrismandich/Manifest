@@ -11,11 +11,13 @@ from typing import Any
 from manifest_agent.adapters.base import (
     CapabilityAdapterMixin,
     Detection,
+    NativeMcpInventory,
     combine_results,
     native_command_result,
-    normalize_component_identity,
+    normalize_native_mcp_inventory,
     verify_declared_components,
 )
+from manifest_agent.adapters.devin_evidence import _component_evidence
 from manifest_agent.adapters.devin_lifecycle import blocked as _blocked
 from manifest_agent.adapters.devin_lifecycle import uninstall_devin
 from manifest_agent.adapters.devin_parsing import _list_plugin_ids, _parse_info
@@ -55,10 +57,14 @@ class DevinAdapter(CapabilityAdapterMixin):
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
+        native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._native_mcp_inventory = normalize_native_mcp_inventory(
+            native_mcp_inventory
+        )
 
     def _adhd_rule_path(self) -> Path:
         home = Path((self._env or {}).get("HOME", Path.home()))
@@ -122,9 +128,7 @@ class DevinAdapter(CapabilityAdapterMixin):
             info_rows[contract.name] = row
 
         plugins = _verify_plugins(desired, installed_ids, info_rows)
-        evidence = _component_evidence(
-            desired, info_rows, self._which, self._adhd_rule_path()
-        )
+        evidence = _component_evidence(desired, installed_ids, info_rows, self)
         components = verify_declared_components(self.name, desired, evidence)
         inspected = combine_results(plugins, components)
         return combine_results(*failures, inspected) if failures else inspected
@@ -150,6 +154,7 @@ class DevinAdapter(CapabilityAdapterMixin):
                     self.name,
                     "plugins",
                     "install",
+                    "--local",
                     str(desired.bundle_path(contract.name)),
                     "--yes",
                 )
@@ -351,46 +356,6 @@ def _verify_plugins(
             else ResultState.BLOCKED
         )
     return HarnessResult("devin", state, tuple(installed), {}, tuple(errors))
-
-
-def _component_evidence(
-    desired: DesiredState,
-    info_rows: Mapping[str, Mapping[str, Any]],
-    which: Callable[[str], str | None],
-    rule_path: Path | None = None,
-) -> set[str]:
-    evidence: set[str] = set()
-    for contract in desired.all_contracts:
-        row = info_rows.get(contract.name)
-        skills = row.get("skills") if row is not None else ()
-        if isinstance(skills, set):
-            evidence.update(
-                normalize_component_identity(contract.name, "skill", skill)
-                for skill in skills
-            )
-        for tier in CapabilityTier:
-            evidence.update(
-                normalize_component_identity(contract.name, "executable", executable)
-                for executable in contract.capabilities.executables[tier]
-                if which(executable) is not None
-            )
-        if contract.name == _ADHD_BUNDLE and rule_path is not None:
-            generated = desired.bundle_path(contract.name) / "devin/global-rule.md"
-            try:
-                verified = generated.read_bytes() == rule_path.read_bytes()
-            except OSError:
-                verified = False
-            if verified:
-                for kind, components in (
-                    ("guidance", contract.components.guidance),
-                    ("hook", contract.components.hooks),
-                    ("runtime", contract.components.runtime),
-                ):
-                    evidence.update(
-                        normalize_component_identity(contract.name, kind, item.id)
-                        for item in components
-                    )
-    return evidence
 
 
 def _adhd_bundle_shipped(desired: DesiredState) -> bool:

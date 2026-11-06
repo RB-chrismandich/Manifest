@@ -91,6 +91,50 @@ class ReconciliationSaga:
     target_receipt_digest: str = ""
 
 
+def _is_empty_prepared_saga(saga: ReconciliationSaga) -> bool:
+    return (
+        saga.phase == "prepared"
+        and not saga.repairs
+        and saga.plugin_change is None
+        and saga.cutover_entry is None
+        and not saga.harness_mutations
+        and not saga.target_receipt_digest
+    )
+
+
+def _validate_recoverable_phase(saga: ReconciliationSaga) -> None:
+    valid = (
+        saga.phase in {"prepared", "receipt-prepared"}
+        or (saga.phase == "plugin-repair" and bool(saga.repairs))
+        or (
+            saga.phase
+            in {
+                "harness-prepared",
+                "harness-convergence",
+                "compensating",
+                "compensation-blocked",
+            }
+            and bool(saga.harness_mutations)
+        )
+        or (
+            saga.phase in {"codex-prepared", "codex-retirement"}
+            and any(item.harness == "codex" for item in saga.harness_mutations)
+        )
+        or (
+            saga.phase in {"upstream-prepared", "upstream-disabled"}
+            and saga.plugin_change is not None
+        )
+        or (
+            saga.phase in {"cutover-prepared", "cutover-complete"}
+            and saga.cutover_entry is not None
+        )
+    )
+    if not valid:
+        raise RuntimeError(
+            f"bootstrap reconciliation journal is in unrecoverable state: {saga.phase}"
+        )
+
+
 def _journal_path(receipt_path: Path) -> Path:
     return receipt_path.with_name(f".{receipt_path.name}.bootstrap-sync.json")
 
@@ -382,6 +426,22 @@ def _recover_unfinished(
                     )
         journal.unlink(missing_ok=True)
         return None
+    if saga.phase == "retired":
+        if not saga.harness_mutations or any(
+            item.phase != "tombstoned" for item in saga.harness_mutations
+        ):
+            raise RuntimeError("retired reconciliation journal is not fully tombstoned")
+        if (
+            observed_receipt_digest is not None
+            and observed_receipt_digest != saga.prior_receipt_digest
+        ):
+            raise RuntimeError(
+                "retired reconciliation journal does not match the prior receipt"
+            )
+        _cleanup_saga_backups(saga)
+        journal.unlink(missing_ok=True)
+        return None
+    _validate_recoverable_phase(saga)
     if saga.cutover_entry is not None:
         entry = _deserialize_owned(saga.cutover_entry)
         try:
@@ -471,15 +531,43 @@ def _target_identity(desired) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _resolve_prior_desired(service, release_version: str):
+    try:
+        return service._desired_state(release_version, exact_release=True)
+    # constitution: exempt C-ERR -- release resolution is a service boundary.
+    except Exception as error:
+        return None, diagnostic(error)
+
+
+def _converge_harness_forward(adapter, name: str, desired) -> HarnessResult:
+    try:
+        inspected = adapter.inspect(desired)
+        if inspected.state in {ResultState.READY, ResultState.DEGRADED}:
+            return inspected
+        installed = adapter.install(desired)
+        inspected = adapter.inspect(desired)
+        return combine_results(installed, inspected)
+    # constitution: exempt C-ERR -- adapters are a native process boundary.
+    except Exception as error:
+        return HarnessResult(
+            name,
+            ResultState.BLOCKED,
+            (),
+            {},
+            errors=(diagnostic(error),),
+        )
+
+
 # constitution: exempt C-SIZE -- prepared participants converge in one fail-closed ordered pass.
 def _converge_other_owned_harnesses(
     service,
     previous,
     desired,
-    prior_desired,
     detections,
     checkpoint=None,
     prepared=(),
+    *,
+    forward_only: bool = False,
 ) -> tuple[dict[str, HarnessResult], str | None]:
     if previous is None or not identity_errors(
         previous, desired, bundle_checksums(desired)
@@ -509,39 +597,43 @@ def _converge_other_owned_harnesses(
     prepared_by_name = {item.harness: item for item in prepared}
     for name in names:
         adapter = service.adapters[name]
-        mutation = prepared_by_name.get(name)
-        if mutation is None:
-            return results, f"missing prepared adapter mutation for {name}"
-        handle = _deserialize_handle(mutation.handle)
-        try:
-            inspected = adapter.verify_reconcile(handle, desired)
-            if inspected.state in {ResultState.READY, ResultState.DEGRADED}:
-                result = inspected
-            else:
-                if checkpoint is not None:
-                    checkpoint(name, "applying")
-                installed = adapter.apply_reconcile(handle, desired)
-                if checkpoint is not None:
-                    checkpoint(name, "applied")
+        if forward_only:
+            result = _converge_harness_forward(adapter, name, desired)
+        else:
+            mutation = prepared_by_name.get(name)
+            if mutation is None:
+                return results, f"missing prepared adapter mutation for {name}"
+            handle = _deserialize_handle(mutation.handle)
+            try:
                 inspected = adapter.verify_reconcile(handle, desired)
-                result = combine_results(installed, inspected)
-        except Exception as error:
-            if checkpoint is not None:
-                checkpoint(name, "uncertain")
-            result = HarnessResult(
-                name,
-                ResultState.BLOCKED,
-                (),
-                {},
-                errors=(diagnostic(error),),
-            )
+                if inspected.state in {ResultState.READY, ResultState.DEGRADED}:
+                    result = inspected
+                else:
+                    if checkpoint is not None:
+                        checkpoint(name, "applying")
+                    installed = adapter.apply_reconcile(handle, desired)
+                    if checkpoint is not None:
+                        checkpoint(name, "applied")
+                    inspected = adapter.verify_reconcile(handle, desired)
+                    result = combine_results(installed, inspected)
+            # constitution: exempt C-ERR -- adapters are a native process boundary.
+            except Exception as error:
+                if checkpoint is not None:
+                    checkpoint(name, "uncertain")
+                result = HarnessResult(
+                    name,
+                    ResultState.BLOCKED,
+                    (),
+                    {},
+                    errors=(diagnostic(error),),
+                )
         results[name] = result
         if result.state not in {ResultState.READY, ResultState.DEGRADED}:
             return results, (
                 "release identity remains unchanged until every owned harness "
                 f"converges; {name} is {result.state.value}"
             )
-        if checkpoint is not None and name in prepared_by_name:
+        if not forward_only and checkpoint is not None and name in prepared_by_name:
             checkpoint(name, "verified")
     return results, None
 
@@ -696,9 +788,11 @@ class BootstrapSyncService:
         change: PluginEnabledChange | None = None
         cutover: OwnedEntry | None = None
         receipt_committed = False
-        rollback_allowed = True
+        rollback_allowed = False
+        forward_only = False
         saga: ReconciliationSaga | None = None
         prior_desired = desired
+        prior_resolved = False
         synchronized: dict[str, HarnessResult] = {}
         try:
             with self.service.lock_factory(
@@ -717,10 +811,17 @@ class BootstrapSyncService:
                     else NO_PRIOR_RECEIPT_V1
                 )
                 desired_identity = _target_identity(desired)
+                identity_changed = previous is not None and bool(
+                    identity_errors(previous, desired, bundle_checksums(desired))
+                )
                 saga = _read_journal(journal)
                 recovered_transaction = saga is not None
                 if saga is not None:
-                    if saga.phase == "receipt-prepared" and (
+                    if _is_empty_prepared_saga(saga):
+                        journal.unlink(missing_ok=True)
+                        saga = None
+                        recovered_transaction = False
+                    elif saga.phase == "receipt-prepared" and (
                         saga.target_receipt_digest == prior_digest
                     ):
                         saga = replace(saga, phase="committed")
@@ -734,6 +835,36 @@ class BootstrapSyncService:
                         raise RuntimeError(
                             "bootstrap reconciliation journal receipt/target binding does not match"
                         )
+                if saga is not None:
+                    retiring_completed = saga.phase == "committed" or (
+                        bool(saga.harness_mutations)
+                        and all(
+                            item.phase == "tombstoned"
+                            for item in saga.harness_mutations
+                        )
+                    )
+                    if not retiring_completed:
+                        _validate_recoverable_phase(saga)
+                        if identity_changed:
+                            assert previous is not None
+                            prior_desired, prior_error = _resolve_prior_desired(
+                                self.service, previous.release_version
+                            )
+                            if prior_error is not None or prior_desired is None:
+                                raise RuntimeError(
+                                    "prior release is unavailable for cross-harness compensation"
+                                )
+                            prior_resolved = True
+                    saga = _recover_unfinished(
+                        journal,
+                        saga,
+                        config_path,
+                        observed_receipt_digest=prior_digest,
+                    )
+                    if saga is None:
+                        recovered_transaction = False
+                    else:
+                        _write_journal(journal, saga)
                 if saga is None:
                     saga = ReconciliationSaga(
                         "prepared",
@@ -742,21 +873,7 @@ class BootstrapSyncService:
                         target_identity=desired_identity,
                     )
                     _write_journal(journal, saga)
-                else:
-                    saga = _recover_unfinished(
-                        journal,
-                        saga,
-                        config_path,
-                        observed_receipt_digest=prior_digest,
-                    )
-                    if saga is None:
-                        saga = ReconciliationSaga(
-                            "prepared",
-                            "codex",
-                            prior_receipt_digest=prior_digest,
-                            target_identity=desired_identity,
-                        )
-                    _write_journal(journal, saga)
+                rollback_allowed = True
 
                 def harness_checkpoint(name: str, phase: str) -> None:
                     nonlocal saga
@@ -795,17 +912,38 @@ class BootstrapSyncService:
                     )
                     _write_journal(journal, saga)
 
-                identity_changed = previous is not None and bool(
-                    identity_errors(previous, desired, bundle_checksums(desired))
-                )
-                if identity_changed:
-                    prior_desired, prior_error = self.service._desired_state(
-                        previous.release_version, exact_release=True
-                    )
-                    if prior_error is not None or prior_desired is None:
-                        raise RuntimeError(
-                            "prior release is unavailable for cross-harness compensation"
+                def _ensure_saga() -> ReconciliationSaga:
+                    nonlocal saga
+                    if saga is None:
+                        saga = ReconciliationSaga(
+                            "prepared",
+                            "codex",
+                            prior_receipt_digest=prior_digest,
+                            target_identity=desired_identity,
                         )
+                    return saga
+
+                if identity_changed:
+                    assert previous is not None
+                    if not prior_resolved:
+                        prior_desired, prior_error = _resolve_prior_desired(
+                            self.service, previous.release_version
+                        )
+                        if prior_error is not None or prior_desired is None:
+                            if recovered_transaction or not _is_empty_prepared_saga(
+                                saga
+                            ):
+                                rollback_allowed = False
+                                raise RuntimeError(
+                                    "prior release is unavailable for cross-harness compensation"
+                                )
+                            journal.unlink(missing_ok=True)
+                            saga = None
+                            forward_only = True
+                else:
+                    prior_desired = desired
+                if identity_changed and not forward_only:
+                    assert saga is not None
                     if recovered_transaction and saga.harness_mutations:
                         saga, recovery_errors = _compensate_harness_mutations(
                             self.service,
@@ -829,15 +967,7 @@ class BootstrapSyncService:
                         _write_journal(journal, saga)
                         recovered_transaction = False
                     if saga.target_identity != desired_identity:
-                        empty_preparation = (
-                            saga.phase == "prepared"
-                            and not saga.repairs
-                            and saga.plugin_change is None
-                            and saga.cutover_entry is None
-                            and not saga.harness_mutations
-                            and not saga.target_receipt_digest
-                        )
-                        if empty_preparation:
+                        if _is_empty_prepared_saga(saga):
                             journal.unlink(missing_ok=True)
                         else:
                             retired = saga
@@ -943,16 +1073,16 @@ class BootstrapSyncService:
                                     name, "prepared", _serialize_handle(handle)
                                 )
                             )
-                        saga = replace(
-                            saga,
-                            phase="harness-prepared",
-                            harness_mutations=(*saga.harness_mutations, *handles),
-                        )
-                        _write_journal(journal, saga)
-                else:
-                    prior_desired = desired
+                        if handles:
+                            saga = replace(
+                                saga,
+                                phase="harness-prepared",
+                                harness_mutations=(*saga.harness_mutations, *handles),
+                            )
+                            _write_journal(journal, saga)
                 codex_checkpoint = None
-                if durable_codex:
+                if durable_codex and not forward_only:
+                    assert saga is not None
                     codex_checkpoint = next(
                         (
                             item
@@ -1019,19 +1149,21 @@ class BootstrapSyncService:
                     self.service,
                     previous,
                     desired,
-                    prior_desired,
                     detections,
-                    harness_checkpoint,
+                    harness_checkpoint if not forward_only else None,
                     tuple(
                         item
                         for item in saga.harness_mutations
                         if item.harness != "codex"
-                    ),
+                    )
+                    if saga is not None
+                    else (),
+                    forward_only=forward_only,
                 )
                 if synchronization_error is not None:
                     raise _BootstrapAbort(synchronization_error, synchronized)
 
-                if durable_codex:
+                if durable_codex and not forward_only:
                     assert codex_checkpoint is not None
                     harness_checkpoint("codex", "applying")
                     installed = adapter.apply_reconcile(
@@ -1046,7 +1178,9 @@ class BootstrapSyncService:
                     adapter.verify_reconcile(
                         _deserialize_handle(codex_checkpoint.handle), desired
                     )
-                    if durable_codex and codex_checkpoint is not None
+                    if durable_codex
+                    and not forward_only
+                    and codex_checkpoint is not None
                     else adapter.inspect(desired)
                 )
                 result = combine_results(installed, inspected)
@@ -1054,7 +1188,10 @@ class BootstrapSyncService:
                     raise _BootstrapAbort(
                         "Codex convergence did not reach READY", {"codex": result}
                     )
-                harness_checkpoint("codex", "verified")
+                if saga is not None and any(
+                    item.harness == "codex" for item in saga.harness_mutations
+                ):
+                    harness_checkpoint("codex", "verified")
                 if isinstance(adapter, CodexAdapter):
                     probed = adapter.probe_adhd_hook(desired)
                     result = combine_results(result, probed)
@@ -1070,7 +1207,7 @@ class BootstrapSyncService:
                             config_path, "i-have-adhd@i-have-adhd", False
                         )
                         saga = replace(
-                            saga,
+                            _ensure_saga(),
                             phase="upstream-prepared",
                             plugin_change=_serialize_change(change),
                         )
@@ -1081,7 +1218,7 @@ class BootstrapSyncService:
                 cutover = prepare_codex_skill_cutover(home, manifest_skills)
                 if cutover.previous_checksum is not None:
                     saga = replace(
-                        saga,
+                        _ensure_saga(),
                         phase="cutover-prepared",
                         cutover_entry=_serialize_owned(cutover),
                     )
@@ -1132,7 +1269,7 @@ class BootstrapSyncService:
                 )
                 receipt = receipt_for_persistence(self.service.receipt_path, receipt)
                 saga = replace(
-                    saga,
+                    _ensure_saga(),
                     phase="receipt-prepared",
                     target_receipt_digest=receipt_digest(receipt),
                 )
@@ -1200,8 +1337,11 @@ class BootstrapSyncService:
                         self.service, journal, saga, prior_desired, desired
                     )
                     rollback_errors.extend(harness_errors)
-                    if not rollback_errors and saga.harness_mutations:
-                        _retire_compensated_transaction(self.service, journal, saga)
+                    if not rollback_errors:
+                        if saga.harness_mutations:
+                            _retire_compensated_transaction(self.service, journal, saga)
+                        elif not saga.repairs:
+                            journal.unlink(missing_ok=True)
                 except Exception as rollback_error:
                     rollback_errors.append(diagnostic(rollback_error))
             message = diagnostic(exception)

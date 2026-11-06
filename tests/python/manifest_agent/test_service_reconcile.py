@@ -51,19 +51,40 @@ def test_reconcile_apply_repairs_only_drifted_or_degraded(service_factory):
     assert codex.calls == ["detect", "inspect", "install", "inspect"]
 
 
-def test_reconcile_apply_never_repairs_blocked_harness(service_factory):
-    claude = FakeAdapter("claude", harness_result("claude"))
-    service = service_factory({"claude": claude}, harnesses=("claude",))
-    service.install()
-    claude.calls.clear()
-    claude.inspection = harness_result(
-        "claude", ResultState.BLOCKED, errors=("authentication required",)
+def test_reconcile_apply_repairs_recoverable_blocked_harness(service_factory):
+    class RepairingAdapter(FakeAdapter):
+        heal = False
+
+        def install(self, desired):
+            if self.heal:
+                self.result = harness_result(self.name)
+                self.inspection = self.result
+            return super().install(desired)
+
+    blocked_codex = harness_result(
+        "codex",
+        ResultState.BLOCKED,
+        errors=("missing required plugin: manifest-workspace@manifest",),
+        plugin_ids=(),
     )
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = RepairingAdapter("codex", blocked_codex)
+    service = service_factory({"claude": claude, "codex": codex})
+    assert service.install().state is ResultState.BLOCKED
+    before = read_receipt(service.receipt_path)
+    assert before is not None and before.harnesses["codex"].verified is False
+    claude.calls.clear()
+    codex.calls.clear()
+    codex.heal = True
 
     report = service.reconcile(apply=True)
 
-    assert report.state is ResultState.BLOCKED
+    assert report.state is ResultState.READY
     assert claude.calls == ["detect", "inspect"]
+    assert codex.calls == ["detect", "inspect", "install", "inspect"]
+    after = read_receipt(service.receipt_path)
+    assert after is not None
+    assert after.harnesses["codex"].verified is True
 
 
 def test_reconcile_identity_mismatch_is_drift_and_updates_receipt_on_apply(
@@ -285,10 +306,20 @@ def test_reconcile_apply_blocks_partial_owned_release_identity_change(
     report = service.reconcile(apply=True)
 
     assert report.state is ResultState.BLOCKED
-    assert any("full reconcile or migration" in error for error in report.errors)
+    assert f"manifest update --source {service.source}" in report.errors[0]
+    assert "migration" not in report.errors[0]
+    assert "migrate" not in report.errors[0]
     assert "install" not in claude.calls
     assert codex.calls == []
     assert service.receipt_path.read_bytes() == before
+
+    service.source = None
+    service.release = "2.0.0"
+    no_source_report = service.reconcile(apply=True)
+
+    assert no_source_report.state is ResultState.BLOCKED
+    assert "manifest update --source <path>" in no_source_report.errors[0]
+    assert "migration" not in no_source_report.errors[0]
 
 
 def test_reconcile_apply_partial_same_identity_preserves_other_receipt(

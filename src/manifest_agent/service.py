@@ -145,7 +145,8 @@ class ManifestService:
                             {},
                             errors=(
                                 "existing receipt has incompatible release identity; "
-                                "use deliberate migration: " + "; ".join(conflicts),
+                                f"use {_update_source_hint(self.source)}: "
+                                + "; ".join(conflicts),
                             ),
                         )
                 elif retired_graphify_transaction_path(self.receipt_path).exists():
@@ -403,7 +404,7 @@ class ManifestService:
         return result
 
     def reconcile(self, apply: bool = False) -> ServiceReport:
-        """Inspect desired state and optionally repair only drift or degradation."""
+        """Inspect desired state and optionally repair owned harnesses."""
         if apply:
             try:
                 with self.lock_factory(self.receipt_path.parent / "install.lock"):
@@ -787,7 +788,7 @@ def _reconcile_desired(service, receipt, desired, *, apply):
     owned_harnesses = set(receipt.harnesses)
     scoped_owned = (set(selected) | set(missing)) & owned_harnesses
     scope_error = _identity_scope_error(
-        apply, release_errors, scoped_owned, owned_harnesses
+        apply, release_errors, scoped_owned, owned_harnesses, service.source
     )
     if scope_error is not None:
         return report(
@@ -809,7 +810,7 @@ def _reconcile_desired(service, receipt, desired, *, apply):
         if (
             apply
             and name in receipt.harnesses
-            and current.state in {ResultState.DRIFTED, ResultState.DEGRADED}
+            and _is_repairable_result(current, inspected, drift_errors)
         ):
             installed = _adapter_call(name, adapter.install, desired)
             mutated_owned.add(name)
@@ -835,10 +836,71 @@ def _reconcile_desired(service, receipt, desired, *, apply):
     return report("reconcile", results, notes)
 
 
-def _identity_scope_error(apply, release_errors, scoped_owned, owned_harnesses):
+_REPAIRABLE_STATES = frozenset(
+    {ResultState.DRIFTED, ResultState.DEGRADED, ResultState.BLOCKED}
+)
+_FOREIGN_CONFLICT_MARKERS = (
+    "expected source antigravity, found ",
+    "plugin inventory is ambiguous for ",
+    "manifest marketplace is not a native directory source",
+    "Cursor Manifest marketplace is not indexed at user scope",
+    "codex plugin list contains an unsafe installed-plugin identity",
+    "plugin info identity mismatch for ",
+    "contains unowned user content",
+    "conflicting Cursor MCP entry ",
+    "Codex reported undeclared MCP server ",
+)
+
+
+def _update_source_hint(source: Path | None) -> str:
+    target = quote(str(source)) if source is not None else "<path>"
+    return f"manifest update --source {target}"
+
+
+def _is_foreign_conflict_error(error: str) -> bool:
+    lowered = error.lower()
+    if "foreign" in lowered or "unowned" in lowered:
+        return True
+    return any(marker in error for marker in _FOREIGN_CONFLICT_MARKERS)
+
+
+def _is_repairable_result(
+    current: HarnessResult,
+    inspected: HarnessResult,
+    drift_errors: Sequence[str],
+) -> bool:
+    if current.state not in _REPAIRABLE_STATES:
+        return False
+    if inspected.state is not ResultState.BLOCKED:
+        return True
+    if any(_is_foreign_conflict_error(error) for error in inspected.errors):
+        return False
+    if drift_errors or not inspected.capabilities:
+        return True
+    conflicting = sum(
+        1 for status in inspected.capabilities.values() if status == "conflicting"
+    )
+    return not (
+        conflicting > 0
+        and len(inspected.errors) == conflicting
+        and all(
+            status in {"conflicting", "verified"}
+            for status in inspected.capabilities.values()
+        )
+    )
+
+
+def _identity_scope_error(
+    apply,
+    release_errors,
+    scoped_owned,
+    owned_harnesses,
+    source: Path | None = None,
+):
     if apply and release_errors and scoped_owned and scoped_owned != owned_harnesses:
         return (
-            "release identity change requires a full reconcile or migration; "
+            "release identity change requires a full update "
+            f"({_update_source_hint(source)}); "
             "partial apply would create mixed receipt identity"
         )
     return None

@@ -1,5 +1,6 @@
 """Multi-harness transactions: prepare-all, resume, and compensation."""
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -12,9 +13,9 @@ from manifest_agent.bootstrap_sync import (
     _serialize_handle,
     _write_journal,
 )
-from manifest_agent.models import (
-    ResultState,
-)
+from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.models import ResultState
+from manifest_agent.release import resolve_release
 from manifest_agent.state import read_receipt, receipt_digest
 from tests.python.manifest_agent._bootstrap_sync_helpers import (
     ReleasePin,
@@ -318,3 +319,129 @@ def test_changed_target_rebinds_empty_preparation_journal(
     receipt = read_receipt(service.receipt_path)
     assert receipt is not None and receipt.release_version == "3.0.0"
     assert not journal.exists()
+
+
+def _local_git_checkout(tmp_path: Path) -> Path:
+    repo = tmp_path / "checkout"
+    (repo / "tools").mkdir(parents=True)
+    for name in DOMAIN_BUNDLES:
+        bundle = repo / "plugins" / name
+        bundle.mkdir(parents=True)
+        (bundle / "payload.txt").write_text(f"{name}\n", encoding="utf-8")
+    (repo / "tools" / "generate_plugin_views.py").write_text(
+        "import sys\nraise SystemExit(0 if '--check' in sys.argv else 2)\n",
+        encoding="utf-8",
+    )
+    for cmd in (
+        ("init",),
+        ("config", "user.email", "manifest@example.invalid"),
+        ("config", "user.name", "Manifest Test"),
+        ("add", "."),
+        ("commit", "-m", "initial"),
+    ):
+        subprocess.run(("git", "-C", str(repo), *cmd), check=True, capture_output=True)
+    return repo
+
+
+def _installed_local_service(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg-state"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+    repo = _local_git_checkout(tmp_path)
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.source = repo
+    service.release_resolver = resolve_release
+    assert service.install().state is ResultState.READY
+    return service, repo, claude, codex
+
+
+def test_local_directory_checkout_mutation_runs_forward_only_bootstrap_sync(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, repo, claude, codex = _installed_local_service(
+        service_factory, tmp_path, monkeypatch
+    )
+    previous = read_receipt(service.receipt_path)
+    assert previous is not None and previous.release_version.startswith("local-")
+    assert previous.source_dirty is False
+    (repo / "plugins" / "manifest-workspace" / "payload.txt").write_text(
+        "mutated checkout\n", encoding="utf-8"
+    )
+    claude.inspection = harness_result("claude", ResultState.DRIFTED)
+    original_claude_install = claude.install
+
+    def converge_claude(desired):
+        installed = original_claude_install(desired)
+        claude.inspection = installed
+        return installed
+
+    claude.install = converge_claude
+    claude.calls.clear()
+    codex.calls.clear()
+    service.harnesses = ("codex",)
+    home, _legacy = legacy_skill_home(tmp_path, monkeypatch)
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.READY, result.errors
+    assert "prepare" not in claude.calls
+    assert claude.calls == ["detect", "inspect", "install", "inspect"]
+    assert codex.calls == ["detect", "install", "inspect"]
+    updated = read_receipt(service.receipt_path)
+    assert updated is not None and updated.source_dirty is True
+    assert updated.release_version == previous.release_version
+    assert updated.archive_sha256 != previous.archive_sha256
+    assert updated.bundle_checksums != previous.bundle_checksums
+    assert not (home / ".codex/skills").is_symlink()
+    assert not bootstrap_module._journal_path(service.receipt_path).exists()
+
+
+def test_unresolvable_prior_release_remains_fail_closed_after_recorded_mutation(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, repo, claude, codex = _installed_local_service(
+        service_factory, tmp_path, monkeypatch
+    )
+    previous = read_receipt(service.receipt_path)
+    assert previous is not None
+    prior_desired, error = service._desired_state()
+    assert error is None and prior_desired is not None
+
+    (repo / "plugins" / "manifest-workspace" / "payload.txt").write_text(
+        "mutated after crash\n", encoding="utf-8"
+    )
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+    handle = claude.prepare_reconcile(
+        previous.harnesses["claude"], prior_desired, desired
+    )
+    journal = bootstrap_module._journal_path(service.receipt_path)
+    recorded_saga = ReconciliationSaga(
+        "harness-convergence",
+        "codex",
+        harness_mutations=(
+            HarnessMutationCheckpoint("claude", "applied", _serialize_handle(handle)),
+        ),
+        prior_receipt_digest=receipt_digest(previous),
+        target_identity=bootstrap_module._target_identity(desired),
+    )
+    _write_journal(journal, recorded_saga)
+    journal_before = journal.read_text(encoding="utf-8")
+    claude.calls.clear()
+    codex.calls.clear()
+    service.harnesses = ("codex",)
+    legacy_skill_home(tmp_path, monkeypatch)
+
+    result = service.bootstrap_sync()
+
+    assert result.state is ResultState.BLOCKED
+    assert (
+        "prior release is unavailable for cross-harness compensation"
+        in result.harnesses["codex"].errors[0]
+    )
+    assert journal.read_text(encoding="utf-8") == journal_before
+    assert read_receipt(service.receipt_path) == previous
