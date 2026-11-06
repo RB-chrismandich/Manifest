@@ -261,6 +261,13 @@ class OmpInspectionMixin:
             if ancestor == self._project_ceiling:
                 return
 
+    def _registry_snapshot(self):
+        """Native sidecars only; used under the mutation lock after a CLI probe fails."""
+        root = self._native_root()
+        registry = read_installed_plugins(root)
+        cli = {key: rows for key, rows in registry.items() if rows}
+        return root, read_marketplaces(root), registry, read_runtime_document(root), cli
+
     def _snapshot(self):
         root = self._native_root()
         # Native project resolution walks ancestors. Reject every project

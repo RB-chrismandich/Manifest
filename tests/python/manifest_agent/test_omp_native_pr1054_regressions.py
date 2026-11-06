@@ -387,3 +387,55 @@ def test_restore_with_missing_prior_bundle_persists_null_source_digest(
         if entry.kind == PLUGIN_KIND and entry.identifier == "manifest-docs@manifest"
     )
     assert decode_identity(docs)["source_tree_sha256"] is None
+
+
+def test_failed_post_install_list_keeps_created_plugin_owned(tmp_path: Path):
+    """A transient list failure after a successful install must not orphan the plugin."""
+    docs = "manifest-docs@manifest"
+    desired = make_desired(tmp_path / "release")
+    adapter, runner = make_adapter(tmp_path)
+    service = make_service(tmp_path, adapter, desired)
+    armed = []
+
+    def arm(command, _root):
+        if command[1:4] == ("plugin", "install", docs) and not armed:
+            armed.append(command)
+            runner.fail(("omp", "plugin", "list", "--json"))
+
+    runner.callback = arm
+    first = service.install()
+    runner.callback = None
+    assert armed and first.state is not ResultState.READY
+    assert docs in {
+        entry.identifier
+        for entry in owned(service).owned_entries
+        if entry.kind == PLUGIN_KIND
+    }
+
+    second = service.reconcile(apply=True)
+    assert second.state is ResultState.READY, second.harnesses["omp"].errors
+    assert service.uninstall().state is ResultState.READY
+    assert adapter._identity(adapter._snapshot(), docs) is None
+
+
+def test_failed_post_add_list_keeps_created_marketplace_owned(tmp_path: Path):
+    """A transient list failure after marketplace add must not orphan it."""
+    desired = make_desired(tmp_path / "release")
+    adapter, runner = make_adapter(tmp_path)
+    service = make_service(tmp_path, adapter, desired)
+    armed = []
+
+    def arm(command, _root):
+        if command[1:4] == ("plugin", "marketplace", "add") and not armed:
+            armed.append(command)
+            runner.fail(("omp", "plugin", "list", "--json"))
+
+    runner.callback = arm
+    first = service.install()
+    runner.callback = None
+    assert armed and first.state is not ResultState.READY
+    assert _marketplace_source(service) == str(desired.release_root.resolve())
+
+    assert service.reconcile(apply=True).state is ResultState.READY
+    assert service.uninstall().state is ResultState.READY
+    assert "manifest" not in adapter._snapshot()[1]

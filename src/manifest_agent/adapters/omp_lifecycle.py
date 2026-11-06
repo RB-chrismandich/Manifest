@@ -28,15 +28,31 @@ from manifest_agent.adapters.omp_preservation import preserve_native_tree
 from manifest_agent.models import HarnessResult, ResultState
 
 
-def _capture_marketplace(adapter, desired, entries, failures, started, *, primary):
+def _observe_creation(adapter, label, observe, failures, started):
+    """Observe a creation; a failed CLI probe falls back to the locked registry."""
     try:
-        live = adapter._snapshot()
-        created = live[1].get(OMP_MARKETPLACE)
-        if not (started[0] and created is not None):
-            return
-        identity = marketplace_identity(live[0], created)
-    except (OSError, ValueError, OmpInventoryError) as error:
-        failures.append(f"{OMP_MARKETPLACE}: post-install capture failed: {error}")
+        return observe(adapter._snapshot())
+    except (OSError, ValueError) as error:
+        failures.append(f"{label}: post-install capture failed: {error}")
+    if not started[0]:
+        return None
+    try:
+        return observe(adapter._registry_snapshot())
+    except (OSError, ValueError) as error:
+        failures.append(f"{label}: native registry capture failed: {error}")
+        return None
+
+
+def _created_marketplace(live):
+    row = live[1].get(OMP_MARKETPLACE)
+    return None if row is None else marketplace_identity(live[0], row)
+
+
+def _capture_marketplace(adapter, desired, entries, failures, started, *, primary):
+    identity = _observe_creation(
+        adapter, OMP_MARKETPLACE, _created_marketplace, failures, started
+    )
+    if not started[0] or identity is None:
         return
     if identity["source"] != str(desired.release_root.resolve()):
         message = f"{OMP_MARKETPLACE}: OMP created marketplace has unexpected source"
@@ -114,19 +130,21 @@ def _install_plugin(adapter, desired, contract, old, entries, failures):
     except (OSError, ValueError) as error:
         failures.append(str(error))
     finally:
-        try:
-            created = adapter._identity(adapter._snapshot(), plugin_id)
-        except (OSError, ValueError, OmpInventoryError) as error:
-            failures.append(f"{plugin_id}: post-install capture failed: {error}")
-        else:
-            if (
-                started[0]
-                and created is not None
-                and created["version"] == contract.version
-            ):
-                entries[(PLUGIN_KIND, plugin_id)] = identity_entry(
-                    PLUGIN_KIND, plugin_id, created
-                )
+        created = _observe_creation(
+            adapter,
+            plugin_id,
+            lambda live: adapter._identity(live, plugin_id),
+            failures,
+            started,
+        )
+        if (
+            started[0]
+            and created is not None
+            and created["version"] == contract.version
+        ):
+            entries[(PLUGIN_KIND, plugin_id)] = identity_entry(
+                PLUGIN_KIND, plugin_id, created
+            )
 
 
 def _authorize_uninstall(adapter, entries, snapshot):
