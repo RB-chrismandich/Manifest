@@ -26,6 +26,26 @@ from manifest_agent.adapters.omp_preservation import preserve_native_tree
 from manifest_agent.models import HarnessResult, ResultState
 
 
+def _capture_marketplace(adapter, desired, entries, failures, started, *, primary):
+    try:
+        live = adapter._snapshot()
+        created = live[1].get(OMP_MARKETPLACE)
+        if not (started[0] and created is not None):
+            return
+        identity = marketplace_identity(live[0], created)
+    except (OSError, ValueError, OmpInventoryError) as error:
+        failures.append(f"{OMP_MARKETPLACE}: post-install capture failed: {error}")
+        return
+    if identity["source"] != str(desired.release_root.resolve()):
+        message = f"{OMP_MARKETPLACE}: OMP created marketplace has unexpected source"
+        if not primary:
+            raise OmpInventoryError(message)
+        failures.append(message)
+        return
+    key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
+    entries[key] = identity_entry(MARKETPLACE_KIND, OMP_MARKETPLACE, identity)
+
+
 def _register_marketplace(adapter, desired, entries, failures):
     started = [False]
     try:
@@ -47,20 +67,11 @@ def _register_marketplace(adapter, desired, entries, failures):
             desired=desired,
             started=started,
         )
-    finally:
-        try:
-            live = adapter._snapshot()
-            created = live[1].get(OMP_MARKETPLACE)
-            if started[0] and created is not None:
-                identity = marketplace_identity(live[0], created)
-                if identity["source"] != str(desired.release_root.resolve()):
-                    raise OmpInventoryError(
-                        "OMP created marketplace has unexpected source"
-                    )
-                key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
-                entries[key] = identity_entry(MARKETPLACE_KIND, OMP_MARKETPLACE, identity)
-        except (OSError, ValueError, OmpInventoryError) as error:
-            failures.append(f"{OMP_MARKETPLACE}: post-install capture failed: {error}")
+    except BaseException:
+        # The original command error stays primary; capture problems only annotate it.
+        _capture_marketplace(adapter, desired, entries, failures, started, primary=True)
+        raise
+    _capture_marketplace(adapter, desired, entries, failures, started, primary=False)
     return (MARKETPLACE_KIND, OMP_MARKETPLACE) in entries
 
 

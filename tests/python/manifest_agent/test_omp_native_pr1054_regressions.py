@@ -176,3 +176,31 @@ def test_marketplace_identity_failure_keeps_original_command_error(tmp_path, mon
     assert result.state is ResultState.BLOCKED
     assert any("boom" in error for error in result.errors), result.errors
     assert any("post-install capture failed" in error for error in result.errors), result.errors
+
+
+def test_foreign_marketplace_source_blocks_plugin_install(tmp_path, monkeypatch):
+    """A created marketplace with an unexpected source must not receive plugin installs."""
+    from manifest_agent.adapters import omp_lifecycle
+
+    desired = make_desired(tmp_path / "release")
+    adapter, _runner = make_adapter(tmp_path)
+    make_service(tmp_path, adapter, desired)
+    original_command = adapter._command
+    plugin_mutations = []
+
+    def recording_command(argv, **kwargs):
+        if argv[1] == "plugin" and argv[2] in ("install", "upgrade"):
+            plugin_mutations.append(tuple(argv))
+        return original_command(argv, **kwargs)
+
+    def foreign_identity(*_args, **_kwargs):
+        return {"source": "/elsewhere"}
+
+    adapter._command = recording_command
+    monkeypatch.setattr(omp_lifecycle, "marketplace_identity", foreign_identity)
+
+    result = adapter.install(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert any("unexpected source" in error for error in result.errors), result.errors
+    assert plugin_mutations == [], plugin_mutations
