@@ -116,6 +116,26 @@ fi
 exit 0
 EOF
     chmod +x "$FAKE_BIN/brew"
+    # Exercise the Homebrew path even on Linux CI: detect_platform follows
+    # `uname -s`; without this stub, brew update is never invoked.
+    cat > "$FAKE_BIN/uname" << 'EOF'
+#!/bin/bash
+case "${1:-}" in
+    -s) echo Darwin ;;
+    -m) echo x86_64 ;;
+    *) echo Darwin ;;
+esac
+exit 0
+EOF
+    chmod +x "$FAKE_BIN/uname"
+    cat > "$FAKE_BIN/sw_vers" << 'EOF'
+#!/bin/bash
+if [[ "${1:-}" == "-productVersion" ]]; then
+    echo "14.0"
+fi
+exit 0
+EOF
+    chmod +x "$FAKE_BIN/sw_vers"
     cat > "$FAKE_BIN/node" << 'EOF'
 #!/bin/bash
 echo "v22.0.0"
