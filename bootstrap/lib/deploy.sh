@@ -840,7 +840,8 @@ _collect_degraded_harness_states() {
     local combined="${MANIFEST_HARNESS_STATES:-}" receipt_path parsed entry key existing has_key
     receipt_path="$(manifest_installation_receipt)"
     if [[ -f "$receipt_path" ]] && command_exists python3; then
-        parsed="$(python3 - "$receipt_path" << 'PYEOF' 2> /dev/null || true
+        parsed="$(
+            python3 - "$receipt_path" << 'PYEOF' 2> /dev/null || true
 import json, sys
 
 non_success = {
@@ -924,7 +925,7 @@ if isinstance(harnesses, dict):
                     break
         print("%s=%s" % (name, "DEGRADED" if degraded else "READY"))
 PYEOF
-)"
+        )"
         while IFS= read -r entry; do
             [[ "$entry" == *=* ]] || continue
             key="${entry%%=*}"

@@ -124,7 +124,6 @@ main() {
         return 0
     }
 
-
     # Behind-upstream check (see header comment): local-only, no `git fetch`.
     # Compares HEAD against the remote-tracking ref already on disk, so a
     # clone that has never been fetched simply never triggers this — that

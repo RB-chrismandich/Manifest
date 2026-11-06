@@ -121,6 +121,25 @@ def test_restart_after_retirement_crash_restores_prior_and_checkpoints_rollback(
     assert not Path(backup["archive_path"]).exists()
 
 
+def _fail_backup_cleanup_leaving_retired_journal(
+    service, journal: Path, retired, real_write, monkeypatch: pytest.MonkeyPatch
+):
+    real_cleanup = bootstrap_module._cleanup_saga_backups
+    monkeypatch.setattr(bootstrap_module, "_write_journal", real_write)
+
+    def fail_cleanup(_saga):
+        raise OSError("injected backup cleanup failure")
+
+    monkeypatch.setattr(bootstrap_module, "_cleanup_saga_backups", fail_cleanup)
+    with pytest.raises(OSError, match="injected backup cleanup failure"):
+        bootstrap_module._retire_compensated_transaction(service, journal, retired)
+    persisted = _read_journal(journal)
+    assert persisted is not None
+    assert persisted.phase == "retired"
+    assert all(item.phase == "tombstoned" for item in persisted.harness_mutations)
+    return real_cleanup
+
+
 def test_restart_after_backup_cleanup_failure_recovers_retired_journal(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -159,19 +178,9 @@ def test_restart_after_backup_cleanup_failure_recovers_retired_journal(
     assert backup is not None
     backup_path = Path(backup["archive_path"])
     assert backup_path.exists()
-    real_cleanup = bootstrap_module._cleanup_saga_backups
-    monkeypatch.setattr(bootstrap_module, "_write_journal", real_write)
-
-    def fail_cleanup(_saga):
-        raise OSError("injected backup cleanup failure")
-
-    monkeypatch.setattr(bootstrap_module, "_cleanup_saga_backups", fail_cleanup)
-    with pytest.raises(OSError, match="injected backup cleanup failure"):
-        bootstrap_module._retire_compensated_transaction(service, journal, retired)
-    persisted = _read_journal(journal)
-    assert persisted is not None
-    assert persisted.phase == "retired"
-    assert all(item.phase == "tombstoned" for item in persisted.harness_mutations)
+    real_cleanup = _fail_backup_cleanup_leaving_retired_journal(
+        service, journal, retired, real_write, monkeypatch
+    )
 
     monkeypatch.setattr(bootstrap_module, "_cleanup_saga_backups", real_cleanup)
     monkeypatch.setattr(bootstrap_module, "_write_journal", real_write)
