@@ -109,3 +109,70 @@ def test_same_version_source_edit_is_not_reported_ready(tmp_path):
     skill.write_text(skill.read_text() + "\nEdited in place.\n")
     result = service.reconcile(apply=True)
     assert result.state is not ResultState.READY
+
+
+
+def test_post_install_capture_failure_keeps_original_command_error(tmp_path):
+    """A snapshot failure in the install finally must not mask the command error."""
+    from manifest_agent.adapters.omp_inventory import OmpInventoryError
+
+    desired = make_desired(tmp_path / "release")
+    adapter, _runner = make_adapter(tmp_path)
+    make_service(tmp_path, adapter, desired)
+    original_command = adapter._command
+    original_snapshot = adapter._snapshot
+    state = {"failed_once": False, "fail_next_snapshot": False}
+
+    def failing_command(argv, **kwargs):
+        if argv[1] == "plugin" and not state["failed_once"]:
+            state["failed_once"] = True
+            state["fail_next_snapshot"] = True
+            raise OmpInventoryError("OMP native command failed: exit 1: boom")
+        return original_command(argv, **kwargs)
+
+    def flaky_snapshot():
+        if state["fail_next_snapshot"]:
+            state["fail_next_snapshot"] = False
+            raise OSError("snapshot unreadable after mutation")
+        return original_snapshot()
+
+    adapter._command = failing_command
+    adapter._snapshot = flaky_snapshot
+
+    result = adapter.install(desired)
+
+    assert state["failed_once"]
+    assert result.state is ResultState.BLOCKED
+    assert any("boom" in error for error in result.errors), result.errors
+
+
+def test_marketplace_identity_failure_keeps_original_command_error(tmp_path, monkeypatch):
+    """Identity validation in the marketplace finally must not mask the command error."""
+    from manifest_agent.adapters import omp_lifecycle
+    from manifest_agent.adapters.omp_inventory import OmpInventoryError
+
+    desired = make_desired(tmp_path / "release")
+    adapter, _runner = make_adapter(tmp_path)
+    make_service(tmp_path, adapter, desired)
+    original_command = adapter._command
+    state = {"failed_once": False}
+
+    def failing_marketplace_add(argv, **kwargs):
+        if argv[1:3] == ("plugin", "marketplace") and not state["failed_once"]:
+            state["failed_once"] = True
+            original_command(argv, **kwargs)
+            raise OmpInventoryError("OMP native command failed: exit 1: boom")
+        return original_command(argv, **kwargs)
+
+    def rejecting_identity(*_args, **_kwargs):
+        raise ValueError("marketplace source unexpected")
+
+    adapter._command = failing_marketplace_add
+    monkeypatch.setattr(omp_lifecycle, "marketplace_identity", rejecting_identity)
+
+    result = adapter.install(desired)
+
+    assert state["failed_once"]
+    assert result.state is ResultState.BLOCKED
+    assert any("boom" in error for error in result.errors), result.errors
+    assert any("post-install capture failed" in error for error in result.errors), result.errors

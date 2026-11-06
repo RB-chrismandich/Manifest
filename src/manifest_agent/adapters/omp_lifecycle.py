@@ -26,7 +26,7 @@ from manifest_agent.adapters.omp_preservation import preserve_native_tree
 from manifest_agent.models import HarnessResult, ResultState
 
 
-def _register_marketplace(adapter, desired, entries):
+def _register_marketplace(adapter, desired, entries, failures):
     started = [False]
     try:
         adapter._native_mutation_boundary(OMP_MARKETPLACE)
@@ -48,14 +48,19 @@ def _register_marketplace(adapter, desired, entries):
             started=started,
         )
     finally:
-        live = adapter._snapshot()
-        created = live[1].get(OMP_MARKETPLACE)
-        if started[0] and created is not None:
-            identity = marketplace_identity(live[0], created)
-            if identity["source"] != str(desired.release_root.resolve()):
-                raise OmpInventoryError("OMP created marketplace has unexpected source")
-            key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
-            entries[key] = identity_entry(MARKETPLACE_KIND, OMP_MARKETPLACE, identity)
+        try:
+            live = adapter._snapshot()
+            created = live[1].get(OMP_MARKETPLACE)
+            if started[0] and created is not None:
+                identity = marketplace_identity(live[0], created)
+                if identity["source"] != str(desired.release_root.resolve()):
+                    raise OmpInventoryError(
+                        "OMP created marketplace has unexpected source"
+                    )
+                key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
+                entries[key] = identity_entry(MARKETPLACE_KIND, OMP_MARKETPLACE, identity)
+        except (OSError, ValueError, OmpInventoryError) as error:
+            failures.append(f"{OMP_MARKETPLACE}: post-install capture failed: {error}")
     return (MARKETPLACE_KIND, OMP_MARKETPLACE) in entries
 
 
@@ -96,15 +101,19 @@ def _install_plugin(adapter, desired, contract, old, entries, failures):
     except (OSError, ValueError) as error:
         failures.append(str(error))
     finally:
-        created = adapter._identity(adapter._snapshot(), plugin_id)
-        if (
-            started[0]
-            and created is not None
-            and created["version"] == contract.version
-        ):
-            entries[(PLUGIN_KIND, plugin_id)] = identity_entry(
-                PLUGIN_KIND, plugin_id, created
-            )
+        try:
+            created = adapter._identity(adapter._snapshot(), plugin_id)
+        except (OSError, ValueError, OmpInventoryError) as error:
+            failures.append(f"{plugin_id}: post-install capture failed: {error}")
+        else:
+            if (
+                started[0]
+                and created is not None
+                and created["version"] == contract.version
+            ):
+                entries[(PLUGIN_KIND, plugin_id)] = identity_entry(
+                    PLUGIN_KIND, plugin_id, created
+                )
 
 
 def _authorize_uninstall(adapter, entries, snapshot):
@@ -245,7 +254,7 @@ class OmpLifecycleMixin:
                 market_owned = (MARKETPLACE_KIND, OMP_MARKETPLACE) in entries
                 failures.extend(conflicts.values())
                 if snapshot[1].get(OMP_MARKETPLACE) is None:
-                    market_owned = _register_marketplace(self, desired, entries)
+                    market_owned = _register_marketplace(self, desired, entries, failures)
                 elif changed:
                     self._replace_source(desired, snapshot, entries)
                 self._capture_owned(
