@@ -71,3 +71,18 @@ def test_shadow_inspect_ignores_real_home_project_inventory(tmp_path: Path):
 
     report = adapter.shadow_inspect(desired, tmp_path / "shadow-home")
     assert not any("project inventory" in error for error in report.errors)
+
+
+def test_deleted_checkout_does_not_block_uninstall_ownership(tmp_path: Path):
+    import shutil
+
+    desired, _adapter, _runner, service = setup_install(tmp_path)
+    shutil.rmtree(desired.release_root)
+
+    assert (
+        omp_receipt_ownership_errors(
+            owned(service), key_path=service.receipt_path.parent / "ownership.key"
+        )
+        == ()
+    )
+    assert service.uninstall().state is ResultState.READY

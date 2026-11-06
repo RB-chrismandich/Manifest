@@ -89,10 +89,17 @@ def plugin_identity(
         "row_sha256": document_sha256(rows[0]),
         "source": marketplace["sourceUri"],
         "tree_sha256": directory_sha256(path),
-        "source_tree_sha256": directory_sha256(
+        "source_tree_sha256": _source_tree_sha256(
             Path(marketplace["sourceUri"]) / "plugins" / fallback
         ),
     }
+
+
+def _source_tree_sha256(source: Path) -> str | None:
+    """Checkout digest for target validation; None once the checkout is gone."""
+    if not source.exists():
+        return None
+    return directory_sha256(source)
 
 
 OWNERSHIP_UNSTABLE_FIELDS = frozenset({"source_tree_sha256"})
