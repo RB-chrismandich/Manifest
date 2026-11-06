@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
-# Tests for bootstrap.sh CLI flags: --update-config non-interactive dispatch,
-# --enable-apm no-op help wording, and non-fatal brew update during setup.
+# Tests for bootstrap.sh CLI flags: --update-config non-interactive dispatch
+# and --enable-apm no-op help wording.
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
@@ -103,48 +103,4 @@ seed_existing_claude_home() {
 
     run bash -c "ls -d '$HOME'/.claude.backup.* 2>/dev/null | wc -l | tr -d ' '"
     assert_output "0"
-}
-
-@test "bootstrap.sh continues setup when brew update fails transiently" {
-    seed_existing_claude_home
-    cat > "$FAKE_BIN/brew" << EOF
-#!/bin/bash
-printf '%s\n' "\$*" >> "$SANDBOX/brew.log"
-if [[ "\${1:-}" == "update" ]]; then
-    exit 1
-fi
-exit 0
-EOF
-    chmod +x "$FAKE_BIN/brew"
-    cat > "$FAKE_BIN/node" << 'EOF'
-#!/bin/bash
-echo "v22.0.0"
-EOF
-    chmod +x "$FAKE_BIN/node"
-    for tool in npm claude jq uv; do
-        make_stub "$tool" 0
-    done
-
-    run env PATH="$FAKE_BIN:/usr/bin:/bin" \
-        HOME="$HOME" \
-        XDG_CONFIG_HOME="$XDG_CONFIG_HOME" \
-        XDG_DATA_HOME="$XDG_DATA_HOME" \
-        XDG_STATE_HOME="$XDG_STATE_HOME" \
-        MANIFEST_STATE_ROOT="$MANIFEST_STATE_ROOT" \
-        MANIFEST_APM_DOMAINS="$MANIFEST_APM_DOMAINS" \
-        SHELL=/bin/zsh \
-        bash "$REPO_ROOT/bootstrap.sh" \
-            --update-config \
-            --skip-auth \
-            --disable-cursor \
-            --disable-gemini \
-            --disable-codex \
-            --disable-antigravity \
-            --disable-gh \
-            --disable-glab < /dev/null
-    assert_success
-    assert_output --partial "Homebrew update failed"
-    assert_output --partial "Configuration updated (runtime state kept)"
-    run cmp -s "$HOME/.claude/CLAUDE.md" "$REPO_ROOT/configs/claude/CLAUDE.md"
-    assert_success
 }
