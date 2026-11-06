@@ -144,6 +144,7 @@ class _OmpShadowMixin:
         home.mkdir(parents=True, exist_ok=True, mode=0o700)
         shadow = copy.copy(self)
         shadow._cwd = home.resolve(strict=True)
+        shadow._project_ceiling = shadow._cwd
         shadow._env = {
             **(self._env or {}),
             "HOME": str(home),

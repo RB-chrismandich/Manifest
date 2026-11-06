@@ -11,6 +11,7 @@ from manifest_agent.adapters.omp_identity import (
     decode_identity,
     desired_catalog,
     marketplace_identity,
+    ownership_fields,
 )
 from manifest_agent.adapters.omp_inventory import (
     OMP_MARKETPLACE,
@@ -117,9 +118,9 @@ def _inspect_packages(adapter, desired, snapshot, entries):
                 errors.append(f"missing required plugin: {plugin_id}")
         else:
             owned = entries.get((PLUGIN_KIND, plugin_id))
-            if owned is not None and decode_identity(owned) != adapter._identity(
-                snapshot, plugin_id
-            ):
+            if owned is not None and ownership_fields(
+                decode_identity(owned)
+            ) != ownership_fields(adapter._identity(snapshot, plugin_id)):
                 errors.append(
                     f"{plugin_id}: native identity changed outside its receipt"
                 )
@@ -236,11 +237,20 @@ def _blocked_inspection(name, root, error):
 
 
 class OmpInspectionMixin:
+    # Shadow runs set this to their isolated home so ancestor walks never leave it.
+    _project_ceiling: Path | None = None
+
+    def _project_ancestors(self):
+        for ancestor in (self._cwd, *self._cwd.parents):
+            yield ancestor
+            if ancestor == self._project_ceiling:
+                return
+
     def _snapshot(self):
         root = self._native_root()
         # Native project resolution walks ancestors. Reject every project
         # registry, including malformed/empty files, instead of shadowing state.
-        for ancestor in (self._cwd, *self._cwd.parents):
+        for ancestor in self._project_ancestors():
             project = ancestor / ".omp"
             if project == root:
                 continue

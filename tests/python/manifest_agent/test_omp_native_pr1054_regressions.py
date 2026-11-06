@@ -86,3 +86,18 @@ def test_deleted_checkout_does_not_block_uninstall_ownership(tmp_path: Path):
         == ()
     )
     assert service.uninstall().state is ResultState.READY
+
+
+def test_shadow_home_nested_under_real_home_ignores_real_project_inventory(
+    tmp_path: Path,
+):
+    real_home = tmp_path / "home"
+    (real_home / ".omp" / "plugins").mkdir(parents=True)
+    desired = make_desired(tmp_path / "release")
+    adapter, _runner = make_adapter(tmp_path)
+    adapter._env = {**adapter._env, "HOME": str(real_home)}
+    adapter._cwd = (real_home / "project").resolve(strict=False)
+    (real_home / "project").mkdir()
+
+    report = adapter.shadow_inspect(desired, real_home / "shadow")
+    assert not any("project inventory" in error for error in report.errors)

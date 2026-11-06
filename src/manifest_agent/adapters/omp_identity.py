@@ -153,7 +153,7 @@ def decode_identity(entry: OwnedEntry) -> dict[str, Any]:
     if value["scope"] != "user" or entry.target_path != value["path"]:
         raise OmpInventoryError("OMP receipt native path/scope identity is invalid")
     for key, item in value.items():
-        if key == "link_target" and item is None:
+        if key in {"link_target", "source_tree_sha256"} and item is None:
             continue
         if not isinstance(item, str) or not item:
             raise OmpInventoryError(
