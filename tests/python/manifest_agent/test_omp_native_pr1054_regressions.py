@@ -3,9 +3,19 @@
 import json
 from pathlib import Path
 
-from manifest_agent.adapters.omp_identity import MARKETPLACE_KIND, decode_identity
+import pytest
+
+from manifest_agent.adapters.omp_identity import (
+    MARKETPLACE_KIND,
+    PLUGIN_KIND,
+    decode_identity,
+)
+from manifest_agent.adapters.omp_inventory import OmpInventoryError
+from manifest_agent.adapters.omp_source import owned_marketplace_matches
 from manifest_agent.models import ResultState
 from manifest_agent.ownership import omp_receipt_ownership_errors
+from manifest_agent.service_state import with_prior_harness_receipts
+from manifest_agent.state import read_receipt
 from tests.python.manifest_agent._omp_native_fixture import (
     make_adapter,
     make_desired,
@@ -277,3 +287,64 @@ def test_snapshot_failure_after_source_replacement_is_not_stuck(tmp_path: Path):
     assert live_source == str(target.release_root.resolve())
     assert _marketplace_source(update) == live_source
     assert update.reconcile().state is ResultState.READY
+
+
+def _stranded_replacement(tmp_path):
+    """Leave a signed pending source intent by failing capture after replacement."""
+    _desired, adapter, runner, service = setup_install(tmp_path, git=True)
+    old_source = _marketplace_source(service)
+    target = make_desired(tmp_path / "next", "1.0.1", git=True)
+    update = make_service(tmp_path, adapter, target)
+    armed = []
+
+    def arm(command, _root):
+        if command[1:4] == ("plugin", "marketplace", "add") and not armed:
+            armed.append(command)
+            runner.fail(("omp", "plugin", "list", "--json"))
+
+    runner.callback = arm
+    assert update.reconcile(apply=True).state is not ResultState.READY
+    runner.callback = None
+    assert armed and _marketplace_source(update) == old_source
+    return adapter, update, target, old_source
+
+
+def _assert_pending_refused(adapter, update, target, old_source):
+    desired = with_prior_harness_receipts(target, read_receipt(update.receipt_path))
+    prior = adapter._prior_receipt(desired)
+    entries = adapter._authenticated_entries(prior)
+    assert not owned_marketplace_matches(adapter, adapter._snapshot(), entries)
+    with pytest.raises(OmpInventoryError, match="changed after signing"):
+        adapter._preflight(desired, prior)
+    assert update.reconcile(apply=True).state is not ResultState.READY
+    assert _marketplace_source(update) == old_source
+
+
+def test_pending_source_refuses_live_source_other_than_intent(tmp_path: Path):
+    adapter, update, target, old_source = _stranded_replacement(tmp_path)
+    other = make_desired(tmp_path / "other", "1.0.1", git=True)
+    adapter._command(("omp", "plugin", "marketplace", "remove", "manifest"))
+    adapter._command(
+        ("omp", "plugin", "marketplace", "add", str(other.release_root.resolve()))
+    )
+    _assert_pending_refused(adapter, update, target, old_source)
+
+
+def test_pending_source_refuses_catalog_other_than_intent(tmp_path: Path):
+    adapter, update, target, old_source = _stranded_replacement(tmp_path)
+    catalog = (
+        adapter._native_root() / "plugins/cache/marketplaces/manifest/marketplace.json"
+    )
+    document = json.loads(catalog.read_text())
+    document["description"] = "tampered after replacement"
+    catalog.write_text(json.dumps(document))
+    _assert_pending_refused(adapter, update, target, old_source)
+
+
+def test_pending_source_refuses_owned_plugin_non_source_drift(tmp_path: Path):
+    adapter, update, target, old_source = _stranded_replacement(tmp_path)
+    plugin = next(
+        entry for entry in owned(update).owned_entries if entry.kind == PLUGIN_KIND
+    )
+    (Path(plugin.target_path) / "drift.txt").write_text("not from the release")
+    _assert_pending_refused(adapter, update, target, old_source)
