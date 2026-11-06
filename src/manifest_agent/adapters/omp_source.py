@@ -114,11 +114,9 @@ class OmpSourceMixin:
                         f"{plugin_id}: target cache collision; "
                         "no force overwrite permitted"
                     )
-            elif (
-                identity["source_tree_sha256"] is not None
-                and identity["source_tree_sha256"]
-                != directory_sha256(desired.bundle_path(contract.name))
-            ):
+            elif identity["source_tree_sha256"] is not None and identity[
+                "source_tree_sha256"
+            ] != directory_sha256(desired.bundle_path(contract.name)):
                 raise OmpInventoryError(
                     f"{plugin_id}: same-version source changed in place; "
                     "cannot be force-overwritten"
