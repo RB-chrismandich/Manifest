@@ -101,3 +101,11 @@ def test_shadow_home_nested_under_real_home_ignores_real_project_inventory(
 
     report = adapter.shadow_inspect(desired, real_home / "shadow")
     assert not any("project inventory" in error for error in report.errors)
+
+
+def test_same_version_source_edit_is_not_reported_ready(tmp_path):
+    desired, _adapter, _runner, service = setup_install(tmp_path)
+    skill = next(desired.bundle_path("manifest-i-have-adhd").glob("skills/*/SKILL.md"))
+    skill.write_text(skill.read_text() + "\nEdited in place.\n")
+    result = service.reconcile(apply=True)
+    assert result.state is not ResultState.READY

@@ -17,6 +17,7 @@ from manifest_agent.adapters.omp_inventory import (
     OMP_MARKETPLACE,
     OmpInventoryError,
     cross_checked_plugin,
+    directory_sha256,
     plugin_cli_rows,
     plugin_path,
     read_installed_plugins,
@@ -125,6 +126,19 @@ def _inspect_packages(adapter, desired, snapshot, entries):
                     f"{plugin_id}: native identity changed outside its receipt"
                 )
                 blocked = True
+            if owned is not None:
+                owned_identity = decode_identity(owned)
+                recorded = owned_identity["source_tree_sha256"]
+                if (
+                    owned_identity["version"] == contract.version
+                    and recorded is not None
+                    and recorded != directory_sha256(desired.bundle_path(contract.name))
+                ):
+                    errors.append(
+                        f"{plugin_id}: same-version source changed in place; "
+                        "cannot be force-overwritten"
+                    )
+                    blocked = True
             if cross["version"] != contract.version:
                 errors.append(
                     f"plugin {plugin_id} expected {contract.version}, "
