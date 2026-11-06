@@ -13,6 +13,7 @@ from manifest_agent.adapters.omp_identity import (
     desired_catalog,
     identity_entry,
     marketplace_identity,
+    ownership_fields,
     plugin_identity,
 )
 from manifest_agent.adapters.omp_inventory import (
@@ -184,6 +185,9 @@ class OmpLifecycleMixin:
             actual = marketplace_identity(snapshot[0], row) if row else None
         else:
             actual = self._identity(snapshot, identifier)
+        if kind == PLUGIN_KIND:
+            actual = None if actual is None else ownership_fields(actual)
+            expected = ownership_fields(expected)
         if actual != expected:
             raise OmpInventoryError(
                 f"{identifier}: native source/row/runtime/link/content changed "
@@ -285,8 +289,8 @@ class OmpLifecycleMixin:
             identity = self._identity(live, plugin_id)
             if identity is not None:
                 previous = decode_identity(entries[(PLUGIN_KIND, plugin_id)])
-                stable = set(previous) - (
-                    {"source", "source_tree_sha256"} if source_changed else set()
+                stable = set(ownership_fields(previous)) - (
+                    {"source"} if source_changed else set()
                 )
                 if any(previous[key] != identity[key] for key in stable):
                     raise OmpInventoryError(

@@ -9,6 +9,7 @@ from manifest_agent.adapters.omp_identity import (
     decode_identity,
     desired_catalog,
     marketplace_identity,
+    ownership_fields,
 )
 from manifest_agent.adapters.omp_inventory import (
     OMP_MARKETPLACE,
@@ -34,7 +35,8 @@ def _authorize_source_replacement(changed, entries, registry):
 
 
 def _plugin_identity_conflict(plugin_id, identity, previous):
-    if previous is not None and identity != decode_identity(previous):
+    current = None if identity is None else ownership_fields(identity)
+    if previous is not None and current != ownership_fields(decode_identity(previous)):
         raise OmpInventoryError(
             f"{plugin_id}: native identity changed after signing; refusing repair"
         )
@@ -43,14 +45,24 @@ def _plugin_identity_conflict(plugin_id, identity, previous):
     return None
 
 
-def _require_prior_source_catalog(row):
-    catalog = read_object(
+def _require_prior_source_catalog(row, expected):
+    source = read_object(
         Path(row["sourceUri"]) / ".claude-plugin/marketplace.json",
         "prior source catalog",
     )
-    if catalog is None:
+    if source is None:
         raise OmpInventoryError(
             "OMP prior source is unavailable for source replacement recovery"
+        )
+    # Recovery re-adds the mutable checkout; it must match the native catalog
+    # that the signed marketplace identity already authenticates.
+    cached = read_object(
+        Path(expected["path"]) / "marketplace.json",
+        "authenticated marketplace catalog",
+    )
+    if cached != source:
+        raise OmpInventoryError(
+            "OMP prior source catalog differs from the authenticated native catalog"
         )
 
 
@@ -120,7 +132,7 @@ class OmpSourceMixin:
         row = snapshot[1][OMP_MARKETPLACE]
         expected = decode_identity(entries[(MARKETPLACE_KIND, OMP_MARKETPLACE)])
         # Native compensation must be possible before changing the registry.
-        _require_prior_source_catalog(row)
+        _require_prior_source_catalog(row, expected)
         removed = [False]
         try:
             self._preserve(
@@ -163,7 +175,16 @@ class OmpSourceMixin:
                     replacement,
                     ("omp", "plugin", "marketplace", "remove", OMP_MARKETPLACE),
                 )
+            self._restore_prior_source(entries, row, error)
+
+    def _restore_prior_source(self, entries, row, error):
+        restore_error = None
+        try:
             self._command(("omp", "plugin", "marketplace", "add", row["sourceUri"]))
+        except OmpInventoryError as restore:
+            restore_error = restore
+        detail = f"; restore diagnostic: {restore_error}" if restore_error else ""
+        try:
             self._capture_owned(
                 entries,
                 {identifier for kind, identifier in entries if kind == PLUGIN_KIND},
@@ -171,6 +192,10 @@ class OmpSourceMixin:
                 source_changed=True,
                 expected_source=row["sourceUri"],
             )
+        except OmpInventoryError as capture:
             raise OmpInventoryError(
-                f"OMP source replacement failed; prior native source restored: {error}"
-            ) from error
+                f"OMP restored source capture failed: {capture}{detail}"
+            ) from capture
+        raise OmpInventoryError(
+            f"OMP source replacement failed; prior native source restored: {error}{detail}"
+        ) from error

@@ -95,6 +95,18 @@ def plugin_identity(
     }
 
 
+OWNERSHIP_UNSTABLE_FIELDS = frozenset({"source_tree_sha256"})
+
+
+def ownership_fields(identity: Mapping[str, Any]) -> dict[str, Any]:
+    """Installed-ownership view; checkout source drift is target validation only."""
+    return {
+        key: value
+        for key, value in identity.items()
+        if key not in OWNERSHIP_UNSTABLE_FIELDS
+    }
+
+
 def identity_entry(
     kind: str, identifier: str, identity: Mapping[str, Any]
 ) -> OwnedEntry:
