@@ -27,6 +27,7 @@ from manifest_agent.adapters.omp_inventory import (
     runtime_name,
     skill_file_path,
 )
+from manifest_agent.adapters.omp_source import owned_marketplace_matches
 from manifest_agent.models import (
     DesiredState,
     HarnessResult,
@@ -324,6 +325,9 @@ class OmpInspectionMixin:
             snapshot = self._snapshot()
             root, markets, _registry, _runtime, _cli = snapshot
             entries = self._authenticated_entries(self._prior_receipt(desired))
+            # Mismatch is reported by _inspect_marketplace; this only finishes
+            # an exact signed write-ahead source replacement in memory.
+            owned_marketplace_matches(self, snapshot, entries)
             marketplace_errors, blocked = _inspect_marketplace(
                 root,
                 desired,

@@ -251,3 +251,29 @@ def test_failed_restore_add_is_reported_as_restore_diagnostic(
         raise AssertionError("source replacement must fail")
     assert len(add_calls) == 2, add_calls
     assert "restore diagnostic" in message and "restore add boom" in message, message
+
+
+def test_snapshot_failure_after_source_replacement_is_not_stuck(tmp_path: Path):
+    """A failed capture after source replacement must not strand the receipt."""
+    _desired, adapter, runner, _service = setup_install(tmp_path, git=True)
+    target = make_desired(tmp_path / "next", "1.0.1", git=True)
+    update = make_service(tmp_path, adapter, target)
+    armed = []
+
+    def arm(command, _root):
+        if command[1:4] == ("plugin", "marketplace", "add") and not armed:
+            armed.append(command)
+            runner.fail(("omp", "plugin", "list", "--json"))
+
+    runner.callback = arm
+    first = update.reconcile(apply=True)
+    runner.callback = None
+    assert armed, "source replacement add never ran"
+    assert first.state is not ResultState.READY
+
+    second = update.reconcile(apply=True)
+    assert second.state is ResultState.READY, second.errors
+    live_source = adapter._snapshot()[1]["manifest"]["sourceUri"]
+    assert live_source == str(target.release_root.resolve())
+    assert _marketplace_source(update) == live_source
+    assert update.reconcile().state is ResultState.READY

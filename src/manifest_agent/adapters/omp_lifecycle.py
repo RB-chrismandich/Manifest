@@ -15,12 +15,14 @@ from manifest_agent.adapters.omp_identity import (
     marketplace_identity,
     ownership_fields,
     plugin_identity,
+    with_pending_source,
 )
 from manifest_agent.adapters.omp_inventory import (
     OMP_MARKETPLACE,
     OmpInventoryError,
     cache_directory_name,
     directory_sha256,
+    document_sha256,
 )
 from manifest_agent.adapters.omp_preservation import preserve_native_tree
 from manifest_agent.models import HarnessResult, ResultState
@@ -269,6 +271,14 @@ class OmpLifecycleMixin:
                         self, desired, entries, failures
                     )
                 elif changed:
+                    # Write-ahead: if capture fails after replacement, the receipt
+                    # still authorizes exactly this signed target on the next run.
+                    key = (MARKETPLACE_KIND, OMP_MARKETPLACE)
+                    entries[key] = with_pending_source(
+                        entries[key],
+                        str(desired.release_root.resolve()),
+                        document_sha256(desired_catalog(desired)),
+                    )
                     self._replace_source(desired, snapshot, entries)
                 self._capture_owned(
                     entries,

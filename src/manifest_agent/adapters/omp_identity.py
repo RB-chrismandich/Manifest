@@ -126,11 +126,61 @@ def identity_entry(
     )
 
 
+PENDING_SOURCE_FIELD = "pending_source"
+
+
+def with_pending_source(
+    entry: OwnedEntry, source: str, catalog_sha256: str
+) -> OwnedEntry:
+    """Write-ahead replacement intent; the recorded prior identity is unchanged."""
+    intent = {"source": source, "catalog_sha256": catalog_sha256}
+    identity = {**decode_identity(entry), PENDING_SOURCE_FIELD: intent}
+    return identity_entry(MARKETPLACE_KIND, OMP_MARKETPLACE, identity)
+
+
+def pending_source(entry: OwnedEntry) -> dict[str, str] | None:
+    """Signed write-ahead replacement target, or None when none is pending."""
+    return _decode_entry(entry)[1]
+
+
+def _is_sha256(item: Any) -> bool:
+    return (
+        isinstance(item, str)
+        and len(item) == 64
+        and all(char in "0123456789abcdef" for char in item)
+    )
+
+
+def _split_pending(entry: OwnedEntry, value: Any) -> tuple[Any, Any]:
+    if (
+        entry.kind != MARKETPLACE_KIND
+        or not isinstance(value, dict)
+        or PENDING_SOURCE_FIELD not in value
+    ):
+        return value, None
+    value = dict(value)
+    intent = value.pop(PENDING_SOURCE_FIELD)
+    if (
+        not isinstance(intent, dict)
+        or set(intent) != {"source", "catalog_sha256"}
+        or not isinstance(intent["source"], str)
+        or not Path(intent["source"]).is_absolute()
+        or not _is_sha256(intent["catalog_sha256"])
+    ):
+        raise OmpInventoryError("OMP receipt pending source intent is invalid")
+    return value, intent
+
+
 def decode_identity(entry: OwnedEntry) -> dict[str, Any]:
+    return _decode_entry(entry)[0]
+
+
+def _decode_entry(entry: OwnedEntry) -> tuple[dict[str, Any], Any]:
     try:
         value = json.loads(entry.previous_checksum or "")
     except (TypeError, json.JSONDecodeError) as error:
         raise OmpInventoryError("OMP receipt native identity is malformed") from error
+    value, intent = _split_pending(entry, value)
     common = {"native_root", "scope", "path", "source", "tree_sha256", "row_sha256"}
     fields = (
         common
@@ -159,12 +209,10 @@ def decode_identity(entry: OwnedEntry) -> dict[str, Any]:
             raise OmpInventoryError(
                 "OMP receipt native identity contains invalid values"
             )
-        if key.endswith("sha256") and (
-            len(item) != 64 or any(char not in "0123456789abcdef" for char in item)
-        ):
+        if key.endswith("sha256") and not _is_sha256(item):
             raise OmpInventoryError("OMP receipt native identity digest is invalid")
     _validate_identity_location(entry, value)
-    return value
+    return value, intent
 
 
 def _validate_identity_location(entry: OwnedEntry, value: Mapping[str, Any]) -> None:

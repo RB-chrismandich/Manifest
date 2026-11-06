@@ -8,14 +8,17 @@ from manifest_agent.adapters.omp_identity import (
     catalog_versions,
     decode_identity,
     desired_catalog,
+    identity_entry,
     marketplace_identity,
     ownership_fields,
+    pending_source,
 )
 from manifest_agent.adapters.omp_inventory import (
     OMP_MARKETPLACE,
     OmpInventoryError,
     cache_directory_name,
     directory_sha256,
+    document_sha256,
     read_object,
     regular_chain,
 )
@@ -66,6 +69,52 @@ def _require_prior_source_catalog(row, expected):
         )
 
 
+def owned_marketplace_matches(adapter, snapshot, entries):
+    """True when the live marketplace is the signed one; may finish a write-ahead."""
+    owned_market = entries.get((MARKETPLACE_KIND, OMP_MARKETPLACE))
+    if owned_market is None:
+        return True
+    row = snapshot[1].get(OMP_MARKETPLACE)
+    existing = marketplace_identity(snapshot[0], row) if row else None
+    return existing == decode_identity(owned_market) or _adopt_pending_source(
+        adapter, snapshot, existing, owned_market, entries
+    )
+
+
+def _adopt_pending_source(adapter, snapshot, existing, owned_market, entries):
+    """Adopt only the exact signed write-ahead replacement target; else refuse."""
+    intent = pending_source(owned_market)
+    if intent is None or existing is None or existing["source"] != intent["source"]:
+        return False
+    if existing["native_root"] != decode_identity(owned_market)["native_root"]:
+        return False
+    catalog = read_object(
+        Path(existing["path"]) / "marketplace.json", "native marketplace catalog"
+    )
+    if catalog is None or document_sha256(catalog) != intent["catalog_sha256"]:
+        return False
+    rebound = {}
+    for kind, plugin_id in entries:
+        if kind != PLUGIN_KIND:
+            continue
+        identity = adapter._identity(snapshot, plugin_id)
+        previous = ownership_fields(decode_identity(entries[(kind, plugin_id)]))
+        if (
+            identity is None
+            or identity["source"] != intent["source"]
+            or any(
+                previous[key] != identity[key] for key in previous if key != "source"
+            )
+        ):
+            return False
+        rebound[(kind, plugin_id)] = identity_entry(kind, plugin_id, identity)
+    entries.update(rebound)
+    entries[(MARKETPLACE_KIND, OMP_MARKETPLACE)] = identity_entry(
+        MARKETPLACE_KIND, OMP_MARKETPLACE, existing
+    )
+    return True
+
+
 class OmpSourceMixin:
     def _preflight(self, desired, prior):
         catalog = desired_catalog(desired)
@@ -74,8 +123,7 @@ class OmpSourceMixin:
         root, markets, registry, _runtime, _cli = snapshot
         row = markets.get(OMP_MARKETPLACE)
         existing = marketplace_identity(root, row) if row else None
-        owned_market = entries.get((MARKETPLACE_KIND, OMP_MARKETPLACE))
-        if owned_market is not None and existing != decode_identity(owned_market):
+        if not owned_marketplace_matches(self, snapshot, entries):
             raise OmpInventoryError(
                 "OMP owned marketplace source/catalog changed after signing"
             )
