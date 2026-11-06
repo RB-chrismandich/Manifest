@@ -265,7 +265,9 @@ class OmpLifecycleMixin:
                 market_owned = (MARKETPLACE_KIND, OMP_MARKETPLACE) in entries
                 failures.extend(conflicts.values())
                 if snapshot[1].get(OMP_MARKETPLACE) is None:
-                    market_owned = _register_marketplace(self, desired, entries, failures)
+                    market_owned = _register_marketplace(
+                        self, desired, entries, failures
+                    )
                 elif changed:
                     self._replace_source(desired, snapshot, entries)
                 self._capture_owned(

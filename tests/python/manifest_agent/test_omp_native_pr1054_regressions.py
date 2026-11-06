@@ -111,7 +111,6 @@ def test_same_version_source_edit_is_not_reported_ready(tmp_path):
     assert result.state is not ResultState.READY
 
 
-
 def test_post_install_capture_failure_keeps_original_command_error(tmp_path):
     """A snapshot failure in the install finally must not mask the command error."""
     from manifest_agent.adapters.omp_inventory import OmpInventoryError
@@ -146,7 +145,9 @@ def test_post_install_capture_failure_keeps_original_command_error(tmp_path):
     assert any("boom" in error for error in result.errors), result.errors
 
 
-def test_marketplace_identity_failure_keeps_original_command_error(tmp_path, monkeypatch):
+def test_marketplace_identity_failure_keeps_original_command_error(
+    tmp_path, monkeypatch
+):
     """Identity validation in the marketplace finally must not mask the command error."""
     from manifest_agent.adapters import omp_lifecycle
     from manifest_agent.adapters.omp_inventory import OmpInventoryError
@@ -175,7 +176,9 @@ def test_marketplace_identity_failure_keeps_original_command_error(tmp_path, mon
     assert state["failed_once"]
     assert result.state is ResultState.BLOCKED
     assert any("boom" in error for error in result.errors), result.errors
-    assert any("post-install capture failed" in error for error in result.errors), result.errors
+    assert any("post-install capture failed" in error for error in result.errors), (
+        result.errors
+    )
 
 
 def test_foreign_marketplace_source_blocks_plugin_install(tmp_path, monkeypatch):
