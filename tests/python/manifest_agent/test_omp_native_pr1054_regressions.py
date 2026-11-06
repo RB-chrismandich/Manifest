@@ -7,6 +7,7 @@ from manifest_agent.adapters.omp_identity import MARKETPLACE_KIND, decode_identi
 from manifest_agent.models import ResultState
 from manifest_agent.ownership import omp_receipt_ownership_errors
 from tests.python.manifest_agent._omp_native_fixture import (
+    make_adapter,
     make_desired,
     make_service,
 )
@@ -56,3 +57,17 @@ def test_edited_recovery_catalog_is_rejected_before_registry_change(tmp_path: Pa
     assert not any(
         "remove" in command for command in runner.mutations[mutations_before:]
     )
+
+
+def test_shadow_inspect_ignores_real_home_project_inventory(tmp_path: Path):
+    real_home = tmp_path / "home"
+    checkout = real_home / "project"
+    (real_home / ".omp" / "plugins").mkdir(parents=True)
+    checkout.mkdir(parents=True)
+    desired = make_desired(tmp_path / "release")
+    adapter, _runner = make_adapter(tmp_path)
+    adapter._env = {**adapter._env, "HOME": str(real_home)}
+    adapter._cwd = checkout.resolve(strict=True)
+
+    report = adapter.shadow_inspect(desired, tmp_path / "shadow-home")
+    assert not any("project inventory" in error for error in report.errors)
