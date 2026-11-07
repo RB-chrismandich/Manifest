@@ -151,6 +151,60 @@ STUB
     assert_output ""
 }
 
+@test "failed codex bootstrap-sync stays degraded after a later plain install reports codex READY" {
+    printf 'blocked\n' > "$SANDBOX/bootstrap.mode"
+    cat > "$HOME/.local/bin/uv" <<'STUB'
+#!/bin/sh
+printf '%s\n' "$*" >> "$UV_LOG"
+case "$*" in
+    *"manifest bootstrap-sync"*)
+        if [ "$(cat "$SANDBOX_MODE_FILE")" = blocked ]; then
+            printf '{"operation":"bootstrap-sync","state":"BLOCKED","harnesses":{"codex":{"state":"BLOCKED"}}}\n'
+            exit 0
+        fi
+        printf '{"operation":"bootstrap-sync","state":"READY","harnesses":{"codex":{"state":"READY"}}}\n'
+        ;;
+    *"manifest install"*)
+        printf '{"operation":"install","state":"READY","harnesses":{"codex":{"state":"READY"}}}\n'
+        ;;
+    *)
+        printf '{"state":"READY"}\n'
+        ;;
+esac
+STUB
+    export SANDBOX_MODE_FILE="$SANDBOX/bootstrap.mode"
+
+    local rc=0
+    sync_native_plugins > /dev/null || rc=$?
+    assert_equal "$rc" "1"
+    sync_all_native_harnesses > /dev/null
+
+    assert_equal "$MANIFEST_HARNESS_STATES" $'codex_bootstrap=BLOCKED\ncodex=READY'
+    run _collect_degraded_harness_states
+    assert_success
+    assert_output "codex_bootstrap=BLOCKED"
+
+    printf 'ready\n' > "$SANDBOX/bootstrap.mode"
+    sync_native_plugins > /dev/null
+    run _collect_degraded_harness_states
+    assert_success
+    assert_output ""
+}
+
+@test "receipt advance is skipped while a bootstrap-sync journal is pending" {
+    mkdir -p "$HOME/.local/state/manifest"
+    printf '{"schema_version":1}\n' > "$HOME/.local/state/manifest/installation.json"
+    printf '{"phase":"pending"}\n' > "$HOME/.local/state/manifest/.installation.json.bootstrap-sync.json"
+
+    run sync_native_plugins
+
+    assert_success
+    assert_output --partial "bootstrap-sync must recover first"
+    assert_equal "$(wc -l < "$UV_LOG" | tr -d ' ')" "1"
+    assert_equal "$(sed -n '1p' "$UV_LOG")" \
+        "run --project $REPO_ROOT manifest bootstrap-sync --source $REPO_ROOT --harness codex --non-interactive --json"
+}
+
 @test "report parser preserves top-level failures when harness rows are READY" {
     unset MANIFEST_HARNESS_STATES XDG_STATE_HOME
     _record_manifest_report_states native_harnesses 0 \

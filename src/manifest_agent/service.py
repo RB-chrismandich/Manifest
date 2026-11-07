@@ -15,6 +15,7 @@ from typing import Any
 from manifest_agent import __version__
 from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
 from manifest_agent.adapters.registry import AdapterRegistry
+from manifest_agent.bootstrap_sync import pending_bootstrap_journal_error
 from manifest_agent.capabilities import resolve_capabilities
 from manifest_agent.catalog import load_catalog
 from manifest_agent.contracts import (
@@ -128,6 +129,9 @@ class ManifestService:
         results = dict(missing)
         try:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                journal_error = pending_bootstrap_journal_error(self.receipt_path)
+                if journal_error is not None:
+                    return report("install", {}, errors=(journal_error,))
                 previous = read_receipt(self.receipt_path)
                 if previous is not None:
                     previous, upgrade_error = self._upgrade_retired_graphify_receipt(
@@ -408,6 +412,9 @@ class ManifestService:
         if apply:
             try:
                 with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                    journal_error = pending_bootstrap_journal_error(self.receipt_path)
+                    if journal_error is not None:
+                        return report("reconcile", {}, errors=(journal_error,))
                     receipt = read_receipt(self.receipt_path)
                     return self._reconcile(receipt, apply=True)
             # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
@@ -440,6 +447,9 @@ class ManifestService:
         notes = []
         try:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                journal_error = pending_bootstrap_journal_error(self.receipt_path)
+                if journal_error is not None:
+                    return report("uninstall", {}, errors=(journal_error,))
                 receipt = read_receipt(self.receipt_path)
                 if receipt is None:
                     return report("uninstall", {}, notes=("nothing is installed",))

@@ -950,10 +950,32 @@ PYEOF
     done <<< "$combined"
 }
 
+# _set_codex_bootstrap_state records the outcome of the codex bootstrap-sync under
+# its own key. The later plain `manifest install` rewrites `codex` from an install
+# report that never runs the bootstrap probes, so a failed bootstrap must survive
+# under this key until a later successful bootstrap-sync clears it.
+_set_codex_bootstrap_state() {
+    local state="$1"
+    _clear_manifest_harness_state "codex_bootstrap"
+    [[ "$state" == READY ]] && return 0
+    case "$state" in
+        BLOCKED | DEGRADED | DRIFTED) ;;
+        *) state="BLOCKED" ;;
+    esac
+    _set_manifest_harness_state "codex_bootstrap" "$state"
+}
+
 _advance_manifest_receipt() {
-    local uv_bin="$1" receipt_path update_key update_output="" update_rc=0
+    local uv_bin="$1" receipt_path journal_path update_key update_output="" update_rc=0
     receipt_path="$(manifest_installation_receipt)"
     [[ -f "$receipt_path" ]] || return 0
+    # A pending bootstrap journal means bootstrap-sync must recover first; it
+    # runs next and advances the receipt itself once recovery completes.
+    journal_path="$(dirname "$receipt_path")/.$(basename "$receipt_path").bootstrap-sync.json"
+    if [[ -f "$journal_path" ]]; then
+        print_warning "Pending bootstrap-sync journal ($journal_path): bootstrap-sync must recover first; skipping receipt update"
+        return 0
+    fi
     update_key="${SCRIPT_DIR}:${receipt_path}"
     [[ "${MANIFEST_RECEIPT_UPDATED_FOR:-}" == "$update_key" ]] && return 0
     MANIFEST_RECEIPT_UPDATED_FOR="$update_key"
@@ -974,6 +996,7 @@ sync_native_plugins() {
     local uv_bin=""
     uv_bin="$(manifest_uv_bin)" || {
         _set_manifest_harness_state "codex" "BLOCKED"
+        _set_codex_bootstrap_state "BLOCKED"
         print_error "uv is required for Codex plugin reconciliation"
         return 1
     }
@@ -983,15 +1006,18 @@ sync_native_plugins() {
         --source "$SCRIPT_DIR" --harness codex --non-interactive --json)" || sync_rc=$?
     _record_manifest_report_states "codex" "$sync_rc" "$output"
     if [[ $sync_rc -ne 0 ]]; then
+        _set_codex_bootstrap_state "BLOCKED"
         print_error "Codex native plugin reconciliation failed"
         [[ -n "$output" ]] && print_error "$output"
         return 1
     fi
     state="$(python3 -c 'import json,sys; d=json.load(sys.stdin); h=d.get("harnesses",{}).get("codex",{}); print("READY" if d.get("state")=="DEGRADED" and isinstance(h,dict) and h.get("converged") is True else d["state"])' <<< "$output" 2> /dev/null)" || {
         _set_manifest_harness_state "codex" "BLOCKED"
+        _set_codex_bootstrap_state "BLOCKED"
         print_error "Codex reconciliation returned invalid JSON"
         return 1
     }
+    _set_codex_bootstrap_state "$state"
     if [[ "$state" != READY ]]; then
         print_error "Codex plugin reconciliation returned $state"
         return 1

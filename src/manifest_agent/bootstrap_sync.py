@@ -139,6 +139,21 @@ def _journal_path(receipt_path: Path) -> Path:
     return receipt_path.with_name(f".{receipt_path.name}.bootstrap-sync.json")
 
 
+def pending_bootstrap_journal_error(receipt_path: Path) -> str | None:
+    """Return an actionable blocker when a non-empty bootstrap journal is pending."""
+    journal = _journal_path(receipt_path)
+    try:
+        saga = _read_journal(journal)
+    except RuntimeError as error:
+        return f"{error}; run `manifest bootstrap-sync` first"
+    if saga is None or _is_empty_prepared_saga(saga):
+        return None
+    return (
+        "pending bootstrap reconciliation journal exists "
+        f"(phase: {saga.phase}); run `manifest bootstrap-sync` first"
+    )
+
+
 def _write_journal(path: Path, saga: ReconciliationSaga) -> None:
     from manifest_agent.state import _write_private_json_atomic
 
@@ -494,7 +509,6 @@ def _recover_unfinished(
         harness_mutations=saga.harness_mutations,
         prior_receipt_digest=saga.prior_receipt_digest,
         target_identity=saga.target_identity,
-        target_receipt_digest=saga.target_receipt_digest,
     )
     _write_journal(journal, updated)
     if updated.harness_mutations and all(
@@ -539,14 +553,61 @@ def _resolve_prior_desired(service, release_version: str):
         return None, diagnostic(error)
 
 
+def _forward_plugin_mismatch(
+    adapter, desired
+) -> tuple[bool, tuple[AdapterPluginState, ...]]:
+    native_fn = getattr(adapter, "_native_reconcile_inventory", None)
+    desired_fn = getattr(adapter, "_desired_reconcile_inventory", None)
+    if native_fn is None or desired_fn is None:
+        return False, ()
+    target = {
+        item.identifier: item
+        for item in desired_fn(desired)
+        if item.installed_sha256 is not None
+    }
+    if not target:
+        return False, ()
+    observed = tuple(native_fn(desired, capture_backups=False, identifiers=set(target)))
+    observed_by_id = {item.identifier: item for item in observed}
+    replaces_fn = getattr(adapter, "_reconcile_install_replaces_changed_plugins", None)
+    replaces = bool(replaces_fn()) if replaces_fn is not None else False
+    changed = tuple(
+        item
+        for item in observed
+        if item.identifier not in target
+        or (
+            not replaces
+            and item.installed_sha256 != target[item.identifier].installed_sha256
+        )
+    )
+    mismatch = set(observed_by_id) != set(target) or any(
+        item.installed_sha256 != target[identifier].installed_sha256
+        for identifier, item in observed_by_id.items()
+    )
+    return mismatch, changed
+
+
 def _converge_harness_forward(adapter, name: str, desired) -> HarnessResult:
     try:
         inspected = adapter.inspect(desired)
-        if inspected.state in {ResultState.READY, ResultState.DEGRADED}:
-            return inspected
+        removed: HarnessResult | None = None
+        if _converged(inspected):
+            mismatch, changed = _forward_plugin_mismatch(adapter, desired)
+            if not mismatch:
+                return inspected
+            remove_fn = getattr(adapter, "_remove_reconcile_plugins", None)
+            if changed and remove_fn is not None:
+                removed = remove_fn(changed, desired)
+                if removed.state is ResultState.BLOCKED:
+                    return removed
         installed = adapter.install(desired)
         inspected = adapter.inspect(desired)
-        return combine_results(installed, inspected)
+        steps = (
+            (removed, installed, inspected)
+            if removed is not None
+            else (installed, inspected)
+        )
+        return combine_results(*steps)
     # constitution: exempt C-ERR -- adapters are a native process boundary.
     except Exception as error:
         return HarnessResult(
@@ -606,7 +667,7 @@ def _converge_other_owned_harnesses(
             handle = _deserialize_handle(mutation.handle)
             try:
                 inspected = adapter.verify_reconcile(handle, desired)
-                if inspected.state in {ResultState.READY, ResultState.DEGRADED}:
+                if _converged(inspected):
                     result = inspected
                 else:
                     if checkpoint is not None:
@@ -845,7 +906,7 @@ class BootstrapSyncService:
                     )
                     if not retiring_completed:
                         _validate_recoverable_phase(saga)
-                        if identity_changed:
+                        if identity_changed and saga.harness_mutations:
                             assert previous is not None
                             prior_desired, prior_error = _resolve_prior_desired(
                                 self.service, previous.release_version
@@ -930,9 +991,7 @@ class BootstrapSyncService:
                             self.service, previous.release_version
                         )
                         if prior_error is not None or prior_desired is None:
-                            if recovered_transaction or not _is_empty_prepared_saga(
-                                saga
-                            ):
+                            if not _is_empty_prepared_saga(saga):
                                 rollback_allowed = False
                                 raise RuntimeError(
                                     "prior release is unavailable for cross-harness compensation"
@@ -1249,15 +1308,7 @@ class BootstrapSyncService:
                             ),
                         )
                     )
-                result = HarnessResult(
-                    result.harness,
-                    result.state,
-                    result.installed_plugin_ids,
-                    result.capabilities,
-                    result.errors,
-                    result.warnings,
-                    tuple(owned),
-                )
+                result = replace(result, owned_entries=tuple(owned))
                 synchronized["codex"] = result
                 receipt = build_receipt(
                     desired,

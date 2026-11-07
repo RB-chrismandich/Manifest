@@ -15,6 +15,7 @@ from manifest_agent.bootstrap_sync import (
     _write_journal,
 )
 from manifest_agent.models import (
+    HarnessResult,
     ResultState,
 )
 from manifest_agent.state import read_receipt, receipt_digest
@@ -401,3 +402,28 @@ def test_durable_codex_recovers_empty_journal_on_unresolvable_local_receipt(
     updated = read_receipt(service.receipt_path)
     assert updated is not None and updated.release_version == "local-222222222222"
     assert not journal.exists()
+
+
+def test_bootstrap_sync_preserves_declared_degradations_in_report_json(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Contract-declared Codex degradations must remain converged in JSON output."""
+    declared = ("manifest-ops codex hook mode is degraded",)
+    degraded_codex = HarnessResult(
+        "codex",
+        ResultState.DEGRADED,
+        ("manifest-ops@manifest",),
+        {"manifest-ops:hook:version-pin": "degraded"},
+        errors=declared,
+        declared_degradations=declared,
+    )
+    codex = FakeAdapter("codex", degraded_codex)
+    service = service_factory({"codex": codex}, harnesses=("codex",))
+    legacy_skill_home(tmp_path, monkeypatch)
+
+    result = service.bootstrap_sync()
+    payload = result.to_dict()
+
+    assert result.state is ResultState.DEGRADED
+    assert payload["harnesses"]["codex"]["state"] == "DEGRADED"
+    assert payload["harnesses"]["codex"]["converged"] is True
