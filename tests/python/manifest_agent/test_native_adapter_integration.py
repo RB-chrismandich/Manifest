@@ -358,7 +358,9 @@ def _assert_lifecycle_commands(
         ],
         "antigravity": [("plugin", "validate", path) for path in bundle_paths]
         + [("plugin", "install", path) for path in bundle_paths],
-        "devin": [("plugins", "install", path, "--yes") for path in bundle_paths],
+        "devin": [
+            ("plugins", "install", "--local", path, "--yes") for path in bundle_paths
+        ],
     }
     expected_removals = {
         "claude": [("plugin", "uninstall", f"{name}@manifest") for name in bundle_names]
@@ -844,7 +846,15 @@ def _devin_responses(desired: DesiredState, phase: str) -> str:
         )
     if phase == "installed":
         responses = [
-            _response(["plugins", "install", str(desired.bundle_path(name)), "--yes"])
+            _response(
+                [
+                    "plugins",
+                    "install",
+                    "--local",
+                    str(desired.bundle_path(name)),
+                    "--yes",
+                ]
+            )
             for name in bundle_names
         ]
         responses.extend(

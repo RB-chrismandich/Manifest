@@ -388,8 +388,18 @@ def test_targeted_install_blocks_incompatible_existing_release(service_factory):
     report = service.install()
 
     assert report.state is ResultState.BLOCKED
+    assert f"manifest update --source {service.source}" in report.errors[0]
+    assert "migrate" not in report.errors[0]
     assert "install" not in claude.calls
     assert read_receipt(service.receipt_path) == before
+
+    service.source = None
+    service.release = "2.0.0"
+    no_source_report = service.install()
+
+    assert no_source_report.state is ResultState.BLOCKED
+    assert "manifest update --source <path>" in no_source_report.errors[0]
+    assert "migrate" not in no_source_report.errors[0]
 
 
 def _write_legacy_graphify_receipt(service, *, forged: bool = False) -> bytes:

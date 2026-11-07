@@ -257,7 +257,14 @@ def test_devin_installs_and_verifies_local_bundle_views(
 
     assert result.state is ResultState.READY
     assert runner.log[: len(DOMAIN_BUNDLES)] == [
-        ["devin", "plugins", "install", str(desired.bundle_path(name)), "--yes"]
+        [
+            "devin",
+            "plugins",
+            "install",
+            "--local",
+            str(desired.bundle_path(name)),
+            "--yes",
+        ]
         for name in DOMAIN_BUNDLES
     ]
     assert runner.log[len(DOMAIN_BUNDLES)] == ["devin", "plugins", "list"]
@@ -429,7 +436,14 @@ def test_devin_installs_domain_bundles_when_the_addon_is_not_shipped(
     assert result.state is ResultState.READY
     assert result.installed_plugin_ids == DOMAIN_BUNDLES
     assert runner.log[: len(DOMAIN_BUNDLES)] == [
-        ["devin", "plugins", "install", str(desired.bundle_path(name)), "--yes"]
+        [
+            "devin",
+            "plugins",
+            "install",
+            "--local",
+            str(desired.bundle_path(name)),
+            "--yes",
+        ]
         for name in DOMAIN_BUNDLES
     ]
     assert not (home / ".codeium/windsurf/memories/global_rules.md").exists()

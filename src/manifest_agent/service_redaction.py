@@ -67,6 +67,7 @@ def _safe_result(result: HarnessResult) -> HarnessResult:
         capabilities=capabilities,
         errors=tuple(map(redact_text, result.errors)),
         warnings=tuple(map(redact_text, result.warnings)),
+        declared_degradations=tuple(map(redact_text, result.declared_degradations)),
         owned_entries=(),
         native_inspection=native,
     )

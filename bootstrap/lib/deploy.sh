@@ -254,21 +254,26 @@ deploy_configs() {
         if [[ "$FORCE" == true ]]; then
             print_warning "Overwriting existing installation (--force)"
         else
-            echo ""
-            print_warning "Existing installation found at $TARGET_DIR"
-            echo ""
-            echo "Options:"
-            echo "  1. Backup and replace (destructive: moves $TARGET_DIR aside first)"
-            echo "  2. Add new files only (existing files are NOT updated)"
-            echo "  3. Cancel"
-            echo "  4. Update config: refresh repo-owned files, keep runtime state"
-            echo ""
-            echo "  Most re-runs want 4 — it deploys edited config without moving anything."
-            echo ""
-            # Options 1-3 keep their historical numbers so an operator's muscle
-            # memory (and any scripted answer) still means what it always did;
-            # the new non-destructive path is appended as 4.
-            read -r -p "Choose option [1/2/3/4]: " choice
+            local choice=""
+            if [[ "${UPDATE_CONFIG:-false}" == true ]]; then
+                choice=4
+            else
+                echo ""
+                print_warning "Existing installation found at $TARGET_DIR"
+                echo ""
+                echo "Options:"
+                echo "  1. Backup and replace (destructive: moves $TARGET_DIR aside first)"
+                echo "  2. Add new files only (existing files are NOT updated)"
+                echo "  3. Cancel"
+                echo "  4. Update config: refresh repo-owned files, keep runtime state"
+                echo ""
+                echo "  Most re-runs want 4 — it deploys edited config without moving anything."
+                echo ""
+                # Options 1-3 keep their historical numbers so an operator's muscle
+                # memory (and any scripted answer) still means what it always did;
+                # the new non-destructive path is appended as 4.
+                read -r -p "Choose option [1/2/3/4]: " choice
+            fi
 
             case $choice in
                 1)
@@ -754,6 +759,234 @@ manifest_uv_bin() {
     printf '%s\n' "$verified"
 }
 
+manifest_installation_receipt() {
+    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/manifest/installation.json"
+}
+
+_clear_manifest_harness_state() {
+    local key="$1" line updated=""
+    [[ -n "$key" ]] || return 0
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        [[ "${line%%=*}" == "$key" ]] && continue
+        updated="${updated:+${updated}$'\n'}${line}"
+    done <<< "${MANIFEST_HARNESS_STATES:-}"
+    MANIFEST_HARNESS_STATES="$updated"
+}
+
+_set_manifest_harness_state() {
+    local key="$1" state="$2"
+    [[ -n "$key" && -n "$state" ]] || return 0
+    _clear_manifest_harness_state "$key"
+    MANIFEST_HARNESS_STATES="${MANIFEST_HARNESS_STATES:+${MANIFEST_HARNESS_STATES}$'\n'}${key}=${state}"
+}
+
+_record_manifest_report_states() {
+    local fallback_key="$1" rc="$2" payload="${3:-}" parsed="" entry
+    if [[ -n "$payload" ]] && command_exists python3; then
+        parsed="$(python3 -c '
+import json, sys
+fallback, rc = sys.argv[1], int(sys.argv[2])
+try:
+    doc = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+if not isinstance(doc, dict):
+    sys.exit(1)
+harnesses = doc.get("harnesses")
+emitted = False
+has_failure_state = False
+if isinstance(harnesses, dict) and harnesses:
+    for name, item in harnesses.items():
+        state = item.get("state") if isinstance(item, dict) else None
+        if isinstance(item, dict) and state == "DEGRADED" and item.get("converged") is True:
+            state = "READY"
+        if isinstance(state, str):
+            if state not in {"READY", "DEGRADED", "BLOCKED", "DRIFTED"}:
+                state = "BLOCKED"
+            if state != "READY":
+                has_failure_state = True
+            print("%s=%s" % (name, state))
+            emitted = True
+operation_failed = rc != 0 or bool(doc.get("errors"))
+if emitted and operation_failed and not has_failure_state:
+    print("%s=BLOCKED" % fallback)
+    emitted = True
+if not emitted:
+    top_state = doc.get("state")
+    if isinstance(top_state, str) and top_state in {"READY", "DEGRADED", "BLOCKED", "DRIFTED"}:
+        if top_state == "READY" and rc != 0:
+            sys.exit(1)
+        print("%s=%s" % (fallback, top_state))
+        emitted = True
+if not emitted:
+    sys.exit(1)
+' "$fallback_key" "$rc" <<< "$payload" 2> /dev/null)" || parsed=""
+    fi
+    if [[ -n "$parsed" ]]; then
+        _clear_manifest_harness_state "$fallback_key"
+        while IFS= read -r entry; do
+            [[ "$entry" == *=* ]] || continue
+            _set_manifest_harness_state "${entry%%=*}" "${entry#*=}"
+        done <<< "$parsed"
+        return 0
+    fi
+    if [[ "$rc" -ne 0 ]]; then
+        _set_manifest_harness_state "$fallback_key" "BLOCKED"
+    fi
+}
+
+_collect_degraded_harness_states() {
+    local combined="${MANIFEST_HARNESS_STATES:-}" receipt_path parsed entry key existing has_key
+    receipt_path="$(manifest_installation_receipt)"
+    if [[ -f "$receipt_path" ]] && command_exists python3; then
+        parsed="$(
+            python3 - "$receipt_path" << 'PYEOF' 2> /dev/null || true
+import json, sys
+
+non_success = {
+    "blocked",
+    "conflicting",
+    "disabled",
+    "drifted",
+    "failed",
+    "missing",
+    "not-installed",
+    "not_installed",
+    "observation-unavailable",
+    "requires-interactive-login",
+    "skipped",
+    "unavailable",
+    "unknown-transport",
+    "unsupported",
+}
+
+
+def is_selected_optional(cap_key, selected):
+    if not selected:
+        return False
+    parts = cap_key.split(":", 2)
+    if len(parts) == 2:
+        kind, stable_id = parts
+        bundle = None
+    elif len(parts) == 3:
+        bundle, kind, stable_id = parts
+    else:
+        return False
+    if kind not in {"mcp", "executable"}:
+        return False
+    if {cap_key, stable_id, "%s:%s" % (kind, stable_id)} & selected:
+        return True
+    if bundle is None:
+        suffix = ":%s:%s" % (kind, stable_id)
+        return any(item.count(":") == 2 and item.endswith(suffix) for item in selected)
+    return False
+
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        doc = json.load(handle)
+except Exception:
+    sys.exit(0)
+
+selected_raw = doc.get("selected_optional") if isinstance(doc, dict) else None
+selected_optional = (
+    {item for item in selected_raw if isinstance(item, str) and item}
+    if isinstance(selected_raw, list)
+    else set()
+)
+harnesses = doc.get("harnesses") if isinstance(doc, dict) else None
+if isinstance(harnesses, dict):
+    for name, item in harnesses.items():
+        if not isinstance(item, dict):
+            continue
+        explicit = item.get("state")
+        if isinstance(explicit, str) and explicit in {"BLOCKED", "DEGRADED", "READY", "DRIFTED"}:
+            if explicit == "DEGRADED" and item.get("converged") is True:
+                print("%s=READY" % name)
+            else:
+                print("%s=%s" % (name, explicit))
+            continue
+        if item.get("verified") is not True or item.get("errors"):
+            print("%s=BLOCKED" % name)
+            continue
+        caps = item.get("capabilities")
+        degraded = False
+        if isinstance(caps, dict):
+            for cap_key, raw_status in caps.items():
+                if not isinstance(cap_key, str) or not isinstance(raw_status, str):
+                    degraded = True
+                    break
+                status = raw_status.strip().lower()
+                if status == "missing" and is_selected_optional(cap_key, selected_optional):
+                    continue
+                if status in non_success:
+                    degraded = True
+                    break
+        print("%s=%s" % (name, "DEGRADED" if degraded else "READY"))
+PYEOF
+        )"
+        while IFS= read -r entry; do
+            [[ "$entry" == *=* ]] || continue
+            key="${entry%%=*}"
+            has_key=false
+            while IFS= read -r existing; do
+                [[ -n "$existing" ]] || continue
+                if [[ "${existing%%=*}" == "$key" ]]; then
+                    has_key=true
+                    break
+                fi
+            done <<< "$combined"
+            if [[ "$has_key" == false ]]; then
+                combined="${combined:+${combined}$'\n'}${entry}"
+            fi
+        done <<< "$parsed"
+    fi
+    while IFS= read -r entry; do
+        [[ "$entry" == *=* ]] || continue
+        case "${entry#*=}" in
+            BLOCKED | DEGRADED | DRIFTED) printf '%s\n' "$entry" ;;
+        esac
+    done <<< "$combined"
+}
+
+# _set_codex_bootstrap_state records the outcome of the codex bootstrap-sync under
+# its own key. The later plain `manifest install` rewrites `codex` from an install
+# report that never runs the bootstrap probes, so a failed bootstrap must survive
+# under this key until a later successful bootstrap-sync clears it.
+_set_codex_bootstrap_state() {
+    local state="$1"
+    _clear_manifest_harness_state "codex_bootstrap"
+    [[ "$state" == READY ]] && return 0
+    case "$state" in
+        BLOCKED | DEGRADED | DRIFTED) ;;
+        *) state="BLOCKED" ;;
+    esac
+    _set_manifest_harness_state "codex_bootstrap" "$state"
+}
+
+_advance_manifest_receipt() {
+    local uv_bin="$1" receipt_path journal_path update_key update_output="" update_rc=0
+    receipt_path="$(manifest_installation_receipt)"
+    [[ -f "$receipt_path" ]] || return 0
+    # A pending bootstrap journal means bootstrap-sync must recover first; it
+    # runs next and advances the receipt itself once recovery completes.
+    journal_path="$(dirname "$receipt_path")/.$(basename "$receipt_path").bootstrap-sync.json"
+    if [[ -f "$journal_path" ]]; then
+        print_warning "Pending bootstrap-sync journal ($journal_path): bootstrap-sync must recover first; skipping receipt update"
+        return 0
+    fi
+    update_key="${SCRIPT_DIR}:${receipt_path}"
+    [[ "${MANIFEST_RECEIPT_UPDATED_FOR:-}" == "$update_key" ]] && return 0
+    MANIFEST_RECEIPT_UPDATED_FOR="$update_key"
+    update_output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest update \
+        --source "$SCRIPT_DIR" --non-interactive --json)" || update_rc=$?
+    _record_manifest_report_states "native_harnesses" "$update_rc" "$update_output"
+    if [[ $update_rc -ne 0 ]]; then
+        print_warning "Manifest receipt update before native sync exited $update_rc (continuing)"
+    fi
+}
+
 sync_native_plugins() {
     [[ "${ENABLE_CODEX:-true}" == true ]] || return 0
     command_exists codex || {
@@ -762,20 +995,29 @@ sync_native_plugins() {
     }
     local uv_bin=""
     uv_bin="$(manifest_uv_bin)" || {
+        _set_manifest_harness_state "codex" "BLOCKED"
+        _set_codex_bootstrap_state "BLOCKED"
         print_error "uv is required for Codex plugin reconciliation"
         return 1
     }
-    local output state
+    _advance_manifest_receipt "$uv_bin"
+    local output="" sync_rc=0 state=""
     output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest bootstrap-sync \
-        --source "$SCRIPT_DIR" --harness codex --non-interactive --json)" || {
+        --source "$SCRIPT_DIR" --harness codex --non-interactive --json)" || sync_rc=$?
+    _record_manifest_report_states "codex" "$sync_rc" "$output"
+    if [[ $sync_rc -ne 0 ]]; then
+        _set_codex_bootstrap_state "BLOCKED"
         print_error "Codex native plugin reconciliation failed"
         [[ -n "$output" ]] && print_error "$output"
         return 1
-    }
-    state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<< "$output")" || {
+    fi
+    state="$(python3 -c 'import json,sys; d=json.load(sys.stdin); h=d.get("harnesses",{}).get("codex",{}); print("READY" if d.get("state")=="DEGRADED" and isinstance(h,dict) and h.get("converged") is True else d["state"])' <<< "$output" 2> /dev/null)" || {
+        _set_manifest_harness_state "codex" "BLOCKED"
+        _set_codex_bootstrap_state "BLOCKED"
         print_error "Codex reconciliation returned invalid JSON"
         return 1
     }
+    _set_codex_bootstrap_state "$state"
     if [[ "$state" != READY ]]; then
         print_error "Codex plugin reconciliation returned $state"
         return 1
@@ -811,17 +1053,21 @@ sync_all_native_harnesses() {
         print_warning "uv not available — skipping native plugin install"
         return 0
     }
+    _advance_manifest_receipt "$uv_bin"
 
     print_step "Installing Manifest bundles into every detected harness..."
-    local output state
-    if ! output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest install \
-        --source "$SCRIPT_DIR" --non-interactive --json 2>&1)"; then
+    local output="" install_rc=0 state=""
+    output="$("$uv_bin" run --project "$SCRIPT_DIR" manifest install \
+        --source "$SCRIPT_DIR" --non-interactive --json)" || install_rc=$?
+    _record_manifest_report_states "native_harnesses" "$install_rc" "$output"
+    if [[ $install_rc -ne 0 ]]; then
         print_warning "Native plugin install failed (continuing)"
         [[ -n "$output" ]] && print_warning "$output"
         return 0
     fi
 
     state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<< "$output" 2> /dev/null)" || {
+        _set_manifest_harness_state "native_harnesses" "DEGRADED"
         print_warning "Native plugin install returned unreadable JSON (continuing)"
         return 0
     }
@@ -1138,16 +1384,47 @@ install_claude_mcp_servers() {
     fi
 }
 
+# Resolve a Python >=3.11 interpreter so helpers using 3.11+ stdlib APIs (such
+# as datetime.UTC in merge_runtime_settings.py) never run on macOS Python 3.9.
+_resolve_python311() {
+    if command_exists python3 &&
+        python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' < /dev/null > /dev/null 2>&1; then
+        command -v python3
+        return 0
+    fi
+    local uv_bin="" found=""
+    if declare -F manifest_uv_bin > /dev/null 2>&1 && uv_bin="$(manifest_uv_bin)"; then
+        :
+    elif command_exists uv; then
+        uv_bin="$(command -v uv)"
+    fi
+    if [[ -n "$uv_bin" ]]; then
+        found="$("$uv_bin" python find '>=3.11' < /dev/null 2> /dev/null)" || found=""
+        if [[ -n "$found" && -x "$found" ]] &&
+            "$found" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' < /dev/null > /dev/null 2>&1; then
+            printf '%s\n' "$found"
+            return 0
+        fi
+    fi
+    print_error "Python >=3.11 is required for settings merge (python3 is unavailable or <3.11 and uv python find '>=3.11' found none)" >&2
+    return 1
+}
+
 merge_claude_runtime_settings() {
     local src="$1" tgt="$2"
     CLAUDE_RUNTIME_MERGE_STATUS=failed
-    if [[ ! -f "$src" ]] || ! command_exists python3; then
-        print_warning "Runtime settings merge skipped: source or python3 unavailable"
+    if [[ ! -f "$src" ]]; then
+        print_warning "Runtime settings merge skipped: source unavailable"
+        return 0
+    fi
+    local py311=""
+    if ! py311="$(_resolve_python311)"; then
+        print_warning "Runtime settings merge skipped: Python >=3.11 unavailable"
         return 0
     fi
     local merger
     merger="$(dirname "$src")/scripts/merge_runtime_settings.py"
-    if python3 "$merger" "$src" "$tgt"; then
+    if "$py311" "$merger" "$src" "$tgt"; then
         CLAUDE_RUNTIME_MERGE_STATUS=merged
     else
         print_warning "Runtime settings merge incomplete; deploy stamp does not certify runtime policy"
@@ -1242,10 +1519,54 @@ tree_skills=$tree_skills
 head_sha=$head_sha
 dirty=$dirty
 runtime_merge_status=${CLAUDE_RUNTIME_MERGE_STATUS:-unobserved}
+degraded_components=${MANIFEST_DEGRADED_COMPONENTS:-0}
 clone_path=$repo_root
 deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
     print_success "Wrote deploy stamp"
+}
+
+_record_deploy_stamp_verification() {
+    local tgt_dir="$1" merge_status="$2" degraded_count="$3"
+    local stamp="$tgt_dir/config/deploy_stamp"
+    MANIFEST_DEGRADED_COMPONENTS="$degraded_count"
+    if [[ -f "$stamp" ]]; then
+        local tmp_stamp line wrote_merge=false wrote_degraded=false
+        tmp_stamp="$(mktemp "${stamp}.tmp.XXXXXX")" || return 0
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            case "$line" in
+                runtime_merge_status=*)
+                    printf 'runtime_merge_status=%s\n' "$merge_status" >> "$tmp_stamp"
+                    wrote_merge=true
+                    ;;
+                degraded_components=*)
+                    printf 'degraded_components=%s\n' "$degraded_count" >> "$tmp_stamp"
+                    wrote_degraded=true
+                    ;;
+                *)
+                    printf '%s\n' "$line" >> "$tmp_stamp"
+                    ;;
+            esac
+        done < "$stamp"
+        [[ "$wrote_merge" == true ]] || printf 'runtime_merge_status=%s\n' "$merge_status" >> "$tmp_stamp"
+        [[ "$wrote_degraded" == true ]] || printf 'degraded_components=%s\n' "$degraded_count" >> "$tmp_stamp"
+        mv -f "$tmp_stamp" "$stamp"
+        return 0
+    fi
+    if [[ "$degraded_count" -gt 0 ]]; then
+        if [[ -n "${SCRIPT_DIR:-}" ]]; then
+            local stamp_repo="$SCRIPT_DIR"
+            write_deploy_stamp "$stamp_repo" "$tgt_dir" > /dev/null 2>&1 || true
+        fi
+        if [[ ! -f "$stamp" ]]; then
+            mkdir -p "$tgt_dir/config"
+            cat > "$stamp" << EOF
+runtime_merge_status=$merge_status
+degraded_components=$degraded_count
+deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+        fi
+    fi
 }
 
 # Preserve user-added MCP servers across a settings.local.json redeploy.
@@ -1878,7 +2199,7 @@ verify_manifest_bundles() {
         else
             print_error "Bundle NOT installed: $bundle — run: claude plugin install $bundle@manifest"
         fi
-    done < <(sed -n 's/^  \([a-z][a-z0-9-]*\):.*$/\1/p' "$registry")
+    done < <(sed -n '/^bundles:/,/^[a-zA-Z0-9_-][a-zA-Z0-9_-]*:/{ s/[[:space:]]*#.*$//; s/^  \([a-z][a-z0-9-]*\):[[:space:]]*$/\1/p; }' "$registry")
 
     return "$missing"
 }
@@ -1887,6 +2208,7 @@ verify_installation() {
     print_header "Verifying Installation"
 
     local errors=0
+    local degraded_components=0
 
     # Check deployed files
     print_step "Checking deployed files..."
@@ -2138,10 +2460,32 @@ verify_installation() {
     # plan flags in T1.11; a gate that is always red is a gate nobody reads.
     verify_manifest_bundles || errors=$((errors + $?))
 
+    local effective_merge_status="${CLAUDE_RUNTIME_MERGE_STATUS:-}"
+    if [[ -z "$effective_merge_status" && -f "$TARGET_DIR/config/deploy_stamp" ]]; then
+        effective_merge_status="$(sed -n 's/^runtime_merge_status=//p' "$TARGET_DIR/config/deploy_stamp" | tail -n 1)"
+    fi
+    if [[ "$effective_merge_status" == "failed" ]]; then
+        print_error "Runtime settings merge failed (settings.json policy unverified)"
+        degraded_components=$((degraded_components + 1))
+    fi
+
+    local degraded_entry
+    while IFS= read -r degraded_entry; do
+        [[ -n "$degraded_entry" ]] || continue
+        print_error "Harness ${degraded_entry%%=*} state is ${degraded_entry#*=}"
+        degraded_components=$((degraded_components + 1))
+    done < <(_collect_degraded_harness_states)
+
+    _record_deploy_stamp_verification "$TARGET_DIR" "${effective_merge_status:-unobserved}" "$degraded_components"
+
     # Summary
     echo ""
-    if [[ $errors -eq 0 ]]; then
+    if [[ $errors -eq 0 && $degraded_components -eq 0 ]]; then
         print_success "Installation verified successfully"
+    elif [[ $errors -eq 0 ]]; then
+        print_error "Installation verification failed: $degraded_components degraded component(s)"
+    elif [[ $degraded_components -gt 0 ]]; then
+        print_error "Installation has $errors error(s) and $degraded_components degraded component(s)"
     else
         print_error "Installation has $errors error(s)"
     fi
@@ -2152,7 +2496,11 @@ verify_installation() {
         print_warning "Only $available_tools/$enabled_count enabled tools are installed - parallel features may be limited"
     fi
 
-    return $errors
+    local total_failures=$((errors + degraded_components))
+    if [[ $total_failures -gt 255 ]]; then
+        total_failures=255
+    fi
+    return "$total_failures"
 }
 
 # Warn when a disabled service still has a previously deployed managed config
