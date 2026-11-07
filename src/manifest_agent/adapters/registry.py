@@ -14,6 +14,7 @@ _ADAPTER_TYPES = {
     "cursor": ("manifest_agent.adapters.cursor", "CursorAdapter"),
     "antigravity": ("manifest_agent.adapters.antigravity", "AntigravityAdapter"),
     "devin": ("manifest_agent.adapters.devin", "DevinAdapter"),
+    "omp": ("manifest_agent.adapters.omp", "OmpAdapter"),
 }
 
 

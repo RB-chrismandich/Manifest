@@ -54,6 +54,7 @@ from manifest_agent.service_state import (
     diagnostic,
     identity_errors,
     report,
+    with_prior_harness_receipts,
 )
 from manifest_agent.state import (
     read_receipt,
@@ -711,6 +712,8 @@ class BootstrapSyncService:
                     journal_exists=journal.exists(),
                 )
                 previous = read_receipt(self.service.receipt_path)
+                desired = with_prior_harness_receipts(desired, previous)
+                prior_desired = desired
                 prior_digest = (
                     receipt_digest(previous)
                     if previous is not None
@@ -806,6 +809,7 @@ class BootstrapSyncService:
                         raise RuntimeError(
                             "prior release is unavailable for cross-harness compensation"
                         )
+                    prior_desired = with_prior_harness_receipts(prior_desired, previous)
                     if recovered_transaction and saga.harness_mutations:
                         saga, recovery_errors = _compensate_harness_mutations(
                             self.service,
@@ -1127,7 +1131,15 @@ class BootstrapSyncService:
                     synchronized,
                     detections,
                     self.service.adapters,
-                    ("claude", "codex", "gemini", "cursor", "antigravity", "devin"),
+                    (
+                        "claude",
+                        "codex",
+                        "gemini",
+                        "cursor",
+                        "antigravity",
+                        "devin",
+                        "omp",
+                    ),
                     previous=previous,
                 )
                 receipt = receipt_for_persistence(self.service.receipt_path, receipt)

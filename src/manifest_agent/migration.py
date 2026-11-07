@@ -18,13 +18,13 @@ import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from manifest_agent.adapters.base import Detection, HarnessAdapter
+from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
 from manifest_agent.models import (
     DesiredState,
     HarnessReceipt,
@@ -35,12 +35,15 @@ from manifest_agent.models import (
 from manifest_agent.paths import XdgPaths
 from manifest_agent.service_state import (
     ServiceReport,
+    bind_adapter_authorities,
     build_receipt,
     diagnostic,
+    operation_desired_state,
     ordered,
     report,
+    with_prior_harness_receipts,
 )
-from manifest_agent.state import read_receipt, write_receipt_atomic
+from manifest_agent.state import _decode_harness, read_receipt, write_receipt_atomic
 
 _CATEGORIES = frozenset(
     {
@@ -362,6 +365,7 @@ class MigrationService:
         self.home = home or Path(os.environ.get("HOME", str(Path.home())))
         self.event_log = event_log
         self.state_path = paths.state / "migration.json"
+        bind_adapter_authorities(self.adapters, self.receipt_path)
 
     @classmethod
     def from_manifest_service(
@@ -390,6 +394,7 @@ class MigrationService:
             # while legacy output is temporarily quarantined.
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
                 completed = read_receipt(self.receipt_path)
+                desired = with_prior_harness_receipts(desired, completed)
                 selected = self._selected(desired)
                 receipt_errors = _receipt_identity_errors(completed, desired)
                 if receipt_errors:
@@ -539,6 +544,7 @@ class MigrationService:
             "cursor": self.home / ".cursor",
             "antigravity": self.home / ".antigravity",
             "devin": self.home / ".config" / "devin",
+            "omp": self.home / ".omp",
         }
         root = roots[harness]
         for candidate in (root / ".lock", root / "session.lock"):
@@ -630,6 +636,40 @@ class MigrationService:
     ) -> HarnessResult:
         adapter = self.adapters[harness]
         phase = state["harnesses"][harness]["phase"]
+        installed = None
+        pending = next(
+            (
+                item
+                for item in desired.prior_harness_receipts
+                if item.harness == harness
+            ),
+            None,
+        )
+        saved = state["harnesses"][harness].get("native_receipt")
+        if saved is not None:
+            pending = _decode_harness(json.loads(json.dumps(saved)))
+            validator = getattr(adapter, "validate_provisional_receipt", None)
+            if callable(validator):
+                validator(pending)
+            installed = HarnessResult(
+                harness,
+                ResultState.READY if pending.verified else ResultState.BLOCKED,
+                pending.plugin_ids,
+                pending.capabilities,
+                pending.errors,
+                owned_entries=pending.owned_entries,
+            )
+            desired = replace(
+                desired,
+                prior_harness_receipts=(
+                    *tuple(
+                        item
+                        for item in desired.prior_harness_receipts
+                        if item.harness != harness
+                    ),
+                    pending,
+                ),
+            )
         try:
             if phase == "snapshot":
                 shadow = self.paths.state / "migration-shadows" / harness
@@ -660,6 +700,9 @@ class MigrationService:
             if phase == "legacy-disabled":
                 self._event("native-install")
                 installed = adapter.install(desired)
+                provisional = _provisional_receipt(adapter, installed, pending)
+                state["harnesses"][harness]["native_receipt"] = asdict(provisional)
+                self._write_state(state)
                 if installed.state is not ResultState.READY:
                     rollback_error = self._rollback_harness(
                         harness, state, adapter, installed
@@ -670,7 +713,11 @@ class MigrationService:
                 phase = "native-installed"
             if phase == "native-installed":
                 self._event("native-verify")
-                verified = adapter.inspect(desired)
+                verified = adapter.inspect(
+                    operation_desired_state(desired, adapter, installed)
+                )
+                if installed is not None:
+                    verified = combine_results(installed, verified)
                 if verified.state is not ResultState.READY:
                     rollback_error = self._rollback_harness(
                         harness, state, adapter, verified
@@ -681,11 +728,18 @@ class MigrationService:
                 self._write_state(state)
                 return verified
             if phase == "native-verified":
-                return adapter.inspect(desired)
+                inspected = adapter.inspect(
+                    operation_desired_state(desired, adapter, installed)
+                )
+                return (
+                    combine_results(installed, inspected)
+                    if installed is not None
+                    else inspected
+                )
             raise ValueError(f"unknown migration phase for {harness}: {phase}")
         except Exception as exception:
             if phase in {"legacy-disabled", "native-installed"}:
-                self._rollback_harness(harness, state, adapter, None)
+                self._rollback_harness(harness, state, adapter, installed)
             return HarnessResult(
                 harness, ResultState.BLOCKED, (), {}, errors=(diagnostic(exception),)
             )
@@ -718,6 +772,10 @@ class MigrationService:
                 errors=("adapter cannot create an isolated migration home",),
             )
         shadow._env = environment
+        bind_adapter_authorities(
+            {adapter.name: shadow}, home / ".local/state/manifest/installation.json"
+        )
+        desired = replace(desired, prior_harness_receipts=())
         return getattr(shadow, operation)(desired)
 
     def _disable_legacy(self, harness: str, state: dict[str, Any]) -> None:
@@ -762,33 +820,56 @@ class MigrationService:
         adapter: HarnessAdapter,
         result: HarnessResult | None,
     ) -> str | None:
-        uninstall_error = None
+        cleanup_error = self._cleanup_failed_native(harness, state, adapter, result)
+        if cleanup_error is not None:
+            return cleanup_error
+        self._restore_legacy_harness(harness, state)
+        return None
+
+    def _cleanup_failed_native(
+        self,
+        harness: str,
+        state: dict[str, Any],
+        adapter: HarnessAdapter,
+        result: HarnessResult | None,
+    ) -> str | None:
         cleanup = result or HarnessResult(
             harness, ResultState.BLOCKED, (), {}, errors=("native install interrupted",)
         )
-        if cleanup is not None:
-            provisional = HarnessReceipt(
-                harness,
-                getattr(adapter, "adapter_version", "unknown"),
-                "unknown",
-                cleanup.installed_plugin_ids,
-                cleanup.owned_entries,
-                cleanup.capabilities,
-                False,
-                cleanup.errors or ("native migration verification failed",),
+        saved = state["harnesses"][harness].get("native_receipt")
+        # In-memory asdict() receipts retain tuples until a JSON round trip.
+        pending = (
+            _decode_harness(json.loads(json.dumps(saved)))
+            if saved is not None
+            else None
+        )
+        recovery = _provisional_receipt(adapter, cleanup, pending)
+        provisional = recovery
+        filter_cleanup = getattr(adapter, "migration_cleanup_receipt", None)
+        if callable(filter_cleanup):
+            previous = read_receipt(self.receipt_path)
+            prior = previous.harnesses.get(harness) if previous else None
+            provisional = filter_cleanup(provisional, prior)
+        requires_resume = getattr(adapter, "migration_cleanup_requires_resume", None)
+        if callable(requires_resume) and requires_resume(provisional):
+            # Unregistering a preserved cache can make a native retry
+            # impossible without overwriting it. Keep the one-writer
+            # quarantine and its authenticated install authority instead.
+            state["harnesses"][harness]["phase"] = "legacy-disabled"
+            state["harnesses"][harness]["native_receipt"] = asdict(recovery)
+            self._write_state(state)
+            return (
+                "cleanup deferred to preserve native caches; retry migration to resume"
             )
-            try:
-                removed = adapter.uninstall(provisional)
-                if removed.state is not ResultState.READY:
-                    uninstall_error = (
-                        "; ".join(removed.errors) or "native cleanup was not ready"
-                    )
-            except Exception as exception:
-                uninstall_error = diagnostic(exception)
-        if uninstall_error is not None:
-            # Restoring legacy output while an unverified native copy remains
-            # would create two writers. Leave the durable quarantine in place.
-            return uninstall_error
+        try:
+            removed = adapter.uninstall(provisional)
+            if removed.state is not ResultState.READY:
+                return "; ".join(removed.errors) or "native cleanup was not ready"
+        except Exception as exception:
+            return diagnostic(exception)
+        return None
+
+    def _restore_legacy_harness(self, harness: str, state: dict[str, Any]) -> None:
         backup = Path(state["backup"])
         for record in state["harnesses"][harness]["entries"]:
             source = _expand_home(record["path"], self.home)
@@ -805,8 +886,8 @@ class MigrationService:
             if not (source.exists() or source.is_symlink()):
                 _copy_path(backup / record["artifact"], source)
         state["harnesses"][harness]["phase"] = "snapshot"
+        state["harnesses"][harness].pop("native_receipt", None)
         self._write_state(state)
-        return uninstall_error
 
     def _read_state(self) -> dict[str, Any] | None:
         if not self.state_path.exists():
@@ -1066,3 +1147,28 @@ __all__ = [
     "load_legacy_inventory",
     "scan_legacy_state",
 ]
+
+
+def _provisional_receipt(adapter, result, previous=None):
+    plugin_ids = getattr(adapter, "receipt_plugin_ids", None)
+    merge_entries = getattr(adapter, "merge_owned_entries", None)
+    receipt = HarnessReceipt(
+        result.harness,
+        getattr(adapter, "adapter_version", "unknown"),
+        result.native_version or "unknown",
+        (
+            tuple(plugin_ids(result, previous))
+            if callable(plugin_ids)
+            else result.installed_plugin_ids
+        ),
+        (
+            merge_entries(previous, result)
+            if callable(merge_entries)
+            else result.owned_entries
+        ),
+        result.capabilities,
+        result.state is ResultState.READY,
+        result.errors if result.state is not ResultState.READY else (),
+    )
+    signer = getattr(adapter, "authenticate_provisional_receipt", None)
+    return signer(receipt) if callable(signer) else receipt

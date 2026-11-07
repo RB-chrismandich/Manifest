@@ -1,5 +1,7 @@
 """Immutable public contracts shared by coordinator layers."""
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from enum import StrEnum
@@ -106,6 +108,9 @@ class DesiredState:
     requested_harnesses: tuple[str, ...]
     catalog_plugins: tuple[CatalogPlugin, ...] = ()
     addon_contracts: tuple[BundleContract, ...] = ()
+    prior_harness_receipts: tuple[HarnessReceipt, ...] = ()
+    source_bundle_checksums: tuple[tuple[str, str], ...] = ()
+    source_catalog_sha256: str | None = None
 
     def bundle_path(self, name: str) -> Path:
         """Return a bundle path inside the resolved immutable release."""
@@ -143,6 +148,47 @@ class HarnessReceipt:
 
 
 @dataclass(frozen=True)
+class NativeComponentInspection:
+    """Component discovery observed through a harness-native interface."""
+
+    kind: str
+    identifier: str
+    status: str
+    provenance: str
+    resolved_path: str | None = None
+
+
+@dataclass(frozen=True)
+class NativePluginInspection:
+    """One package identity observed in a native plugin manager."""
+
+    package_id: str
+    package_name: str
+    marketplace: str | None
+    source_uri: str | None
+    source_provenance: str | None
+    version: str | None
+    scope: str | None
+    enabled: bool | None
+    native_root: str | None
+    install_path: str | None
+    status: str
+
+
+@dataclass(frozen=True)
+class NativeInspection:
+    """Typed, secret-free native inventory for downstream coordinator consumers."""
+
+    harness: str
+    profile: str | None
+    native_root: str | None
+    packages: tuple[NativePluginInspection, ...] = ()
+    components: tuple[NativeComponentInspection, ...] = ()
+    activation: str = "not-observed"
+    inventory_errors: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class HarnessResult:
     """An adapter operation result with errors preserved for aggregation."""
 
@@ -155,6 +201,7 @@ class HarnessResult:
     owned_entries: tuple[OwnedEntry, ...] = ()
     declared_degradations: tuple[str, ...] = ()
     native_version: str | None = None
+    native_inspection: NativeInspection | None = None
 
 
 @dataclass(frozen=True)

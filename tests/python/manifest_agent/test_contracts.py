@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
@@ -25,6 +26,90 @@ def test_loads_minimal_contract(fixtures_dir: Path) -> None:
         "git",
         "python3",
     )
+
+
+@pytest.mark.parametrize("scope", ["bundle", "component"])
+@pytest.mark.parametrize(
+    ("mode", "reason", "valid"),
+    [
+        ("native", None, True),
+        ("generated", None, True),
+        ("imported", None, True),
+        ("degraded", "Native extension not qualified", True),
+        ("unsupported", "No native integration", True),
+        ("not_applicable", "Not used by this component", True),
+        ("unknown", None, False),
+        ("degraded", None, False),
+        ("unsupported", None, False),
+        ("not_applicable", None, False),
+        ("native", "Unexpected reason", False),
+        ("generated", "Unexpected reason", False),
+        ("imported", "Unexpected reason", False),
+        ("degraded", "", False),
+    ],
+)
+def test_omp_compatibility_uses_shared_status_validation(
+    fixtures_dir: Path,
+    tmp_path: Path,
+    scope: str,
+    mode: str,
+    reason: str | None,
+    valid: bool,
+) -> None:
+    document = yaml.safe_load(
+        (fixtures_dir / "minimal-valid.yml").read_text(encoding="utf-8")
+    )
+    compatibility = dict(document["compatibility"])
+    status = {"mode": mode}
+    if reason is not None:
+        status["reason"] = reason
+    compatibility["omp"] = status
+    if scope == "bundle":
+        document["compatibility"] = compatibility
+    else:
+        document["components"]["agents"] = [
+            {
+                "id": "example",
+                "path": "agents/example.py",
+                "compatibility": compatibility,
+            }
+        ]
+    contract_path = tmp_path / "omp-contract.yml"
+    contract_path.write_text(yaml.safe_dump(document), encoding="utf-8")
+
+    if not valid:
+        with pytest.raises(ContractError):
+            load_contract(contract_path)
+        return
+
+    contract = load_contract(contract_path)
+    observed = (
+        contract.compatibility
+        if scope == "bundle"
+        else contract.components.agents[0].compatibility
+    )
+    assert observed is not None
+    assert observed["omp"].mode == mode
+    assert observed["omp"].reason == reason
+
+
+@pytest.mark.parametrize("harness", ["claude", "unknown-harness"])
+def test_optional_omp_keeps_other_harness_constraints(
+    fixtures_dir: Path, tmp_path: Path, harness: str
+) -> None:
+    document = yaml.safe_load(
+        (fixtures_dir / "minimal-valid.yml").read_text(encoding="utf-8")
+    )
+    document["compatibility"]["omp"] = {"mode": "native"}
+    if harness == "claude":
+        del document["compatibility"][harness]
+    else:
+        document["compatibility"][harness] = {"mode": "native"}
+    contract_path = tmp_path / "invalid-harness.yml"
+    contract_path.write_text(yaml.safe_dump(document), encoding="utf-8")
+
+    with pytest.raises(ContractError):
+        load_contract(contract_path)
 
 
 def test_unknown_capability_tier_fails_closed(fixtures_dir: Path) -> None:

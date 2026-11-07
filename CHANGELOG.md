@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Add the seventh coordinator adapter, OMP (`manifest install --harness omp`),
+  with typed native package/source/version inspection separate from unobserved
+  activation qualification. Bind default-user native identities to full signed
+  receipts, preserve actual creation authority through partial install/update
+  and migration cleanup, and refuse unowned adoption or ambiguous layouts.
+  Native uninstall/upgrade use descriptor-held exchange/CAS quarantine and
+  restore exact caches on success and failure; failed restoration retains its
+  recovery tree. Owned source replacement supports native prior-source recovery,
+  while unsafe durable cross-harness rollback is rejected before mutation.
+  Coordinator/release metadata includes seven adapters; live credential and
+  capability qualification remains six-harness, with OMP optional/UNVERIFIED.
+- Preserve OMP prior-source recovery when the runner raises after marketplace
+  removal; register Stitch test fixtures for independent module runs.
 - Close the delegate cancel-vs-spawn race: a background worker now takes a
   `dispatch.backend_launched` authorization under the job lock immediately
   before `Popen`, so a cancel that landed first denies the fork outright, and a
@@ -30,6 +43,14 @@
   verification requires current candidate-bound build checks and capture evidence
   from their authorized routes;
   it does not claim deployment, publication, or live Stitch access.
+
+- Declare source-evidenced OMP compatibility for all eight domain bundles and the
+  ADHD addon while keeping OMP qualification explicitly UNVERIFIED. Generic views
+  preserve component overrides and honest absence; the matrix gate remains scoped
+  to six native harnesses. Document the config-owned workspace health extension
+  and the marketplace-only Delegate boundary tracked by #819.
+  Bump all eight domain bundles to 0.7.1 and the independent ADHD addon to 0.2.7
+  above main's newer releases; keep Delegate's independent 0.3.0 metadata.
 
 > Version history for the Manifest parallel agent orchestration framework
 

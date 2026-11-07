@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-security
-  version: 0.7.0
+  version: 0.7.1
   description: Security review, threat analysis, hardening, and finding-triage workflows.
   category: security
 components:
@@ -30,6 +30,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

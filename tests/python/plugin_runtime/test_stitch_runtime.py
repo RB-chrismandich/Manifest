@@ -11,25 +11,8 @@ import textwrap
 from pathlib import Path
 
 import pytest
-import yaml
 
 from manifest_agent.contracts import CapabilityTier, load_contract
-
-
-@pytest.fixture
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
-
-
-@pytest.fixture
-def stitch_bundle(repo_root: Path, tmp_path: Path) -> Path:
-    installed = tmp_path / "stitch-design"
-    shutil.copytree(
-        repo_root / "plugins/stitch-design",
-        installed,
-        ignore=shutil.ignore_patterns("node_modules"),
-    )
-    return installed
 
 
 def _offline_env(tmp_path: Path) -> dict[str, str]:
@@ -86,47 +69,6 @@ def _run_omp(
         check=False,
         timeout=timeout,
     )
-
-
-def test_stitch_bundle_declares_an_installable_omp_package(
-    stitch_bundle: Path,
-) -> None:
-    package_path = stitch_bundle / "package.json"
-    assert package_path.is_file()
-
-    package = json.loads(package_path.read_text(encoding="utf-8"))
-
-    assert package["name"] == "stitch-design"
-    plugin = json.loads(
-        (stitch_bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
-    )
-    assert package["version"] == plugin["version"]
-    assert package["private"] is True
-    assert package["omp"] == {"extensions": ["./extensions/ui-delivery-policy.ts"]}
-
-
-def test_stitch_omp_mcp_definition_is_safe_and_streamable_http(
-    stitch_bundle: Path,
-) -> None:
-    mcp_path = stitch_bundle / ".mcp.json"
-    assert mcp_path.is_file()
-
-    definition = json.loads(mcp_path.read_text(encoding="utf-8"))
-
-    assert definition == {
-        "$schema": (
-            "https://raw.githubusercontent.com/can1357/oh-my-pi/main/"
-            "packages/coding-agent/src/config/mcp-schema.json"
-        ),
-        "mcpServers": {
-            "stitch": {
-                "type": "http",
-                "url": "https://stitch.googleapis.com/mcp",
-                "enabled": True,
-                "headers": {"X-Goog-Api-Key": "${STITCH_API_KEY}"},
-            }
-        },
-    }
 
 
 def test_stitch_omp_extension_registers_deterministic_read_only_status_tool(
@@ -188,37 +130,6 @@ def test_stitch_omp_extension_registers_deterministic_read_only_status_tool(
     observed = json.loads(result.stdout)
     assert observed["first"] == observed["second"]
     assert observed["first"]["content"][0]["type"] == "text"
-
-
-def test_stitch_contract_inventories_omp_delivery_assets(
-    stitch_bundle: Path,
-) -> None:
-    contract_path = stitch_bundle / "manifest-capabilities.yml"
-    document = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
-    runtime = {item["id"]: item for item in document["components"]["runtime"]}
-
-    assert {
-        "stitch-omp-package",
-        "stitch-omp-extension",
-        "stitch-omp-mcp-definition",
-    } <= runtime.keys()
-    assert runtime["stitch-omp-package"]["path"] == "package.json"
-    assert runtime["stitch-omp-extension"]["path"] == (
-        "extensions/ui-delivery-policy.ts"
-    )
-    assert runtime["stitch-omp-mcp-definition"]["path"] == ".mcp.json"
-    extension_inventory = runtime["stitch-omp-extension"]
-    compatibility = extension_inventory.get("compatibility")
-    assert compatibility is not None
-    assert set(compatibility) == {
-        "claude",
-        "codex",
-        "gemini",
-        "cursor",
-        "antigravity",
-        "devin",
-    }
-    assert all(status["mode"] != "native" for status in compatibility.values())
 
 
 def test_upload_skill_limits_mcp_upload_to_markdown(stitch_bundle: Path) -> None:

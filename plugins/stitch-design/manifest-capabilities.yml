@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: stitch-design
-  version: 0.7.0
+  version: 0.7.1
   description: Design generation, review, extraction, and implementation workflows.
   category: design
 components:
@@ -20,6 +20,7 @@ components:
         cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        omp: {mode: native}
     - id: ui-reviewer
       path: agents/ui-reviewer.md
       compatibility:
@@ -29,6 +30,7 @@ components:
         cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
+        omp: {mode: native}
   hooks: []
   runtime:
     - {id: stitch-dist, path: runtime/dist}
@@ -48,6 +50,7 @@ components:
         cursor: {mode: not_applicable, reason: This package manifest is OMP-only.}
         antigravity: {mode: not_applicable, reason: This package manifest is OMP-only.}
         devin: {mode: not_applicable, reason: This package manifest is OMP-only.}
+        omp: {mode: native}
     - id: stitch-omp-mcp-definition
       path: .mcp.json
       compatibility:
@@ -57,6 +60,7 @@ components:
         cursor: {mode: not_applicable, reason: This MCP definition is OMP-only.}
         antigravity: {mode: not_applicable, reason: This MCP definition is OMP-only.}
         devin: {mode: not_applicable, reason: This MCP definition is OMP-only.}
+        omp: {mode: native}
     - id: stitch-omp-extension
       path: extensions/ui-delivery-policy.ts
       compatibility:
@@ -66,6 +70,7 @@ components:
         cursor: {mode: not_applicable, reason: This extension is OMP-only.}
         antigravity: {mode: not_applicable, reason: This extension is OMP-only.}
         devin: {mode: not_applicable, reason: This extension is OMP-only.}
+        omp: {mode: native}
   guidance: []
 capabilities:
   mcp:
@@ -83,6 +88,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

@@ -80,7 +80,8 @@
                 "gemini": {"$ref": "#/$defs/compatibility-status"},
                 "cursor": {"$ref": "#/$defs/compatibility-status"},
                 "antigravity": {"$ref": "#/$defs/compatibility-status"},
-                "devin": {"$ref": "#/$defs/compatibility-status"}
+                "devin": {"$ref": "#/$defs/compatibility-status"},
+                "omp": {"$ref": "#/$defs/compatibility-status"}
             }
         },
         "component": {

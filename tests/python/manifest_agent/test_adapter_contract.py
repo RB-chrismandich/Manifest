@@ -210,6 +210,7 @@ def test_registry_has_exact_supported_harnesses() -> None:
         "cursor",
         "antigravity",
         "devin",
+        "omp",
     )
 
 

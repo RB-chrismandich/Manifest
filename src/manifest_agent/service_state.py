@@ -22,7 +22,8 @@ from manifest_agent.ownership import (
     advance_owned_file_entry,
     ownership_key_path,
 )
-from manifest_agent.process import names_credential_field, redact_text
+from manifest_agent.process import redact_text
+from manifest_agent.service_redaction import _safe_result
 from manifest_agent.state import write_receipt_atomic
 
 STATE_PRIORITY = {
@@ -42,6 +43,14 @@ NON_SUCCESS = {
     "unavailable",
     "unsupported",
 }
+
+
+def bind_adapter_authorities(adapters, receipt_path: Path) -> None:
+    """Bind optional native authority hooks to the trusted service receipt parent."""
+    for adapter in adapters.values():
+        bind = getattr(adapter, "bind_ownership_authority", None)
+        if callable(bind):
+            bind(receipt_path.parent / "ownership.key")
 
 
 @dataclass(frozen=True)
@@ -67,7 +76,7 @@ class ServiceReport:
         """Return a deterministic JSON-compatible report."""
         harnesses = {}
         for name, result in self.harnesses.items():
-            harnesses[name] = {
+            item = {
                 "state": result.state.value,
                 "installed_plugin_ids": list(result.installed_plugin_ids),
                 "capabilities": dict(sorted(result.capabilities.items())),
@@ -77,6 +86,42 @@ class ServiceReport:
                 "errors": list(result.errors),
                 "warnings": list(result.warnings),
             }
+            if result.native_inspection is not None:
+                native = result.native_inspection
+                item["native_inspection"] = {
+                    "harness": native.harness,
+                    "profile": native.profile,
+                    "native_root": native.native_root,
+                    "activation": native.activation,
+                    "inventory_errors": list(native.inventory_errors),
+                    "packages": [
+                        {
+                            "package_id": package.package_id,
+                            "package_name": package.package_name,
+                            "marketplace": package.marketplace,
+                            "source_uri": package.source_uri,
+                            "source_provenance": package.source_provenance,
+                            "version": package.version,
+                            "scope": package.scope,
+                            "enabled": package.enabled,
+                            "native_root": package.native_root,
+                            "install_path": package.install_path,
+                            "status": package.status,
+                        }
+                        for package in native.packages
+                    ],
+                    "components": [
+                        {
+                            "kind": component.kind,
+                            "identifier": component.identifier,
+                            "status": component.status,
+                            "provenance": component.provenance,
+                            "resolved_path": component.resolved_path,
+                        }
+                        for component in native.components
+                    ],
+                }
+            harnesses[name] = item
         return {
             "operation": self.operation,
             "state": self.state.value,
@@ -138,19 +183,22 @@ def diagnostic(exception: Exception) -> str:
     return redact_text(f"{type(exception).__name__}: {exception}")
 
 
-def _safe_result(result: HarnessResult) -> HarnessResult:
-    capabilities = {}
-    for index, (key, value) in enumerate(result.capabilities.items()):
-        safe_key = f"[REDACTED-{index}]" if names_credential_field(key) else key
-        capabilities[redact_text(safe_key)] = redact_text(value)
+def with_prior_harness_receipts(
+    desired: DesiredState, receipt: InstallationReceipt | None
+) -> DesiredState:
+    """Carry exact prior receipt context after a real producer receipt read."""
     return replace(
-        result,
-        installed_plugin_ids=tuple(map(redact_text, result.installed_plugin_ids)),
-        capabilities=capabilities,
-        errors=tuple(map(redact_text, result.errors)),
-        warnings=tuple(map(redact_text, result.warnings)),
-        owned_entries=(),
+        desired,
+        prior_harness_receipts=(
+            tuple(receipt.harnesses.values()) if receipt is not None else ()
+        ),
     )
+
+
+def operation_desired_state(desired, adapter, result):
+    """Bind actual partial creation authority before post-operation inspection."""
+    hook = getattr(adapter, "inspection_desired_state", None)
+    return hook(desired, result) if callable(hook) and result is not None else desired
 
 
 def ordered(values, harness_order):
@@ -187,6 +235,20 @@ def bundle_checksums(desired: DesiredState) -> dict[str, str]:
         contract.name: _tree_checksum(desired.bundle_path(contract.name))
         for contract in desired.all_contracts
     }
+
+
+def with_source_fingerprints(desired: DesiredState) -> DesiredState:
+    """Freeze the source bytes validated by the service, before native mutation."""
+    catalog = desired.release_root / ".claude-plugin/marketplace.json"
+    return replace(
+        desired,
+        source_bundle_checksums=tuple(sorted(bundle_checksums(desired).items())),
+        source_catalog_sha256=(
+            hashlib.sha256(catalog.read_bytes()).hexdigest()
+            if catalog.is_file()
+            else None
+        ),
+    )
 
 
 def _tree_checksum(root: Path) -> str:
@@ -278,23 +340,30 @@ def _harness_receipt(
     plugin_ids = result.installed_plugin_ids or (
         previous.plugin_ids if previous is not None else ()
     )
-    previous_entries = previous.owned_entries if previous is not None else ()
-    replacements = {
-        (entry.kind, entry.identifier): entry for entry in result.owned_entries
-    }
-    owned_entries_list: list[OwnedEntry] = []
-    for entry in previous_entries:
-        replacement = replacements.pop((entry.kind, entry.identifier), None)
-        if replacement is not None and entry.kind == "owned-file":
-            entry = advance_owned_file_entry(
-                entry,
-                replacement,
-                env=getattr(adapter, "_env", None),
-                key_path=ownership_key_path(getattr(adapter, "_env", None)),
-            )
-        owned_entries_list.append(entry)
-    owned_entries_list.extend(replacements.values())
-    owned_entries = tuple(dict.fromkeys(owned_entries_list))
+    receipt_plugin_ids = getattr(adapter, "receipt_plugin_ids", None)
+    if callable(receipt_plugin_ids):
+        plugin_ids = tuple(receipt_plugin_ids(result, previous))
+    merge_entries = getattr(adapter, "merge_owned_entries", None)
+    if callable(merge_entries):
+        owned_entries = tuple(merge_entries(previous, result))
+    else:
+        previous_entries = previous.owned_entries if previous is not None else ()
+        replacements = {
+            (entry.kind, entry.identifier): entry for entry in result.owned_entries
+        }
+        owned_entries_list: list[OwnedEntry] = []
+        for entry in previous_entries:
+            replacement = replacements.pop((entry.kind, entry.identifier), None)
+            if replacement is not None and entry.kind == "owned-file":
+                entry = advance_owned_file_entry(
+                    entry,
+                    replacement,
+                    env=getattr(adapter, "_env", None),
+                    key_path=ownership_key_path(getattr(adapter, "_env", None)),
+                )
+            owned_entries_list.append(entry)
+        owned_entries_list.extend(replacements.values())
+        owned_entries = tuple(dict.fromkeys(owned_entries_list))
     native_version = (
         detection.version if detection is not None and detection.version else "unknown"
     )
