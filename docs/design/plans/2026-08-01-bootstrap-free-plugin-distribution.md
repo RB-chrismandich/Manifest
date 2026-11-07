@@ -103,7 +103,10 @@ class HarnessAdapter(Protocol):
 
 The service layer consumes only this protocol. Adapter modules must not import one another.
 
-Receipt and desired-state fields are also stable:
+Receipt and desired-state fields are stable public contract fields. The current
+`DesiredState` declaration has evolved from this original design sketch: the fields
+below remain in order, and the later fields are appended with defaults so callers
+using the existing positional prefix remain compatible:
 
 ```python
 @dataclass(frozen=True)
@@ -111,6 +114,7 @@ class DesiredState:
     release_version: str
     source_commit: str
     source: str
+    marketplace_source: MarketplaceSource
     release_root: Path
     repository_url: str
     source_dirty: bool
@@ -118,6 +122,11 @@ class DesiredState:
     contracts: tuple[BundleContract, ...]
     selected_optional: frozenset[str]
     requested_harnesses: tuple[str, ...]
+    catalog_plugins: tuple[CatalogPlugin, ...] = ()
+    addon_contracts: tuple[BundleContract, ...] = ()
+    prior_harness_receipts: tuple[HarnessReceipt, ...] = ()
+    source_bundle_checksums: tuple[tuple[str, str], ...] = ()
+    source_catalog_sha256: str | None = None
 
     def bundle_path(self, name: str) -> Path:
         return self.release_root / "plugins" / name

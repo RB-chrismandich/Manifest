@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 from manifest_agent.models import CommandResult
 
@@ -106,6 +107,7 @@ class CommandRunner:
         *,
         env: Mapping[str, str] | None = None,
         timeout: float | None = None,
+        cwd: Path | None = None,
     ) -> CommandResult:
         """Return captured, redacted output for one validated argv.
 
@@ -140,6 +142,7 @@ class CommandRunner:
                 text=True,
                 env=merged_env,
                 timeout=timeout,
+                cwd=cwd,
             )
         except subprocess.TimeoutExpired as error:
             # subprocess.run's own TimeoutExpired carries the partial buffers

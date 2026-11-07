@@ -15,6 +15,7 @@ import pytest
 import tools.build_manifest_release as release_builder
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from tools.build_manifest_release import ReleaseBuildError, build_release
+from tools.generate_plugin_views import render_views
 
 _BASE_URL = "https://downloads.example.invalid/manifest"
 
@@ -104,7 +105,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
     first = build_release(source, tmp_path / "first", _BASE_URL)
     second = build_release(source, tmp_path / "second", _BASE_URL)
 
-    version = _lockstep_version(repo_root)
+    version = _lockstep_version(source)
     assert first.archive.name == f"manifest-plugins-{version}.tar.gz"
     assert first.archive.read_bytes() == second.archive.read_bytes()
     assert first.metadata.read_bytes() == second.metadata.read_bytes()
@@ -145,6 +146,7 @@ def test_builds_exact_deterministic_eight_bundle_release(
         "cursor": "1",
         "devin": "1",
         "gemini": "1",
+        "omp": "1",
     }
     assert tuple(metadata["bundles"]) == DOMAIN_BUNDLES
     assert {name: set(bundle) for name, bundle in metadata["bundles"].items()} == {
@@ -247,6 +249,7 @@ def test_release_reads_immutable_head_blobs_after_inventory(
         check=True,
         capture_output=True,
     ).stdout
+    version = _lockstep_version(source)
     original = release_builder._tracked_bundle_files
 
     def mutate_after_inventory(root: Path, bundle_name: str):
@@ -264,9 +267,7 @@ def test_release_reads_immutable_head_blobs_after_inventory(
     metadata = json.loads(release.metadata.read_text(encoding="utf-8"))
     assert metadata["files"][relative]["sha256"] == hashlib.sha256(expected).hexdigest()
     with tarfile.open(release.archive, mode="r:gz") as bundle:
-        member = bundle.getmember(
-            f"manifest-plugins-{_lockstep_version(repo_root)}/{relative}"
-        )
+        member = bundle.getmember(f"manifest-plugins-{version}/{relative}")
         payload = bundle.extractfile(member)
         assert payload is not None
         assert payload.read() == expected
@@ -291,35 +292,16 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     source = _clean_fixture(repo_root, tmp_path)
     bundle = source / "plugins/manifest-docs"
     contract = bundle / "manifest-capabilities.yml"
+    original_version = _lockstep_version(source)
     contract.write_text(
         contract.read_text(encoding="utf-8").replace(
-            f"version: {_lockstep_version(repo_root)}",
+            f"version: {original_version}",
             f"version: {_MISMATCH_VERSION}",
             1,
         ),
         encoding="utf-8",
     )
-    for relative in (
-        ".claude-plugin/plugin.json",
-        "gemini-extension.json",
-        "antigravity-extension.json",
-        "plugin.json",
-        ".devin-plugin/plugin.json",
-    ):
-        path = bundle / relative
-        document = json.loads(path.read_text(encoding="utf-8"))
-        document["version"] = _MISMATCH_VERSION
-        path.write_text(
-            json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
-    marketplace_path = source / ".claude-plugin/marketplace.json"
-    marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
-    next(entry for entry in marketplace["plugins"] if entry["name"] == "manifest-docs")[
-        "version"
-    ] = _MISMATCH_VERSION
-    marketplace_path.write_text(
-        json.dumps(marketplace, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    render_views(source, check=False)
     _commit(source, "mismatched domain version")
 
     with pytest.raises(ReleaseBuildError, match="versions must match"):

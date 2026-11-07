@@ -41,14 +41,18 @@ from manifest_agent.process import CommandRunner, redact_text
 from manifest_agent.release import ResolvedRelease, resolve_release
 from manifest_agent.service_state import (
     ServiceReport,
+    bind_adapter_authorities,
     build_receipt,
     bundle_checksums,
     diagnostic,
     identity_errors,
+    operation_desired_state,
     ordered,
     persist_remaining,
     report,
     snapshot_declared,
+    with_prior_harness_receipts,
+    with_source_fingerprints,
 )
 from manifest_agent.state import (
     RetiredGraphifyTransaction,
@@ -62,7 +66,7 @@ from manifest_agent.state import (
     write_retired_graphify_transaction_atomic,
 )
 
-HARNESS_ORDER = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
+HARNESS_ORDER = ("claude", "codex", "gemini", "cursor", "antigravity", "devin", "omp")
 _RETIRED_BUNDLE = "manifest-graphify"
 _RETIRED_EXECUTABLE = "graphify"
 _GRAPHIFY_TOOL_HEADER = re.compile(r"^graphifyy\s+v[^\s]+\s+\([^)]+\)$")
@@ -113,6 +117,7 @@ class ManifestService:
             if adapters is not None
             else {name: AdapterRegistry.create(name) for name in HARNESS_ORDER}
         )
+        bind_adapter_authorities(self.adapters, self.receipt_path)
         unsupported = set(self.adapters) - set(HARNESS_ORDER)
         if unsupported:
             raise ValueError(
@@ -166,6 +171,7 @@ class ManifestService:
                             "receipt",
                         ),
                     )
+                desired = with_prior_harness_receipts(desired, previous)
                 failures = snapshot_declared(
                     selected, desired, self.adapters, self.snapshot_root
                 )
@@ -175,7 +181,11 @@ class ManifestService:
                         continue
                     adapter = self.adapters[name]
                     installed = _adapter_call(name, adapter.install, desired)
-                    inspected = _adapter_call(name, adapter.inspect, desired)
+                    inspected = _adapter_call(
+                        name,
+                        adapter.inspect,
+                        operation_desired_state(desired, adapter, installed),
+                    )
                     results[name] = combine_results(installed, inspected)
                 results = ordered(results, HARNESS_ORDER)
                 results = _with_native_version(results, detections)
@@ -438,6 +448,7 @@ class ManifestService:
         if error is not None:
             return report("reconcile", {}, errors=(error,))
         assert desired is not None
+        desired = with_prior_harness_receipts(desired, receipt)
         result = _reconcile_desired(self, receipt, desired, apply=apply)
         return _reconcile_runtime_diagnostics(self, desired, result, apply=apply)
 
@@ -527,20 +538,22 @@ class ManifestService:
                         f"catalog identity for {contract.name} disagrees with its portable contract"
                     )
             return (
-                DesiredState(
-                    resolved.version,
-                    resolved.source_commit,
-                    resolved.source,
-                    resolved.marketplace_source,
-                    resolved.release_root,
-                    resolved.repository_url,
-                    resolved.source_dirty,
-                    resolved.archive_sha256,
-                    tuple(contracts),
-                    frozenset(self.selected_optional),
-                    self.harnesses,
-                    catalog,
-                    tuple(addon_contracts),
+                with_source_fingerprints(
+                    DesiredState(
+                        resolved.version,
+                        resolved.source_commit,
+                        resolved.source,
+                        resolved.marketplace_source,
+                        resolved.release_root,
+                        resolved.repository_url,
+                        resolved.source_dirty,
+                        resolved.archive_sha256,
+                        tuple(contracts),
+                        frozenset(self.selected_optional),
+                        self.harnesses,
+                        catalog,
+                        tuple(addon_contracts),
+                    )
                 ),
                 None,
             )
@@ -824,7 +837,11 @@ def _reconcile_desired(service, receipt, desired, *, apply):
         ):
             installed = _adapter_call(name, adapter.install, desired)
             mutated_owned.add(name)
-            verified = _adapter_call(name, adapter.inspect, desired)
+            verified = _adapter_call(
+                name,
+                adapter.inspect,
+                operation_desired_state(desired, adapter, installed),
+            )
             current = combine_results(installed, verified)
         results[name] = current
     results = ordered(results, HARNESS_ORDER)
@@ -939,6 +956,34 @@ def _persist_reconcile(service, receipt, desired, outcome):
         and results[name].state in {ResultState.READY, ResultState.DEGRADED}
         for name in owned_harnesses
     ):
+        if any(
+            getattr(service.adapters.get(name), "preserves_partial_ownership", False)
+            and results[name].owned_entries
+            for name in mutated_owned
+            if name in results
+        ):
+            partial = build_receipt(
+                desired,
+                {
+                    name: result
+                    for name, result in results.items()
+                    if name in receipt.harnesses
+                },
+                outcome.detections,
+                service.adapters,
+                HARNESS_ORDER,
+                previous=receipt,
+            )
+            partial = replace(
+                partial,
+                release_version=receipt.release_version,
+                source_commit=receipt.source_commit,
+                source_dirty=receipt.source_dirty,
+                archive_sha256=receipt.archive_sha256,
+                bundle_checksums=receipt.bundle_checksums,
+                selected_optional=receipt.selected_optional,
+            )
+            write_receipt_atomic(service.receipt_path, partial)
         return "release identity remains unchanged until every owned harness converges"
     owned_results = {
         name: result for name, result in results.items() if name in receipt.harnesses

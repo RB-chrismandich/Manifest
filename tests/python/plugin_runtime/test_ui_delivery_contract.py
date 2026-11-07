@@ -133,8 +133,13 @@ def test_omp_only_agents_have_explicit_non_native_harness_compatibility(
 
     for agent_id in ("ui-builder", "ui-reviewer"):
         compatibility = agents[agent_id]["compatibility"]
-        assert set(compatibility) == set(HARNESS_NAMES)
-        for harness, status in compatibility.items():
+        assert set(compatibility) == {*HARNESS_NAMES, "omp"}
+        assert compatibility["omp"]["mode"] == "native", agent_id
+        assert (
+            repo_root / "plugins/stitch-design" / agents[agent_id]["path"]
+        ).is_file()
+        for harness in HARNESS_NAMES:
+            status = compatibility[harness]
             assert status["mode"] == "not_applicable", (agent_id, harness)
             assert status["reason"].strip(), (agent_id, harness)
 

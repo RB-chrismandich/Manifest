@@ -89,6 +89,64 @@ pre-commit run `python3 tools/sync_i_have_adhd.py --check` to reject drift.
 The skill was adapted from `ayghri/i-have-adhd` at `2d19ad20`; its MIT license
 remains in `plugins/manifest-i-have-adhd/LICENSE.upstream`.
 
+## OMP compatibility declarations
+
+The optional `omp` contract field records source compatibility, not installation,
+activation, or qualification. Generated generic views mark OMP `qualified: false`;
+the capability matrix keeps every OMP cell `UNVERIFIED` and gates release readiness
+only on its six native harness cells. Preserve that boundary when regenerating
+views or reviewing OMP metadata.
+
+### Coordinator lifecycle adapter vs. qualification
+
+The seventh coordinator `HarnessAdapter` supports `manifest install --harness omp`,
+`reconcile`, `update`, and receipt-owned `uninstall` for the eight domain bundles
+and ADHD addon. OMP 18.6.1's native `plugin list --json`, marketplace/install
+registries, runtime lock, cache paths, and runtime links are cross-checked;
+malformed, missing, disabled, stale, or conflicting state never converges.
+Native `read skill://name` resolves skills inside their exact package, while
+runtime, agent, executable, and MCP qualification remains explicitly unobserved.
+`ServiceReport.native_inspection` separates package lifecycle from activation:
+package READY never promotes OMP's optional/UNVERIFIED capability-matrix cell or
+adds a seventh live-credential qualification harness.
+
+Native commands use an explicit user scope and bound working directory/HOME.
+Only the unambiguous default-user layout is supported. Named profiles, custom
+config/agent roots, environment-file overrides, initialized XDG OMP roots, and
+project inventories are refused before mutation. Merely setting an XDG variable
+without initializing its `omp` root does not change the default layout. The
+verified persistent local `release_root` is registered for published releases as
+well as local checkouts; requested immutable Git provenance stays in the
+coordinator release identity, not a fabricated native Git registration.
+
+Full-receipt HMAC authority is bound to the trusted receipt parent. Ownership
+records bind native root/scope, registration/source, version, runtime settings,
+link identity, and cache content. Existing plugins are never adopted; an
+identical unowned marketplace is reused without ownership. Actual creations
+survive partial failures and are authenticated only after coherent receipt
+merging. User modifications, foreign source references, conflicting target
+caches, and changed same-version sources refuse destructive correction.
+
+Native uninstall and targeted upgrade delete complete version caches. The
+adapter exchanges each exact authenticated tree with a descriptor-held
+placeholder, checks it again at the mutation boundary, and restores the real
+tree on success or failure. Runtime package-name metadata remains in the
+placeholder so native unlink targets the correct package. Restoration collisions
+retain the recovery tree and report its location; unknown files are never
+discarded. Unregistered caches remain preserved, so a conflicting same-version
+reinstall is refused rather than force-overwritten.
+
+Ordinary receipt-backed source/version reconciliation is supported. Native
+source replacement uses guarded remove/add with prior-source recovery.
+Durable cross-harness transactions are explicitly rejected during preparation:
+OMP cannot safely compensate by re-registering retained caches without native
+force overwrite. This is a visible pre-mutation refusal, not simulated rollback.
+
+The eight domain contract versions move in lockstep. The ADHD portable addon is
+independent and has its own versioned contract and marketplace entry.
+`manifest-delegate` remains marketplace-only: it has no portable contract and is
+not a coordinator requirement; issue #819 tracks any future change to that boundary.
+
 ## Live Parity Credentials
 
 `.github/workflows/plugin-parity-live.yml` proves READY parity against real,

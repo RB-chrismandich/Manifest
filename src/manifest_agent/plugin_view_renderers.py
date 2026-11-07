@@ -102,8 +102,62 @@ def _component_record(
 
 
 def _component_status(contract: Any, harness: str, component: Component) -> Any:
-    compatibility = component.compatibility or contract.compatibility
-    return compatibility[harness]
+    compatibility = component.compatibility or {}
+    return compatibility.get(harness, contract.compatibility[harness])
+
+
+def _omp_harness_surface(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
+    """Render declaration-only OMP metadata without inferring undeclared support."""
+    bundle_status = contract.compatibility.get("omp")
+    surface: dict[str, Any] = {"qualified": False}
+    if bundle_status is not None:
+        surface["mode"] = bundle_status.mode
+        surface["skills"] = [f"skills/{name}" for name in skills]
+        if bundle_status.reason is not None:
+            surface["reason"] = bundle_status.reason
+
+    components_by_type: dict[str, list[dict[str, str]]] = {}
+    records: dict[str, list[dict[str, str]]] = {}
+    for component_type in _COMPONENT_TYPES:
+        for component in components(contract, component_type):
+            status = (
+                component.compatibility.get("omp")
+                if component.compatibility is not None
+                else None
+            )
+            status = status or bundle_status
+            if status is None:
+                continue
+            if status.mode not in _RENDERABLE_MODES:
+                record = _degradation(
+                    "omp",
+                    component_type,
+                    component,
+                    reason=status.reason,
+                    mode=status.mode,
+                )
+                _add_record(records, status.mode, record)
+                continue
+            components_by_type.setdefault(component_type, []).append(
+                {"id": component.id, "path": component.path}
+            )
+            _add_record(
+                records,
+                status.mode,
+                _component_record(component_type, component, status.mode),
+            )
+    if components_by_type:
+        surface["components"] = components_by_type
+    _add_compatibility(surface, records)
+    return surface
+
+
+def _has_omp_declaration(contract: Any) -> bool:
+    return "omp" in contract.compatibility or any(
+        component.compatibility is not None and "omp" in component.compatibility
+        for component_type in _COMPONENT_TYPES
+        for component in components(contract, component_type)
+    )
 
 
 def _degradation(
@@ -378,13 +432,16 @@ def generic_view(
     contract: Any, skills: tuple[str, ...], policies: dict[str, SkillModelPolicy]
 ) -> dict[str, Any]:
     """Render the shared Manifest surface for non-Claude harnesses."""
+    harnesses = {
+        harness: _generic_harness_surface(contract, skills, harness, policies)
+        for harness in _GENERIC_HARNESSES
+    }
+    if _has_omp_declaration(contract):
+        harnesses["omp"] = _omp_harness_surface(contract, skills)
     return {
         "description": contract.description,
         "forbidden": [],
-        "harnesses": {
-            harness: _generic_harness_surface(contract, skills, harness, policies)
-            for harness in _GENERIC_HARNESSES
-        },
+        "harnesses": harnesses,
         "name": contract.name,
         "optional": [],
         "required": [],

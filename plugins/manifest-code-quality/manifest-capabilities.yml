@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-code-quality
-  version: 0.7.0
+  version: 0.7.1
   description: Code analysis, refactoring, verification, and test-quality workflows.
   category: code-quality
 components:
@@ -36,6 +36,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

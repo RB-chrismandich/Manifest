@@ -66,6 +66,9 @@ def test_desired_state_fields_are_stable():
         "requested_harnesses",
         "catalog_plugins",
         "addon_contracts",
+        "prior_harness_receipts",
+        "source_bundle_checksums",
+        "source_catalog_sha256",
     ]
 
 
