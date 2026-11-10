@@ -23,12 +23,13 @@ setup() {
     print_info() { echo "INFO: $*"; }
     print_success() { echo "OK: $*"; }
     print_warning() { echo "WARN: $*"; }
+    print_error() { echo "ERR: $*"; }
     command_exists() { command -v "$1" > /dev/null 2>&1; }
     # Extract to a REAL file, not `source <(...)`: the function embeds a
     # heredoc, and bash cannot re-read a heredoc body from a non-seekable
     # process-substitution FIFO, so the function silently fails to define.
-    sed -n '/^merge_claude_runtime_settings()/,/^}/p' "$REPO_ROOT/bootstrap/lib/deploy.sh" > "$SANDBOX/fn.sh"
-    # shellcheck disable=SC1090
+    sed -n '/^_resolve_python311()/,/^}/p; /^merge_claude_runtime_settings()/,/^}/p' \
+        "$REPO_ROOT/bootstrap/lib/deploy.sh" > "$SANDBOX/fn.sh"
     source "$SANDBOX/fn.sh"
     SRC="$REPO_ROOT/configs/claude/settings.runtime.json"
     EXISTING_HOME_FIXTURE="$REPO_ROOT/tests/bats/fixtures/deploy_hooks/existing-claude-settings.json"
@@ -327,4 +328,122 @@ sys.exit(0 if merged == source else 1)" "$SANDBOX/settings.json" "$SRC"
     run grep -c 'merge_claude_runtime_settings "\$source_dir/settings.runtime.json"' "$REPO_ROOT/bootstrap/lib/deploy.sh"
     assert_success
     assert_output "2"
+}
+
+@test "_resolve_python311 prefers python3 when python3 is >=3.11 without calling uv" {
+    local bin_dir="$SANDBOX/py311bin" uv_called="$SANDBOX/uv.called"
+    mkdir -p "$bin_dir"
+    cat > "$bin_dir/python3" << 'STUB'
+#!/bin/sh
+exit 0
+STUB
+    cat > "$bin_dir/uv" << STUB
+#!/bin/sh
+echo called > "$uv_called"
+exit 1
+STUB
+    chmod +x "$bin_dir/python3" "$bin_dir/uv"
+
+    run env PATH="$bin_dir:/usr/bin:/bin" bash -c "
+        print_error() { echo \"ERR: \$*\" >&2; }
+        command_exists() { command -v \"\$1\" > /dev/null 2>&1; }
+        source '$SANDBOX/fn.sh'
+        _resolve_python311
+    "
+    assert_success
+    assert_output "$bin_dir/python3"
+    [ ! -f "$uv_called" ]
+}
+
+@test "_resolve_python311 rejects python3 <3.11 and falls back to uv python find" {
+    local bin_dir="$SANDBOX/py39bin" uv_py="$SANDBOX/uv-py312" uv_args="$SANDBOX/uv.args"
+    mkdir -p "$bin_dir"
+    cat > "$bin_dir/python3" << 'STUB'
+#!/bin/sh
+exit 1
+STUB
+    cat > "$uv_py" << 'STUB'
+#!/bin/sh
+exit 0
+STUB
+    cat > "$bin_dir/uv" << STUB
+#!/bin/sh
+printf '%s\n' "\$*" > "$uv_args"
+printf '%s\n' "$uv_py"
+STUB
+    chmod +x "$bin_dir/python3" "$uv_py" "$bin_dir/uv"
+
+    run env PATH="$bin_dir:/usr/bin:/bin" bash -c "
+        print_error() { echo \"ERR: \$*\" >&2; }
+        command_exists() { command -v \"\$1\" > /dev/null 2>&1; }
+        source '$SANDBOX/fn.sh'
+        _resolve_python311
+    "
+    assert_success
+    assert_output "$uv_py"
+    assert_equal "$(cat "$uv_args")" "python find >=3.11"
+}
+
+@test "_resolve_python311 fails with clear error when neither python3 >=3.11 nor uv python exists" {
+    local bin_dir="$SANDBOX/nopy311"
+    mkdir -p "$bin_dir"
+    cat > "$bin_dir/python3" << 'STUB'
+#!/bin/sh
+exit 1
+STUB
+    cat > "$bin_dir/uv" << 'STUB'
+#!/bin/sh
+exit 1
+STUB
+    chmod +x "$bin_dir/python3" "$bin_dir/uv"
+
+    run "$BASH" -c "
+        export PATH='$bin_dir'
+        print_error() { echo \"ERR: \$*\" >&2; }
+        command_exists() { command -v \"\$1\" > /dev/null 2>&1; }
+        source '$SANDBOX/fn.sh'
+        _resolve_python311
+    "
+    assert_failure
+    assert_output --partial "Python >=3.11"
+}
+
+@test "merge_claude_runtime_settings uses uv Python >=3.11 when PATH python3 is 3.9" {
+    local real_py311 bin_dir="$SANDBOX/macos39" py39_ran_merger="$SANDBOX/py39.merger"
+    real_py311="$(command -v python3)"
+    mkdir -p "$bin_dir"
+    cat > "$bin_dir/python3" << STUB
+#!/bin/sh
+case "\$*" in
+    *merge_runtime_settings.py*)
+        echo "ran-on-3.9" > "$py39_ran_merger"
+        exit 1
+        ;;
+esac
+exit 1
+STUB
+    cat > "$bin_dir/uv" << STUB
+#!/bin/sh
+if [ "\$1" = "python" ] && [ "\$2" = "find" ]; then
+    printf '%s\n' "$real_py311"
+    exit 0
+fi
+exit 1
+STUB
+    chmod +x "$bin_dir/python3" "$bin_dir/uv"
+
+    run env PATH="$bin_dir:/usr/bin:/bin" HOME="$SANDBOX/home" bash -c "
+        mkdir -p '$SANDBOX/home/.claude'
+        print_info() { echo \"INFO: \$*\"; }
+        print_success() { echo \"OK: \$*\"; }
+        print_warning() { echo \"WARN: \$*\"; }
+        print_error() { echo \"ERR: \$*\" >&2; }
+        command_exists() { command -v \"\$1\" > /dev/null 2>&1; }
+        source '$SANDBOX/fn.sh'
+        merge_claude_runtime_settings '$SRC' '$SANDBOX/home/.claude/settings.json'
+        printf 'MERGE_STATUS=%s\n' \"\$CLAUDE_RUNTIME_MERGE_STATUS\"
+    "
+    assert_success
+    assert_output --partial "MERGE_STATUS=merged"
+    [ ! -f "$py39_ran_merger" ]
 }

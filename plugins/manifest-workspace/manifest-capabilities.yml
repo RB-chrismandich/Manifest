@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-workspace
-  version: 0.6.6
+  version: 0.7.1
   description: Workspace configuration, environment, session, and learning workflows.
   category: productivity
 components:
@@ -9,21 +9,186 @@ components:
     root: skills
     include: ["*/SKILL.md"]
   agents:
-    - {id: explore, path: agents/orchestration/Explore.md}
-    - {id: compatibility-translator, path: agents/orchestration/compatibility-translator.md}
-    - {id: context-chronicler, path: agents/orchestration/context-chronicler.md}
-    - {id: dependency-guardian, path: agents/orchestration/dependency-guardian.md}
-    - {id: executor, path: agents/orchestration/executor.md}
-    - {id: mech-executor, path: agents/orchestration/mech-executor.md}
-    - {id: scout, path: agents/orchestration/scout.md}
-    - {id: security-executor, path: agents/orchestration/security-executor.md}
-    - {id: verifier, path: agents/orchestration/verifier.md}
-    - {id: devpanel-chaos-engineer, path: agents/devpanel/chaos-engineer.md}
-    - {id: devpanel-debugger, path: agents/devpanel/debugger.md}
-    - {id: devpanel-developer, path: agents/devpanel/developer.md}
-    - {id: devpanel-performance-auditor, path: agents/devpanel/performance-auditor.md}
-    - {id: devpanel-spec-guard, path: agents/devpanel/spec-guard.md}
-    - {id: devpanel-tester, path: agents/devpanel/tester.md}
+    - id: explore
+      path: agents/orchestration/Explore.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: compatibility-translator
+      path: agents/orchestration/compatibility-translator.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: context-chronicler
+      path: agents/orchestration/context-chronicler.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: dependency-guardian
+      path: agents/orchestration/dependency-guardian.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: executor
+      path: agents/orchestration/executor.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: mech-executor
+      path: agents/orchestration/mech-executor.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: scout
+      path: agents/orchestration/scout.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: security-executor
+      path: agents/orchestration/security-executor.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: verifier
+      path: agents/orchestration/verifier.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: devpanel-chaos-engineer
+      path: agents/devpanel/chaos-engineer.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: devpanel-debugger
+      path: agents/devpanel/debugger.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: devpanel-developer
+      path: agents/devpanel/developer.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: devpanel-performance-auditor
+      path: agents/devpanel/performance-auditor.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: devpanel-spec-guard
+      path: agents/devpanel/spec-guard.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
+    - id: devpanel-tester
+      path: agents/devpanel/tester.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: "These bundle-local role prompts are not registered in an OMP-discoverable agent surface."
   hooks:
     - id: claude-compaction-continuity
       path: hooks/session-continuity.json
@@ -34,6 +199,9 @@ components:
         cursor: {mode: not_applicable, reason: Cursor exposes no verified completed-compaction lifecycle sequence.}
         antigravity: {mode: not_applicable, reason: Antigravity exposes no verified completed-compaction lifecycle sequence.}
         devin: {mode: not_applicable, reason: Devin exposes no verified completed-compaction lifecycle sequence.}
+        omp:
+          mode: not_applicable
+          reason: This component records the Claude Code compaction hook only; it does not describe an OMP surface.
     - id: codex-session-start
       path: hooks/codex-lifecycle-events.json
       compatibility:
@@ -43,6 +211,9 @@ components:
         cursor: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
+        omp:
+          mode: not_applicable
+          reason: This component records the Codex SessionStart hook only.
     - id: codex-stop
       path: hooks/codex-lifecycle-events.json
       compatibility:
@@ -52,6 +223,9 @@ components:
         cursor: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
+        omp:
+          mode: not_applicable
+          reason: This component records the Codex Stop hook only.
     - id: codex-permission-request
       path: hooks/codex-lifecycle-events.json
       compatibility:
@@ -61,6 +235,9 @@ components:
         cursor: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
+        omp:
+          mode: not_applicable
+          reason: This component records the Codex PermissionRequest hook only.
     - id: workspace-token-economy-context
       path: hooks/token-economy-context.json
       compatibility:
@@ -70,6 +247,9 @@ components:
         cursor: {mode: not_applicable, reason: "Cursor's hook events (beforeShellExecution etc.) have no SessionStart/always-on-context equivalent and CursorAdapter deliberately indexes bundles without inventing an activation mechanism; Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."}
         antigravity: {mode: not_applicable, reason: Antigravity already receives this guidance through the guidance component's imported contextFileName; a duplicate SessionStart hook is not a verified Antigravity surface.}
         devin: {mode: not_applicable, reason: Devin has no SessionStart-equivalent hook execution surface.}
+        omp:
+          mode: unsupported
+          reason: This hook provides automatic context through Claude/Codex lifecycle registration, which is not available to this bundle in OMP.
   runtime:
     - {id: session-continuity-scripts, path: skills/session-checkpoint/scripts}
     - {id: session-checkpoint-references, path: skills/session-checkpoint/references}
@@ -77,13 +257,35 @@ components:
     - {id: learning-capture-seed, path: skills/learning-capture/data}
     - {id: help-scripts, path: skills/help/scripts}
     - {id: command-catalog, path: skills/help/catalog/commands.json}
-    - {id: env-check-scripts, path: skills/env-check/scripts}
+    - id: env-check-scripts
+      path: skills/env-check/scripts
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: degraded
+          reason: "OMP manifest-health requires full repository source root for the config-owned configs/omp/extensions/manifest-health.ts; these bundle-local scripts do not provide that source root."
     - {id: deploy-reconcile-scripts, path: skills/deploy-reconcile/scripts}
     - {id: hook-integration-scripts, path: skills/ai-hooks-integration/scripts}
     - {id: skill-evolve-scripts, path: skills/skill-evolve/scripts}
     - {id: pr-smoke-scripts, path: skills/pr-smoke/scripts}
   guidance:
-    - {id: workspace-orchestration, path: guidance/orchestration.md}
+    - id: workspace-orchestration
+      path: guidance/orchestration.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: native}
+        omp:
+          mode: unsupported
+          reason: This guidance file is not registered as OMP project context or a package extension.
     - id: workspace-token-economy
       path: guidance/token-economy.md
       compatibility:
@@ -93,6 +295,9 @@ components:
         cursor: {mode: not_applicable, reason: "Cursor's plugin adapter indexes bundles without inventing an activation mechanism (see CursorAdapter); Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."}
         antigravity: {mode: imported}
         devin: {mode: not_applicable, reason: 'MIGRATION BLOCKER — Devin single-owns ~/.codeium/windsurf/memories/global_rules.md exclusively for the manifest-i-have-adhd bundle (the Devin adapter guards that file for the ADHD rule and only the ADHD deploy step writes it). Sharing that file across bundles requires extending the Devin adapter''s owned-file ownership model, which is out of scope here; /token-conserve remains available for Devin users until that adapter work ships.'}
+        omp:
+          mode: unsupported
+          reason: This always-on guidance file has no OMP context registration; related on-demand skills remain available.
 capabilities:
   mcp:
     required: []
@@ -109,6 +314,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

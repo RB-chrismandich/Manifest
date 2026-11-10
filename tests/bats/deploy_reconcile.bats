@@ -199,3 +199,16 @@ print(hits[0]["verdict"] + " " + hits[0]["reason_code"] if hits else "ABSENT")
     result="$(printf '%s' "$output" | verdict_of "skills/mine")"
     [ "${result%% *}" = "REMOVE" ] || { echo "got: $result"; false; }
 }
+
+@test "reconcile.yml protects config/deploy_stamp as KEEP and --remove leaves it intact" {
+    echo "commit=deadbeef" > "$BASE/.claude/config/deploy_stamp"
+    run_review --json
+    assert_success
+    result="$(printf '%s' "$output" | verdict_of "config/deploy_stamp")"
+    [ "$result" = "KEEP protected" ] || { echo "got: $result"; false; }
+
+    run_review --remove --yes
+    assert_success
+    [ -f "$BASE/.claude/config/deploy_stamp" ]
+    [ ! -e "$BASE/.claude/config/old_layout.yml" ]
+}

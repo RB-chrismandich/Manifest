@@ -35,11 +35,11 @@ usage() {
     cat << 'EOF'
 Usage: deploy_stamp_check.sh [-h|--help]
 
-SessionStart hook: warns once when the Manifest git clone has changed
-configs/ or skills since the last ./bootstrap.sh deploy, OR when the clone's
-default branch is behind its already-fetched origin/<branch> ref (no
-`git fetch` is ever run). Silent (exit 0) unless the clone is on a clean
-default branch. Set DEPLOY_STAMP_DEBUG=1 for stderr diagnostics.
+SessionStart hook: warns once when the Manifest deploy recorded a failed
+runtime merge or degraded components, when the git clone changed configs/ or
+skills since the last ./bootstrap.sh deploy, or when the default branch is
+behind its fetched origin/<branch> ref (never runs `git fetch`). Exits 0.
+Set DEPLOY_STAMP_DEBUG=1 for stderr diagnostics.
 EOF
 }
 
@@ -57,17 +57,42 @@ main() {
         return 0
     }
 
-    local tree_configs="" tree_skills="" dirty="" clone_path="" deployed_at="" k v
+    local tree_configs="" tree_skills="" dirty="" clone_path="" deployed_at=""
+    local runtime_merge_status="" degraded_components="" k v
     while IFS='=' read -r k v; do
         case "$k" in
             tree_configs) tree_configs="$v" ;;
             tree_skills) tree_skills="$v" ;;
             dirty) dirty="$v" ;;
+            runtime_merge_status) runtime_merge_status="$v" ;;
+            degraded_components) degraded_components="$v" ;;
             clone_path) clone_path="$v" ;;
             deployed_at) deployed_at="$v" ;;
         esac
     done < "$stamp"
 
+    local state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
+    local degraded_state="$state_root/deploy_stamp_degraded_warned"
+    local reason_text=""
+    if [[ "$runtime_merge_status" == "failed" ]]; then
+        reason_text="runtime_merge_status=failed"
+    fi
+    if [[ -n "$degraded_components" && "$degraded_components" != "0" && "$degraded_components" != "none" ]]; then
+        reason_text="${reason_text:+${reason_text}, }degraded_components=${degraded_components}"
+    fi
+    if [[ -n "$reason_text" ]]; then
+        local degraded_sig="${deployed_at}:${runtime_merge_status}:${degraded_components}"
+        if [[ ! -f "$degraded_state" || "$(cat "$degraded_state" 2> /dev/null)" != "$degraded_sig" ]]; then
+            printf '⚠ Manifest deploy failed verification (%s) on %s — run ./bootstrap.sh%s to repair.\n' \
+                "$reason_text" "${deployed_at:-unknown}" "${clone_path:+ in $clone_path}"
+            mkdir -p "$state_root" 2> /dev/null || true
+            printf '%s\n' "$degraded_sig" > "$degraded_state" 2> /dev/null || true
+        else
+            debug "already warned for degraded stamp $degraded_sig"
+        fi
+    elif [[ -f "$degraded_state" ]] && command -v rm > /dev/null 2>&1; then
+        rm -f "$degraded_state" 2> /dev/null || true
+    fi
     [[ -n "$clone_path" && -d "$clone_path" ]] || {
         debug "clone path missing: $clone_path"
         return 0
@@ -98,8 +123,6 @@ main() {
         debug "dirty sources"
         return 0
     }
-
-    local state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
 
     # Behind-upstream check (see header comment): local-only, no `git fetch`.
     # Compares HEAD against the remote-tracking ref already on disk, so a

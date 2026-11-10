@@ -128,3 +128,27 @@ run_bundle_check() {
     run run_bundle_check
     assert_equal "$status" 1
 }
+
+@test "real skill_policies.yml discovers manifest-security once despite implicit_invocation_triggers" {
+    cp "$REPO_ROOT/configs/claude/config/skill_policies.yml" "$TARGET_DIR/config/skill_policies.yml"
+    python3 - "$TARGET_DIR/config/skill_policies.yml" "$TARGET_DIR/plugins/installed_plugins.json" << 'PY'
+import json, pathlib, re, sys
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+in_bundles = False
+bundles = []
+for line in text.splitlines():
+    if line.startswith("bundles:"):
+        in_bundles = True
+        continue
+    if in_bundles and re.match(r"^  [a-z][a-z0-9-]*:\s*(?:#.*)?$", line):
+        bundles.append(line.split(":", 1)[0].strip())
+plugins = {f"{b}@manifest": {} for b in bundles if b != "manifest-security"}
+pathlib.Path(sys.argv[2]).write_text(json.dumps({"plugins": plugins}), encoding="utf-8")
+PY
+
+    run verify_manifest_bundles
+    assert_equal "$status" 1
+    local sec_count
+    sec_count="$(printf '%s\n' "$output" | grep -c 'Bundle NOT installed: manifest-security' || true)"
+    assert_equal "$sec_count" "1"
+}

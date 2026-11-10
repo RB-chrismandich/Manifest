@@ -114,9 +114,12 @@ def test_migration_never_exposes_zero_or_two_writers(tmp_path: Path):
     assert read_receipt(service.receipt_path) is not None
 
 
-def test_failed_native_verify_restores_legacy_writer(tmp_path: Path):
+def test_failed_native_verify_restores_legacy_writer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     events: list[str] = []
     home, link = _legacy_home(tmp_path)
+    original_target = link.readlink()
     adapter = MigrationAdapter(events)
     adapter.verify_result = HarnessResult(
         "claude", ResultState.BLOCKED, (), {}, errors=("native verify failed",)
@@ -125,11 +128,24 @@ def test_failed_native_verify_restores_legacy_writer(tmp_path: Path):
     migration = MigrationService.from_manifest_service(
         service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
     )
+    rollback_receipts = []
+    rollback = migration._rollback_harness
+
+    def capture_in_memory_receipt(harness, state, adapter, result):
+        rollback_receipts.append(state["harnesses"][harness]["native_receipt"])
+        return rollback(harness, state, adapter, result)
+
+    monkeypatch.setattr(migration, "_rollback_harness", capture_in_memory_receipt)
 
     report = migration.migrate(service._desired_state()[0])
 
     assert report.state is ResultState.BLOCKED
+    assert len(rollback_receipts) == 1
+    assert isinstance(rollback_receipts[0]["plugin_ids"], tuple)
+    assert rollback_receipts[0]["plugin_ids"] == DOMAIN_BUNDLES
+    assert rollback_receipts[0]["errors"] == ()
     assert link.is_symlink()
+    assert link.readlink() == original_target
     assert not service.receipt_path.exists()
 
 

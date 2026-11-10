@@ -80,6 +80,7 @@
         "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
+        "skills/renovate-config",
         "skills/version-pin"
       ]
     },
@@ -161,6 +162,7 @@
         "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
+        "skills/renovate-config",
         "skills/version-pin"
       ]
     },
@@ -248,6 +250,7 @@
         "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
+        "skills/renovate-config",
         "skills/version-pin"
       ]
     },
@@ -329,6 +332,90 @@
         "skills/docker-compose-commandments",
         "skills/docker-probe-internal",
         "skills/process-diagnose-stall",
+        "skills/renovate-config",
+        "skills/version-pin"
+      ]
+    },
+    "omp": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "compose-commandments",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/compose-commandments.json",
+            "reason": "The related on-demand skill is available, but this Claude-native file-save hook has no OMP event registration."
+          },
+          {
+            "component_id": "version-pin",
+            "component_type": "hooks",
+            "mode": "degraded",
+            "path": "hooks/version-pin.json",
+            "reason": "The related on-demand skill is available, but this Claude-native file-save hook has no OMP event registration."
+          }
+        ],
+        "native": [
+          {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "component_id": "ops-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "ops-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "ops-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
+          {
+            "id": "ops-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "ops-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "ops-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "qualified": false,
+      "skills": [
+        "skills/cache-warm-oob",
+        "skills/ci-diagnose-drift",
+        "skills/ci-reproduce-failure",
+        "skills/ci-setup",
+        "skills/config-debug-substitution",
+        "skills/config-validate-native",
+        "skills/deploy-diagnose-drift",
+        "skills/deploy-retire-component",
+        "skills/docker-compose-commandments",
+        "skills/docker-probe-internal",
+        "skills/process-diagnose-stall",
+        "skills/renovate-config",
         "skills/version-pin"
       ]
     }
@@ -348,7 +435,8 @@
     "skills/docker-compose-commandments",
     "skills/docker-probe-internal",
     "skills/process-diagnose-stall",
+    "skills/renovate-config",
     "skills/version-pin"
   ],
-  "version": "0.6.6"
+  "version": "0.7.1"
 }

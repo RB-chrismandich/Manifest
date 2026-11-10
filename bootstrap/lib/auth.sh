@@ -18,6 +18,7 @@ check_claude_auth() {
 
     # Check for auth token file (more reliable than `claude auth status` which may spawn interactive session)
     local claude_auth_files=(
+        "$HOME/.claude/.credentials.json"
         "$HOME/.config/claude-code/auth.json"
         "$HOME/.claude-code/auth.json"
         "$HOME/.config/@anthropic-ai/claude-code/auth.json"
@@ -30,12 +31,22 @@ check_claude_auth() {
         fi
     done
 
-    # Fallback: try non-interactive check with timeout
-    if [[ -n "$TIMEOUT_CMD" ]]; then
-        if $TIMEOUT_CMD 5 claude auth status &> /dev/null; then
-            print_success "Claude Code is authenticated"
-            return 0
-        fi
+    # Probe macOS Keychain item metadata only (never pass -w, which decrypts the
+    # secret payload and can trigger interactive Keychain ACL dialogs).
+    if [[ "${PLATFORM:-macos}" == "macos" ]] && command_exists security; then
+        local kc_service
+        for kc_service in "Claude Code-credentials" "Claude Code"; do
+            if security find-generic-password -s "$kc_service" < /dev/null &> /dev/null; then
+                print_success "Claude Code is authenticated"
+                return 0
+            fi
+        done
+    fi
+
+    # Fallback: bounded non-interactive CLI check (no GNU timeout requirement)
+    if _auth_bounded_probe 5 claude auth status < /dev/null; then
+        print_success "Claude Code is authenticated"
+        return 0
     fi
 
     print_error "Claude Code is NOT authenticated"

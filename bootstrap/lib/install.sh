@@ -44,7 +44,9 @@ install_package_manager() {
         if command_exists brew; then
             print_success "Homebrew is installed"
             print_step "Updating Homebrew..."
-            brew update --quiet
+            if ! brew update --quiet; then
+                print_warning "Homebrew update failed — continuing with existing metadata"
+            fi
         else
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then

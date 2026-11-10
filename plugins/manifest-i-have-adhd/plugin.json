@@ -193,6 +193,38 @@
       "skills": [
         "skills/i-have-adhd"
       ]
+    },
+    "omp": {
+      "compatibility": {
+        "degraded": [
+          {
+            "component_id": "adhd-always-on-guidance",
+            "component_type": "guidance",
+            "mode": "unsupported",
+            "path": "guidance/always-on.md",
+            "reason": "This always-on guidance projection has no OMP context registration; the on-demand skill remains available."
+          },
+          {
+            "component_id": "adhd-session-start",
+            "component_type": "hooks",
+            "mode": "unsupported",
+            "path": "hooks/hooks.json",
+            "reason": "ADHD always-on activation requires Claude SessionStart; no OMP event registration is declared."
+          },
+          {
+            "component_id": "adhd-hook-runtime",
+            "component_type": "runtime",
+            "mode": "unsupported",
+            "path": "hooks/always_on.py",
+            "reason": "This runtime implements Claude SessionStart behavior; no OMP event registration is declared."
+          }
+        ]
+      },
+      "mode": "native",
+      "qualified": false,
+      "skills": [
+        "skills/i-have-adhd"
+      ]
     }
   },
   "name": "manifest-i-have-adhd",
@@ -201,5 +233,5 @@
   "skills": [
     "skills/i-have-adhd"
   ],
-  "version": "0.2.6"
+  "version": "0.2.7"
 }

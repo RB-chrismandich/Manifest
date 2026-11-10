@@ -293,12 +293,14 @@ def test_ops_contract_declares_runtime_and_explicit_hook_cells(
     assert hook_ids == {"version-pin", "compose-commandments"}
     for hook in contract.components.hooks:
         assert hook.compatibility is not None
-        assert set(hook.compatibility) == set(HARNESSES)
+        assert set(hook.compatibility) == {*HARNESSES, "omp"}
         assert hook.compatibility["claude"].mode == "native"
         assert hook.compatibility["cursor"].mode == "generated"
         for harness in {"codex", "gemini", "antigravity", "devin"}:
             assert hook.compatibility[harness].mode == "degraded"
             assert hook.compatibility[harness].reason
+        assert hook.compatibility["omp"].mode == "degraded"
+        assert hook.compatibility["omp"].reason
     assert contract.capabilities.executables[CapabilityTier.REQUIRED] == (
         "bash",
         "git",

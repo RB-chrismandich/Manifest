@@ -124,6 +124,7 @@ overrides:
   shell-audit-errexit: infra
   config-audit: infra
   version-pin: infra
+  renovate-config: infra
   # meta & orchestration
   antipattern-detect: meta
   session-checkpoint: meta

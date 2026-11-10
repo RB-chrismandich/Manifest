@@ -26,6 +26,7 @@ from manifest_agent.contracts import (  # noqa: E402
 )
 
 HARNESSES = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
+UNVERIFIED_HARNESSES = ("omp",)
 _COMPONENT_KINDS = (
     ("skill", "skills"),
     ("agent", "agents"),
@@ -34,6 +35,28 @@ _COMPONENT_KINDS = (
     ("guidance", "guidance"),
 )
 _ALLOWED_PREFIXES = ("READY", "DEGRADED(", "BLOCKED(", "N/A(")
+
+
+def _omp_cell(status: Any | None, *, optional: bool = False) -> str:
+    declaration = "undeclared"
+    if status is not None:
+        declaration = f"declared={status.mode}"
+        if status.reason is not None:
+            declaration += f"; reason={status.reason}"
+    context = "optional capability not selected; " if optional else ""
+    return f"UNVERIFIED({context}{declaration}; OMP native qualification not recorded)"
+
+
+def _component_compatibility(contract: Any, component: Any) -> dict[str, Any]:
+    return {**contract.compatibility, **(component.compatibility or {})}
+
+
+def _native_blocked(rows: list[tuple[str, str, list[str]]]) -> bool:
+    return any(
+        cell.startswith("BLOCKED(")
+        for _identity, _source, cells in rows
+        for cell in cells[: len(HARNESSES)]
+    )
 
 
 class MatrixError(ValueError):
@@ -146,7 +169,7 @@ def _append_row(
     evidence_id: str,
     optional: bool = False,
 ) -> None:
-    """Append one verified contract row to the capability matrix."""
+    """Append one verified portable-contract row plus explicitly unverified surfaces."""
     cells = []
     for harness in HARNESSES:
         contract_state = _status(statuses[harness], optional=optional)
@@ -157,7 +180,14 @@ def _append_row(
             inspection_records[harness], bundle_name, evidence_kind, evidence_id
         )
         cells.append(evidence_state or "READY")
-    if any(not cell or not cell.startswith(_ALLOWED_PREFIXES) for cell in cells):
+    cells.extend(
+        _omp_cell(statuses.get(harness), optional=optional)
+        for harness in UNVERIFIED_HARNESSES
+    )
+    if any(
+        not cell or not cell.startswith((*_ALLOWED_PREFIXES, "UNVERIFIED("))
+        for cell in cells
+    ):
         raise MatrixError(f"{identity}: blank or unverified harness evidence")
     rows.append((identity, source, cells))
 
@@ -196,7 +226,7 @@ def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list
                     inspection_records,
                     f"{contract.name}:{kind}:{component.id}",
                     f"contract {kind}",
-                    dict(component.compatibility or contract.compatibility),
+                    _component_compatibility(contract, component),
                     contract.name,
                     kind,
                     component.id,
@@ -221,8 +251,11 @@ def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list
     return rows
 
 
-def render(inspection: dict[str, Any] | None = None) -> str:
-    """Return deterministic Markdown, one applicability state per cell."""
+def _render_rows(
+    inspection: dict[str, Any] | None,
+    rows: list[tuple[str, str, list[str]]],
+) -> str:
+    """Render declarations with OMP qualification kept explicitly unverified."""
     provenance = None if inspection is None else inspection.get("provenance")
     if provenance == "synthetic-fixture":
         evidence_description = "synthetic fixture evidence; not live native inspection"
@@ -240,12 +273,25 @@ def render(inspection: dict[str, Any] | None = None) -> str:
         "`READY` requires a verified native harness state and non-empty native version,",
         "matching installed plugin, component, and capability evidence.",
         "",
-        "| Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "**OMP cells are always UNVERIFIED:** declared modes describe source compatibility,",
+        "not OMP installation, active runtime integration, or native qualification.",
+        "OMP recognizes portable `skills/*/SKILL.md` and agent source formats; Stitch",
+        "also declares package-local agents, MCP configuration, and an extension.",
+        "Workspace env-check depends on the config-owned",
+        "`configs/omp/extensions/manifest-health.ts` and a full repository source root;",
+        "the portable `env-check-scripts` component is therefore declared degraded.",
+        "",
+        "| Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin | OMP |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for identity, source, cells in _rows(inspection):
+    for identity, source, cells in rows:
         lines.append("| " + " | ".join((f"`{identity}`", source, *cells)) + " |")
     return "\n".join(lines) + "\n"
+
+
+def render(inspection: dict[str, Any] | None = None) -> str:
+    """Return deterministic Markdown, one applicability state per cell."""
+    return _render_rows(inspection, _rows(inspection))
 
 
 def _load_inspection(path: Path | None) -> dict[str, Any] | None:
@@ -272,13 +318,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     try:
-        output = render(_load_inspection(args.inspection))
+        inspection = _load_inspection(args.inspection)
+        rows = _rows(inspection)
+        output = _render_rows(inspection, rows)
     except MatrixError as error:
         print(f"render_plugin_capability_matrix.py: {error}", file=sys.stderr)
         return 2
     target = ROOT / "docs/PLUGIN_CAPABILITY_MATRIX.md"
     if args.check:
-        if "BLOCKED(" in output:
+        if _native_blocked(rows):
             print(
                 "inspection evidence contains blocked capability cells", file=sys.stderr
             )
@@ -289,6 +337,9 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 1
+        print(
+            "OMP coverage is UNVERIFIED and excluded from this six-harness qualification."
+        )
         return 0
     target.write_text(output, encoding="utf-8")
     return 0

@@ -36,6 +36,8 @@ _CODEX_CATALOG_PROOF_VERSION = "manifest-codex-catalog-ownership-v1"
 _CODEX_RECEIPT_PROOF_VERSION = "manifest-codex-receipt-ownership-v1"
 _BOOTSTRAP_JOURNAL_PROOF_VERSION = "manifest-bootstrap-journal-v1"
 _OWNED_FILE_PROOF_VERSION = "manifest-owned-file-v1"
+_OMP_RECEIPT_PROOF_VERSION = "manifest-omp-receipt-auth-v1"
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class OwnershipError(RuntimeError):
@@ -401,6 +403,83 @@ def codex_receipt_ownership_errors(
     expected = _codex_receipt_proof(secret, unsigned)
     if not hmac.compare_digest(entry.previous_checksum, expected):
         return ("receipt full Codex ownership proof does not match",)
+    return ()
+
+
+def _omp_receipt_proof(secret: bytes, receipt: HarnessReceipt) -> str:
+    payload = json.dumps(
+        {
+            "proof_version": _OMP_RECEIPT_PROOF_VERSION,
+            "receipt": asdict(receipt),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def authenticate_omp_receipt(
+    receipt: HarnessReceipt, *, key_path: Path
+) -> HarnessReceipt:
+    """HMAC-bind every destructive field of a finalized OMP receipt."""
+    if receipt.harness != "omp":
+        return receipt
+    unsigned = replace(
+        receipt,
+        owned_entries=tuple(
+            item for item in receipt.owned_entries if item.kind != "omp-receipt-auth"
+        ),
+    )
+    secret = _load_or_create_secret(key_path)
+    canonical = _canonical_receipt(unsigned)
+    entry = OwnedEntry(
+        "omp-receipt-auth",
+        hashlib.sha256(canonical).hexdigest(),
+        _MARKER,
+        None,
+        _omp_receipt_proof(secret, unsigned),
+    )
+    return replace(unsigned, owned_entries=(*unsigned.owned_entries, entry))
+
+
+def omp_receipt_ownership_errors(
+    receipt: HarnessReceipt, *, key_path: Path
+) -> tuple[str, ...]:
+    """Verify the full OMP receipt before any destructive recovery or uninstall."""
+    entries = tuple(
+        item for item in receipt.owned_entries if item.kind == "omp-receipt-auth"
+    )
+    if receipt.harness != "omp" or len(entries) != 1:
+        if receipt.harness == "omp" and not entries:
+            return (
+                "receipt lacks one full OMP ownership proof: it predates OMP "
+                "receipt authentication. Re-run `manifest install` to write an "
+                "authenticated receipt, or remove the installation receipt to "
+                "start from a clean state.",
+            )
+        return ("receipt lacks one full OMP ownership proof",)
+    entry = entries[0]
+    unsigned = replace(
+        receipt,
+        owned_entries=tuple(
+            item for item in receipt.owned_entries if item.kind != entry.kind
+        ),
+    )
+    canonical = _canonical_receipt(unsigned)
+    if (
+        entry.ownership_marker != _MARKER
+        or entry.target_path is not None
+        or entry.identifier != hashlib.sha256(canonical).hexdigest()
+        or not isinstance(entry.previous_checksum, str)
+    ):
+        return ("receipt full OMP ownership metadata is invalid",)
+    try:
+        secret = _load_secret(key_path)
+    except OwnershipError as error:
+        return (str(error),)
+    expected = _omp_receipt_proof(secret, unsigned)
+    if not hmac.compare_digest(entry.previous_checksum, expected):
+        return ("receipt full OMP ownership proof does not match",)
     return ()
 
 

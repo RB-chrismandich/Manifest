@@ -36,6 +36,7 @@ EXPECTED_ADDON_ENTRIES = tuple(
 )
 CODEX_IMPLICIT_INVOCATION_ALLOWLIST = {
     "manifest-code-quality:antipattern-detect",
+    "manifest-ops:renovate-config",
     "manifest-security:code-audit",
     "manifest-workspace:help",
 }
@@ -60,7 +61,9 @@ def test_generator_emits_three_native_views_per_domain(
     generic_path = tmp_path / "manifest-docs/plugin.json"
     assert generic_path.is_file()
     generic = json.loads(generic_path.read_text())
-    assert set(report.harnesses) == {"claude", "gemini", *generic["harnesses"]}
+    native_harnesses = set(generic["harnesses"]) - {"omp"}
+    assert set(report.harnesses) == {"claude", "gemini", *native_harnesses}
+    assert generic["harnesses"]["omp"]["qualified"] is False
 
 
 def test_generator_emits_codex_invocation_policy_for_every_skill(
@@ -262,7 +265,11 @@ def test_generator_emits_release_command_catalog(
     catalog_path = tmp_path / "manifest-workspace/skills/help/catalog/commands.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 
-    assert len(catalog["commands"]) == 119
+    assert len(catalog["commands"]) == 120
+    assert any(
+        command["qualified_name"] == "manifest-ops:renovate-config"
+        for command in catalog["commands"]
+    )
     assert not any(
         command["qualified_name"]
         in ("manifest-workspace:parallel-agent", "manifest-workspace:metrics-report")

@@ -199,18 +199,18 @@ Phase 0 must decide and design:
    diverge. This also contradicts Phase 2b's assumption that addons are uniformly
    excluded.
 
-   Phase 0 must therefore define **two addon classes** — marketplace-only and
-   portable-contracted — and for each specify loader membership, coordinator
-   installation, release-archive inclusion, command-catalog behaviour, versioning,
-   upgrade and rollback. `manifest-delegate`'s class, its repair mechanism, and
-   its version bump are all conditional on that choice, and both source and
-   published-release installs must be tested. **Until then Phase 1 cannot claim to
-   repair `manifest-delegate`, and §9a's patch bump for it is provisional.**
+   **Approved boundary (2026-10-06; issue #819):** `manifest-delegate` remains
+   class A, marketplace-only. It has no portable contract, is absent from both
+   `DOMAIN_BUNDLES` and `ADDON_BUNDLES`, and is not installed or required by the
+   coordinator. Its marketplace metadata and user-managed lifecycle remain
+   independent. Any future coordinator support is tracked by #819; the OMP
+   foundation does not create a contract, required registry entry, or adapter.
 
    ---
 
-   **DRAFT DEFINITION 2026-08-27 — awaiting maintainer sign-off.** Written to be
-   accepted, amended or rejected as a unit; nothing below is implemented yet.
+   **APPROVED DEFINITION 2026-10-06 — #819 tracks future coordinator integration.**
+   The marketplace-only classification for `manifest-delegate` is final; the
+   table below records the resulting addon boundary.
 
    Two classes, distinguished by **one question**: does the coordinator install
    it? Everything else follows.
@@ -233,9 +233,10 @@ Phase 0 must decide and design:
    Phase 2b's "addons are uniformly excluded" assumption true — the assumption
    breaks only if an addon enters the archive, not if it gains a contract.
 
-   **Consequences that must land with the definition, not after it:**
-
-   1. **Adapters must treat both classes as legitimate-but-not-required.**
+   **Unimplemented follow-up tracked separately by #819.** The adapter behavior
+   described below has not been added by the OMP foundation and does not alter the
+   current marketplace-only install boundary:
+   1. **Adapter treatment of both addon classes as legitimate but not required.**
       Today a real install reports
       `codex DRIFTED: unrecognized Manifest plugin: manifest-delegate@manifest`
       *and* the same for `manifest-i-have-adhd`, on a correctly-configured

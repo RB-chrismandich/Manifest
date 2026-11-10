@@ -37,3 +37,22 @@ def _exchange_directory_entries(
     if result != 0:
         error_number = ctypes.get_errno()
         raise OSError(error_number, os.strerror(error_number))
+
+
+def _rename_directory_if_absent(
+    descriptor: int, source_name: str, destination_name: str
+) -> None:
+    """Restore a descriptor-held tree without replacing any concurrent entry."""
+    library = ctypes.CDLL(None, use_errno=True)
+    source, destination = os.fsencode(source_name), os.fsencode(destination_name)
+    renameat2 = getattr(library, "renameat2", None)
+    if renameat2 is not None:
+        result = renameat2(descriptor, source, descriptor, destination, 1)
+    else:
+        renameatx_np = getattr(library, "renameatx_np", None)
+        if renameatx_np is None:
+            raise OSError("atomic exclusive directory restoration is unavailable")
+        result = renameatx_np(descriptor, source, descriptor, destination, 0x00000004)
+    if result != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number))

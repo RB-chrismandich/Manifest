@@ -64,6 +64,7 @@ reconcile:
     # `*` spans `/`, so this covers nested paths.
     - "*.json"
     - "config/projects"            # runtime project-state dir under config/
+    - "config/deploy_stamp"        # runtime deploy stamp written by bootstrap/deploy.sh
     - ".last-*"                     # .last-cleanup, .last-update-result.json, ...
     - "mcp-needs-auth-cache.json"
     - ".plans"                      # plan workspace

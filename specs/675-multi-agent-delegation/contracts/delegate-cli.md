@@ -252,6 +252,13 @@ a non-empty working tree keeps a Bash turn that changed nothing from
 over-triggering; the git probe fails closed to "no changes" (allow), so the
 gate stays fail-open.
 
+**Empty assembled diff**: when edit detection triggers but the assembled
+review diff (`auto` scope: working tree including untracked files, else the
+branch diff) is empty or whitespace-only — edits reverted, git-ignored, or
+outside the repository — the gate emits `approve` with reason
+`no code edits` and dispatches no review. A diff that cannot be assembled is
+not empty: it blocks with `prompt_unavailable`.
+
 Check order: gate disabled / `--stop-hook-active` / no code edits in the
 finishing turn / backend unready ⇒ `approve` (exit 0). Otherwise runs one
 read-only review delegation (gate budget) and emits

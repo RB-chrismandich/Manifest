@@ -16,6 +16,8 @@ setup() {
     FAKE_HOME="$TEST_DIR/home"
     FAKE_BIN="$TEST_DIR/bin"
     mkdir -p "$FAKE_HOME" "$FAKE_BIN"
+    # Default stub so no test ever queries the developer's real macOS Keychain.
+    make_stub security 44
 }
 
 teardown() {
@@ -98,6 +100,162 @@ run_in_harness() {
     assert_success
     assert_output --partial "Claude Code is NOT authenticated"
     assert_output --partial "exit=1"
+}
+
+@test "check_claude_auth detects macOS Keychain metadata without timeout on PATH and never passes -w" {
+    local isolated_bin="$TEST_DIR/isolated_bin"
+    mkdir -p "$isolated_bin"
+    local util util_path
+    for util in dirname pgrep sleep; do
+        util_path="$(command -v "$util")"
+        ln -s "$util_path" "$isolated_bin/$util"
+    done
+
+    cat > "$isolated_bin/security" << EOF
+#!/bin/bash
+for arg in "\$@"; do
+    if [[ "\$arg" == "--password" || "\$arg" =~ ^-[^-]*w ]]; then
+        printf 'FORBIDDEN_W:%s\n' "\$*" >> "$TEST_DIR/security.log"
+        exit 99
+    fi
+done
+if IFS= read -r _unexpected; then
+    printf 'STDIN_NOT_EOF\n' >> "$TEST_DIR/security.log"
+    exit 98
+fi
+printf '%s\n' "\$*" >> "$TEST_DIR/security.log"
+if [[ "\${1:-}" == "find-generic-password" && "\$*" == *"Claude Code-credentials"* ]]; then
+    exit 0
+fi
+exit 44
+EOF
+    chmod +x "$isolated_bin/security"
+
+    cat > "$isolated_bin/claude" << EOF
+#!/bin/bash
+printf 'CLAUDE_INVOKED:%s\n' "\$*" >> "$TEST_DIR/claude.log"
+exit 1
+EOF
+    chmod +x "$isolated_bin/claude"
+
+    run /bin/bash -c "
+        set -u
+        RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
+        HOME='$FAKE_HOME'
+        PATH='$isolated_bin'
+        PLATFORM='macos'
+        TIMEOUT_CMD=''
+        command -v timeout >/dev/null 2>&1 && { echo 'UNEXPECTED_TIMEOUT'; exit 2; }
+        command -v gtimeout >/dev/null 2>&1 && { echo 'UNEXPECTED_GTIMEOUT'; exit 2; }
+        source '$COMMON_LIB'
+        source '$AUTH_LIB'
+        ENABLE_CLAUDE=true
+        check_claude_auth
+        echo \"exit=\$?\"
+    "
+    assert_success
+    refute_output --partial "UNEXPECTED_TIMEOUT"
+    assert_output --partial "Claude Code is authenticated"
+    assert_output --partial "exit=0"
+    [ -f "$TEST_DIR/security.log" ]
+    run cat "$TEST_DIR/security.log"
+    assert_output --partial "find-generic-password -s Claude Code-credentials"
+    refute_output --partial "FORBIDDEN_W"
+    refute_output --partial "STDIN_NOT_EOF"
+    [ ! -e "$TEST_DIR/claude.log" ]
+}
+
+@test "check_claude_auth CLI fallback succeeds via _auth_bounded_probe without timeout on PATH" {
+    local isolated_bin="$TEST_DIR/isolated_bin"
+    mkdir -p "$isolated_bin"
+    local util util_path
+    for util in dirname pgrep sleep; do
+        util_path="$(command -v "$util")"
+        ln -s "$util_path" "$isolated_bin/$util"
+    done
+
+    cat > "$isolated_bin/security" << EOF
+#!/bin/bash
+for arg in "\$@"; do
+    if [[ "\$arg" == "--password" || "\$arg" =~ ^-[^-]*w ]]; then
+        printf 'FORBIDDEN_W:%s\n' "\$*" >> "$TEST_DIR/security.log"
+        exit 99
+    fi
+done
+exit 44
+EOF
+    chmod +x "$isolated_bin/security"
+
+    cat > "$isolated_bin/claude" << 'EOF'
+#!/bin/bash
+if [[ "$1 $2" == "auth status" ]]; then
+    exit 0
+fi
+exit 1
+EOF
+    chmod +x "$isolated_bin/claude"
+
+    run /bin/bash -c "
+        set -u
+        RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
+        HOME='$FAKE_HOME'
+        PATH='$isolated_bin'
+        PLATFORM='macos'
+        TIMEOUT_CMD=''
+        source '$COMMON_LIB'
+        source '$AUTH_LIB'
+        ENABLE_CLAUDE=true
+        check_claude_auth
+        echo \"exit=\$?\"
+    "
+    assert_success
+    assert_output --partial "Claude Code is authenticated"
+    assert_output --partial "exit=0"
+    [ ! -e "$TEST_DIR/security.log" ]
+}
+
+@test "check_claude_auth bounds a hanging 'claude auth status' without timeout on PATH" {
+    local isolated_bin="$TEST_DIR/isolated_bin"
+    mkdir -p "$isolated_bin"
+    local util util_path
+    for util in dirname pgrep sleep; do
+        util_path="$(command -v "$util")"
+        ln -s "$util_path" "$isolated_bin/$util"
+    done
+
+    cat > "$isolated_bin/security" << 'EOF'
+#!/bin/bash
+exit 44
+EOF
+    chmod +x "$isolated_bin/security"
+
+    cat > "$isolated_bin/claude" << 'EOF'
+#!/bin/bash
+sleep 30
+exit 0
+EOF
+    chmod +x "$isolated_bin/claude"
+
+    local start=$SECONDS
+    run /bin/bash -c "
+        set -u
+        RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
+        HOME='$FAKE_HOME'
+        PATH='$isolated_bin'
+        PLATFORM='macos'
+        TIMEOUT_CMD=''
+        source '$COMMON_LIB'
+        source '$AUTH_LIB'
+        ENABLE_CLAUDE=true
+        check_claude_auth
+        echo \"exit=\$?\"
+    "
+    local elapsed=$(( SECONDS - start ))
+
+    assert_success
+    assert_output --partial "Claude Code is NOT authenticated"
+    assert_output --partial "exit=1"
+    [ "$elapsed" -lt 15 ]
 }
 
 @test "check_gemini_auth succeeds via an API key in the environment" {

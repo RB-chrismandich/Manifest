@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "7 days",
+  "minimumReleaseAgeBuffer": null,
+  "minimumReleaseAgeBehaviour": "timestamp-required",
+  "internalChecksFilter": "strict",
+  "automerge": false,
+  "prConcurrentLimit": 1,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "groupName": null,
+    "automerge": false
+  },
+  "lockFileMaintenance": {"enabled": false},
+  "packageRules": [
+    {
+      "description": "Consolidate eligible routine updates after seven days",
+      "matchPackageNames": ["*"],
+      "minimumReleaseAge": "7 days",
+      "minimumReleaseAgeBuffer": null,
+      "minimumReleaseAgeBehaviour": "timestamp-required",
+      "internalChecksFilter": "strict",
+      "groupName": "all dependencies",
+      "groupSlug": "all",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": false,
+      "separateMultipleMinor": false,
+      "automerge": false
+    },
+    {
+      "description": "Hold routine types with absent or bypassable release-age checks",
+      "matchUpdateTypes": ["pin", "pinDigest", "replacement", "bump", "rollback", "lockfileUpdate"],
+      "enabled": false
+    }
+  ]
+}

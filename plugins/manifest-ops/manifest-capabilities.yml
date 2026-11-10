@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-ops
-  version: 0.6.6
+  version: 0.7.1
   description: CI, deployment, configuration, container, and runtime operations workflows.
   category: deployment
 components:
@@ -27,6 +27,9 @@ components:
         devin:
           mode: degraded
           reason: Devin exposes the on-demand version-pin skill but has no native file-save hook surface.
+        omp:
+          mode: degraded
+          reason: "The related on-demand skill is available, but this Claude-native file-save hook has no OMP event registration."
     - id: compose-commandments
       path: hooks/compose-commandments.json
       compatibility:
@@ -44,6 +47,9 @@ components:
         devin:
           mode: degraded
           reason: Devin exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.
+        omp:
+          mode: degraded
+          reason: "The related on-demand skill is available, but this Claude-native file-save hook has no OMP event registration."
   runtime:
     - {id: ops-bin, path: runtime/bin}
     - {id: ops-config, path: runtime/config}
@@ -66,6 +72,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

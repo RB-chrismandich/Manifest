@@ -124,6 +124,13 @@ is declared in `UNGOVERNED_BUNDLES` so it is visible rather than invisible.
 **Source:** `plugins/manifest-delegate/` contents;
 `src/manifest_agent/contracts.py:20-31`; issue #784.
 
+**Resolved 2026-10-06 (issue #819).** `manifest-delegate` remains marketplace-only:
+it has no portable contract and stays outside `DOMAIN_BUNDLES` and
+`ADDON_BUNDLES`. The coordinator therefore does not install or require it; its
+marketplace metadata and user-managed lifecycle remain independent. Issue #819
+tracks any future change to that boundary. This OMP foundation records the
+boundary without adding a Delegate portable contract or required registry entry.
+
 ## 4. Hook re-homing is gated on licensed live evidence
 
 **What the spec says:** Stage 2 requires bundles to be self-contained with no

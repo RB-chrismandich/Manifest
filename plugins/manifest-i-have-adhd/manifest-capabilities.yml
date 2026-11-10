@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-i-have-adhd
-  version: 0.2.6
+  version: 0.2.7
   description: ADHD-friendly always-on response guidance with fail-open diagnostics.
   category: productivity
 components:
@@ -19,6 +19,9 @@ components:
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: generated}
+        omp:
+          mode: unsupported
+          reason: "ADHD always-on activation requires Claude SessionStart; no OMP event registration is declared."
   runtime:
     - id: adhd-hook-runtime
       path: hooks/always_on.py
@@ -29,6 +32,9 @@ components:
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: generated}
+        omp:
+          mode: unsupported
+          reason: "This runtime implements Claude SessionStart behavior; no OMP event registration is declared."
   guidance:
     - id: adhd-always-on-guidance
       path: guidance/always-on.md
@@ -39,6 +45,9 @@ components:
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: generated}
+        omp:
+          mode: unsupported
+          reason: "This always-on guidance projection has no OMP context registration; the on-demand skill remains available."
 capabilities:
   mcp:
     required: []
@@ -55,6 +64,7 @@ compatibility:
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
+  omp: {mode: native}
 provenance:
   repository: https://github.com/RB-chrismandich/Manifest
   license: MIT

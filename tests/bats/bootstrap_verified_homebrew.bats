@@ -35,7 +35,7 @@ run_brew() {
             elif [[ "${BREW_TEST_NO_HASH:-no}" == yes && ( "$1" == shasum || "$1" == sha256sum ) ]]; then return 1;
             else command -v "$1" >/dev/null 2>&1; fi
         }
-        brew() { printf "%s\n" "$*" > "$BREW_TEST_MARKER"; }
+        brew() { printf "%s\n" "$*" > "$BREW_TEST_MARKER"; return "${BREW_TEST_UPDATE_EXIT:-0}"; }
         _homebrew_installer_sha256() { printf "%s\n" "$BREW_TEST_SHA"; }
         if [[ "${BREW_TEST_DIRECT:-no}" == yes ]]; then
             install_package_manager
@@ -131,6 +131,15 @@ run_brew() {
     run_brew
     assert_success
     assert_equal "$(cat "$BREW_TEST_MARKER")" "update --quiet"
+    [ ! -e "$BREW_TEST_CURL_LOG" ]
+}
+
+@test "transient brew update failure warns and does not abort under errexit" {
+    export BREW_TEST_PRESENT=yes BREW_TEST_DIRECT=yes BREW_TEST_UPDATE_EXIT=1
+    run_brew
+    assert_success
+    assert_equal "$(cat "$BREW_TEST_MARKER")" "update --quiet"
+    assert_output --partial "Homebrew update failed"
     [ ! -e "$BREW_TEST_CURL_LOG" ]
 }
 
