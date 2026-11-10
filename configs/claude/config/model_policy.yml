@@ -24,9 +24,9 @@ model_tiers:
     flash: "gpt-5.6-terra"
     advanced: "gpt-5.6-sol"
   antigravity:
-    mini: "gemini-3.6-flash-low"
-    flash: "gemini-3.6-flash-high"
-    advanced: "claude-opus-4-6-thinking"
+    mini: "gemini-3.8-flash-low"
+    flash: "gemini-3.8-flash-high"
+    advanced: "claude-opus-5-5-high"
 
 model_fallback:
   mode: confirm
