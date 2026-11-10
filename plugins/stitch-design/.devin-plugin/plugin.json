@@ -9,14 +9,14 @@
             "component_id": "ui-builder",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-builder.md",
+            "path": "agents/ui-delivery/ui-builder.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
             "component_id": "ui-reviewer",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-reviewer.md",
+            "path": "agents/ui-delivery/ui-reviewer.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
@@ -46,13 +46,13 @@
             "component_id": "design-lens-reviewer",
             "component_type": "agents",
             "mode": "imported",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "component_id": "skeptic-verifier",
             "component_type": "agents",
             "mode": "imported",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           },
           {
             "component_id": "model-qualification",
@@ -108,11 +108,11 @@
         "agents": [
           {
             "id": "design-lens-reviewer",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "id": "skeptic-verifier",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           }
         ],
         "runtime": [
@@ -187,14 +187,14 @@
             "component_id": "ui-builder",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-builder.md",
+            "path": "agents/ui-delivery/ui-builder.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
             "component_id": "ui-reviewer",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-reviewer.md",
+            "path": "agents/ui-delivery/ui-reviewer.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
@@ -224,13 +224,13 @@
             "component_id": "design-lens-reviewer",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "component_id": "skeptic-verifier",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           },
           {
             "component_id": "model-qualification",
@@ -286,11 +286,11 @@
         "agents": [
           {
             "id": "design-lens-reviewer",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "id": "skeptic-verifier",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           }
         ],
         "runtime": [
@@ -365,14 +365,14 @@
             "component_id": "ui-builder",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-builder.md",
+            "path": "agents/ui-delivery/ui-builder.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
             "component_id": "ui-reviewer",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-reviewer.md",
+            "path": "agents/ui-delivery/ui-reviewer.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
@@ -402,13 +402,13 @@
             "component_id": "design-lens-reviewer",
             "component_type": "agents",
             "mode": "generated",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "component_id": "skeptic-verifier",
             "component_type": "agents",
             "mode": "generated",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           },
           {
             "component_id": "model-qualification",
@@ -464,11 +464,11 @@
         "agents": [
           {
             "id": "design-lens-reviewer",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "id": "skeptic-verifier",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           }
         ],
         "runtime": [
@@ -543,14 +543,14 @@
             "component_id": "ui-builder",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-builder.md",
+            "path": "agents/ui-delivery/ui-builder.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
             "component_id": "ui-reviewer",
             "component_type": "agents",
             "mode": "not_applicable",
-            "path": "agents/ui-reviewer.md",
+            "path": "agents/ui-delivery/ui-reviewer.md",
             "reason": "This constrained agent is OMP-only."
           },
           {
@@ -580,13 +580,13 @@
             "component_id": "design-lens-reviewer",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "component_id": "skeptic-verifier",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           },
           {
             "component_id": "model-qualification",
@@ -642,11 +642,11 @@
         "agents": [
           {
             "id": "design-lens-reviewer",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "id": "skeptic-verifier",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           }
         ],
         "runtime": [
@@ -721,25 +721,25 @@
             "component_id": "design-lens-reviewer",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "component_id": "skeptic-verifier",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           },
           {
             "component_id": "ui-builder",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/ui-builder.md"
+            "path": "agents/ui-delivery/ui-builder.md"
           },
           {
             "component_id": "ui-reviewer",
             "component_type": "agents",
             "mode": "native",
-            "path": "agents/ui-reviewer.md"
+            "path": "agents/ui-delivery/ui-reviewer.md"
           },
           {
             "component_id": "model-qualification",
@@ -813,19 +813,19 @@
         "agents": [
           {
             "id": "design-lens-reviewer",
-            "path": "agents/design-lens-reviewer.md"
+            "path": "agents/design-loop/design-lens-reviewer.md"
           },
           {
             "id": "skeptic-verifier",
-            "path": "agents/skeptic-verifier.md"
+            "path": "agents/design-loop/skeptic-verifier.md"
           },
           {
             "id": "ui-builder",
-            "path": "agents/ui-builder.md"
+            "path": "agents/ui-delivery/ui-builder.md"
           },
           {
             "id": "ui-reviewer",
-            "path": "agents/ui-reviewer.md"
+            "path": "agents/ui-delivery/ui-reviewer.md"
           }
         ],
         "runtime": [

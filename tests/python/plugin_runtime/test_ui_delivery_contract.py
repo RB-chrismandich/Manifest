@@ -112,8 +112,12 @@ def test_design_generation_removes_unbounded_variant_and_curl_guidance(
 
 
 def test_omp_agents_are_constrained_to_their_declared_roles(repo_root: Path) -> None:
-    builder = _frontmatter(repo_root / "plugins/stitch-design/agents/ui-builder.md")
-    reviewer = _frontmatter(repo_root / "plugins/stitch-design/agents/ui-reviewer.md")
+    builder = _frontmatter(
+        repo_root / "plugins/stitch-design/agents/ui-delivery/ui-builder.md"
+    )
+    reviewer = _frontmatter(
+        repo_root / "plugins/stitch-design/agents/ui-delivery/ui-reviewer.md"
+    )
 
     assert builder["model"] == "@ui_code"
     assert builder["tools"] == BUILDER_TOOLS
@@ -155,8 +159,8 @@ def test_portable_views_expose_skills_but_never_omp_only_agents(
         )
     )
     assert {"./skills/ui-delivery", "./skills/ui-verification"} <= set(claude["skills"])
-    assert "./agents/ui-builder.md" not in claude.get("agents", [])
-    assert "./agents/ui-reviewer.md" not in claude.get("agents", [])
+    assert "./agents/ui-delivery/ui-builder.md" not in claude.get("agents", [])
+    assert "./agents/ui-delivery/ui-reviewer.md" not in claude.get("agents", [])
 
     gemini = json.loads(
         (tmp_path / "stitch-design/gemini-extension.json").read_text(encoding="utf-8")
@@ -178,8 +182,8 @@ def test_portable_views_expose_skills_but_never_omp_only_agents(
             for record in records_for_harness
             if record["mode"] == "not_applicable"
         }
-        assert records["ui-builder"]["path"] == "agents/ui-builder.md"
-        assert records["ui-reviewer"]["path"] == "agents/ui-reviewer.md"
+        assert records["ui-builder"]["path"] == "agents/ui-delivery/ui-builder.md"
+        assert records["ui-reviewer"]["path"] == "agents/ui-delivery/ui-reviewer.md"
 
     for harness in ("antigravity", "codex", "cursor", "devin"):
         native_agents = portable["harnesses"][harness]["components"]["agents"]

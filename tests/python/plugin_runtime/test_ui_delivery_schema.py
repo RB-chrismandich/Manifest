@@ -347,7 +347,7 @@ def test_agent_output_schemas_are_strict_and_match_the_review_contract(
         ).read_text(encoding="utf-8")
     )
     reviewer_output = frontmatter(
-        repo_root / "plugins/stitch-design/agents/ui-reviewer.md"
+        repo_root / "plugins/stitch-design/agents/ui-delivery/ui-reviewer.md"
     )["output"]
     for document in (review_schema, reviewer_output):
         assert document["additionalProperties"] is False
@@ -364,7 +364,7 @@ def test_agent_output_schemas_are_strict_and_match_the_review_contract(
 
     for agent_name in ("ui-builder", "ui-reviewer"):
         output = frontmatter(
-            repo_root / f"plugins/stitch-design/agents/{agent_name}.md"
+            repo_root / f"plugins/stitch-design/agents/ui-delivery/{agent_name}.md"
         )["output"]
         assert output["additionalProperties"] is False
         assert set(output["required"]) == set(output["properties"])
