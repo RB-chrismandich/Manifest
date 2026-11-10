@@ -76,6 +76,7 @@ manifest-model-policy = { path = "configs/claude/scripts/manifest_model_policy",
 [dependency-groups]
 benchmark = [
     "anthropic",
+    "google-genai",
 ]
 dev = [
     "manifest-model-policy==0.1.0",
