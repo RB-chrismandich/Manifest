@@ -79,9 +79,9 @@
       "platforms": {
         "linux-x64": {
           "url": "file://config/toolchain/uv.lock",
-          "sha256": "7384631f05064ab100646bab2c1c15fa5f934da5d0d229596976f766185ebb64",
-          "project_sha256": "38773fe4269646a990c670b3d78077ef49c49f889dd2701a62666136597d1c53",
-          "exe_sha256": "4fb9bd3b4b2a2da5aa1f936523aad05a23a7619c9f1d970266d7f52da225bdc1",
+          "sha256": "cdb6e09e558e6696b66746b84fdf1184d2a9b0fbe0e88a7b92129b872827ae03",
+          "project_sha256": "2d5040a7c276229d129117fc4d934205f5b4b23c3283564730f04b2a141c07e6",
+          "exe_sha256": null,
           "python_provider": {
             "implementation": "cpython",
             "version": "3.12.3",
@@ -113,9 +113,9 @@
         },
         "linux-arm64": {
           "url": "file://config/toolchain/uv.lock",
-          "sha256": "7384631f05064ab100646bab2c1c15fa5f934da5d0d229596976f766185ebb64",
-          "project_sha256": "38773fe4269646a990c670b3d78077ef49c49f889dd2701a62666136597d1c53",
-          "exe_sha256": "8c78325978eccd0ef806041320798a64358a351fb6def4812b8c4251c41000bf",
+          "sha256": "cdb6e09e558e6696b66746b84fdf1184d2a9b0fbe0e88a7b92129b872827ae03",
+          "project_sha256": "2d5040a7c276229d129117fc4d934205f5b4b23c3283564730f04b2a141c07e6",
+          "exe_sha256": "98fcab6271ae6c929ddf1c85e7415e87b219192c5a28e4eda46616e093a7adaa",
           "python_provider": {
             "implementation": "cpython",
             "version": "3.12.3",
@@ -147,8 +147,8 @@
         },
         "darwin-arm64": {
           "url": "file://config/toolchain/uv.lock",
-          "sha256": "7384631f05064ab100646bab2c1c15fa5f934da5d0d229596976f766185ebb64",
-          "project_sha256": "38773fe4269646a990c670b3d78077ef49c49f889dd2701a62666136597d1c53",
+          "sha256": "cdb6e09e558e6696b66746b84fdf1184d2a9b0fbe0e88a7b92129b872827ae03",
+          "project_sha256": "2d5040a7c276229d129117fc4d934205f5b4b23c3283564730f04b2a141c07e6",
           "exe_sha256": null,
           "python_provider": null,
           "path_in_archive": ".",
@@ -257,9 +257,9 @@
       "platforms": {
         "linux-x64": {
           "url": "file://config/toolchain/package-lock.json",
-          "sha256": "788ff4e80571d45c9bbaa70423511499f6532644c686a5f045409e6c93e9a4e4",
-          "package_json_sha256": "0b866b29b8404c98e13763a58196f31662a209cb30f4a629d69405394d1c8d48",
-          "exe_sha256": "1fa5fa820a2f7e59a2d8a1db46f31516102c750c5fae4fb6ce8b92e9e2814a11",
+          "sha256": "3235ff63974ba0e947b00ae7badb1acdc7df7dcf635c7180bcae8a92e6eb0021",
+          "package_json_sha256": "7d4757c434cb8d43aef5da9fa51e6cc00b45286cce998fefaa6c8147ab72e903",
+          "exe_sha256": "817816fd3b7fa85025a6904ae0d0652fc2a53c5e099b0151879f234f6f0615c6",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -270,9 +270,9 @@
         },
         "linux-arm64": {
           "url": "file://config/toolchain/package-lock.json",
-          "sha256": "788ff4e80571d45c9bbaa70423511499f6532644c686a5f045409e6c93e9a4e4",
-          "package_json_sha256": "0b866b29b8404c98e13763a58196f31662a209cb30f4a629d69405394d1c8d48",
-          "exe_sha256": "1fa5fa820a2f7e59a2d8a1db46f31516102c750c5fae4fb6ce8b92e9e2814a11",
+          "sha256": "3235ff63974ba0e947b00ae7badb1acdc7df7dcf635c7180bcae8a92e6eb0021",
+          "package_json_sha256": "7d4757c434cb8d43aef5da9fa51e6cc00b45286cce998fefaa6c8147ab72e903",
+          "exe_sha256": "817816fd3b7fa85025a6904ae0d0652fc2a53c5e099b0151879f234f6f0615c6",
           "path_in_archive": ".",
           "console_scripts": [
             "bin/markdownlint-cli2",
@@ -283,8 +283,8 @@
         },
         "darwin-arm64": {
           "url": "file://config/toolchain/package-lock.json",
-          "sha256": "788ff4e80571d45c9bbaa70423511499f6532644c686a5f045409e6c93e9a4e4",
-          "package_json_sha256": "0b866b29b8404c98e13763a58196f31662a209cb30f4a629d69405394d1c8d48",
+          "sha256": "3235ff63974ba0e947b00ae7badb1acdc7df7dcf635c7180bcae8a92e6eb0021",
+          "package_json_sha256": "7d4757c434cb8d43aef5da9fa51e6cc00b45286cce998fefaa6c8147ab72e903",
           "exe_sha256": null,
           "path_in_archive": ".",
           "console_scripts": [
