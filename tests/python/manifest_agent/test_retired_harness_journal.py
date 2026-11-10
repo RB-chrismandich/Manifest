@@ -6,12 +6,15 @@ import json
 from pathlib import Path
 
 from manifest_agent.bootstrap_sync import (
+    HarnessMutationCheckpoint,
     ReconciliationSaga,
     _journal_path,
     _read_journal,
+    _serialize_handle,
     _write_journal,
     pending_bootstrap_journal_error,
 )
+from manifest_agent.models import AdapterMutationHandle
 from manifest_agent.state import (
     read_receipt,
     receipt_digest,
@@ -70,6 +73,38 @@ def test_journal_bound_to_the_unpruned_receipt_is_rebound(tmp_path: Path) -> Non
     assert saga.target_receipt_digest == observed
     error = pending_bootstrap_journal_error(path)
     assert error is None or "invalid" not in error
+
+
+def _checkpoint(harness: str, phase: str) -> HarnessMutationCheckpoint:
+    handle = AdapterMutationHandle(1, harness, "1", _TARGET_IDENTITY, (), ())
+    return HarnessMutationCheckpoint(harness, phase, _serialize_handle(handle))
+
+
+def test_retired_harness_participant_is_tombstoned_on_load(tmp_path: Path) -> None:
+    """Its adapter is gone, so it must not block the other participants."""
+    path, written = _receipt_naming_gemini(tmp_path)
+    journal = _journal_path(path)
+    _write_journal(
+        journal,
+        ReconciliationSaga(
+            "harness-prepared",
+            "codex",
+            harness_mutations=(
+                _checkpoint("gemini", "prepared"),
+                _checkpoint("claude", "prepared"),
+            ),
+            prior_receipt_digest=written,
+            target_identity=_TARGET_IDENTITY,
+        ),
+    )
+
+    saga = _read_journal(journal)
+
+    assert saga is not None
+    assert {item.harness: item.phase for item in saga.harness_mutations} == {
+        "gemini": "tombstoned",
+        "claude": "prepared",
+    }
 
 
 def test_journal_bound_to_an_unrelated_receipt_keeps_its_digests(

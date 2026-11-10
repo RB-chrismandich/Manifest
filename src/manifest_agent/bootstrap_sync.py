@@ -48,6 +48,7 @@ from manifest_agent.ownership import (
     bootstrap_journal_proof,
     ensure_bootstrap_journal_authority,
 )
+from manifest_agent.retired_harnesses import RETIRED_HARNESSES
 from manifest_agent.service_state import (
     build_receipt,
     bundle_checksums,
@@ -173,6 +174,16 @@ def _write_journal(path: Path, saga: ReconciliationSaga) -> None:
 _JOURNAL_SUFFIX = ".bootstrap-sync.json"
 
 
+def _participant_phase(harness: str, phase: str) -> str:
+    """Tombstone a journal participant whose harness has since been retired.
+
+    Its adapter no longer exists, so it can be neither classified nor
+    compensated, and Manifest no longer manages that harness's native state.
+    Left in a live phase it would block recovery of every other participant.
+    """
+    return "tombstoned" if harness in RETIRED_HARNESSES else phase
+
+
 def _rebound_receipt_digests(journal: Path, prior: str, target: str) -> tuple[str, str]:
     """Follow a journal's receipt bindings across retired-harness pruning.
 
@@ -256,7 +267,13 @@ def _read_journal(
             ):
                 raise ValueError
             _deserialize_handle(item["handle"])
-            decoded_mutations.append(HarnessMutationCheckpoint(**item))
+            decoded_mutations.append(
+                HarnessMutationCheckpoint(
+                    item["harness"],
+                    _participant_phase(item["harness"], item["phase"]),
+                    item["handle"],
+                )
+            )
         phase = document.get("phase")
         harness = document.get("harness")
         prior_receipt_digest = document.get("prior_receipt_digest")
