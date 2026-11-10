@@ -141,7 +141,7 @@ unset _f
 # The plugin bodies carry QUALIFIED names (`/manifest-docs:docs-all`) because
 # that is the only form Claude Code resolves once a skill ships in a bundle.
 # The mirror feeds a different world: ~/.manifest/skills is a FLAT tree read by
-# cursor, gemini, codex, antigravity and devin, none of which know a bundle
+# cursor, codex, antigravity and devin, none of which know a bundle
 # namespace. Shipping `/manifest-docs:docs-all` there names a command that
 # cannot exist on those harnesses.
 #

@@ -2,11 +2,11 @@
 """Headless CDDL persona invoke — provider-agnostic CLI seam.
 
 Used by ``/spec-implement-loop`` on platforms without native Task sub-agents
-(Gemini CLI, Codex, Antigravity, etc.). The orchestrator assembles the dispatch
+(Codex, Antigravity, etc.). The orchestrator assembles the dispatch
 body; this script prepends the role charter and invokes the configured CLI.
 
 Environment:
-  CDDL_INVOKE_PROVIDER — provider key (antigravity, cursor, gemini, codex, claude, devin)
+  CDDL_INVOKE_PROVIDER — provider key (antigravity, cursor, codex, claude, devin)
   CDDL_INVOKE_CLI      — binary override (e.g. agy, cursor-agent)
 
 Usage:
@@ -59,7 +59,7 @@ def _run(args: argparse.Namespace) -> int:
     )
     if route is None:
         _err(
-            "no headless CLI available — install agy/cursor-agent/gemini/codex/claude "
+            "no headless CLI available — install agy/cursor-agent/codex/claude "
             "or set CDDL_INVOKE_PROVIDER / CDDL_INVOKE_CLI"
         )
         return 6

@@ -2,7 +2,7 @@
 
 This prompt is advisory. It does not restart sessions or invoke checkpoints.
 The Claude plugin can confirm completed compactions through its paired lifecycle
-hooks. Codex, Gemini, Cursor, Antigravity, Devin, and other harnesses without a
+hooks. Codex, Cursor, Antigravity, Devin, and other harnesses without a
 verified completion signal must report compaction telemetry as `unknown`.
 
 ## Policy

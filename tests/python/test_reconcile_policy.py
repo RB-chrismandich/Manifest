@@ -97,11 +97,11 @@ def test_expected_keys(world):
 
 
 def test_has_active_dependent_namespace_vs_leaf():
-    edges = {"/home/.claude/skills": ["cursor", "gemini"]}
+    edges = {"/home/.claude/skills": ["cursor", "antigravity"]}
     # exact namespace target -> dependents
     assert core.has_active_dependent("/home/.claude/skills", edges) == [
+        "antigravity",
         "cursor",
-        "gemini",
     ]
     # a leaf under a still-linked parent is dangle-safe -> no direct dependent
     assert core.has_active_dependent("/home/.claude/skills/dead-skill", edges) == []
@@ -373,11 +373,10 @@ def test_sixth_agent_extends_fleet_via_config_only(tmp_path, monkeypatch):
 
     mod = _load_core_with_roster(roster, monkeypatch)
 
-    # The 5 known agents keep their exact historical order; "beta" is new.
+    # The 4 known agents keep their exact historical order; "beta" is new.
     assert mod.ROOT_TAGS == (
         "claude",
         "cursor",
-        "gemini",
         "codex",
         "antigravity",
         "beta",
@@ -443,7 +442,6 @@ def test_load_fleet_tags_fallback_parser_on_real_registry(monkeypatch):
     assert mod.load_fleet_tags(_REAL_ROSTER) == (
         "claude",
         "cursor",
-        "gemini",
         "codex",
         "antigravity",
     )
@@ -459,7 +457,7 @@ def test_load_fleet_tags_hardcoded_default_when_registry_missing(tmp_path, monke
     mod = _load_core_with_roster(missing, monkeypatch)
 
     assert mod.ROOT_TAGS == mod._DEFAULT_ROOT_TAGS
-    assert mod.ROOT_TAGS == ("claude", "cursor", "gemini", "codex", "antigravity")
+    assert mod.ROOT_TAGS == ("claude", "cursor", "codex", "antigravity")
 
 
 # --------------------------------------------------------------------------- #

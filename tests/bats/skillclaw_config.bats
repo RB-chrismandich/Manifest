@@ -44,7 +44,7 @@ teardown() {
 }
 
 @test "write_services_config emits skillclaw section with enabled: false" {
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true ENABLE_CODEX=true
     export ENABLE_ANTIGRAVITY=true ENABLE_SKILLCLAW=false
     export ENABLE_GH=auto ENABLE_GLAB=auto
     run write_services_config
@@ -54,7 +54,7 @@ teardown() {
 }
 
 @test "parse_services_config round-trips skillclaw enabled: true" {
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true ENABLE_CODEX=true
     export ENABLE_ANTIGRAVITY=true ENABLE_SKILLCLAW=true
     export ENABLE_GH=auto ENABLE_GLAB=auto
     write_services_config

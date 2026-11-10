@@ -2,7 +2,7 @@
 
 Post-cutover a skill is reachable only as `<bundle>:<skill>`, but the two
 audiences diverge permanently: docs/COMMANDS.md and /help must show what a
-Claude Code user types, while the injected Gemini/Codex/Cursor index must keep
+Claude Code user types, while the injected Antigravity/Codex/Cursor index must keep
 showing BARE names, because those harnesses read the sibling skills tree and
 never learn about plugins. One string cannot serve both.
 

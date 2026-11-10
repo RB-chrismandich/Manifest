@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Auto-trigger handler for pr-monitor.
 
-Reads a tool-lifecycle hook payload on stdin (Claude PostToolUse, Gemini
-AfterTool, Cursor afterShellExecution — normalized by ai-hooks-integration's
+Reads a tool-lifecycle hook payload on stdin (Claude PostToolUse,
+Cursor afterShellExecution — normalized by ai-hooks-integration's
 unified handler) and, when it sees a SUCCESSFUL `gh pr create` / `glab mr create`
 shell command, emits hook output that nudges the agent to run the
 pr-monitor skill on the just-created PR.
@@ -35,7 +35,7 @@ def extract_command(payload: dict) -> str:
         cmd = ti.get("command") or ti.get("cmd")
         if cmd:
             return str(cmd)
-    # Cursor afterShellExecution / Gemini AfterTool fallbacks
+    # Cursor afterShellExecution fallback
     for key in ("command", "cmd"):
         if payload.get(key):
             return str(payload[key])

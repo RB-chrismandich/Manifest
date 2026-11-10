@@ -189,17 +189,12 @@ def test_generated_security_views_represent_runtime_for_every_harness(
     claude = json.loads(
         (security_bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
     )
-    gemini = json.loads(
-        (security_bundle / "gemini-extension.json").read_text(encoding="utf-8")
-    )
     generic = json.loads((security_bundle / "plugin.json").read_text(encoding="utf-8"))
 
     # Claude's native plugin.json nests compatibility evidence under
-    # `metadata` (the documented free-form field); Gemini keeps it at the
-    # top level.
+    # `metadata` (the documented free-form field).
     compatibility_by_view = {
         "claude": claude["metadata"]["compatibility"],
-        "gemini": gemini["compatibility"],
     }
     for compatibility in compatibility_by_view.values():
         ids = {

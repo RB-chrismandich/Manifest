@@ -304,7 +304,7 @@ def default_skills_dirs() -> list[Path]:
     `.apm/skills` is a GENERATED, gitignored mirror. It is EMPTY in a fresh
     checkout, and a catalog built from an empty tree silently produces a doc
     that deletes every command row while reporting success — measured: 178
-    lines removed from COMMANDS.md, AGENTS.md and GEMINI.md, exit 0. CI happens
+    lines removed from COMMANDS.md, AGENTS.md and the Antigravity GEMINI.md, exit 0. CI happens
     to run generate_skill_mirror.sh first, so this only ever bit locally.
 
     So the plugin trees win when they exist, and the mirror remains the fallback

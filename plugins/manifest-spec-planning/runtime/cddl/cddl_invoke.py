@@ -98,9 +98,6 @@ def _command(
             *model_args,
             prompt,
         ], None
-    if provider == "gemini":
-        gemini_model = ["-m", model] if model else []
-        return [binary, *gemini_model, "-p", prompt], None
     if provider == "codex":
         return [binary, "exec", "--color", "never", *model_args, "-"], prompt
     if provider == "claude":

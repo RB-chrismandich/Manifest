@@ -8,7 +8,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 Usage: sync-skills
 
 Sync .apm/skills/ (source of truth) to all home targets
-(~/.claude/skills + Cursor/Gemini/Codex/Antigravity symlinks). No flags.
+(~/.claude/skills + Cursor/Codex/Antigravity symlinks). No flags.
 Requires MANIFEST_ROOT (set by bootstrap.sh).
 USAGE
     exit 0
@@ -179,19 +179,19 @@ done < <(load_agent_roster_home_dirs)
 # same third-tier fallback (and its documented rationale) for this file:
 # without it a totally-unreadable roster silently collapses to "sync
 # nothing" instead of preserving this script's pre-roster behavior of
-# always syncing the 4 historical secondary targets.
+# always syncing the 3 secondary targets.
 if [[ ${#ROSTER_NAMES[@]} -eq 0 ]]; then
-    ROSTER_NAMES=(claude gemini cursor codex antigravity)
+    ROSTER_NAMES=(claude cursor codex antigravity)
     # Literal ~/.<name> form, matching how tiers 1/2 store agent_roster.yml's
     # own home_dir values -- deliberately NOT pre-expanded here, so the single
     # expansion step below (line ~150) applies uniformly regardless of which
     # tier populated this array.
     # shellcheck disable=SC2088 # intentional: literal ~ kept unexpanded, see above
-    ROSTER_HOME_DIRS=("~/.claude" "~/.gemini" "~/.cursor" "~/.codex" "~/.antigravity")
+    ROSTER_HOME_DIRS=("~/.claude" "~/.cursor" "~/.codex" "~/.antigravity")
     # devin is deliberately absent: it has no skills directory of its own to
-    # sync (see the skills_sync note below), so the pre-devin 4 secondary
+    # sync (see the skills_sync note below), so the pre-devin 3 secondary
     # targets remain exactly the right fallback set.
-    ROSTER_SKILLS_SYNC=("true" "true" "true" "true" "true")
+    ROSTER_SKILLS_SYNC=("true" "true" "true" "true")
 fi
 
 # Secondary sync targets = every roster agent's home_dir/skills EXCEPT

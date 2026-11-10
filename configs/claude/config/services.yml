@@ -16,16 +16,6 @@ services:
       - sonnet   # Balanced (default)
       - opus     # Maximum capability (1M context)
 
-  # Gemini CLI - Google's AI assistant
-  # Install: npm install -g @google/gemini-cli
-  gemini:
-    enabled: true
-    command: gemini
-    description: "Broad knowledge, creative solutions, research"
-    model_tiers:
-      - flash    # Fast (default)
-      - pro      # Advanced
-
   # Cursor Agent - headless CLI for code analysis
   # Install: curl https://cursor.com/install -fsS | bash
   cursor:

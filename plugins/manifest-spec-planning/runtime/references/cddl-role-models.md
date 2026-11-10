@@ -34,7 +34,7 @@ Examples (see repo `review_models.json` for authoritative pins):
 3. regenerate and verify the bundle-local JSON config.
 
 Never hardcode provider model strings in charter bodies — keeps the same roles
-portable across Claude, Cursor, Antigravity, Gemini, and Codex CLIs.
+portable across Claude, Cursor, Antigravity, and Codex CLIs.
 
 Devin does not accept a model selection on this seam. Its provider entry has an
 empty `models` object and `cddl_invoke.py` uses the native no-model invocation.

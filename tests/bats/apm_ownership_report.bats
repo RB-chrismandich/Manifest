@@ -260,7 +260,7 @@ teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
 @test "T1.11: harness-skills reports manifest when every sibling resolves" {
     setup_t111
     mkdir -p "$T111/.manifest/skills/demo"
-    for h in .cursor .gemini .codex .antigravity; do
+    for h in .cursor .codex .antigravity; do
         mkdir -p "$T111/$h"
         ln -s "$T111/.manifest/skills" "$T111/$h/skills"
     done
@@ -274,7 +274,7 @@ teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
 @test "T1.11: a diverted sibling is PARTIAL and is named" {
     setup_t111
     mkdir -p "$T111/.manifest/skills/demo" "$T111/elsewhere"
-    for h in .cursor .gemini .codex; do
+    for h in .cursor .codex; do
         mkdir -p "$T111/$h"
         ln -s "$T111/.manifest/skills" "$T111/$h/skills"
     done
@@ -298,7 +298,7 @@ teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
     # is the state where the exclusion is load-bearing.
     setup_t111
     mkdir -p "$T111/.manifest/skills/demo" "$T111/.config/devin/skills/its-own"
-    for h in .cursor .gemini .codex .antigravity; do
+    for h in .cursor .codex .antigravity; do
         mkdir -p "$T111/$h"
         ln -s "$T111/.manifest/skills" "$T111/$h/skills"
     done

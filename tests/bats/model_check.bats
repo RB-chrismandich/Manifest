@@ -90,8 +90,6 @@ EOF
 setup_probe_config() {
     cat > "$SANDBOX/probe.yml" <<'YAML'
 model_tiers:
-  gemini:
-    flash: "gemini-3-flash-preview"
   claude:
     sonnet: "claude-sonnet-4-6"
 YAML
@@ -110,38 +108,38 @@ YAML
 @test "probe mode reports OK when the CLI answers for the pinned model" {
     setup_probe_config
     mkdir -p "$SANDBOX/bin"
-    cat > "$SANDBOX/bin/fakegemini" <<'FAKE'
+    cat > "$SANDBOX/bin/fakeclaude" <<'FAKE'
 #!/usr/bin/env bash
 echo "OK"
 exit 0
 FAKE
-    chmod +x "$SANDBOX/bin/fakegemini"
+    chmod +x "$SANDBOX/bin/fakeclaude"
     source "$SCRIPT"
     MODEL_CHECK_CONFIG="$SANDBOX/probe.yml"
-    GOOGLE_API_KEY="" MODEL_CHECK_PROBE=1 \
-        MODEL_CHECK_GEMINI_BIN="$SANDBOX/bin/fakegemini" \
-        run check_api_provider gemini
+    ANTHROPIC_API_KEY="" MODEL_CHECK_PROBE=1 \
+        MODEL_CHECK_CLAUDE_BIN="$SANDBOX/bin/fakeclaude" \
+        run check_api_provider claude
     assert_success
-    assert_output --partial "OK: model_tiers.gemini.flash = gemini-3-flash-preview"
+    assert_output --partial "OK: model_tiers.claude.sonnet = claude-sonnet-4-6"
 }
 
 @test "probe mode reports STALE on model-not-found error" {
     setup_probe_config
     mkdir -p "$SANDBOX/bin"
-    cat > "$SANDBOX/bin/fakegemini" <<'FAKE'
+    cat > "$SANDBOX/bin/fakeclaude" <<'FAKE'
 #!/usr/bin/env bash
 echo "ModelNotFoundError: Requested entity was not found." >&2
 echo "  code: 404" >&2
 exit 1
 FAKE
-    chmod +x "$SANDBOX/bin/fakegemini"
+    chmod +x "$SANDBOX/bin/fakeclaude"
     source "$SCRIPT"
     MODEL_CHECK_CONFIG="$SANDBOX/probe.yml"
-    GOOGLE_API_KEY="" MODEL_CHECK_PROBE=1 \
-        MODEL_CHECK_GEMINI_BIN="$SANDBOX/bin/fakegemini" \
-        run check_api_provider gemini
+    ANTHROPIC_API_KEY="" MODEL_CHECK_PROBE=1 \
+        MODEL_CHECK_CLAUDE_BIN="$SANDBOX/bin/fakeclaude" \
+        run check_api_provider claude
     assert_success
-    assert_output --partial "STALE: model_tiers.gemini.flash = gemini-3-flash-preview"
+    assert_output --partial "STALE: model_tiers.claude.sonnet = claude-sonnet-4-6"
 }
 
 @test "probe mode reports STALE on claude bad-model error" {
@@ -165,30 +163,30 @@ FAKE
 @test "probe mode degrades to SKIPPED on unclassifiable CLI failure" {
     setup_probe_config
     mkdir -p "$SANDBOX/bin"
-    cat > "$SANDBOX/bin/fakegemini" <<'FAKE'
+    cat > "$SANDBOX/bin/fakeclaude" <<'FAKE'
 #!/usr/bin/env bash
 echo "network unreachable" >&2
 exit 7
 FAKE
-    chmod +x "$SANDBOX/bin/fakegemini"
+    chmod +x "$SANDBOX/bin/fakeclaude"
     source "$SCRIPT"
     MODEL_CHECK_CONFIG="$SANDBOX/probe.yml"
-    GOOGLE_API_KEY="" MODEL_CHECK_PROBE=1 \
-        MODEL_CHECK_GEMINI_BIN="$SANDBOX/bin/fakegemini" \
-        run check_api_provider gemini
+    ANTHROPIC_API_KEY="" MODEL_CHECK_PROBE=1 \
+        MODEL_CHECK_CLAUDE_BIN="$SANDBOX/bin/fakeclaude" \
+        run check_api_provider claude
     assert_success
-    assert_output --partial "SKIPPED: model_tiers.gemini.flash (probe failed)"
+    assert_output --partial "SKIPPED: model_tiers.claude.sonnet (probe failed)"
 }
 
 @test "probe mode skips provider when CLI binary is missing" {
     setup_probe_config
     source "$SCRIPT"
     MODEL_CHECK_CONFIG="$SANDBOX/probe.yml"
-    GOOGLE_API_KEY="" MODEL_CHECK_PROBE=1 \
-        MODEL_CHECK_GEMINI_BIN="$SANDBOX/bin/no-such-cli" \
-        run check_api_provider gemini
+    ANTHROPIC_API_KEY="" MODEL_CHECK_PROBE=1 \
+        MODEL_CHECK_CLAUDE_BIN="$SANDBOX/bin/no-such-cli" \
+        run check_api_provider claude
     assert_success
-    assert_output --partial "SKIPPED: gemini (no credentials"
+    assert_output --partial "SKIPPED: claude (no credentials"
 }
 
 @test "probe mode probes EVERY pin even when the CLI reads stdin" {
@@ -196,25 +194,25 @@ FAKE
     # silently probing only the first pin (live bug found 2026-06-11).
     cat > "$SANDBOX/multi.yml" <<'YAML'
 model_tiers:
-  gemini:
-    flash: "gemini-3-flash-preview"
-    pro: "gemini-3-pro-preview"
+  claude:
+    sonnet: "claude-sonnet-4-6"
+    opus: "claude-opus-4-6"
 YAML
     mkdir -p "$SANDBOX/bin"
-    cat > "$SANDBOX/bin/fakegemini" <<'FAKE'
+    cat > "$SANDBOX/bin/fakeclaude" <<'FAKE'
 #!/usr/bin/env bash
 cat > /dev/null   # drain stdin like real agent CLIs do
 echo "OK"
 FAKE
-    chmod +x "$SANDBOX/bin/fakegemini"
+    chmod +x "$SANDBOX/bin/fakeclaude"
     source "$SCRIPT"
     MODEL_CHECK_CONFIG="$SANDBOX/multi.yml"
-    GOOGLE_API_KEY="" MODEL_CHECK_PROBE=1 \
-        MODEL_CHECK_GEMINI_BIN="$SANDBOX/bin/fakegemini" \
-        run check_api_provider gemini
+    ANTHROPIC_API_KEY="" MODEL_CHECK_PROBE=1 \
+        MODEL_CHECK_CLAUDE_BIN="$SANDBOX/bin/fakeclaude" \
+        run check_api_provider claude
     assert_success
-    assert_output --partial "OK: model_tiers.gemini.flash"
-    assert_output --partial "OK: model_tiers.gemini.pro"
+    assert_output --partial "OK: model_tiers.claude.sonnet"
+    assert_output --partial "OK: model_tiers.claude.opus"
 }
 
 # ---------------------------------------------------------------------------

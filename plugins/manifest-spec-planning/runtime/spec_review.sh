@@ -187,11 +187,6 @@ run_reviewer() {
             [[ -n "$model" ]] && args+=(--model "$model")
             "$SPEC_REVIEW_CLI" "${args[@]}" "$prompt"
             ;;
-        gemini)
-            local gemini_args=()
-            [[ -n "$model" ]] && gemini_args+=(-m "$model")
-            "$SPEC_REVIEW_CLI" "${gemini_args[@]+"${gemini_args[@]}"}" -p "$prompt"
-            ;;
         codex)
             local codex_args=(exec --color never)
             [[ -n "$model" ]] && codex_args+=(--model "$model")

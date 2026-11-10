@@ -6,7 +6,7 @@ REPO = Path(__file__).resolve().parents[2]
 ROSTER = REPO / "configs/claude/config/agent_roster.yml"
 MODEL_POLICY = REPO / "configs/claude/config/model_policy.yml"
 
-EXPECTED_AGENTS = {"claude", "gemini", "cursor", "codex", "antigravity", "devin"}
+EXPECTED_AGENTS = {"claude", "cursor", "codex", "antigravity", "devin"}
 REQUIRED_KEYS = {
     "name",
     "binary",

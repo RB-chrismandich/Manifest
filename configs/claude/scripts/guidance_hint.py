@@ -160,7 +160,7 @@ def _command_from_payload(raw: str) -> str | None:
     """Best-effort extraction of a shell command from a hook payload.
 
     Tolerant across tools (Claude Code `tool_input.command`, and the
-    `BeforeTool`-style `args.command`/top-level `command` shapes used by Gemini/
+    `BeforeTool`-style `args.command`/top-level `command` shapes used by
     Cursor via ai-hooks-integration). Unknown shapes return None (fail-open).
     """
     try:

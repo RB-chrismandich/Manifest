@@ -2,7 +2,7 @@
 # probe_devin_inheritance.sh — T0.2 Probe A, Devin arm (spec 674).
 #
 # Phase 0's gate reads "No UNKNOWN may remain FOR DEVIN". Every other CLI is
-# settled: gemini and agy are proven DEPENDS by nonce differential, cursor by a
+# settled: agy is proven DEPENDS by nonce differential, cursor by a
 # literal root array in its bundle, and codex is legitimately UNKNOWN (401, and
 # the gate does not require it). Devin is the one that blocks, and it blocks
 # only because `devin models list` reports "Not logged in".

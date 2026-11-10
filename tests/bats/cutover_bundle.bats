@@ -48,7 +48,7 @@ full_sandbox_home() {
     mkdir -p "$HOME/.claude/skills" "$MANIFEST_SKILLS_DIR/code-audit" "$SANDBOX/bin"
     echo "x" > "$MANIFEST_SKILLS_DIR/code-audit/SKILL.md"
     local h
-    for h in .cursor .gemini .codex .antigravity; do
+    for h in .cursor .codex .antigravity; do
         mkdir -p "$HOME/$h"
         ln -sfn "$MANIFEST_SKILLS_DIR" "$HOME/$h/skills"
     done
@@ -218,7 +218,7 @@ devin_stub() {  # $1 = the path text devin should print
     mkdir -p "$MANIFEST_SKILLS_DIR/code-audit" "$(dirname "$DEVIN_SKILLS_LINK")"
     echo "x" > "$MANIFEST_SKILLS_DIR/code-audit/SKILL.md"
     local h
-    for h in .cursor .gemini .codex .antigravity; do
+    for h in .cursor .codex .antigravity; do
         ln -sfn "$MANIFEST_SKILLS_DIR" "$HOME/$h/skills"
     done
     ln -sfn "$MANIFEST_SKILLS_DIR" "$DEVIN_SKILLS_LINK"
@@ -280,7 +280,7 @@ devin_stub() {  # $1 = the path text devin should print
     mkdir -p "$MANIFEST_SKILLS_DIR/code-audit" "$(dirname "$DEVIN_SKILLS_LINK")"
     echo "x" > "$MANIFEST_SKILLS_DIR/code-audit/SKILL.md"
     local h
-    for h in .cursor .gemini .codex .antigravity; do
+    for h in .cursor .codex .antigravity; do
         ln -sfn "$MANIFEST_SKILLS_DIR" "$HOME/$h/skills"
     done
     ln -sfn "$MANIFEST_SKILLS_DIR" "$DEVIN_SKILLS_LINK"

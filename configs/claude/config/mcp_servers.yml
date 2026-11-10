@@ -1,5 +1,5 @@
 # Default MCP server registry for Manifest-managed agent environments.
-# Shared via symlinks from ~/.claude/config to ~/.cursor/config, ~/.gemini/config, ~/.codex/config.
+# Shared via symlinks from ~/.claude/config to ~/.cursor/config, ~/.codex/config, ~/.gemini/config (Antigravity CLI home).
 #
 # Adding a new server here is all that's needed — the bootstrap interactive
 # prompt (--install-mcp) picks it up automatically with no code changes.

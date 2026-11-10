@@ -8,7 +8,7 @@ Opt-in (`bootstrap.sh --enable-devpanel`); deploys to both the Claude home
 (`~/.claude/agents/`) and the Cursor home (`~/.cursor/agents/`, Cursor-native
 frontmatter — see `configs/claude/scripts/generate_cursor_agents.py`), independently of
 and alongside pilotfish (disjoint filenames in the same target directory; both toggles
-may be enabled together). Gemini/Codex/Antigravity remain out of scope (no subagent-file
+may be enabled together). Codex/Antigravity remain out of scope (no subagent-file
 mechanism to deploy to).
 
 ## Roles

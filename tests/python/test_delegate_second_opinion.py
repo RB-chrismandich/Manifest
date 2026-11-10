@@ -143,7 +143,7 @@ class TestSecondOpinion:
             [
                 _valid_backend("codex"),
                 _valid_backend("claude"),
-                _valid_backend("gemini"),
+                _valid_backend("cursor"),
             ],
             {},
             set(),
@@ -152,7 +152,7 @@ class TestSecondOpinion:
         assert rc == 0
         assert "same as the original job's backend" in err
         assert "claude" in err
-        assert "gemini" not in err.split("alternatives:")[1]
+        assert "cursor" not in err.split("alternatives:")[1]
 
     def test_second_opinion_forces_read_only_despite_write_flag(
         self, tmp_path, monkeypatch, capsys

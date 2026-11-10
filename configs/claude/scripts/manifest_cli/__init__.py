@@ -84,9 +84,7 @@ def smoke(args: tuple[str, ...]) -> None:
 @click.option(
     "--harness",
     required=True,
-    type=click.Choice(
-        ("claude", "codex", "gemini", "cursor", "antigravity", "agy", "devin")
-    ),
+    type=click.Choice(("claude", "codex", "cursor", "antigravity", "agy", "devin")),
 )
 @click.option(
     "--task-file", type=click.Path(path_type=Path, exists=True, dir_okay=False)

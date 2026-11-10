@@ -65,7 +65,7 @@ kill_tree() {
 }
 
 # Run a command bounded by 3s. Prefer timeout(1)/gtimeout(1); otherwise fall
-# back to a pure-bash watchdog so a slow CLI (e.g. `gemini auth status`, ~60s)
+# back to a pure-bash watchdog so a slow CLI (e.g. a ~60s auth probe)
 # can't stall the readiness check on machines without GNU coreutils — without
 # this the whole check took ~196s on stock macOS.
 run_with_timeout() {
@@ -92,7 +92,7 @@ run_with_timeout() {
 # --- agent_roster.yml (Task 26): single enumeration of the 5(+)-agent
 # fleet, consumed by the Enabled Services and CLI Tools loops below, plus
 # the claude/cursor Authentication checks (whose auth_check is a single
-# command). gemini/codex/antigravity keep their bespoke multi-condition
+# command). codex/antigravity keep their bespoke multi-condition
 # auth logic (see comments at each block) -- the registry's auth_check
 # field only has room for one command, not their richer detection.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -225,9 +225,9 @@ done < <(load_agent_roster_tsv)
 # agent_roster.yml's own committed content -- one source of truth, not a
 # fourth independent set of values.
 if [[ ${#ROSTER_NAMES[@]} -eq 0 ]]; then
-    ROSTER_NAMES=(claude gemini cursor codex antigravity devin)
-    ROSTER_BINARIES=(claude gemini cursor-agent codex agy devin)
-    ROSTER_AUTH_CHECKS=("claude auth status" "gemini auth status" "cursor-agent --version" "codex login status" "agy models" "devin models list")
+    ROSTER_NAMES=(claude cursor codex antigravity devin)
+    ROSTER_BINARIES=(claude cursor-agent codex agy devin)
+    ROSTER_AUTH_CHECKS=("claude auth status" "cursor-agent --version" "codex login status" "agy models" "devin models list")
 fi
 
 # roster_binary/roster_auth_check NAME -> field for NAME (empty if not
@@ -263,13 +263,11 @@ roster_auth_check() {
 # registry. The 5 names below are all already valid identifiers, so the
 # sanitization is a no-op for them.
 claude_installed=false
-gemini_installed=false
 cursor_installed=false
 codex_installed=false
 antigravity_installed=false
 devin_installed=false
 claude_enabled=""
-gemini_enabled=""
 cursor_enabled=""
 codex_enabled=""
 antigravity_enabled=""
@@ -278,7 +276,6 @@ devin_enabled=""
 manifest_state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
 manifest_tmp_dir="${MANIFEST_TMP_DIR:-$manifest_state_root/tmp}"
 claude_state_dir="${CLAUDE_STATE_DIR:-$manifest_state_root/claude}"
-gemini_state_dir="${GEMINI_STATE_DIR:-$manifest_state_root/gemini}"
 cursor_state_dir="${CURSOR_STATE_DIR:-$manifest_state_root/cursor}"
 codex_state_dir="${CODEX_STATE_DIR:-${CODEX_HOME:-$manifest_state_root/codex}}"
 export CODEX_HOME="${CODEX_HOME:-$codex_state_dir}"
@@ -348,7 +345,6 @@ echo -e "${BOLD}CLI Tools:${NC}"
 agent_installed_msg() {
     case "$1" in
         claude) echo "Claude CLI installed" ;;
-        gemini) echo "Gemini CLI installed" ;;
         cursor) echo "cursor-agent CLI available" ;;
         codex) echo "Codex CLI installed" ;;
         antigravity) echo "Antigravity CLI (agy) installed" ;;
@@ -359,7 +355,6 @@ agent_installed_msg() {
 agent_not_installed_msg() {
     case "$1" in
         claude) echo "Claude CLI not installed (optional)" ;;
-        gemini) echo "Gemini CLI not installed (optional)" ;;
         cursor) echo "cursor-agent not available (optional)" ;;
         codex) echo "Codex CLI not installed (optional)" ;;
         antigravity) echo "Antigravity CLI (agy) not installed (optional)" ;;
@@ -370,7 +365,6 @@ agent_not_installed_msg() {
 agent_install_hint() {
     case "$1" in
         claude) echo "npm install -g @anthropic-ai/claude-code" ;;
-        gemini) echo "npm install -g @google/gemini-cli" ;;
         cursor) echo "curl https://cursor.com/install -fsS | bash" ;;
         codex) echo "npm install -g @openai/codex" ;;
         antigravity) echo "Install via the Antigravity IDE (agy install)" ;;
@@ -378,12 +372,12 @@ agent_install_hint() {
         *) echo "no install hint configured for $1" ;;
     esac
 }
-# claude/gemini/codex CLIs print a version banner; cursor-agent and agy
+# claude/codex CLIs print a version banner; cursor-agent and agy
 # (antigravity) do not today, so their verbose block omits the Version line
 # -- preserved exactly from the pre-roster-loop behavior.
 agent_shows_version() {
     case "$1" in
-        claude | gemini | codex | devin) return 0 ;;
+        claude | codex | devin) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -415,7 +409,7 @@ echo -e "${BOLD}Authentication:${NC}"
 
 # claude and cursor's auth checks are a single non-interactive command with
 # no extra condition, so they are driven directly by agent_roster.yml's
-# auth_check field (Task 26). gemini/codex/antigravity need richer
+# auth_check field (Task 26). codex/antigravity need richer
 # multi-source detection (env vars, credential files, and/or a fallback
 # probe) that a single roster command cannot express, so they keep their
 # bespoke logic below, unconverted -- an honest, documented schema
@@ -439,25 +433,6 @@ for r_name in claude cursor; do
     fi
 done
 
-# gemini: NOT roster-driven -- agent_roster.yml's auth_check is a single
-# command ("gemini auth status"), but the real check here is a 3-way OR
-# (env var(s) OR the OAuth creds file OR that command as a last-resort
-# probe) that a single roster field cannot express.
-if [[ "$gemini_installed" == true ]]; then
-    # Prefer a fast credential check: `gemini auth status` has no real auth
-    # subcommand and runs as a ~60s model call, so probe it only as a last
-    # resort. An API key or the OAuth creds file is an immediate signal (same
-    # file-presence heuristic as the Codex check above).
-    if [[ -n "$GEMINI_API_KEY" || -n "$GOOGLE_API_KEY" || -f "$HOME/.gemini/oauth_creds.json" ]]; then
-        echo -e "  ${GREEN}✓${NC} Gemini authenticated"
-    elif run_with_timeout gemini auth status &> /dev/null; then
-        echo -e "  ${GREEN}✓${NC} Gemini authenticated"
-    else
-        echo -e "  ${YELLOW}⚠${NC}  Gemini authentication unknown (check timeout)"
-        echo -e "    ${BLUE}→${NC} Verify: gemini auth status"
-    fi
-fi
-
 # codex: NOT roster-driven -- agent_roster.yml's auth_check is a single
 # command ("codex login status"), but the real check here is env var OR
 # either of two candidate auth.json paths OR that command, a 3-source OR a
@@ -474,11 +449,11 @@ fi
 # antigravity: NOT roster-driven -- agent_roster.yml's auth_check is a
 # single command ("agy models"), which IS what runs below, but it is used
 # as a bound-probe signal (no credentials-file heuristic exists for agy;
-# see the ~/.gemini/config quirk note), which is a richer usage pattern
+# see the agy ~/.gemini/config quirk note), which is a richer usage pattern
 # than a plain success/failure roster-driven call.
 if [[ "$antigravity_installed" == true ]]; then
     # agy has no predictable credentials-file heuristic (its config lives
-    # under ~/.gemini/config, not ~/.antigravity — see G14); `agy models`
+    # under ~/.gemini/config (agy's home), not ~/.antigravity — see G14); `agy models`
     # lists models only when logged in, so bound-probe it as the auth signal.
     if run_with_timeout agy models &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} Antigravity authenticated"
@@ -534,7 +509,7 @@ echo ""
 
 echo -e "${BOLD}State Directories:${NC}"
 state_ok=true
-for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$cursor_state_dir" "$codex_state_dir" "$antigravity_state_dir" "$devin_state_dir"; do
+for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$cursor_state_dir" "$codex_state_dir" "$antigravity_state_dir" "$devin_state_dir"; do
     if mkdir -p "$state_dir" 2> /dev/null && [[ -w "$state_dir" ]]; then
         if [[ "$VERBOSE" == true ]]; then
             echo -e "  ${GREEN}✓${NC} $state_dir"
@@ -598,7 +573,7 @@ if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
         esac
     done < <("$SCRIPT_DIR/model_check.sh")
     # SKIPPED must not read as green: on OAuth-only machines (no API keys)
-    # claude/gemini pins go unverified and broken pins hide behind a ✓.
+    # claude pins go unverified and broken pins hide behind a ✓.
     # UNSUPPORTED providers (no listing command at all) are called out in the
     # green line so "verified" never overclaims what was actually checked.
     if [[ "$stale_pins" -gt 0 ]]; then
@@ -619,14 +594,13 @@ echo ""
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}Overall Status:${NC}"
 
-# NOTE: this tally recognizes only the 6 hardcoded agent names above — a
-# roster-only 7th+ agent (hyphenated or not) has its enabled/installed state
+# NOTE: this tally recognizes only the 5 hardcoded agent names above — a
+# roster-only 6th+ agent (hyphenated or not) has its enabled/installed state
 # correctly read via ROSTER_NAMES elsewhere in this script, but is never
 # counted toward readiness here. Pre-existing limitation; devin was added to
 # the tally when it joined the roster.
 working_agents=0
 [[ "$claude_installed" == true && "$claude_enabled" == "true" ]] && working_agents=$((working_agents + 1))
-[[ "$gemini_installed" == true && "$gemini_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$cursor_installed" == true && "$cursor_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$codex_installed" == true && "$codex_enabled" == "true" && "$codex_runtime_ready" == true ]] && working_agents=$((working_agents + 1))
 [[ "$antigravity_installed" == true && "$antigravity_enabled" == "true" ]] && working_agents=$((working_agents + 1))

@@ -393,8 +393,6 @@ PY
 services:
   claude:
     enabled: false
-  gemini:
-    enabled: false
   cursor:
     enabled: false
   codex:

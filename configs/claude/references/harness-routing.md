@@ -13,7 +13,7 @@ The [shared dispatch contract](sub-agent-dispatch.md) is authoritative.
 - Claude Code parents use only discovered native Agent types and native
   background-agent collection.
 - Portable skills link the shared contract instead of restating host branches.
-- Cursor, Gemini, Codex, Antigravity, Devin, and other hosts gain no native API
+- Cursor, Codex, Antigravity, Devin, and other hosts gain no native API
   from this contract. Their existing guidance remains authoritative.
 
 ## Rules

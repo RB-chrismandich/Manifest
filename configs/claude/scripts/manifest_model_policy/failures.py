@@ -108,9 +108,7 @@ class FailureEvidence:
 
 
 _SECRET = re.compile(r"(?i)(?:bearer\s+\S+|sk-[a-z0-9_-]+|api[_-]?key\s*[=:]\s*\S+)")
-_TRUSTED_IDENTITIES = frozenset(
-    {"claude", "codex", "gemini", "cursor", "antigravity", "devin"}
-)
+_TRUSTED_IDENTITIES = frozenset({"claude", "codex", "cursor", "antigravity", "devin"})
 _SDK_FIELD_NAMES = frozenset({"code", "status", "status_code", "type"})
 _BLOCKING_PATTERNS = (
     (

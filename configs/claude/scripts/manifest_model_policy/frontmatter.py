@@ -10,9 +10,7 @@ from types import MappingProxyType
 
 import yaml
 
-SUPPORTED_HARNESSES = frozenset(
-    {"claude", "codex", "gemini", "cursor", "antigravity", "devin"}
-)
+SUPPORTED_HARNESSES = frozenset({"claude", "codex", "cursor", "antigravity", "devin"})
 PORTABLE_TIERS = frozenset(
     {"auto", "mini", "flash", "advanced", "haiku", "sonnet", "opus", "pro"}
 )

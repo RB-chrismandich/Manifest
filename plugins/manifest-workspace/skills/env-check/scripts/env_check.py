@@ -16,7 +16,6 @@ HARNESSES = {
     "codex": "codex",
     "cursor": "cursor-agent",
     "devin": "devin",
-    "gemini": "gemini",
 }
 
 

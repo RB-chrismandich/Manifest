@@ -33,9 +33,9 @@ setup() {
     printf 'dependencies: {}\n' > "$HOME/.apm/apm.lock.yaml"
     printf 'targets: []\n' > "$HOME/.apm/apm.yml"
 
-    # The four sibling homes are symlinks to ~/.claude/skills on a real machine.
+    # The three sibling homes are symlinks to ~/.claude/skills on a real machine.
     local d
-    for d in .cursor .gemini .codex .antigravity; do
+    for d in .cursor .codex .antigravity; do
         mkdir -p "$HOME/$d"
         ln -s "$HOME/.claude/skills" "$HOME/$d/skills"
     done
@@ -94,7 +94,7 @@ teardown() {
     local txt
     txt="$(find "$MANIFEST_STATE_DIR" -name 'pre-cutover-*.txt' | head -1)"
     local d
-    for d in cursor gemini codex antigravity; do
+    for d in cursor codex antigravity; do
         grep -q "^readlink_${d}=${HOME}/.claude/skills$" "$txt"
     done
 }

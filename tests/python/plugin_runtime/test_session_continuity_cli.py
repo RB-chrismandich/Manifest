@@ -100,7 +100,7 @@ def test_workspace_declares_claude_compaction_hooks_and_continuity_runtime(
     assert set(continuity_hooks) == {"claude-compaction-continuity"}
     for hook in continuity_hooks.values():
         assert hook["compatibility"]["claude"]["mode"] == "native"
-        for harness in ("codex", "gemini", "cursor", "antigravity", "devin"):
+        for harness in ("codex", "cursor", "antigravity", "devin"):
             assert hook["compatibility"][harness]["mode"] == "not_applicable"
 
 

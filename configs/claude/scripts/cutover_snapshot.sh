@@ -48,7 +48,7 @@ SNAPSHOT_PATHS=(
 # Sibling homes whose skills entry is a symlink into ~/.claude/skills. Recorded
 # by target, not by existence: Phase 2 repoints these, and a rollback needs to
 # know where they pointed before, not merely that they pointed somewhere.
-SIBLING_HOMES=(cursor gemini codex antigravity)
+SIBLING_HOMES=(cursor codex antigravity)
 
 # Populated by create_snapshot, consumed by write_sidecar.
 CAPTURED_PATHS=()

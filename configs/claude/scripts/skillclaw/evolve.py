@@ -148,7 +148,7 @@ def subprocess_runner(prompt: str) -> str:
     )
     if route is None:
         raise RuntimeError(
-            "evolve: no headless CLI on PATH — install claude/gemini/agy/cursor-agent "
+            "evolve: no headless CLI on PATH — install claude/agy/cursor-agent "
             "or set EVOLVE_CLI / EVOLVE_PROVIDER"
         )
 

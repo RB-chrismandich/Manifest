@@ -6,7 +6,7 @@ rate_limits:
   claude:
     requests_per_minute: 60
     burst_size: 5
-  gemini:
+  codex:
     requests_per_minute: 30
     burst_size: 3
   cursor:
@@ -26,9 +26,9 @@ model_tiers:
     haiku: claude-haiku-4-5-20251001
     sonnet: claude-sonnet-4-5-20250929
     opus: claude-opus-4-6
-  gemini:
-    flash: gemini-3-flash-preview
-    pro: gemini-3-pro-preview
+  codex:
+    flash: gpt-5.6-terra
+    advanced: gpt-5.6-sol
 
 # Consensus thresholds
 validation:
