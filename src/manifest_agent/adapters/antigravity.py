@@ -86,7 +86,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
-        command, error = self._execute((self.executable, "plugin", "list"))
+        command, error = self._execute((self.executable, *_LIST_COMMAND))
         if error is not None:
             return error
         assert command is not None
@@ -148,7 +148,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
         identifiers: set[str] | None = None,
     ) -> tuple[AdapterPluginState, ...]:
         del capture_backups
-        command, error = self._execute((self.executable, "plugin", "list"))
+        command, error = self._execute((self.executable, *_LIST_COMMAND))
         if error is not None or command is None:
             raise ValueError("Antigravity plugin inventory is unavailable")
         rows, parse_error = _import_rows(command.stdout)
@@ -347,23 +347,42 @@ def _generic_view_errors(desired: DesiredState, harness: str) -> list[str]:
 
 
 _NO_IMPORTS_TEXT = "No imported plugins."
+# agy added `plugin list --json`; without the flag the command prints text.
+_LIST_COMMAND = ("plugin", "list", "--json")
 
 
 def _import_rows(
     stdout: str,
 ) -> tuple[list[Mapping[str, Any]], str | None]:
+    """Parse `agy plugin list --json` into one row per installed plugin.
+
+    Current agy prints a top-level array whose rows carry a `skills` name list;
+    earlier releases printed `{"imports": [...]}` rows carrying `components`.
+    Both are accepted and normalized to the `components` form the verifiers read.
+    """
     if stdout.strip() == _NO_IMPORTS_TEXT:
         return [], None
     try:
         document = json.loads(stdout)
     except json.JSONDecodeError:
         return [], "agy plugin list did not return valid JSON"
-    if not isinstance(document, Mapping):
+    if isinstance(document, list):
+        rows = document
+    elif isinstance(document, Mapping):
+        rows = document.get("imports")
+    else:
         return [], "agy plugin list JSON has an invalid schema"
-    rows = document.get("imports")
     if not isinstance(rows, list) or any(not isinstance(row, Mapping) for row in rows):
         return [], "agy plugin list JSON has an invalid imports schema"
-    return rows, None
+    return [_with_components(row) for row in rows], None
+
+
+def _with_components(row: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Derive `components` for a row that reports its skills by name."""
+    skills = row.get("skills")
+    if "components" in row or not isinstance(skills, list) or not skills:
+        return row
+    return {**row, "components": ["skills"]}
 
 
 def _verify_imports(

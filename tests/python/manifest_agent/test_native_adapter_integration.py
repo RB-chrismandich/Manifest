@@ -388,7 +388,7 @@ def _assert_pre_install_inspection(
             ("mcp", "list", "--json"),
         ],
         "cursor": [("plugin", "marketplace", "list", "--format", "json")],
-        "antigravity": [("plugin", "list")],
+        "antigravity": [("plugin", "list", "--json")],
         "devin": [("plugins", "list")]
         + [("plugins", "info", name) for name in bundle_names],
     }
@@ -722,7 +722,7 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
     if phase == "detect":
         return _fixture([_response(["--version"], "0.2.0\n")])
     if phase == "pre":
-        return _fixture([_response(["plugin", "list"], '{"imports":[]}')])
+        return _fixture([_response(["plugin", "list", "--json"], '{"imports":[]}')])
     if phase == "installed":
         responses = [
             _response(["plugin", "validate", str(desired.bundle_path(name))])
@@ -732,7 +732,7 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
             _response(["plugin", "install", str(desired.bundle_path(name))])
             for name in bundle_names
         )
-        responses.append(_response(["plugin", "list"], inventory))
+        responses.append(_response(["plugin", "list", "--json"], inventory))
         return _fixture(responses)
     if phase == "removed":
         return _fixture(

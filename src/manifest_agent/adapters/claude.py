@@ -150,6 +150,11 @@ class ClaudeAdapter(CapabilityAdapterMixin):
         failures, already_present = self._run_install_mutations(commands)
         capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
+        if inspected.state in {ResultState.DRIFTED, ResultState.BLOCKED}:
+            updated, update_failures = _update_stale_plugins(self, desired)
+            failures.extend(update_failures)
+            if updated:
+                inspected = self.inspect(desired)
         if not _selected_plugins_match(desired, inspected):
             failures.extend(already_present)
         return combine_results(*failures, capabilities, inspected)
@@ -383,6 +388,51 @@ def _verify_rows(
     else:
         state = ResultState.BLOCKED
     return HarnessResult("claude", state, tuple(installed), {}, tuple(errors))
+
+
+def _update_stale_plugins(
+    adapter: ClaudeAdapter, desired: DesiredState
+) -> tuple[bool, list[HarnessResult]]:
+    """Move already-installed plugins to the selected release version.
+
+    `claude plugin install` reports an installed plugin as already present
+    and leaves its recorded version alone, so a version change needs
+    `claude plugin update`. Returns whether any update ran, and failures.
+    """
+    command, error = adapter._execute((adapter.name, "plugin", "list", "--json"))
+    if error is not None:
+        return False, [error]
+    assert command is not None
+    if command.returncode != 0:
+        return False, [
+            native_command_result(adapter.name, command, CapabilityTier.REQUIRED)
+        ]
+    rows, parse_error = _plugin_rows(command.stdout)
+    if parse_error is not None:
+        return False, [_blocked(parse_error)]
+    stale = _stale_plugin_ids(desired, rows)
+    if not stale:
+        return False, []
+    return True, adapter._run_mutations(
+        [
+            (adapter.name, "plugin", "update", plugin_id, "--scope", "user")
+            for plugin_id in stale
+        ]
+    )
+
+
+def _stale_plugin_ids(
+    desired: DesiredState, rows: Sequence[Mapping[str, Any]]
+) -> tuple[str, ...]:
+    """Installed canonical plugins whose recorded version is not the selected one."""
+    by_id = {row.get("id"): row for row in rows if isinstance(row.get("id"), str)}
+    stale = []
+    for contract in desired.all_contracts:
+        plugin_id = f"{contract.name}@{_MARKETPLACE}"
+        row = by_id.get(plugin_id)
+        if row is not None and row.get("version") != contract.version:
+            stale.append(plugin_id)
+    return tuple(stale)
 
 
 def _component_evidence(

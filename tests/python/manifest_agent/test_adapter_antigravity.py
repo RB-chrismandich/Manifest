@@ -204,7 +204,7 @@ def test_antigravity_installs_bundles_directly_without_marketplace(
     ]
     assert not any(row[:3] == ["agy", "plugin", "link"] for row in runner.log)
     assert not any("@" in cell for row in runner.log for cell in row)
-    assert runner.log[-1] == ["agy", "plugin", "list"]
+    assert runner.log[-1] == ["agy", "plugin", "list", "--json"]
     assert result.installed_plugin_ids == DOMAIN_BUNDLES
     assert result.capabilities["manifest-workspace:skill:skill-manifest-workspace"] == (
         "verified"
@@ -223,6 +223,52 @@ def test_antigravity_inspect_treats_empty_plugin_list_text_as_no_imports(
     joined = " ".join(result.errors)
     assert "did not return valid JSON" not in joined
     assert all(f"missing required plugin: {name}" in joined for name in DOMAIN_BUNDLES)
+
+
+def _json_flag_inventory(*, skills: list[str]) -> str:
+    """The top-level array `agy plugin list --json` prints since the flag landed."""
+    return json.dumps(
+        [
+            {
+                "name": name,
+                "enabled": True,
+                "source": "antigravity",
+                "path": f"/home/.gemini/config/plugins/{name}",
+                "skills": skills,
+                "agents": [],
+                "hooks": [],
+            }
+            for name in DOMAIN_BUNDLES
+        ]
+    )
+
+
+def test_antigravity_inspect_accepts_json_flag_array_rows(
+    desired: DesiredState,
+) -> None:
+    runner = QueueRunner([command(stdout=_json_flag_inventory(skills=["a-skill"]))])
+
+    result = AntigravityAdapter(runner=runner).inspect(desired)
+
+    joined = " ".join(result.errors)
+    assert set(result.installed_plugin_ids) == set(DOMAIN_BUNDLES)
+    assert "did not return valid JSON" not in joined
+    assert "invalid" not in joined
+    assert "does not expose native skills" not in joined
+
+
+def test_antigravity_inspect_rejects_json_flag_rows_without_skills(
+    desired: DesiredState,
+) -> None:
+    runner = QueueRunner([command(stdout=_json_flag_inventory(skills=[]))])
+
+    result = AntigravityAdapter(runner=runner).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert all(
+        f"plugin {name} does not expose native skills" in result.errors
+        for name in DOMAIN_BUNDLES
+    )
 
 
 def test_antigravity_validation_failure_blocks_every_mutation(

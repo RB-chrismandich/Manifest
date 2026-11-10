@@ -254,6 +254,37 @@ def test_already_present_is_idempotent_only_after_selected_version_inspection(
     assert runner.log[-1] == ["claude", "plugin", "list", "--json"]
 
 
+def test_install_updates_plugins_recorded_at_a_stale_version(
+    desired: DesiredState,
+) -> None:
+    """`plugin install` leaves an installed plugin's version alone; update moves it."""
+    marketplace = command(stdout=marketplace_json(desired.marketplace_source.source))
+    stale = command(stdout=installed_json(desired, "0.1.0"))
+    runner = QueueRunner(
+        [command(), marketplace]
+        + [command(stdout="already installed")] * len(DOMAIN_BUNDLES)
+        + [marketplace, stale, stale]
+        + [command()] * len(DOMAIN_BUNDLES)
+        + [marketplace, command(stdout=installed_json(desired))]
+    )
+
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        env={"HOME": str(desired.release_root)},
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    ).install(desired)
+
+    assert result.state is ResultState.READY
+    assert result.errors == ()
+    updates = [row for row in runner.log if row[:3] == ["claude", "plugin", "update"]]
+    assert updates == [
+        ["claude", "plugin", "update", f"{name}@manifest", "--scope", "user"]
+        for name in DOMAIN_BUNDLES
+    ]
+    assert runner.results == []
+
+
 def test_marketplace_collision_blocks_before_plugin_install(
     desired: DesiredState,
 ) -> None:
