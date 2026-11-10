@@ -423,12 +423,6 @@ jobs:
           check_symlink "configs/cursor/prompts"  "../claude/prompts"
           check_symlink "configs/cursor/.plans"   "../claude/.plans"
 
-          # configs/gemini symlinks
-          check_symlink "configs/gemini/scripts"  "../claude/scripts"
-          check_symlink "configs/gemini/config"   "../claude/config"
-          check_symlink "configs/gemini/prompts"  "../claude/prompts"
-          check_symlink "configs/gemini/.plans"   "../claude/.plans"
-
           # configs/codex symlinks
           check_symlink "configs/codex/AGENTS.md" "../../AGENTS.md"
           check_symlink "configs/codex/scripts"   "../claude/scripts"

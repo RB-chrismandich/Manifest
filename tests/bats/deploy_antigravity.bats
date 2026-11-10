@@ -37,6 +37,8 @@ setup_deploy() {
     SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/deploy_ag.XXXXXX")
     export TARGET_DIR="$SANDBOX/dotclaude"          # ~/.claude — source of symlink targets
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/dotantigravity"
+    export AGY_GEMINI_HOME="$SANDBOX/dotgemini"     # agy's ~/.gemini — never the real home
+    export SCRIPT_DIR="$REPO_ROOT"
     export ENABLE_ANTIGRAVITY=true
     mkdir -p "$TARGET_DIR"/scripts "$TARGET_DIR"/config "$TARGET_DIR"/prompts \
         "$TARGET_DIR"/.plans "$TARGET_DIR"/skills
@@ -84,7 +86,7 @@ teardown() {
 
 # ---- regression guard: other assistants still get scripts + prompts ----
 
-@test "link_shared_assets without exclude still links scripts and prompts (Cursor/Gemini/Codex path)" {
+@test "link_shared_assets without exclude still links scripts and prompts (Cursor/Codex path)" {
     setup_deploy
     local dest="$SANDBOX/other"
     mkdir -p "$dest"
@@ -102,13 +104,13 @@ setup_verify() {
     export HOME="$SANDBOX/home"
     export TARGET_DIR="$HOME/.claude"
     export CURSOR_TARGET_DIR="$HOME/.cursor"
-    export GEMINI_TARGET_DIR="$HOME/.gemini"
+    export AGY_GEMINI_HOME="$HOME/.gemini"
     export CODEX_TARGET_DIR="$HOME/.codex"
     export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
     export MANIFEST_STATE_DIR="$HOME/.manifest"
     export MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
     export MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=false ENABLE_CURSOR=false ENABLE_CODEX=false
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=false ENABLE_CODEX=false
     export ENABLE_ANTIGRAVITY=true ENABLE_GH=false ENABLE_GLAB=false
     export MANIFEST_APM_DOMAINS="$SANDBOX/apm_domains.yml"
     printf 'domains: []\nretired:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"

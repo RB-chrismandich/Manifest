@@ -63,6 +63,35 @@ seed_existing_claude_home() {
     [[ "$apm_line" == *"no-op"* ]]
 }
 
+@test "bootstrap.sh --help documents --enable-gemini/--disable-gemini as no-ops" {
+    run env -i PATH=/usr/bin:/bin HOME="$HOME" bash "$REPO_ROOT/bootstrap.sh" --help
+    assert_success
+
+    local flag line
+    for flag in --enable-gemini --disable-gemini; do
+        line="$(printf '%s\n' "$output" | grep -- "$flag" | tr '[:upper:]' '[:lower:]')"
+        [[ "$line" == *"no-op"* && "$line" == *"removed"* ]] || {
+            echo "$flag not documented as a removed no-op: $line"
+            false
+        }
+    done
+}
+
+@test "--enable-gemini/--disable-gemini parse as notice-only no-ops" {
+    run bash -c "
+        RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/config.sh'
+        set_bootstrap_defaults
+        parse_bootstrap_args --enable-gemini --disable-cursor --disable-gemini
+        echo \"cursor=\$ENABLE_CURSOR gemini=\${ENABLE_GEMINI-unset}\"
+    "
+    assert_success
+    assert_output --partial "--enable-gemini ignored: Gemini CLI support was removed"
+    assert_output --partial "--disable-gemini ignored: Gemini CLI support was removed"
+    assert_output --partial "cursor=false gemini=unset"
+}
+
 @test "bootstrap.sh rejects combining --force and --update-config" {
     run env -i PATH=/usr/bin:/bin HOME="$HOME" bash "$REPO_ROOT/bootstrap.sh" --force --update-config
     assert_failure

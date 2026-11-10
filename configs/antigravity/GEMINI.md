@@ -1,13 +1,13 @@
-# Gemini Orchestration Guide
+# Antigravity Orchestration Guide
 
-This document defines OMP-native sub-agent dispatch, planning, and validation.
+This document defines OMP-native sub-agent dispatch, planning, and validation
+for the Antigravity CLI (`agy`).
 
-**Symlink Strategy**: The `.gemini/` directory shares most assets with `.claude/`
-via symlinks. Prompts, configuration, scripts, plans, and all skills
-point back to their canonical locations under `~/.claude/`. Only this guide
-(`GEMINI.md`) and `settings.json` are Gemini-specific. This avoids duplication
-and ensures both agents always operate from the same orchestration rules and
-validation criteria.
+**Why this file is `~/.gemini/GEMINI.md`**: `agy` is Gemini-CLI lineage. It
+reads this context file and its config from `~/.gemini/`, never from
+`~/.antigravity/`. Bootstrap's Antigravity deploy writes this guide and links
+`~/.gemini/config` to `~/.claude/config`, so `agy` and Claude operate from the
+same orchestration rules and validation criteria.
 
 ## Risk-based review routing
 
@@ -35,13 +35,13 @@ Apply at all times, in every session:
 
 ## OMP Sub-Agent Dispatch
 
-Gemini CLI has no separate native sub-agent API in this configuration. Its
+The Antigravity CLI has no separate native sub-agent API in this configuration. Its
 supported interactive dispatch mechanism is OMP `task` and `hub`: for workload
 decomposition, submit ready independent units in one `task` call and use the
 documented OMP specialist roles. Children execute their unit directly and never
 redispatch. The parent validates evidence and aggregates results. If OMP is
 unavailable, work inline and report `DEGRADED`; do not infer Claude-native or
-delegate-runner capabilities for Gemini.
+delegate-runner capabilities for Antigravity.
 
 ## Proactive Decision Framework
 
@@ -95,8 +95,8 @@ enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.
 
 ## Skills
 
-Gemini CLI discovers skills from `~/.gemini/skills/` (symlinked from `~/.claude/skills/`).
-Those skills use the shared OMP-native contract to decompose ready independent
+`agy` receives Manifest skills from the plugin bundles installed under
+`~/.gemini/config/plugins/<bundle>`. Those skills use the shared OMP-native contract to decompose ready independent
 work; that workload fan-out is distinct from the independent-review gate above.
 
 ### Available Skills
@@ -130,7 +130,7 @@ work; that workload fan-out is distinct from the independent-review gate above.
 
 ### Skill Usage
 
-Skills are invoked as slash commands in Gemini CLI. Representative examples:
+Skills are invoked as slash commands in `agy`. Representative examples:
 
 ```bash
 /python-refactor src/          # language analysis (also go/node/shell/terraform)
@@ -145,8 +145,7 @@ Skills are invoked as slash commands in Gemini CLI. Representative examples:
 
 ### Security Review Skill
 
-The `code-audit` skill (symlinked from `~/.claude/skills/code-audit/SKILL.md`)
-activates only for an explicit security review request or confirmed changed
+The `code-audit` skill activates only for an explicit security review request or confirmed changed
 behavior at a security boundary. Keywords, file size, function/class counts,
 and complexity metrics alone do not activate it; feedback remains inline and
 non-blocking.
@@ -155,7 +154,7 @@ non-blocking.
 
 ## Configuration Files
 
-All configuration is symlinked from `~/.claude/` to ensure both Claude and Gemini
+All configuration is symlinked from `~/.claude/` to ensure both Claude and `agy`
 operate from identical orchestration rules.
 
 | File | Purpose |
@@ -165,28 +164,27 @@ operate from identical orchestration rules.
 | `~/.claude/prompts/preflight_analysis.md` | Pre-flight analysis template |
 | `~/.claude/prompts/validation.md` | Validation criteria template |
 
-> Accessible locally via `~/.gemini/config/` and `~/.gemini/prompts/` symlinks.
+> `~/.gemini/config/` is a symlink to `~/.claude/config/`.
 
 ---
 
 ## File Structure
 
 ```text
-~/.gemini/
+~/.gemini/                           # agy's home (Gemini-CLI lineage)
 ├── GEMINI.md                        # This orchestration guide
-├── skills/ -> ~/.claude/skills/     # Symlinked shared skills (source of truth)
-├── prompts/ -> ~/.claude/prompts/   # Symlinked shared templates
+└── config/ -> ~/.claude/config/     # Symlinked shared configs (agy plugins live here)
+~/.antigravity/
+├── skills/ -> ~/.manifest/skills/   # Symlinked shared skills
 ├── config/ -> ~/.claude/config/     # Symlinked shared configs
-├── scripts/ -> ~/.claude/scripts/   # Symlinked shared scripts
-├── .plans/ -> ~/.claude/.plans/     # Symlinked shared plans
-└── settings.json                    # Gemini CLI project settings
+└── .plans/ -> ~/.claude/.plans/     # Symlinked shared plans
 ```
 
 ---
 
 ## Plan Management
 
-Plans are markdown files in `~/.claude/.plans/` (symlinked at `~/.gemini/.plans/`)
+Plans are markdown files in `~/.claude/.plans/` (symlinked at `~/.antigravity/.plans/`)
 named `YYYYMMDD-short-description.md` (copy `TEMPLATE.md`). Lifecycle:
 CREATE -> ACTIVE (check off deliverables as completed) -> `.archive/` when done
 or `.abandoned/` if superseded. Review existing plans before creating new ones;

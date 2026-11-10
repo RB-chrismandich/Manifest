@@ -8,8 +8,6 @@
 # Service toggles:
 #   --enable-claude       Enable Claude CLI (default: enabled)
 #   --disable-claude      Disable Claude CLI
-#   --enable-gemini       Enable Gemini CLI (default: enabled)
-#   --disable-gemini      Disable Gemini CLI
 #   --enable-cursor       Enable Cursor agent (default: enabled)
 #   --disable-cursor      Disable Cursor agent
 #   --enable-codex        Enable Codex CLI (default: enabled)
@@ -20,6 +18,8 @@
 #   --disable-skillclaw   Disable SkillClaw session capture
 #   --enable-apm          No-op compatibility flag (apm install retired; default: disabled)
 #   --disable-apm         No-op compatibility flag (apm install retired)
+#   --enable-gemini       No-op compatibility flag (Gemini CLI support removed)
+#   --disable-gemini      No-op compatibility flag (Gemini CLI support removed)
 #   --enable-browser-use  Enable browser-use for smoke-manage UI steps (default: disabled)
 #   --disable-browser-use Disable browser-use
 #   --enable-gh           Enable GitHub CLI (default: auto-detect)
@@ -60,7 +60,9 @@ TARGET_DIR="$HOME/.claude"
 # shellcheck disable=SC2034
 CURSOR_TARGET_DIR="$HOME/.cursor"
 # shellcheck disable=SC2034
-GEMINI_TARGET_DIR="$HOME/.gemini"
+# Antigravity's agy CLI (Gemini-CLI lineage) reads its config and inherited
+# GEMINI.md context file from ~/.gemini; deploy_antigravity_configs owns both.
+AGY_GEMINI_HOME="$HOME/.gemini"
 # shellcheck disable=SC2034
 CODEX_TARGET_DIR="$HOME/.codex"
 # shellcheck disable=SC2034
@@ -147,7 +149,6 @@ run_reconfigure() {
     if [[ -f "$SERVICES_CONFIG" ]]; then
         # Use values parsed by load_existing_config -> parse_services_config
         local old_claude=${FILE_CLAUDE:-unknown}
-        local old_gemini=${FILE_GEMINI:-unknown}
         local old_cursor=${FILE_CURSOR:-unknown}
         local old_codex=${FILE_CODEX:-unknown}
         local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
@@ -156,7 +157,6 @@ run_reconfigure() {
         local old_browser_use=${FILE_BROWSER_USE:-unknown}
 
         echo "  Claude:      $old_claude → $ENABLE_CLAUDE"
-        echo "  Gemini:      $old_gemini → $ENABLE_GEMINI"
         echo "  Cursor:      $old_cursor → $ENABLE_CURSOR"
         echo "  Codex:       $old_codex → $ENABLE_CODEX"
         echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
@@ -165,7 +165,6 @@ run_reconfigure() {
         echo "  browser-use: $old_browser_use → $ENABLE_BROWSER_USE"
     else
         echo "  Claude:      (new) → $ENABLE_CLAUDE"
-        echo "  Gemini:      (new) → $ENABLE_GEMINI"
         echo "  Cursor:      (new) → $ENABLE_CURSOR"
         echo "  Codex:       (new) → $ENABLE_CODEX"
         echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
@@ -202,7 +201,7 @@ run_reconfigure() {
         # (#549). warn_stale_disabled_configs is otherwise only called from
         # print_summary, which main() never reaches in --reconfigure mode —
         # so a disable-via-reconfigure (README's own documented workflow:
-        # `--reconfigure --enable-gemini --disable-claude`) would never warn.
+        # `--reconfigure --enable-codex --disable-claude`) would never warn.
         warn_stale_disabled_configs
         # Same reason: a retired ~/.claude/scripts/issue_support_hook.sh entry in
         # ~/.claude/settings.json survives reconfigure unless we flag it here.
@@ -244,7 +243,6 @@ main() {
 
     echo -e "${BOLD}Services to configure:${NC}"
     echo "  Claude CLI:  $(if [[ "$ENABLE_CLAUDE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
-    echo "  Gemini CLI:  $(if [[ "$ENABLE_GEMINI" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Cursor:      $(if [[ "$ENABLE_CURSOR" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Codex CLI:   $(if [[ "$ENABLE_CODEX" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
@@ -276,7 +274,6 @@ main() {
         # instead of continuing with the remaining tools (issue #318).
         local install_failures=0
         install_claude || install_failures=$((install_failures + 1))
-        install_gemini || install_failures=$((install_failures + 1))
         install_codex || install_failures=$((install_failures + 1))
         install_github_cli || install_failures=$((install_failures + 1))
         install_gitlab_cli || install_failures=$((install_failures + 1))
@@ -326,11 +323,6 @@ main() {
         # Claude auth check
         if [[ "$ENABLE_CLAUDE" == true ]]; then
             check_claude_auth || auth_failures=$((auth_failures + 1))
-        fi
-
-        # Gemini auth check
-        if [[ "$ENABLE_GEMINI" == true ]]; then
-            check_gemini_auth || auth_failures=$((auth_failures + 1))
         fi
 
         # Codex auth check

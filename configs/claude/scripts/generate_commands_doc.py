@@ -7,7 +7,7 @@ does NOT replace this one. Two reasons, and the first is the load-bearing one:
 
   1. This produces REPOSITORY DOCUMENTATION, not per-harness deploy config. It
      renders docs/COMMANDS.md and injects a command index into
-     configs/gemini/GEMINI.md and AGENTS.md — files that live in the repo and are
+     configs/antigravity/GEMINI.md and AGENTS.md — files that live in the repo and are
      read by humans and by agents reading the repo, not files deployed into an
      assistant home. Nothing about who deploys ~/.claude changes that.
   2. apm's own target matrix generates no catalog or documentation index. There
@@ -59,7 +59,7 @@ END_MARKER = "<!-- END GENERATED COMMANDS -->"
 INDEX_BEGIN = "<!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->"
 INDEX_END = "<!-- END COMMAND INDEX -->"
 # Always-loaded markdown guides that receive the compact index (repo-root rel).
-GUIDE_TARGETS = ("configs/gemini/GEMINI.md", "AGENTS.md")
+GUIDE_TARGETS = ("configs/antigravity/GEMINI.md", "AGENTS.md")
 
 
 def err(msg: str) -> None:
@@ -254,7 +254,7 @@ def inject_index(text: str, block: str) -> str:
 # --------------------------------------------------------------------------- #
 # Post-cutover a skill is reachable only as `<bundle>:<skill>`, and the two
 # audiences diverge: docs/COMMANDS.md and /help must show what a Claude Code
-# user types, while the Gemini/Codex/Cursor index must keep showing BARE names,
+# user types, while the Antigravity/Codex/Cursor index must keep showing BARE names,
 # because those harnesses read the sibling skills tree and never learn about
 # plugins. One string cannot serve both, which is why this forks.
 #

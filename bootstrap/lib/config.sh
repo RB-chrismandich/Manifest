@@ -13,18 +13,13 @@ set_bootstrap_defaults() {
 
     # MCP scope defaults (server URLs are parsed from configs/claude/config/mcp_servers.yml)
     CLAUDE_MCP_SCOPE="${CLAUDE_MCP_SCOPE:-user}" # local | user | project
-    GEMINI_MCP_SCOPE="${GEMINI_MCP_SCOPE:-user}" # user | project
 
     if [[ "$CLAUDE_MCP_SCOPE" != "local" && "$CLAUDE_MCP_SCOPE" != "user" && "$CLAUDE_MCP_SCOPE" != "project" ]]; then
         CLAUDE_MCP_SCOPE="user"
     fi
-    if [[ "$GEMINI_MCP_SCOPE" != "user" && "$GEMINI_MCP_SCOPE" != "project" ]]; then
-        GEMINI_MCP_SCOPE="user"
-    fi
 
     # Service toggles (default: all enabled, gh/glab auto-detect, browser-use disabled by default)
     ENABLE_CLAUDE=true
-    ENABLE_GEMINI=true
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
     ENABLE_ANTIGRAVITY=true
@@ -46,7 +41,6 @@ set_bootstrap_defaults() {
 
     # Track if user explicitly set toggles
     CLAUDE_SET=false
-    GEMINI_SET=false
     CURSOR_SET=false
     CODEX_SET=false
     ANTIGRAVITY_SET=false
@@ -73,8 +67,6 @@ print_bootstrap_help() {
     echo "Service Toggles:"
     echo "  --enable-claude     Enable Claude CLI (default: enabled)"
     echo "  --disable-claude    Disable Claude CLI"
-    echo "  --enable-gemini     Enable Gemini CLI (default: enabled)"
-    echo "  --disable-gemini    Disable Gemini CLI"
     echo "  --enable-cursor     Enable Cursor agent (default: enabled)"
     echo "  --disable-cursor    Disable Cursor agent"
     echo "  --enable-codex      Enable Codex CLI (default: enabled)"
@@ -87,6 +79,8 @@ print_bootstrap_help() {
     echo "  --disable-jules        Disable Jules remote CLI"
     echo "  --enable-apm           No-op compatibility flag (apm install retired; default: disabled)"
     echo "  --disable-apm          No-op compatibility flag (apm install retired)"
+    echo "  --enable-gemini        No-op compatibility flag (Gemini CLI support removed)"
+    echo "  --disable-gemini       No-op compatibility flag (Gemini CLI support removed)"
     echo "  --enable-skillclaw     Enable SkillClaw session capture (default: disabled)"
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-pilotfish     Enable pilotfish cost-tiered role-agents (default: disabled)"
@@ -116,7 +110,7 @@ print_bootstrap_help() {
     echo "  $script_name --disable-codex              # Setup without Codex"
     echo "  $script_name --enable-gh --enable-glab    # Explicitly enable Git CLIs"
     echo "  $script_name --install-mcp                # Configure MCP servers for enabled agents"
-    echo "  $script_name --reconfigure --disable-gemini  # Just disable Gemini"
+    echo "  $script_name --reconfigure --disable-cursor  # Just disable Cursor"
     echo "  $script_name --skip-auth                  # Setup without authentication checks"
 }
 
@@ -133,14 +127,10 @@ parse_bootstrap_args() {
                 CLAUDE_SET=true
                 shift
                 ;;
-            --enable-gemini)
-                ENABLE_GEMINI=true
-                GEMINI_SET=true
-                shift
-                ;;
-            --disable-gemini)
-                ENABLE_GEMINI=false
-                GEMINI_SET=true
+            --enable-gemini | --disable-gemini)
+                # No-op compatibility flags: Gemini CLI support was removed. Kept
+                # so existing scripts that pass them keep parsing.
+                print_info "$1 ignored: Gemini CLI support was removed from Manifest"
                 shift
                 ;;
             --enable-cursor)
@@ -323,7 +313,6 @@ parse_bootstrap_args() {
 # Parse service configuration using awk (single pass)
 parse_services_config() {
     FILE_CLAUDE=""
-    FILE_GEMINI=""
     FILE_CURSOR=""
     FILE_CODEX=""
     FILE_ANTIGRAVITY=""
@@ -343,7 +332,10 @@ parse_services_config() {
         config_settings=$(awk '
             BEGIN { section=""; subsection="" }
             /^[[:space:]]*claude:/ { section="claude"; subsection="" }
-            /^[[:space:]]*gemini:/ { section="gemini"; subsection="" }
+            # A services.yml written before Gemini CLI support was removed still
+            # has a gemini: section; claim its enabled: line so it is not
+            # attributed to the preceding (claude) section.
+            /^[[:space:]]*gemini:/ { section="retired"; subsection="" }
             /^[[:space:]]*cursor:/ { section="cursor"; subsection="" }
             /^[[:space:]]*codex:/ { section="codex"; subsection="" }
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
@@ -360,7 +352,6 @@ parse_services_config() {
             /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
             /^[[:space:]]*enabled:[[:space:]]*true/ {
                 if (section == "claude") print "FILE_CLAUDE=true"
-                if (section == "gemini") print "FILE_GEMINI=true"
                 if (section == "cursor") print "FILE_CURSOR=true"
                 if (section == "codex") print "FILE_CODEX=true"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true"
@@ -377,7 +368,6 @@ parse_services_config() {
             }
             /^[[:space:]]*enabled:[[:space:]]*false/ {
                 if (section == "claude") print "FILE_CLAUDE=false"
-                if (section == "gemini") print "FILE_GEMINI=false"
                 if (section == "cursor") print "FILE_CURSOR=false"
                 if (section == "codex") print "FILE_CODEX=false"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false"
@@ -406,7 +396,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_DEVIN | FILE_JULES | FILE_SKILLCLAW | FILE_APM | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
+                        FILE_CLAUDE | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_DEVIN | FILE_JULES | FILE_SKILLCLAW | FILE_APM | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac
@@ -426,10 +416,6 @@ load_existing_config() {
         # Only load if user didn't explicitly set the toggle
         if [[ "$CLAUDE_SET" == false && -n "$FILE_CLAUDE" ]]; then
             ENABLE_CLAUDE=$FILE_CLAUDE
-        fi
-
-        if [[ "$GEMINI_SET" == false && -n "$FILE_GEMINI" ]]; then
-            ENABLE_GEMINI=$FILE_GEMINI
         fi
 
         if [[ "$CURSOR_SET" == false && -n "$FILE_CURSOR" ]]; then
@@ -511,16 +497,6 @@ services:
       - haiku    # Fast, economical
       - sonnet   # Balanced (default)
       - opus     # Maximum capability (1M context)
-
-  # Gemini CLI - Google's AI assistant
-  # Install: npm install -g @google/gemini-cli
-  gemini:
-    enabled: $ENABLE_GEMINI
-    command: gemini
-    description: "Broad knowledge, creative solutions, research"
-    model_tiers:
-      - flash    # Fast (default)
-      - pro      # Advanced
 
   # Cursor Agent - headless CLI for code analysis
   # Install: curl https://cursor.com/install -fsS | bash

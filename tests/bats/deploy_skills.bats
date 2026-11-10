@@ -225,7 +225,7 @@ teardown() {
     export SCRIPT_DIR="$REPO_ROOT"
     export TARGET_DIR="$SANDBOX/home/.claude"
     export CURSOR_TARGET_DIR="$SANDBOX/home/.cursor"
-    export GEMINI_TARGET_DIR="$SANDBOX/home/.gemini"
+    export AGY_GEMINI_HOME="$SANDBOX/home/.gemini"
     export CODEX_TARGET_DIR="$SANDBOX/home/.codex"
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
     export MANIFEST_OUTPUT_DIR="$SANDBOX/home/.manifest/outputs"
@@ -237,7 +237,7 @@ teardown() {
     # Isolate: stub secondary routines that need network/CLIs/other configs.
     write_services_config() { :; }
     deploy_cursor_configs() { :; }
-    deploy_gemini_configs() { :; }
+    retire_gemini_cli_deployment() { :; }
     deploy_codex_configs() { :; }
     deploy_antigravity_configs() { :; }
     deploy_sync_skills() { :; }

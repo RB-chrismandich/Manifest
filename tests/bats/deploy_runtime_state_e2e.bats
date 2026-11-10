@@ -31,7 +31,7 @@ setup() {
     export HOME="$SANDBOX/home"
     export TARGET_DIR="$HOME/.claude"
     export CURSOR_TARGET_DIR="$HOME/.cursor"
-    export GEMINI_TARGET_DIR="$HOME/.gemini"
+    export AGY_GEMINI_HOME="$HOME/.gemini"
     export CODEX_TARGET_DIR="$HOME/.codex"
     export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
     export MANIFEST_OUTPUT_DIR="$HOME/.manifest/outputs"
@@ -39,7 +39,7 @@ setup() {
     # Isolate heavy/secondary routines (network, profiles, other agents).
     write_services_config()      { :; }
     deploy_cursor_configs()      { :; }
-    deploy_gemini_configs()      { :; }
+    retire_gemini_cli_deployment() { :; }
     deploy_codex_configs()       { :; }
     deploy_antigravity_configs() { :; }
     deploy_sync_skills()         { :; }

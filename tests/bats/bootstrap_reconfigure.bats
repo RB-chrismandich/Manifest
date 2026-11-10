@@ -45,10 +45,10 @@ setup() {
     export SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
     export INSTALL_MCP=false
     export CURSOR_TARGET_DIR="$SANDBOX/home/.cursor"
-    export GEMINI_TARGET_DIR="$SANDBOX/home/.gemini"
+    export AGY_GEMINI_HOME="$SANDBOX/home/.gemini"
     export CODEX_TARGET_DIR="$SANDBOX/home/.codex"
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true ENABLE_CODEX=true
     export ENABLE_ANTIGRAVITY=true ENABLE_SKILLCLAW=false ENABLE_BROWSER_USE=false
     export BOLD='' NC=''
 }

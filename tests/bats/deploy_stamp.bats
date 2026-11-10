@@ -390,7 +390,7 @@ setup_verify_sandbox() {
     export SCRIPT_DIR="$CLONE"
     export TARGET_DIR="$VHOME/.claude"
     export CURSOR_TARGET_DIR="$VHOME/.cursor"
-    export GEMINI_TARGET_DIR="$VHOME/.gemini"
+    export AGY_GEMINI_HOME="$VHOME/.gemini"
     export CODEX_TARGET_DIR="$VHOME/.codex"
     export ANTIGRAVITY_TARGET_DIR="$VHOME/.antigravity"
     export DEVIN_TARGET_DIR="$VHOME/.config/devin"
@@ -400,7 +400,6 @@ setup_verify_sandbox() {
     export ENABLE_CLAUDE=true
     export ENABLE_CODEX=true
     export ENABLE_CURSOR=false
-    export ENABLE_GEMINI=false
     export ENABLE_ANTIGRAVITY=false
     export ENABLE_DEVIN=false
     export ENABLE_GH=false
@@ -412,7 +411,6 @@ setup_verify_sandbox() {
         "$TARGET_DIR/config" \
         "$CODEX_TARGET_DIR/skills/code-audit" \
         "$MANIFEST_STATE_DIR/claude" \
-        "$MANIFEST_STATE_DIR/gemini" \
         "$MANIFEST_STATE_DIR/cursor" \
         "$MANIFEST_STATE_DIR/codex/sessions" \
         "$MANIFEST_STATE_DIR/antigravity" \

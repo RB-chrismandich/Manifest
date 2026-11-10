@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for Devin CLI config wiring (deploy_devin_config).
 #
-# Devin is deliberately NOT a mirrored config tree like Cursor/Gemini/Codex/
+# Devin is deliberately NOT a mirrored config tree like Cursor/Codex/
 # Antigravity. Measured against devin 3000.2.17 (2026-07-29):
 #   - the CLI discovers ~/.claude/skills and ~/.claude/CLAUDE.md on its own,
 #     gated by config.json's `read_config_from.claude`;

@@ -22,12 +22,12 @@ setup() {
 
     SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/deploy_stale.XXXXXX")
     export TARGET_DIR="$SANDBOX/dotclaude"
-    export GEMINI_TARGET_DIR="$SANDBOX/dotgemini"
+    export AGY_GEMINI_HOME="$SANDBOX/dotgemini"
     export CURSOR_TARGET_DIR="$SANDBOX/dotcursor"
     export CODEX_TARGET_DIR="$SANDBOX/dotcodex"
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/dotantigravity"
     # Default everything enabled; individual tests flip what they exercise.
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true \
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true \
         ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
     # shellcheck disable=SC1090
     source "$REPO_ROOT/bootstrap/lib/common.sh"
@@ -70,14 +70,13 @@ teardown() {
 }
 
 @test "warns once per disabled-and-present service across multiple services" {
-    export ENABLE_GEMINI=false ENABLE_CODEX=false
-    mkdir -p "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR"
-    echo x > "$GEMINI_TARGET_DIR/GEMINI.md"
+    export ENABLE_CURSOR=false ENABLE_CODEX=false
+    mkdir -p "$CURSOR_TARGET_DIR/rules" "$CODEX_TARGET_DIR"
     echo x > "$CODEX_TARGET_DIR/AGENTS.md"
 
     run warn_stale_disabled_configs
     assert_success
-    assert_output --partial "gemini"
+    assert_output --partial "cursor"
     assert_output --partial "codex"
     # Exactly two warning lines (one per stale service), nothing else.
     assert_equal "$(printf '%s\n' "$output" | grep -c .)" 2
@@ -115,9 +114,8 @@ teardown() {
 }
 
 @test "all services enabled and present produces no output" {
-    mkdir -p "$TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR"
+    mkdir -p "$TARGET_DIR" "$CODEX_TARGET_DIR"
     echo x > "$TARGET_DIR/CLAUDE.md"
-    echo x > "$GEMINI_TARGET_DIR/GEMINI.md"
     echo x > "$CODEX_TARGET_DIR/AGENTS.md"
 
     run warn_stale_disabled_configs
@@ -144,7 +142,6 @@ setup_e2e_deploy() {
     # other assistants) — mirrors deploy_runtime_state_e2e.bats.
     write_services_config()      { :; }
     deploy_cursor_configs()      { :; }
-    deploy_gemini_configs()      { :; }
     deploy_codex_configs()       { :; }
     deploy_antigravity_configs() { :; }
     deploy_sync_skills()         { :; }
@@ -158,16 +155,16 @@ setup_e2e_deploy() {
 
     [ ! -e "$TARGET_DIR/CLAUDE.md" ]
     # Shared infra other assistants symlink into must still be deployed —
-    # disabling Claude must not starve an enabled Gemini/Cursor/Codex/Antigravity.
+    # disabling Claude must not starve an enabled Cursor/Codex/Antigravity.
     [ -d "$TARGET_DIR/config" ]
     [ -d "$TARGET_DIR/scripts" ]
     [ -d "$TARGET_DIR/skills/code-audit" ]
 
     # And the warning function's premise now holds: nothing was ever deployed,
     # so there is nothing stale to warn about.
-    export GEMINI_TARGET_DIR="$HOME/.gemini" CURSOR_TARGET_DIR="$HOME/.cursor" \
+    export CURSOR_TARGET_DIR="$HOME/.cursor" \
         CODEX_TARGET_DIR="$HOME/.codex" ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
-    export ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
+    export ENABLE_CURSOR=true ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
     run warn_stale_disabled_configs
     assert_success
     refute_output --partial "claude"
@@ -192,9 +189,9 @@ setup_e2e_deploy() {
     # Shared infra was still refreshed regardless of the Claude toggle.
     [ -d "$TARGET_DIR/config" ]
 
-    export GEMINI_TARGET_DIR="$HOME/.gemini" CURSOR_TARGET_DIR="$HOME/.cursor" \
+    export CURSOR_TARGET_DIR="$HOME/.cursor" \
         CODEX_TARGET_DIR="$HOME/.codex" ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
-    export ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
+    export ENABLE_CURSOR=true ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
     run warn_stale_disabled_configs
     assert_success
     assert_output --partial "claude"
@@ -274,17 +271,17 @@ setup_verify_installation() {
     assert_output --partial "$CURSOR_TARGET_DIR"
 }
 
-@test "verify_installation does not report gemini files as missing when ENABLE_GEMINI is false" {
-    export ENABLE_GEMINI=false
+@test "verify_installation checks agy's GEMINI.md guide only when ENABLE_ANTIGRAVITY is true" {
+    export ENABLE_ANTIGRAVITY=false
     setup_verify_installation
     run verify_installation
-    refute_output --partial "$GEMINI_TARGET_DIR"
+    refute_output --partial "$AGY_GEMINI_HOME/GEMINI.md"
 
-    export ENABLE_GEMINI=true
+    export ENABLE_ANTIGRAVITY=true
     setup_verify_installation
     run verify_installation
     assert_output --partial "Missing:"
-    assert_output --partial "$GEMINI_TARGET_DIR"
+    assert_output --partial "$AGY_GEMINI_HOME/GEMINI.md"
 }
 
 @test "verify_installation does not report codex files as missing when ENABLE_CODEX is false" {

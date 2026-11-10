@@ -46,8 +46,6 @@ run_in_harness() {
         HOME='$FAKE_HOME'
         PATH='$FAKE_BIN:/usr/bin:/bin'
         TIMEOUT_CMD=''
-        GOOGLE_API_KEY=''
-        GEMINI_API_KEY=''
         source '$COMMON_LIB'
         source '$AUTH_LIB'
         $1
@@ -256,63 +254,6 @@ EOF
     assert_output --partial "Claude Code is NOT authenticated"
     assert_output --partial "exit=1"
     [ "$elapsed" -lt 15 ]
-}
-
-@test "check_gemini_auth succeeds via an API key in the environment" {
-    make_stub gemini 0
-    run run_in_harness '
-        ENABLE_GEMINI=true
-        GEMINI_API_KEY="fake-key"
-        check_gemini_auth
-        echo "exit=$?"
-    '
-    assert_success
-    assert_output --partial "Gemini CLI is authenticated (API key)"
-    assert_output --partial "exit=0"
-}
-
-@test "check_gemini_auth succeeds via an OAuth credentials file" {
-    make_stub gemini 0
-    mkdir -p "$FAKE_HOME/.gemini"
-    echo '{}' > "$FAKE_HOME/.gemini/oauth_creds.json"
-    run run_in_harness '
-        ENABLE_GEMINI=true
-        check_gemini_auth
-        echo "exit=$?"
-    '
-    assert_success
-    assert_output --partial "Gemini CLI is authenticated (OAuth)"
-    assert_output --partial "exit=0"
-}
-
-@test "check_gemini_auth declines setup and errors when unauthenticated and user says no" {
-    make_stub gemini 0
-    run bash -c "
-        RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
-        GOOGLE_API_KEY='' GEMINI_API_KEY=''
-        HOME='$FAKE_HOME'
-        PATH='$FAKE_BIN:\$PATH'
-        source '$COMMON_LIB'
-        source '$AUTH_LIB'
-        ENABLE_GEMINI=true
-        check_gemini_auth
-        echo \"exit=\$?\"
-    " <<< "n"
-    assert_success
-    assert_output --partial "Gemini CLI is NOT authenticated"
-    assert_output --partial "Gemini CLI remains unauthenticated"
-    assert_output --partial "exit=1"
-}
-
-@test "check_gemini_auth warns and returns 1 when the CLI is not installed" {
-    run run_in_harness '
-        ENABLE_GEMINI=true
-        check_gemini_auth
-        echo "exit=$?"
-    '
-    assert_success
-    assert_output --partial "Gemini CLI not installed"
-    assert_output --partial "exit=1"
 }
 
 @test "check_gh_auth returns success without checking when ENABLE_GH is false" {
