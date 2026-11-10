@@ -22,7 +22,7 @@ class TestToolSignatures(unittest.TestCase):
 
     def test_all_tools_have_signatures(self):
         """Each tool should have at least one signature."""
-        expected_tools = {"cursor", "opencode", "gemini", "windsurf", "zed"}
+        expected_tools = {"cursor", "opencode", "windsurf", "zed"}
         self.assertEqual(set(TOOL_SIGNATURES.keys()), expected_tools)
 
     def test_signatures_are_lowercase(self):
@@ -106,18 +106,6 @@ class TestDetectParentSource(unittest.TestCase):
 
         result = detect_parent_source()
         self.assertEqual(result, "opencode")
-
-    @patch("runtime.detect_source.get_process_cmdline")
-    @patch("runtime.detect_source.get_parent_pid")
-    @patch("os.getppid")
-    def test_detects_gemini(self, mock_getppid, mock_get_parent_pid, mock_get_cmdline):
-        """Should detect gemini from command line."""
-        mock_getppid.return_value = 100
-        mock_get_parent_pid.side_effect = [None]
-        mock_get_cmdline.side_effect = ["node /usr/local/bin/gemini chat"]
-
-        result = detect_parent_source()
-        self.assertEqual(result, "gemini")
 
     @patch("runtime.detect_source.get_process_cmdline")
     @patch("runtime.detect_source.get_parent_pid")

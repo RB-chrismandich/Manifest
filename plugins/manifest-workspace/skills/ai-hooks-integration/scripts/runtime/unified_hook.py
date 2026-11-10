@@ -58,17 +58,12 @@ def extract_cwd(payload: dict) -> str:
 
     Different tools use different field names:
     - Claude: cwd
-    - Gemini: working_directory
     - Cursor: cwd
     - OpenCode: cwd (in tool input)
     """
     # Direct cwd field
     if "cwd" in payload:
         return payload["cwd"]
-
-    # Gemini uses working_directory
-    if "working_directory" in payload:
-        return payload["working_directory"]
 
     # Check tool_input for nested cwd
     tool_input = payload.get("tool_input", {})
@@ -80,7 +75,7 @@ def extract_cwd(payload: dict) -> str:
 
 def extract_command(payload: dict) -> str:
     """Extract command from various payload formats."""
-    # Claude/Gemini: tool_input.command
+    # Claude: tool_input.command
     tool_input = payload.get("tool_input", {})
     if isinstance(tool_input, dict):
         cmd = tool_input.get("command", "")
@@ -144,8 +139,6 @@ def normalize_event(source: str, payload: dict, event_type: str = "PreToolUse") 
 
 def allow_response(event_type: str = "PreToolUse", source: str = "claude") -> dict:
     """Generate an allow response in the selected harness's native shape."""
-    if source == "gemini":
-        return {"decision": "allow"}
     if source == "cursor":
         return {"permission": "allow", "continue": True}
     return {
@@ -161,8 +154,6 @@ def deny_response(
     reason: str, event_type: str = "PreToolUse", source: str = "claude"
 ) -> dict:
     """Generate a blocking response in the selected harness's native shape."""
-    if source == "gemini":
-        return {"decision": "deny", "reason": reason}
     if source == "cursor":
         return {
             "permission": "deny",
@@ -252,7 +243,7 @@ def main() -> None:
     ap.add_argument(
         "--source",
         default="claude",
-        choices=["claude", "gemini", "cursor", "opencode"],
+        choices=["claude", "cursor", "opencode"],
         help="Native source tool selected by the installer",
     )
     ap.add_argument(

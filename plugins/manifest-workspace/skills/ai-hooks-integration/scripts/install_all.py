@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the same hook command across Claude/Gemini/Cursor and write OpenCode plugin.
+"""Install the same hook command across Claude/Cursor and write OpenCode plugin.
 
 Usage:
   install_all.py --command "/abs/path/to/hook" --name my-hook
@@ -8,7 +8,7 @@ Usage:
   install_all.py --unified --handler "/abs/path/to/handler" --name my-hook
 
 Notes:
-  - Adds tool-specific suffixes: --claude/--gemini/--cursor
+  - Adds tool-specific suffixes: --claude/--cursor
   - Writes OpenCode plugin to ~/.config/opencode/plugins/<name>.js
   - Unified mode automatically detects the actual source tool and filters noise events
 """
@@ -97,22 +97,6 @@ def install_unified(args) -> None:
         "claude",
     )
 
-    # Install for Gemini
-    run(
-        [
-            str(MERGE),
-            "--tool",
-            "gemini",
-            "--path",
-            str(get_default_path("gemini")),
-            "--command",
-            f"{unified_cmd} --source gemini --event-type BeforeTool",
-            *ownership,
-            *dry,
-        ],
-        "gemini",
-    )
-
     # Install for Cursor
     run(
         [
@@ -163,20 +147,6 @@ def install_classic(args) -> None:
             *dry,
         ],
         "claude",
-    )
-    run(
-        [
-            str(MERGE),
-            "--tool",
-            "gemini",
-            "--path",
-            str(get_default_path("gemini")),
-            "--command",
-            f"{cmd} --gemini",
-            *ownership_args(args.name),
-            *dry,
-        ],
-        "gemini",
     )
     run(
         [

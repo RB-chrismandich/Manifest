@@ -5,7 +5,7 @@ name: canonical-event
 version: "1.0"
 description: |
   Unified event format that normalizes payloads from different AI tools
-  (Claude, Gemini, Cursor, OpenCode) into a consistent structure.
+  (Claude, Cursor, OpenCode) into a consistent structure.
 
 # Input: Various tool-specific formats
 # Output: Normalized canonical event
@@ -18,13 +18,6 @@ input_formats:
       - cwd: string
       - session_id: string
       - timestamp: string (ISO 8601)
-
-  gemini:
-    fields:
-      - tool: string (maps to tool_name)
-      - args: object (maps to tool_input)
-      - working_directory: string (maps to cwd)
-      - session_id: string
 
   cursor:
     fields:
@@ -47,7 +40,7 @@ output:
 
     source:
       type: string
-      enum: [claude, gemini, cursor, opencode, windsurf, zed]
+      enum: [claude, cursor, opencode, windsurf, zed]
       description: |
         Detected source tool. This is determined by walking the process tree,
         NOT by trusting the claimed --source parameter.
@@ -82,25 +75,21 @@ output:
 field_mappings:
   tool_name:
     claude: tool_name
-    gemini: tool
     cursor: (extracted from context)
     opencode: tool
 
   tool_input:
     claude: tool_input
-    gemini: args
     cursor: args
     opencode: args
 
   cwd:
     claude: cwd
-    gemini: working_directory
     cursor: cwd
     opencode: (in tool input or context)
 
   session_id:
     claude: session_id
-    gemini: session_id
     cursor: (not available)
     opencode: sessionID
 

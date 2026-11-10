@@ -22,7 +22,7 @@
     "source": {
       "type": "string",
       "description": "Source tool that triggered the event (detected, not claimed)",
-      "enum": ["claude", "gemini", "cursor", "opencode", "windsurf", "zed"]
+      "enum": ["claude", "cursor", "opencode", "windsurf", "zed"]
     },
     "session_id": {
       "type": "string",

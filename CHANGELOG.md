@@ -23,6 +23,10 @@
   directory there is kept) and
   `~/.gemini/GEMINI.md`, sourced from `configs/antigravity/GEMINI.md` (moved from
   `configs/gemini/GEMINI.md`). Gemini models via Antigravity are unaffected.
+  The `ai-hooks-integration` skill no longer installs or handles Gemini CLI hooks
+  (`--source gemini` is gone), and the token benchmark no longer measures a
+  Gemini provider (API or CLI; `--gemini-model` and the `google-genai` benchmark
+  dependency are removed).
 - Add the seventh coordinator adapter, OMP (`manifest install --harness omp`),
   with typed native package/source/version inspection separate from unobserved
   activation qualification. Bind default-user native identities to full signed

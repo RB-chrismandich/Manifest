@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Merge/inject hooks into Claude/Gemini/Cursor JSON configs (and OpenCode plugin).
+"""Merge/inject hooks into Claude/Cursor JSON configs (and OpenCode plugin).
 
 Usage:
   merge_hooks.py --tool claude  --path ~/.claude/settings.json --command "<hook-cmd> --claude"
-  merge_hooks.py --tool gemini  --path ~/.gemini/settings.json --command "<hook-cmd> --gemini"
   merge_hooks.py --tool cursor  --path ~/.cursor/hooks.json     --command "<hook-cmd> --cursor"
   merge_hooks.py --tool opencode --path ~/.config/opencode/plugins/<name>.js
 

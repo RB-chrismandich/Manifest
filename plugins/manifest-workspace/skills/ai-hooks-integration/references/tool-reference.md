@@ -6,7 +6,6 @@ Complete reference for all supported tools: config paths, events, payloads, temp
 
 - [Quick Reference](#quick-reference)
 - [Claude Code](#claude-code)
-- [Gemini CLI](#gemini-cli)
 - [Cursor](#cursor)
 - [OpenCode](#opencode)
 - [CLI Wrapper](#cli-wrapper)
@@ -19,7 +18,6 @@ Complete reference for all supported tools: config paths, events, payloads, temp
 | Tool | Config | Events | Hook Types | Nesting |
 |------|--------|--------|------------|---------|
 | Claude | `~/.claude/settings.json` | 17 | command, http, prompt, agent | nested |
-| Gemini | `~/.gemini/settings.json` | 11 | command | nested |
 | Cursor | `~/.cursor/hooks.json` | 3 | command | flat |
 | OpenCode | `~/.config/opencode/plugins/*.js` | 10 | ES module | plugin |
 
@@ -350,140 +348,6 @@ Cannot block; `systemMessage`/`additionalContext` delivered on next turn.
 
 ---
 
-## Gemini CLI
-
-### Config Locations (Priority)
-
-1. Project: `.gemini/settings.json`
-2. User: `~/.gemini/settings.json`
-3. System: `/etc/gemini-cli/settings.json`
-
-### Events
-
-| Event | Matcher | Description | Influence |
-|-------|---------|-------------|-----------|
-| SessionStart | ✗ | Session begins (startup/resume/clear) | Inject context |
-| SessionEnd | ✗ | Session ends (exit/clear) | Advisory |
-| BeforeAgent | ✗ | After user prompt, before planning | Block turn / context |
-| AfterAgent | ✗ | Agent loop ends | Retry / halt |
-| BeforeModel | ✗ | Before LLM request | Block / mock |
-| AfterModel | ✗ | After LLM response | Filter / redact |
-| BeforeToolSelection | ✗ | Before tool selection | Filter tools |
-| BeforeTool | ✓ | Before tool execution | Validate / block |
-| AfterTool | ✓ | After tool execution | Process / hide |
-| PreCompress | ✗ | Before context compression | Advisory |
-| Notification | ✗ | System notification | Advisory |
-
-Matcher: regex for tool events (`BeforeTool`, `AfterTool`), exact string for lifecycle.
-
-### Config Template
-
-```json
-{
-  "hooks": {
-    "BeforeTool": [
-      {
-        "matcher": "write_file|replace",
-        "hooks": [
-          {
-            "name": "security-check",
-            "type": "command",
-            "command": "$GEMINI_PROJECT_DIR/.gemini/hooks/security.sh",
-            "timeout": 5000
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### Hook Fields
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `type` | ✓ | Execution engine (only `"command"`) |
-| `command` | ✓ | Shell command to execute |
-| `name` | ✗ | Friendly identifier for logs/CLI |
-| `timeout` | ✗ | Timeout in ms (default: 60000) |
-| `description` | ✗ | Brief explanation |
-
-### Environment Variables
-
-```bash
-GEMINI_PROJECT_DIR   # Project root absolute path
-GEMINI_SESSION_ID    # Current session unique ID
-GEMINI_CWD           # Current working directory
-CLAUDE_PROJECT_DIR   # Compatibility alias
-```
-
-### Exit Codes
-
-| Code | Meaning | Behavior |
-|------|---------|----------|
-| 0 | Success | Preferred for all logic (including deny) |
-| 2 | System block | Critical abort |
-| Other | Warning | Non-fatal, continues with original params |
-
-**Golden Rule**: stdout must be valid JSON. Use stderr for debug.
-
-### BeforeTool I/O
-
-**Input:**
-
-```json
-{
-  "hook_name": "BeforeTool",
-  "tool_name": "run_shell_command",
-  "tool_input": {"command": "ls"},
-  "session_id": "..."
-}
-```
-
-**Allow:**
-
-```json
-{"decision": "allow"}
-```
-
-**Allow + Context:**
-
-```json
-{"decision": "allow", "systemMessage": "Extra context"}
-```
-
-**Deny:**
-
-```json
-{"decision": "deny", "reason": "Blocked", "systemMessage": "..."}
-```
-
-### SessionStart I/O
-
-**Input:**
-
-```json
-{"hook_name": "SessionStart", "session_id": "...", "trigger": "startup"}
-```
-
-**Output:**
-
-```json
-{"systemMessage": "Context injected at session start"}
-```
-
-### Managing Hooks (CLI)
-
-```bash
-/hooks panel           # View all hooks
-/hooks enable-all      # Enable all
-/hooks disable-all     # Disable all
-/hooks enable <name>   # Enable specific hook
-/hooks disable <name>  # Disable specific hook
-```
-
----
-
 ## Cursor
 
 ### Events
@@ -665,26 +529,25 @@ scripts/install_cli_wrapper.py --cli gh --hook "/path/to/hook"
 
 ### Input Fields
 
-| Field | Claude | Gemini | Cursor | OpenCode |
-|-------|--------|--------|--------|----------|
-| Tool name | `tool_name` | `tool_name` | - | `input.tool` |
-| Command | `tool_input.command` | `tool_input.command` | `command` | `output.args.command` |
-| CWD | `cwd` | `$GEMINI_CWD` (env) | `cwd` | `ctx.directory` |
-| Session | `session_id` | `session_id` / `$GEMINI_SESSION_ID` | - | `input.sessionID` |
-| Project | `cwd` | `$GEMINI_PROJECT_DIR` (env) | - | `ctx.worktree` |
+| Field | Claude | Cursor | OpenCode |
+|-------|--------|--------|----------|
+| Tool name | `tool_name` | - | `input.tool` |
+| Command | `tool_input.command` | `command` | `output.args.command` |
+| CWD | `cwd` | `cwd` | `ctx.directory` |
+| Session | `session_id` | - | `input.sessionID` |
+| Project | `cwd` | - | `ctx.worktree` |
 
 ### Output Fields
 
-| Action | Claude | Gemini | Cursor | OpenCode |
-|--------|--------|--------|--------|----------|
-| Allow | `permissionDecision: "allow"` | `decision: "allow"` | `permission: "allow"` | return |
-| Deny | `permissionDecision: "deny"` | `decision: "deny"` | `permission: "deny"` | throw |
-| Message | `systemMessage` | `systemMessage` | `agent_message` | console.log |
+| Action | Claude | Cursor | OpenCode |
+|--------|--------|--------|----------|
+| Allow | `permissionDecision: "allow"` | `permission: "allow"` | return |
+| Deny | `permissionDecision: "deny"` | `permission: "deny"` | throw |
+| Message | `systemMessage` | `agent_message` | console.log |
 
 ---
 
 ## External Docs
 
 - Claude: <https://code.claude.com/docs/en/hooks>
-- Gemini: <https://geminicli.com/docs/hooks/>
 - Cursor: <https://docs.cursor.com/agent/hooks>

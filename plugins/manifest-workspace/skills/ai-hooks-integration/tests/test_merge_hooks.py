@@ -20,7 +20,7 @@ class TestToolConfig(unittest.TestCase):
 
     def test_all_tools_configured(self):
         """All supported tools should be configured."""
-        expected = {"claude", "gemini", "cursor", "opencode"}
+        expected = {"claude", "cursor", "opencode"}
         self.assertEqual(set(TOOL_CONFIG.keys()), expected)
 
     def test_claude_config(self):
@@ -28,13 +28,6 @@ class TestToolConfig(unittest.TestCase):
         cfg = TOOL_CONFIG["claude"]
         self.assertEqual(cfg["hook_key"], "PreToolUse")
         self.assertEqual(cfg["default_matcher"], "Bash")
-        self.assertTrue(cfg["nested"])
-
-    def test_gemini_config(self):
-        """Gemini config should have correct structure."""
-        cfg = TOOL_CONFIG["gemini"]
-        self.assertEqual(cfg["hook_key"], "BeforeTool")
-        self.assertEqual(cfg["default_matcher"], "run_shell_command")
         self.assertTrue(cfg["nested"])
 
     def test_cursor_config(self):
@@ -260,7 +253,7 @@ class TestInstallAllIsolatesPerTargetFailures(unittest.TestCase):
 
     merge_hooks now (correctly) exits non-zero on a config it cannot parse. With
     a bare check=True that aborted install_all partway — so whether Cursor got
-    its hook depended on whether Gemini's file happened to be valid — and raised
+    its hook depended on whether Cursor's file happened to be valid — and raised
     CalledProcessError on top of the child's actionable message.
     """
 
@@ -286,27 +279,26 @@ class TestInstallAllIsolatesPerTargetFailures(unittest.TestCase):
     def test_a_later_target_is_still_installed_and_the_run_fails(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir)
-            gemini = home / ".gemini" / "settings.json"
-            gemini.parent.mkdir(parents=True)
-            gemini.write_text('{"contextFileName": "GEMINI.md",}')  # trailing comma
-            before = gemini.read_bytes()
+            cursor = home / ".cursor" / "hooks.json"
+            cursor.parent.mkdir(parents=True)
+            cursor.write_text('{"version": 1,}')  # trailing comma
+            before = cursor.read_bytes()
 
             proc = self._install(home)
             combined = proc.stdout + proc.stderr
 
             self.assertNotEqual(proc.returncode, 0, "a failed target must fail the run")
-            self.assertIn("gemini", combined)
+            self.assertIn("cursor", combined)
             self.assertEqual(
-                gemini.read_bytes(), before, "malformed file was rewritten"
+                cursor.read_bytes(), before, "malformed file was rewritten"
             )
-
-            # Cursor is attempted AFTER gemini — the point of the change.
-            cursor = home / ".cursor" / "hooks.json"
-            self.assertTrue(cursor.exists(), "cursor was skipped after gemini failed")
-            self.assertIn("hooks", json.loads(cursor.read_text()))
 
             claude = home / ".claude" / "settings.json"
             self.assertTrue(claude.exists(), "claude was not installed")
+
+            # OpenCode is attempted AFTER cursor — the point of the change.
+            plugin = home / ".config" / "opencode" / "plugins" / "probe-hook.js"
+            self.assertTrue(plugin.exists(), "opencode was skipped after cursor failed")
 
     def test_a_clean_home_succeeds(self):
         with tempfile.TemporaryDirectory() as tmpdir:

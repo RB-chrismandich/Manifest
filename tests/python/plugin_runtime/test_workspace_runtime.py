@@ -264,7 +264,6 @@ def test_hook_targets_are_harness_native(
     os.environ["HOME"] = str(monkey_home)
     try:
         assert get_default_path("claude") == monkey_home / ".claude/settings.json"
-        assert get_default_path("gemini") == monkey_home / ".gemini/settings.json"
         assert get_default_path("cursor") == monkey_home / ".cursor/hooks.json"
         degraded = hook_support("codex", "PreToolUse")
     finally:
