@@ -1,9 +1,9 @@
 # AGENTS.md
 
-> Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
+> Repository context and guidance for AI coding agents (Cursor, Claude Code, Codex, Antigravity, etc.)
 
 **Last Updated**: 2026-06-10
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
+**Audience**: AI assistants (Cursor Agent, Claude Code, Codex CLI, Antigravity), contributors
 **Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
 
 ---
@@ -41,7 +41,7 @@ promise of availability, so check your own tool list before routing to one.
 
 **Context7 is the only server registered by default**, on every platform that
 registers any (Claude via `mcp_user_servers.json`, Cursor via
-`configs/cursor/mcp.json`, Gemini via `configs/gemini/settings.json`; Codex and
+`configs/cursor/mcp.json`; Codex and
 Antigravity symlink the config and register nothing). One registry field —
 `shipped:` in `mcp_servers.yml` — decides this for all of them.
 
@@ -65,8 +65,8 @@ is installed, independent of MCP.
 ## Repository Purpose
 
 This repository manages AI coding workflow configuration for deployment to
-`~/.claude/` (and mirrored to `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and
-`~/.antigravity/`). It contains OMP-native orchestration guides, skills,
+`~/.claude/` (and mirrored to `~/.cursor/`, `~/.codex/`, and
+`~/.antigravity/`; Antigravity's CLI also reads `~/.gemini/GEMINI.md`). It contains OMP-native orchestration guides, skills,
 prompts, and retained single-provider scripts.
 
 ## Repository Structure
@@ -89,20 +89,14 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
-├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
-│   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
-│   ├── settings.json                # Gemini settings (includes MCP server defaults)
-│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
-│   ├── config -> ../claude/config   # Symlink to shared configs
-│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   └── .plans -> ../claude/.plans   # Symlink to shared plans
 ├── codex/                           # → ~/.codex/ (Codex CLI configuration)
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
-└── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
+└── antigravity/                     # → ~/.antigravity/ (Antigravity IDE + agy CLI)
+    ├── GEMINI.md                    # agy guide → ~/.gemini/GEMINI.md (agy reads ~/.gemini)
     └── (symlinks to ../claude/)     # config, skills, .plans (shared configuration and skills)
 
 .claude/                             # Repo-specific config (minimal — does NOT override sessions)
@@ -149,7 +143,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 
 # Setup with specific services disabled
 ./bootstrap.sh --disable-cursor
-./bootstrap.sh --disable-gemini --disable-cursor
+./bootstrap.sh --disable-codex --disable-cursor
 
 # Skip interactive prompts
 ./bootstrap.sh --skip-auth --force
@@ -162,7 +156,6 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 
 ```bash
 --enable-claude / --disable-claude   # Claude CLI (default: enabled)
---enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-antigravity / --disable-antigravity  # Antigravity IDE (default: enabled)
@@ -185,7 +178,7 @@ cp -r configs/claude/* ~/.claude/
 cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
 chmod +x ~/.claude/scripts/*.sh
 
-# Other platforms (Cursor/Gemini/Codex/Antigravity): copy the platform guide +
+# Other platforms (Cursor/Codex/Antigravity): copy the platform guide +
 # settings, then symlink scripts/config/prompts/.plans/skills from ~/.claude/.
 # See CLAUDE.md "Manual Deployment" for the full per-platform commands.
 ```
@@ -193,7 +186,6 @@ chmod +x ~/.claude/scripts/*.sh
 Required CLI tools (install those you want to use):
 
 - `claude` - `npm install -g @anthropic-ai/claude-code`
-- `gemini` - `npm install -g @google/gemini-cli`
 - `cursor-agent` - `curl https://cursor.com/install -fsS | bash`
 - `codex` - `npm install -g @openai/codex`
 
@@ -203,7 +195,7 @@ Required CLI tools (install those you want to use):
 |------|---------|
 | `configs/claude/CLAUDE.md` | Main orchestration guide for Claude Code |
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
+| `configs/antigravity/GEMINI.md` | Main orchestration guide for Antigravity (deployed to `~/.gemini/GEMINI.md`) |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
 | `configs/claude/scripts/manifest_cli/` | Manifest CLI (`manifest smoke`, `manifest skill-run`, `manifest doctor`) |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
@@ -270,7 +262,6 @@ Skills are shared across all platforms via symlinks from `configs/claude/skills/
 
 - **Claude Code**: Skills loaded from `~/.claude/skills/`
 - **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/` (`.mdc` files)
-- **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlink to `~/.claude/skills/`)
 - **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
 - **Antigravity**: Skills loaded from `~/.antigravity/skills/` (symlink to `~/.claude/skills/`)
 - **Devin**: Skills are NOT copied or symlinked. The `devin` CLI reads
@@ -352,8 +343,8 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 
 ## Plan Management
 
-Implementation plans are tracked in `configs/claude/.plans/` (symlinked at `configs/cursor/.plans/`,
-`configs/gemini/.plans/`, and `configs/codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
+Implementation plans are tracked in `configs/claude/.plans/` (symlinked at `configs/cursor/.plans/`
+and `configs/codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
 
 Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)`
 
@@ -372,11 +363,6 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 2. Add YAML frontmatter with `description`, `globs`, and `alwaysApply`
 3. Rule auto-attaches when files matching `globs` are referenced (after deploying)
 
-### Adding a Gemini CLI Skill
-
-Gemini CLI uses the shared skills from `configs/claude/skills/` (symlinked at `~/.gemini/skills`).
-To add a new skill, follow the Claude Code skill instructions above.
-
 ---
 
 ## Related Documents
@@ -392,7 +378,7 @@ To add a new skill, follow the Claude Code skill instructions above.
 ## Workflow Reminders (Codex / Antigravity standing-line fallback)
 
 Codex and Antigravity have no event-hook substrate, so the per-moment hints that
-Claude Code / Gemini / Cursor deliver automatically are surfaced here as a single
+Claude Code / Cursor deliver automatically are surfaced here as a single
 standing line instead (spec 362, FR-011 documented gap): **before a commit run
 `/project-verify`** (or `/git-commit` for the full pipeline); **after opening a PR run
 `/pr-monitor`**; **when context is high run `/session-checkpoint`**. Run

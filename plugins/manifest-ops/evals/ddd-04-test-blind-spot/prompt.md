@@ -7,7 +7,7 @@ runs: 3
 ---
 (Pasted from our dotfiles deployer repo; you don't have a checkout.)
 
-We had a deploy gap where two symlinks never got created, but our bats test `deploy_gemini links shared assets` was green the whole time.
+We had a deploy gap where two symlinks never got created, but our bats test `deploy_cursor links shared assets` was green the whole time.
 
 ```bash
 create_symlink() {
@@ -21,12 +21,12 @@ create_symlink() {
 ```
 
 ```bash
-@test "deploy_gemini links shared assets" {
+@test "deploy_cursor links shared assets" {
   export SRC="$BATS_TMPDIR/src" HOME="$BATS_TMPDIR/home"
-  mkdir -p "$SRC/scripts" "$HOME/.gemini"
-  run deploy_gemini
+  mkdir -p "$SRC/scripts" "$HOME/.cursor"
+  run deploy_cursor
   [ "$status" -eq 0 ]
-  [ -L "$HOME/.gemini/scripts" ]
+  [ -L "$HOME/.cursor/scripts" ]
 }
 ```
 Why didn't the test catch it and how should the tests change?

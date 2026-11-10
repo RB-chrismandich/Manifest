@@ -127,7 +127,7 @@ The log records counts, names, timings, and URLs only — never session content
 
 ## Follow-ups (not in V1)
 
-- **Non-Claude CLI capture** — codex, gemini, and cursor do not persist transcripts
+- **Non-Claude CLI capture** — codex and cursor do not persist transcripts
   to a known location; hook-based capture would be needed for those CLIs.
 - **Scheduled evolution** — run `skillclaw_promote.sh` automatically via launchd or cron.
 - **Project allowlist** — restrict ingestion to specific project paths for tighter scoping.

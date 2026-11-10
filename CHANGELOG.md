@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **BREAKING:** Remove Gemini CLI (`gemini`, `@google/gemini-cli`) as a supported
+  harness. Bootstrap no longer installs, authenticates, configures, deploys to,
+  or verifies it; `configs/gemini/` and the generated `gemini-extension.json`
+  plugin manifests are gone, and `manifest ... --harness gemini` is rejected.
+  The harness set is claude, codex, cursor, antigravity, devin (plus OMP,
+  unverified). `./bootstrap.sh --enable-gemini` / `--disable-gemini` still parse
+  as no-op compatibility flags that print a notice. An installation receipt
+  (`~/.local/state/manifest/installation.json`) that still names `gemini` loads
+  without error: the record is ignored and pruned on the next receipt write, and
+  each lifecycle report (install, update, bootstrap-sync, reconcile, uninstall,
+  migrate) carries a note saying so; other unknown harness names are still
+  rejected. Bootstrap removes what it previously deployed into `~/.gemini`: the
+  `prompts`, `scripts`, `skills`, and `.plans` symlinks that point into
+  `~/.claude` or `~/.manifest`, and `~/.gemini/commands/*.toml` files whose name
+  and SHA-256 match a command file Manifest once shipped. It never removes
+  `~/.gemini/config`, `~/.gemini/GEMINI.md`, `settings.json`, `antigravity*`
+  entries, or credentials. The Antigravity CLI (`agy`, Gemini-CLI lineage) now
+  owns `~/.gemini/config` (linked to `~/.claude/config`; an existing real
+  directory there is kept) and
+  `~/.gemini/GEMINI.md`, sourced from `configs/antigravity/GEMINI.md` (moved from
+  `configs/gemini/GEMINI.md`). Gemini models via Antigravity are unaffected.
 - Add the seventh coordinator adapter, OMP (`manifest install --harness omp`),
   with typed native package/source/version inspection separate from unobserved
   activation qualification. Bind default-user native identities to full signed

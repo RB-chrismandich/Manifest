@@ -7,9 +7,9 @@ runs: 3
 ---
 (Pasted from our dotfiles deployer repo; you don't have a checkout.)
 
-Health check on every machine: `~/.gemini/` has only 3 of the 5 expected shared symlinks (`scripts`, `config`, `prompts` present; `skills`, `.plans` missing). Re-running the deploy doesn't help.
+Health check on every machine: `~/.cursor/` has only 3 of the 5 expected shared symlinks (`scripts`, `config`, `prompts` present; `skills`, `.plans` missing). Re-running the deploy doesn't help.
 
-`configs/claude/` contains: `scripts/ config/ prompts/ skills/ .plans/`. README's manual-deploy section lists all five for Gemini.
+`configs/claude/` contains: `scripts/ config/ prompts/ skills/ .plans/`. README's manual-deploy section lists all five for Cursor.
 
 `bootstrap/lib/deploy.sh`:
 ```bash
@@ -21,10 +21,10 @@ Health check on every machine: `~/.gemini/` has only 3 of the 5 expected shared 
 125   link_shared_assets "$HOME/.codex"
 126 }
 127
-128 deploy_gemini() {
-129   create_symlink "$SRC/scripts" "$HOME/.gemini/scripts"
-130   create_symlink "$SRC/config"  "$HOME/.gemini/config"
-131   create_symlink "$SRC/prompts" "$HOME/.gemini/prompts"
+128 deploy_cursor() {
+129   create_symlink "$SRC/scripts" "$HOME/.cursor/scripts"
+130   create_symlink "$SRC/config"  "$HOME/.cursor/config"
+131   create_symlink "$SRC/prompts" "$HOME/.cursor/prompts"
 132 }
 ```
 `link_shared_assets` links all five. What's wrong and how should it be fixed?

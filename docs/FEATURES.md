@@ -18,7 +18,7 @@
   noninteractive tools provider order, model tiers, CLI invocation shapes, and
   bounded fallback without becoming an interactive dispatcher.
 - **Cross-platform configuration**: Shared guides and skills support Claude
-  Code, Cursor, Gemini CLI, Codex CLI, Antigravity, and opt-in Devin on macOS
+  Code, Cursor, Codex CLI, Antigravity, and opt-in Devin on macOS
   and supported Linux distributions.
 - **Unified Label Management**: A canonical registry syncs labels across
   GitHub, GitLab, and Linear.

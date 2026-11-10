@@ -20,7 +20,7 @@ chmod +x bootstrap.sh
 cat ~/.claude/config/services.yml
 
 # Verify CLI tools installed
-which claude gemini cursor codex
+which claude cursor-agent codex
 ```
 
 **Model pins reported as unverified by check_status.sh:**

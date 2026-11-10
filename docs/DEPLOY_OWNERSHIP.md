@@ -129,8 +129,9 @@ is covered separately, below.
 
 ## Deployed files are build outputs
 
-**Do not hand-edit anything under `~/.claude/`, `~/.cursor/`, `~/.gemini/`,
-`~/.codex/` or `~/.antigravity/`.** Those trees are reproducible from source and
+**Do not hand-edit anything under `~/.claude/`, `~/.cursor/`, `~/.codex/` or
+`~/.antigravity/`, nor agy's `~/.gemini/GEMINI.md` and `~/.gemini/config`.**
+Those trees are reproducible from source and
 any deploy may overwrite them without warning. Edit the source in `.apm/skills/`
 or `configs/` and redeploy.
 

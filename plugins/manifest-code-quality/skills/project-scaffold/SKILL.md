@@ -251,7 +251,7 @@ Skip silently if no web framework is detected.
 ## Phase 5: Manifest Agent Integration
 
 Add Manifest agent configuration to the project so that `.claude/`, `.cursor/`,
-`.gemini/`, and `.codex/` are wired up from the start.
+and `.codex/` are wired up from the start.
 
 1. **Create `.claude/` directory** (if it does not exist):
 

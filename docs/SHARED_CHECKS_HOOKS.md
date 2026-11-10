@@ -6,8 +6,8 @@
 
 ## What this is
 
-Four thin, per-client modules — `src/manifest_agent/hooks/{claude_code,codex,
-cursor,gemini}.py`, each ≤200 lines — plus shared mechanics in `core.py`,
+Three thin, per-client modules — `src/manifest_agent/hooks/{claude_code,codex,
+cursor}.py`, each ≤200 lines — plus shared mechanics in `core.py`,
 `state.py`, `receipt.py`, and `runner.py`. Each adapter:
 
 - reads **bounded** stdin (256 KiB cap) and applies one absolute deadline to
@@ -57,7 +57,6 @@ stop/handoff events; everything else is `{"coverage": "unsupported"}` —
 |---|---|---|---|
 | `claude-code` | `PreToolUse`, `PostToolUse`, `PostToolUseFailure` | `Stop`, `SubagentStop`, `TaskCompleted` | `SessionStart`, `UserPromptSubmit`, `PermissionRequest`, `Notification`, `SubagentStart`, `TeammateIdle`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`, `PreCompact`, `SessionEnd` |
 | `cursor` | `beforeShellExecution` | — | every other event name (Cursor's documented hook surface in this repo is `beforeShellExecution` only) |
-| `gemini` | `BeforeTool` | — | `SessionStart`, `SessionEnd` (lifecycle-only, no gating semantics) |
 | `codex` | — | — | **every** event — see below |
 
 ## Codex: no substrate, by construction

@@ -12,7 +12,7 @@
 ## What is Manifest?
 
 Manifest deploys shared AI coding guides, skills, prompts, and scripts for
-Claude Code, Cursor, Gemini CLI, Codex CLI, Antigravity, and opt-in Devin.
+Claude Code, Cursor, Codex CLI, Antigravity, and opt-in Devin.
 
 Interactive sub-agent work uses OMP-native `task` batches: submit all ready,
 independent units in one call (at most 32 per wave), assign each child one unit,
@@ -47,19 +47,18 @@ cd Manifest
 2. ✅ Installs Homebrew (macOS) or checks package manager (Linux)
 3. ✅ Installs Node.js if missing
 4. ✅ Installs Claude CLI via npm
-5. ✅ Installs Gemini CLI via npm
-6. ✅ Opens Cursor download page in browser
-7. ✅ Copies configuration to `~/.claude/`
-8. ✅ Guides you through authentication for each service
+5. ✅ Opens Cursor download page in browser
+6. ✅ Copies configuration to `~/.claude/`
+7. ✅ Guides you through authentication for each service
 
 **Selective Installation**:
 
 ```bash
-# Only install Claude and Gemini (skip Cursor)
+# Skip Cursor
 ./bootstrap.sh --disable-cursor
 
 # Only install Claude
-./bootstrap.sh --disable-gemini --disable-cursor
+./bootstrap.sh --disable-codex --disable-antigravity --disable-cursor
 
 # Skip authentication checks (configure manually later)
 ./bootstrap.sh --skip-auth
@@ -79,7 +78,6 @@ sudo apt install nodejs npm
 
 # 2. Install AI agent CLIs
 npm install -g @anthropic-ai/claude-code
-npm install -g @google/gemini-cli
 
 # 3. Install the cursor-agent CLI
 curl https://cursor.com/install -fsS | bash

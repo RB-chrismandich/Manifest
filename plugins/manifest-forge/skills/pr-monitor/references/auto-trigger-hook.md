@@ -2,7 +2,7 @@
 
 This skill can fire automatically the moment you open a PR/MR from an AI coding
 tool. The trigger is a **tool-lifecycle hook** (Claude Code PostToolUse and the
-equivalents in Cursor and Gemini CLI) that watches shell commands for a
+equivalent in Cursor) that watches shell commands for a
 successful `gh pr create` / `glab mr create` and then nudges the agent to run
 `pr-monitor` on the new PR. Codex and Antigravity have no event-hook substrate
 (spec 362, FR-011), so on those tools you run the skill by hand instead — see

@@ -36,12 +36,12 @@ default verbosity and apply until the session ends or the user says otherwise.
 ## Persistence caveat
 
 A baseline of these rules is always on via the deployed orchestration guides
-("Token Economy (always on)" in `~/.claude/CLAUDE.md`, GEMINI.md, AGENTS.md,
+("Token Economy (always on)" in `~/.claude/CLAUDE.md`, AGENTS.md,
 and the Cursor orchestration rule) — CLAUDE.md is resent every turn, so it
 cannot scroll out. A plugin-only install of `manifest-workspace` (no
 Manifest bootstrap) gets the same baseline from
 `guidance/token-economy.md`: Claude and Codex load it through the
-`workspace-token-economy-context` SessionStart hook, Gemini and Antigravity
+`workspace-token-economy-context` SessionStart hook, Antigravity
 through the guidance component's `contextFileName`, and Cursor through the
 bootstrap-generated `.cursor/rules/orchestration.mdc` (Cursor's plugin
 adapter deliberately never invents an activation mechanism, so a Cursor

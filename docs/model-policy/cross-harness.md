@@ -5,7 +5,7 @@
 **Last Updated**: 2026-08-20
 
 The [September dispatch increment](dispatch-reliability.md) changes only Claude
-runtime deployment and local reporting. Native Codex/Gemini/Cursor/Antigravity
+runtime deployment and local reporting. Native Codex/Cursor/Antigravity
 settings, model tiers, permission modes and external CLI recovery remain unchanged.
 Claude's version gate and environment variable are not portable host contracts.
 Native teams, resumes and external sessions are not covered by a global Manifest
@@ -18,7 +18,6 @@ Skills may declare portable, ordered tiers without embedding provider model IDs:
 ```yaml
 models:
   codex: [advanced, flash, auto]
-  gemini: [pro, flash, auto]
   antigravity: [advanced, flash, auto]
   cursor: [advanced, flash, auto]
 model_fallback:

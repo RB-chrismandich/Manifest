@@ -19,7 +19,7 @@ Skills physically live in `.apm/skills/` — the **sole** source of truth.
 `configs/claude/skills` is a backward-compat **symlink** to it; do not replace
 it with a real directory.
 
-- **Home deploy** (`~/.claude/skills` + Cursor/Gemini/Codex/Antigravity symlinks)
+- **Home deploy** (`~/.claude/skills` + Cursor/Codex/Antigravity symlinks)
   is owned by `bootstrap.sh` (`deploy_home_skills` copies `.apm/skills/` →
   `~/.claude/skills`).
 - **Local skill-dev**: edit `plugins/<bundle>/skills/`, then `claude plugin update`.

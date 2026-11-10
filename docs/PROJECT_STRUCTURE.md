@@ -54,10 +54,9 @@ Manifest/
 │   │   ├── rules/                   # Cursor rules (.mdc) adapted from skills
 │   │   ├── mcp.json                 # Cursor MCP server defaults
 │   │   └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
-│   ├── gemini/                      # → ~/.gemini/ (Gemini CLI)
-│   │   ├── GEMINI.md                # Orchestration guide for Gemini
-│   │   ├── settings.json            # Gemini settings
-│   │   └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
+│   ├── antigravity/                 # → ~/.antigravity/ (+ GEMINI.md → ~/.gemini/)
+│   │   ├── GEMINI.md                # Orchestration guide for the Antigravity CLI (agy)
+│   │   └── (symlinks to ../claude/) # config, skills, .plans
 │   └── codex/                       # → ~/.codex/ (Codex CLI)
 │       ├── AGENTS.md                # Codex guide (symlink to ../../AGENTS.md)
 │       └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans

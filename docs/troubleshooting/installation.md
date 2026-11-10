@@ -63,7 +63,6 @@ npm ERR! path /usr/local/lib/node_modules
 ```bash
 # Option 1: Use sudo (not recommended)
 sudo npm install -g @anthropic-ai/claude-code
-sudo npm install -g @google/gemini-cli
 
 # Option 2: Fix npm permissions (recommended)
 mkdir ~/.npm-global
@@ -73,7 +72,6 @@ source ~/.bashrc
 
 # Retry installation
 npm install -g @anthropic-ai/claude-code
-npm install -g @google/gemini-cli
 ```
 
 ---

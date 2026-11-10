@@ -6,10 +6,10 @@
 
 ## Authentication Issues
 
-> **API keys are optional.** The Claude/Gemini agents select an execution backend
+> **API keys are optional.** The Claude agents select an execution backend
 > per run: the provider SDK when its package and API key
-> (`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) are both present, otherwise the
-> logged-in `claude` / `gemini` CLI (OAuth/subscription login). As long as the
+> (`ANTHROPIC_API_KEY`) are both present, otherwise the
+> logged-in `claude` CLI (OAuth/subscription login). As long as the
 > CLIs are authenticated, orchestration works without any API key.
 
 ### Claude CLI: "Not authenticated"
@@ -52,38 +52,10 @@ manifest check-status
 
 # Authenticate the relevant retained provider CLI
 claude auth login
-gemini auth status
 ```
 
 CDDL and SkillClaw retain their documented, stdin-driven provider seams. Configure
 their routes through `model_policy.yml` or their existing environment overrides.
-
----
-
-### Gemini CLI: "Authentication failed"
-
-**Symptom:**
-
-```text
-Error: Invalid API key
-```
-
-**Solution:**
-
-```bash
-# Authenticate with Gemini CLI
-gemini  # first run prompts a Google OAuth login
-
-# Verify authentication
-gemini auth status
-```
-
-**API key (optional, for the SDK backend):**
-
-1. Visit: <https://makersuite.google.com/app/apikey>
-2. Create new API key
-3. Export it as `GOOGLE_API_KEY` to make the orchestrator use the SDK
-   backend instead of the CLI fallback
 
 ---
 

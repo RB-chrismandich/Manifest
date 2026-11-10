@@ -4,7 +4,6 @@
 |---|---|---|
 | Claude | A primary-session `PreCompact` followed by `SessionStart(source=compact)` for the same session | Count the unique completed sequence; deduplicate retries and exclude child agents |
 | Codex | No verified completed-compaction event | Report `unknown`; manual checkpoint and advisory handoff only |
-| Gemini | No verified completed-compaction event | Report `unknown`; manual checkpoint and advisory handoff only |
 | Cursor | No verified completed-compaction event | Report `unknown`; manual checkpoint and advisory handoff only |
 | Antigravity | No verified completed-compaction event | Report `unknown`; manual checkpoint and advisory handoff only |
 | Devin | No verified completed-compaction event | Report `unknown`; manual checkpoint and advisory handoff only |

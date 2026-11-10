@@ -73,7 +73,7 @@ Its behavior is now always-on baseline guidance rather than an opt-in command,
 delivered per harness: Claude and Codex load
 `plugins/manifest-workspace/guidance/token-economy.md` through the
 `workspace-token-economy-context` SessionStart hook (same registered surface
-`manifest-i-have-adhd` uses); Gemini and Antigravity load it through the
+`manifest-i-have-adhd` uses); Antigravity loads it through the
 guidance component's generated `contextFileName`; Cursor loads it from the
 bootstrap-deployed `configs/cursor/rules/orchestration.mdc` (Cursor's plugin
 adapter never activates plugin-bundled content on its own). Devin has no

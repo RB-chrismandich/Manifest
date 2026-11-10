@@ -7,7 +7,7 @@ alwaysApply: true
 # Agent Orchestration Guide
 
 This rule defines how the Cursor agent should leverage parallel LLM agents
-(Gemini CLI, Cursor Agent, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
+(Cursor Agent, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
 
 <!-- Adapted from: .claude/CLAUDE.md -->
 
@@ -39,7 +39,7 @@ work inline and report `DEGRADED`; never fall back to a provider CLI.
 
 Default MCP/tool routing — use the matching tool when the task domain matches.
 `configs/cursor/mcp.json` registers **Context7 only** — it is generated from the
-`shipped:` flag in `mcp_servers.yml`, so Cursor matches Claude and Gemini. The
+`shipped:` flag in `mcp_servers.yml`, so Cursor matches Claude. The
 rest are catalog-only: `./bootstrap.sh --install-mcp` adds them. Check your tool
 list before routing to one. Semgrep is a CLI, available wherever installed.
 
