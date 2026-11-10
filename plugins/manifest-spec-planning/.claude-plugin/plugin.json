@@ -61,5 +61,5 @@
     "./skills/spec-implement-loop",
     "./skills/spec-review"
   ],
-  "version": "0.7.2"
+  "version": "0.8.0"
 }
