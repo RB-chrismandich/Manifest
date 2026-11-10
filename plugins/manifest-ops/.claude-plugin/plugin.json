@@ -71,5 +71,5 @@
     "./skills/renovate-config",
     "./skills/version-pin"
   ],
-  "version": "0.7.1"
+  "version": "0.7.2"
 }
