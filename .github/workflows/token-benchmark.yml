@@ -5,7 +5,7 @@ on:
     inputs:
       providers:
         description: >-
-          Comma-separated providers to benchmark. Only claude,gemini measure
+          Comma-separated providers to benchmark. Only claude measures
           tokens/cost; antigravity is quality-only (no token/cost data, no
           system-prompt mechanism) — see docs/TOKEN_BENCHMARK.md legend.
         default: "claude"
@@ -39,7 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -55,7 +54,7 @@ jobs:
       - name: Install Python deps
         run: |
           pip install -r tests/requirements-ci.txt
-          pip install anthropic google-genai
+          pip install anthropic
 
       # Install claude CLI (used by cli-only and api-and-cli modes).
       # claude accepts ANTHROPIC_API_KEY for headless/CI auth — no OAuth needed.

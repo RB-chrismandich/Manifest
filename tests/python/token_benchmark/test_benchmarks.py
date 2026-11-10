@@ -61,7 +61,7 @@ class TestBenchmarkSuite:
 
 class TestProviderCliConfig:
     def test_all_providers_present(self):
-        for provider in ("claude", "gemini", "antigravity"):
+        for provider in ("claude", "antigravity"):
             assert provider in PROVIDER_CLI_CONFIG
 
     def test_each_provider_has_binary_and_flags(self):
@@ -73,8 +73,6 @@ class TestProviderCliConfig:
     def test_only_claude_has_system_prompt_strategy(self):
         """(#546) Only providers with a verified system-prompt injection
         mechanism define system_prompt_flag. agy 1.1.1 has no --system-prompt
-        flag (live-verified) and gemini's is unverified — neither may define
-        one speculatively."""
+        flag (live-verified), so it may not define one speculatively."""
         assert PROVIDER_CLI_CONFIG["claude"]["system_prompt_flag"] == "--system-prompt"
-        assert "system_prompt_flag" not in PROVIDER_CLI_CONFIG["gemini"]
         assert "system_prompt_flag" not in PROVIDER_CLI_CONFIG["antigravity"]

@@ -22,16 +22,6 @@ except ImportError:
     HAS_ANTHROPIC = False
     AsyncAnthropic = None
 
-try:
-    from google import genai
-    from google.genai import types as genai_types
-
-    HAS_GENAI = True
-except ImportError:
-    HAS_GENAI = False
-    genai = None
-    genai_types = None
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -51,10 +41,6 @@ _SONNET_RATES: dict[str, float] = {
 PRICING: dict[str, dict[str, float]] = {
     "claude-sonnet-5": _SONNET_RATES,
     "claude-sonnet-4-6": _SONNET_RATES,
-    "gemini-3-flash-preview": {
-        "input": 0.10 / 1_000_000,
-        "output": 0.40 / 1_000_000,
-    },
 }
 
 
@@ -191,41 +177,6 @@ async def measure_api_claude(
         return _error_result(str(e))
 
 
-async def measure_api_gemini(prompt_text: str, system_prompt: str, model: str) -> dict:
-    """Call Gemini API; return input_tokens, output_tokens, response_text, latency_ms."""
-    if not HAS_GENAI:
-        return _error_result("google-genai package not installed")
-
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    t0 = time.time()
-    try:
-        client = genai.Client(api_key=api_key) if api_key else genai.Client()
-        config = (
-            genai_types.GenerateContentConfig(
-                system_instruction=system_prompt if system_prompt else None,
-                max_output_tokens=1024,
-            )
-            if genai_types is not None
-            else None
-        )
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=model,
-            contents=prompt_text,
-            **({"config": config} if config is not None else {}),
-        )
-        latency_ms = int((time.time() - t0) * 1000)
-        return {
-            "input_tokens": response.usage_metadata.prompt_token_count,
-            "output_tokens": response.usage_metadata.candidates_token_count,
-            "response_text": response.text,
-            "latency_ms": latency_ms,
-            "error": None,
-        }
-    except Exception as e:
-        return _error_result(str(e))
-
-
 def measure_cli(
     prompt_text: str, cli_config: dict, system_prompt: str | None = None
 ) -> dict:
@@ -311,7 +262,6 @@ async def run_benchmark(
     fixtures_dir: Path | None = None,
     results_dir: Path | None = None,
     claude_model: str = "claude-sonnet-5",
-    gemini_model: str = "gemini-3-flash-preview",
 ) -> list[dict]:
     """Run all benchmark prompts for each provider in the specified conditions."""
     from tests.token_benchmark.benchmarks import BENCHMARKS, PROVIDER_CLI_CONFIG
@@ -330,9 +280,7 @@ async def run_benchmark(
     for provider in providers:
         for prompt in BENCHMARKS:
             for condition in active_conditions:
-                if not cli_only and provider in ("claude", "gemini"):
-                    if condition == "cached" and provider != "claude":
-                        continue
+                if not cli_only and provider == "claude":
                     if condition == "compressed" and not compressed_prompts.get(
                         provider
                     ):
@@ -348,23 +296,17 @@ async def run_benchmark(
                     )
                     use_cache = condition == "cached"
 
-                    if provider == "claude":
+                    api_result = await measure_api_claude(
+                        prompt.text,
+                        system_prompt,
+                        claude_model,
+                        use_cache=use_cache,
+                    )
+                    if use_cache and not api_result.get("error"):
                         api_result = await measure_api_claude(
-                            prompt.text,
-                            system_prompt,
-                            claude_model,
-                            use_cache=use_cache,
+                            prompt.text, system_prompt, claude_model, use_cache=True
                         )
-                        if use_cache and not api_result.get("error"):
-                            api_result = await measure_api_claude(
-                                prompt.text, system_prompt, claude_model, use_cache=True
-                            )
-                        model_used = claude_model
-                    else:
-                        api_result = await measure_api_gemini(
-                            prompt.text, system_prompt, gemini_model
-                        )
-                        model_used = gemini_model
+                    model_used = claude_model
 
                     quality = (
                         score(api_result.get("response_text") or "", prompt)
@@ -410,7 +352,7 @@ async def run_benchmark(
                     if not cli_config.get("system_prompt_flag"):
                         # No verified system-prompt injection mechanism for
                         # this provider (e.g. agy 1.1.1 has no --system-prompt
-                        # flag; gemini's is unverified). Recording an explicit
+                        # flag). Recording an explicit
                         # "unsupported" outcome — distinct from "error" and
                         # from a scored row — rather than invoking the CLI
                         # with a baseline/manifest prompt it cannot honor, or
@@ -493,7 +435,7 @@ def _scrub_fixture_pii(text: str, home: Path) -> str:
     from text before it lands in a tracked repo fixture (#552 follow-up).
 
     Fixtures under tests/token_benchmark/fixtures/ are committed and read by
-    anyone who clones the repo, so a live CLAUDE.md or GEMINI.md synced via
+    anyone who clones the repo, so a live CLAUDE.md synced via
     --sync-fixtures must not leak the operator's absolute home directory
     path, OS username, or raw ANSI/SGR escape sequences captured from their
     terminal.
@@ -608,8 +550,6 @@ def missing_api_sdks(providers: list[str]) -> list[str]:
     missing = []
     if "claude" in providers and not HAS_ANTHROPIC:
         missing.append("anthropic (claude API path)")
-    if "gemini" in providers and not HAS_GENAI:
-        missing.append("google-genai (gemini API path)")
     return missing
 
 
@@ -617,7 +557,7 @@ WORKFLOW_FIXTURES_DIR = Path(__file__).parent / "workflows" / "fixtures"
 WORKFLOW_CONDITIONS = ("none", "slim", "full")
 ACADEMIC_CONDITIONS = ("before", "after", "cached", "tiered", "compressed")
 ACADEMIC_DEFAULT_CONDITIONS = ("before", "after")
-WORKFLOW_DEFAULT_TIER = {"claude": "sonnet", "gemini": "flash"}
+WORKFLOW_DEFAULT_TIER = {"claude": "sonnet"}
 
 
 def _workflow_fixture_ids(root: Path) -> list[str]:
@@ -727,7 +667,7 @@ def _build_arg_parser():
     import argparse
 
     parser = argparse.ArgumentParser(description="Token benchmark harness")
-    parser.add_argument("--providers", default="claude,gemini,antigravity")
+    parser.add_argument("--providers", default="claude,antigravity")
     parser.add_argument("--api-only", action="store_true")
     parser.add_argument("--cli-only", action="store_true")
     parser.add_argument("--sync-fixtures", action="store_true")
@@ -739,7 +679,6 @@ def _build_arg_parser():
     )
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--claude-model", default="claude-sonnet-5")
-    parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
     parser.add_argument(
         "--conditions",
         default=None,
@@ -792,7 +731,6 @@ def _run_selected_suites(
                 conditions=academic_conditions,
                 run_id=run_id,
                 claude_model=args.claude_model,
-                gemini_model=args.gemini_model,
             )
         )
         print(

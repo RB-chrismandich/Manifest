@@ -7,7 +7,7 @@ from pathlib import Path
 # Canonical provider set, shared by every table so no table can silently drop
 # a provider by hard-coding a shorter tuple (#546/G11). Table order == display
 # order.
-PROVIDERS = ("claude", "gemini", "antigravity")
+PROVIDERS = ("claude", "antigravity")
 
 
 def load_results(results_dir: Path) -> list[dict]:
@@ -325,7 +325,7 @@ def render_report(stats: dict, run_id: str, workflow_stats: dict | None = None) 
                 lines.append(f"| {provider} | {category} | — | — | — |")
 
     # Historical Runs columns are driven by PROVIDERS (not a hard-coded
-    # claude/gemini pair) so every provider — including agy, which is always
+    # single provider) so every provider — including agy, which is always
     # `unsupported` here today — gets a column rather than being silently
     # dropped from this table (#546/G11).
     overhead_headers = " | ".join(f"{p.capitalize()} Input Overhead" for p in PROVIDERS)
@@ -368,7 +368,7 @@ def render_report(stats: dict, run_id: str, workflow_stats: dict | None = None) 
             "",
             "> Cost is computed only from the API path (`PRICING` in "
             "`tests/token_benchmark/harness.py`), so this table reflects "
-            "claude/gemini only — antigravity has no API/tokenizer path and "
+            "claude only — antigravity has no API/tokenizer path and "
             "is `unsupported` here by design (see legend above).",
             "",
             "| Condition  | Avg input tok | Avg cost/call | Quality | vs after |",
