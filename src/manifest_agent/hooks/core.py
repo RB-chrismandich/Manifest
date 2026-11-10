@@ -1,8 +1,7 @@
 """Shared mechanics for thin per-client `manifest hook` adapters.
 
-Every per-client module (`claude_code.py`, `codex.py`, `cursor.py`,
-`gemini.py`) parses its own protocol shape and calls `process_event` here for
-everything that is not client-specific: bounded stdin parsing, recursion
+Every per-client module (`claude_code.py`, `codex.py`, `cursor.py`) parses
+its own protocol shape and calls `process_event` here for everything that is not client-specific: bounded stdin parsing, recursion
 refusal, dedup, the `manifest check` invocation, and the receipt.
 """
 

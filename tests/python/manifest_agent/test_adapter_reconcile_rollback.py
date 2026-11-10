@@ -231,7 +231,7 @@ def test_rollback_removes_target_delta_and_restores_exact_prior_inventory(
             return CommandResult(tuple(argv), 0, "", "")
 
     class ExactAdapter(CapabilityAdapterMixin):
-        name = "gemini"
+        name = "antigravity"
         adapter_version = "1"
 
         def __init__(self) -> None:
@@ -311,7 +311,7 @@ def test_rollback_removes_target_delta_and_restores_exact_prior_inventory(
 
     adapter = ExactAdapter()
     receipt = HarnessReceipt(
-        "gemini",
+        "antigravity",
         "1",
         "fixture",
         tuple(contract.name for contract in desired.all_contracts),
@@ -348,9 +348,7 @@ def test_rollback_removes_target_delta_and_restores_exact_prior_inventory(
     result = adapter.rollback_reconcile(handle, desired)
 
     assert result.state is ResultState.READY
-    assert adapter.runner.calls == [
-        ("gemini", "extensions", "uninstall", "future-addon")
-    ]
+    assert adapter.runner.calls == [("agy", "plugin", "uninstall", "future-addon")]
     assert tuple(item.identifier for item in adapter.observed) == (
         "manifest-workspace",
     )

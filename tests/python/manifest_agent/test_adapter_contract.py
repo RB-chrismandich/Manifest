@@ -206,7 +206,6 @@ def test_registry_has_exact_supported_harnesses() -> None:
     assert AdapterRegistry.names() == (
         "claude",
         "codex",
-        "gemini",
         "cursor",
         "antigravity",
         "devin",

@@ -142,7 +142,7 @@ def test_committed_matrix_entries_cover_every_hook_adapter():
     instance = json.loads(
         (REPO_ROOT_MARKER / "config" / "hook-clients.json").read_text(encoding="utf-8")
     )
-    assert set(instance["clients"]) == {"claude_code", "codex", "cursor", "gemini"}
+    assert set(instance["clients"]) == {"claude_code", "codex", "cursor"}
 
 
 def test_cli_hook_event_dispatch_still_works(tmp_path: Path):

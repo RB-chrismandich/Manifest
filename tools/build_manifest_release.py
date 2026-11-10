@@ -205,7 +205,6 @@ def _validate_generated_views(
         bundle = root / "plugins" / name
         for relative in (
             ".claude-plugin/plugin.json",
-            "gemini-extension.json",
             "plugin.json",
             ".devin-plugin/plugin.json",
         ):

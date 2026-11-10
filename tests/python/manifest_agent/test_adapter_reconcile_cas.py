@@ -241,8 +241,8 @@ def test_generic_reconcile_uses_exact_cas_and_authenticated_backup(
             command = tuple(argv)
             self.calls.append(command)
             if command == (
-                "gemini",
-                "extensions",
+                "agy",
+                "plugin",
                 "uninstall",
                 prior_contract.name,
             ):
@@ -251,7 +251,7 @@ def test_generic_reconcile_uses_exact_cas_and_authenticated_backup(
             raise AssertionError(f"unexpected command: {command}")
 
     class BackupAdapter(CapabilityAdapterMixin):
-        name = "gemini"
+        name = "antigravity"
         adapter_version = "1"
 
         def __init__(self) -> None:
@@ -327,7 +327,7 @@ def test_generic_reconcile_uses_exact_cas_and_authenticated_backup(
 
     adapter = BackupAdapter()
     receipt = HarnessReceipt(
-        "gemini",
+        "antigravity",
         "1",
         "fixture",
         (prior_contract.name,),
@@ -368,9 +368,7 @@ def test_generic_reconcile_uses_exact_cas_and_authenticated_backup(
     exact_target = adapter.rollback_reconcile(handle, desired)
 
     assert exact_target.state is ResultState.READY
-    assert adapter.runner.calls == [
-        ("gemini", "extensions", "uninstall", prior_contract.name)
-    ]
+    assert adapter.runner.calls == [("agy", "plugin", "uninstall", prior_contract.name)]
     assert (installed / "payload.txt").read_text(encoding="utf-8") == (
         "exact observed prior\n"
     )

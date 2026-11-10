@@ -105,14 +105,6 @@ HARNESSES: dict[str, Harness] = {
             credential_env="OPENAI_API_KEY",
         ),
         Harness(
-            name="gemini",
-            secret_name="LIVE_GEMINI_CREDENTIAL",
-            binary="gemini",
-            install_argv=("npm", "install", "-g", "@google/gemini-cli"),
-            verify_argv=("gemini", "-p", "reply with ok"),
-            credential_env="GEMINI_API_KEY",
-        ),
-        Harness(
             name="cursor",
             secret_name="LIVE_CURSOR_CREDENTIAL",
             binary="cursor-agent",

@@ -1330,7 +1330,6 @@ class BootstrapSyncService:
                     (
                         "claude",
                         "codex",
-                        "gemini",
                         "cursor",
                         "antigravity",
                         "devin",

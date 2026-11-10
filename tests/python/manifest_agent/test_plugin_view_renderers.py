@@ -60,7 +60,6 @@ def _configure_component_fixture(fixture_root: Path) -> None:
     document["components"]["runtime"][0]["compatibility"] = {
         "claude": {"mode": "degraded", "reason": "claude fixture runtime"},
         "codex": {"mode": "degraded", "reason": "codex fixture runtime"},
-        "gemini": {"mode": "unsupported", "reason": "gemini fixture runtime"},
         "cursor": {"mode": "unsupported", "reason": "cursor fixture runtime"},
         "antigravity": {
             "mode": "degraded",
@@ -182,10 +181,10 @@ def test_every_component_is_exposed_or_explicitly_degraded(
         harness: json.loads(
             (
                 output_root
-                / f"manifest-docs/{'.claude-plugin/plugin.json' if harness == 'claude' else 'gemini-extension.json'}"
+                / f"manifest-docs/{'.claude-plugin/plugin.json' if harness == 'claude' else 'antigravity-extension.json'}"
             ).read_text()
         )
-        for harness in ("claude", "gemini")
+        for harness in ("claude", "antigravity")
     }
     _assert_native_views(views)
     generic = json.loads((output_root / "manifest-docs/plugin.json").read_text())

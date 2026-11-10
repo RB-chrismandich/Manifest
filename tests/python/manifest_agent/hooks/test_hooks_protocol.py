@@ -16,20 +16,18 @@ import time
 
 import pytest
 
-from manifest_agent.hooks import claude_code, codex, cursor, gemini
+from manifest_agent.hooks import claude_code, codex, cursor
 
 CLIENTS = {
     "claude-code": claude_code,
     "codex": codex,
     "cursor": cursor,
-    "gemini": gemini,
 }
 
 SUPPORTED_QUICK_EVENT = {
     "claude-code": "PostToolUse",
     "codex": None,
     "cursor": "beforeShellExecution",
-    "gemini": "BeforeTool",
 }
 
 
@@ -81,23 +79,6 @@ def test_wrong_field_types_are_a_protocol_response(hook_harness, client):
     assert "Traceback" not in result.stdout.decode()
     reason = _reason_text(body).lower()
     assert "cwd" in reason or "session_id" in reason
-    assert not hook_harness.receipts()
-
-
-def test_gemini_rejects_a_non_string_cwd_without_a_traceback(hook_harness):
-    result = hook_harness.invoke(
-        "gemini",
-        "BeforeTool",
-        {
-            "cwd": 123,
-            "hook_name": "BeforeTool",
-            "session_id": "s1",
-            "tool_name": "Write",
-            "tool_input": {"file_path": "a.txt"},
-        },
-    )
-    body = _stdout_json(result)
-    assert "cwd" in _reason_text(body).lower()
     assert not hook_harness.receipts()
 
 
@@ -153,7 +134,7 @@ def test_stdin_read_obeys_the_adapter_deadline(hook_harness):
     assert "deadline" in _reason_text(json.loads(stdout)).lower()
 
 
-@pytest.mark.parametrize("client", ["claude-code", "gemini"])
+@pytest.mark.parametrize("client", ["claude-code"])
 def test_path_traversal_in_file_path_is_blocked(hook_harness, client):
     event = SUPPORTED_QUICK_EVENT[client]
     payload = {

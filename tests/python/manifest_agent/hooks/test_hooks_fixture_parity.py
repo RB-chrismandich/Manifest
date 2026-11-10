@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from manifest_agent.hooks import claude_code, codex, cursor, gemini
+from manifest_agent.hooks import claude_code, codex, cursor
 
 FIXTURES_ROOT = Path(__file__).resolve().parents[3] / "fixtures" / "hooks"
 
@@ -19,13 +19,11 @@ MODULES = {
     "claude_code": claude_code,
     "codex": codex,
     "cursor": cursor,
-    "gemini": gemini,
 }
 CLI_NAMES = {
     "claude_code": "claude-code",
     "codex": "codex",
     "cursor": "cursor",
-    "gemini": "gemini",
 }
 
 

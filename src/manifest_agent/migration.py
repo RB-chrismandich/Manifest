@@ -540,7 +540,6 @@ class MigrationService:
         roots = {
             "claude": self.home / ".claude",
             "codex": self.home / ".codex",
-            "gemini": self.home / ".gemini",
             "cursor": self.home / ".cursor",
             "antigravity": self.home / ".antigravity",
             "devin": self.home / ".config" / "devin",

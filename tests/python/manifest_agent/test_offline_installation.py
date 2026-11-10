@@ -84,7 +84,7 @@ def test_all_six_fake_adapters_install_list_info_and_uninstall_offline(
         "create_connection",
         lambda *args, **kwargs: (_ for _ in ()).throw(OSError("network disabled")),
     )
-    for harness in ("claude", "codex", "gemini", "cursor", "antigravity", "devin"):
+    for harness in ("claude", "codex", "cursor", "antigravity", "devin"):
         adapter = FakeBundleAdapter(harness, tmp_path / "homes" / harness)
         installed = adapter.install(installed_release)
         assert installed.state is ResultState.READY

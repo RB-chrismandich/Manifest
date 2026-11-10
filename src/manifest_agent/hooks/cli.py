@@ -14,13 +14,12 @@ import os
 
 import click
 
-from . import claude_code, codex, cursor, gemini, verify
+from . import claude_code, codex, cursor, verify
 
 _ADAPTERS = {
     "claude-code": claude_code.main,
     "codex": codex.main,
     "cursor": cursor.main,
-    "gemini": gemini.main,
 }
 
 # CLI dispatch names (hyphenated, matching `manifest hook <client> <event>`)
@@ -30,7 +29,6 @@ _CLIENT_KEYS = {
     "claude-code": claude_code.CLIENT,
     "codex": codex.CLIENT,
     "cursor": cursor.CLIENT,
-    "gemini": gemini.CLIENT,
 }
 
 _VERIFY_EXITS = {

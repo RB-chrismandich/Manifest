@@ -31,7 +31,7 @@ def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
 
     lines = [line for line in rendered.splitlines() if line.startswith("|")][2:]
     assert lines
-    assert all(line.count("|") == 10 for line in lines)
+    assert all(line.count("|") == 9 for line in lines)
     assert "|  |" not in rendered
     assert all(state in rendered for state in ("READY", "DEGRADED(", "N/A("))
     for line in lines:
@@ -42,7 +42,7 @@ def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
         row = next(
             line for line in lines if f"`manifest-i-have-adhd:{identity}`" in line
         )
-        assert row.count("READY") == 6
+        assert row.count("READY") == 5
         assert "N/A(" not in row
     for identity in (
         "hook:adhd-session-start",
@@ -52,7 +52,7 @@ def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
         row = next(
             line for line in lines if f"`manifest-i-have-adhd:{identity}`" in line
         )
-        assert row.count("READY") == 6
+        assert row.count("READY") == 5
         assert "BLOCKED(" not in row
 
     for identity in (
@@ -62,7 +62,7 @@ def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
     ):
         row = next(line for line in lines if f"`manifest-workspace:{identity}`" in line)
         assert row.count("READY") == 1
-        assert row.count("N/A(") == 5
+        assert row.count("N/A(") == 4
 
 
 def test_omp_cells_reflect_declarations_but_ignore_ready_looking_inspection() -> None:
@@ -223,7 +223,7 @@ def test_check_success_discloses_omp_is_unverified_and_excluded(
 
     assert renderer.main(["--check", "--inspection", str(inspection_path)]) == 0
     assert (
-        "OMP coverage is UNVERIFIED and excluded from this six-harness qualification."
+        "OMP coverage is UNVERIFIED and excluded from this five-harness qualification."
         in capsys.readouterr().out
     )
 
@@ -320,6 +320,6 @@ def test_matrix_check_ignores_blocked_text_in_omp_reason(
 
     assert renderer.main(["--check", "--inspection", str(inspection_path)]) == 0
     assert (
-        "OMP coverage is UNVERIFIED and excluded from this six-harness qualification."
+        "OMP coverage is UNVERIFIED and excluded from this five-harness qualification."
         in capsys.readouterr().out
     )

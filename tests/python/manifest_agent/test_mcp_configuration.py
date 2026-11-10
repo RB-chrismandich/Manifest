@@ -13,7 +13,6 @@ from manifest_agent.adapters.claude import ClaudeAdapter
 from manifest_agent.adapters.codex import CodexAdapter
 from manifest_agent.adapters.cursor import CursorAdapter
 from manifest_agent.adapters.devin import DevinAdapter
-from manifest_agent.adapters.gemini import GeminiAdapter
 from manifest_agent.capabilities import CapabilityPlan, McpDefinition, load_mcp_catalog
 from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
@@ -159,20 +158,6 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
                 "add",
                 "context7",
                 "--url",
-                "https://mcp.context7.com/mcp",
-            ),
-        ),
-        (
-            GeminiAdapter,
-            (
-                "gemini",
-                "mcp",
-                "add",
-                "--scope",
-                "user",
-                "--transport",
-                "http",
-                "context7",
                 "https://mcp.context7.com/mcp",
             ),
         ),

@@ -756,7 +756,7 @@ def test_graphify_upgrade_requires_the_current_canonical_bundle_inventory(
 
 def test_downgraded_harness_keeps_manifest_ownership_evidence() -> None:
     """A harness that CREATED a capability and then failed something unrelated
-    must keep its ownership evidence. Gemini hit exactly this against release
+    must keep its ownership evidence. A harness hit exactly this against release
     0.3.0: its MCP add succeeded, its extension install hit the consent banner,
     the status was rewritten to `blocked` while the OwnedEntry survived, and the
     receipt became unwritable for every harness."""
@@ -764,7 +764,7 @@ def test_downgraded_harness_keeps_manifest_ownership_evidence() -> None:
     from manifest_agent.service_state import _harness_receipt
 
     result = HarnessResult(
-        "gemini",
+        "antigravity",
         ResultState.BLOCKED,
         (),
         {"mcp:context7": OWNED_STATUS, "skill:docs-all": "verified"},
@@ -782,7 +782,7 @@ def test_downgraded_harness_preserves_existing_failure_values() -> None:
     from manifest_agent.service_state import _harness_receipt
 
     result = HarnessResult(
-        "gemini",
+        "antigravity",
         ResultState.BLOCKED,
         (),
         {"mcp:context7": "failed"},

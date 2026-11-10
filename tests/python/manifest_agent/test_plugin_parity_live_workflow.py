@@ -147,7 +147,7 @@ def test_live_parity_workflow_scopes_one_credential_per_harness_job() -> None:
     # read a harness credential other than its own.
     assert workflow.count("secrets[") == 1
     assert "LIVE_HARNESS_CREDENTIAL: ${{ secrets[matrix.secret] }}" in workflow
-    for harness in ("CLAUDE", "CODEX", "GEMINI", "CURSOR", "ANTIGRAVITY", "DEVIN"):
+    for harness in ("CLAUDE", "CODEX", "CURSOR", "ANTIGRAVITY", "DEVIN"):
         secret = f"LIVE_{harness}_CREDENTIAL"
         assert f"secret: {secret}" in workflow
         assert f"secrets.{secret}" not in workflow

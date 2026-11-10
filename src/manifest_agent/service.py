@@ -39,6 +39,7 @@ from manifest_agent.ownership import (
 from manifest_agent.paths import xdg_paths
 from manifest_agent.process import CommandRunner, redact_text
 from manifest_agent.release import ResolvedRelease, resolve_release
+from manifest_agent.retired_harnesses import notes_retired_harnesses
 from manifest_agent.service_state import (
     ServiceReport,
     bind_adapter_authorities,
@@ -66,7 +67,7 @@ from manifest_agent.state import (
     write_retired_graphify_transaction_atomic,
 )
 
-HARNESS_ORDER = ("claude", "codex", "gemini", "cursor", "antigravity", "devin", "omp")
+HARNESS_ORDER = ("claude", "codex", "cursor", "antigravity", "devin", "omp")
 _RETIRED_BUNDLE = "manifest-graphify"
 _RETIRED_EXECUTABLE = "graphify"
 _GRAPHIFY_TOOL_HEADER = re.compile(r"^graphifyy\s+v[^\s]+\s+\([^)]+\)$")
@@ -124,6 +125,7 @@ class ManifestService:
                 f"unsupported adapter names: {', '.join(sorted(unsupported))}"
             )
 
+    @notes_retired_harnesses
     def install(self) -> ServiceReport:
         """Install and verify requested harnesses while preserving partial success."""
         desired, error = self._desired_state()
@@ -208,6 +210,7 @@ class ManifestService:
             )
         return report("install", results, notes)
 
+    @notes_retired_harnesses
     def bootstrap_sync(self) -> ServiceReport:
         """Converge native plugins and perform receipt-backed final cutovers."""
         from manifest_agent.bootstrap_sync import BootstrapSyncService
@@ -390,6 +393,7 @@ class ManifestService:
             return False, "legacy Graphify installation inspection is ambiguous"
         return bool(graphify_lines), None
 
+    @notes_retired_harnesses
     def migrate(self) -> ServiceReport:
         """Atomically hand bootstrap-owned writers to verified native plugins."""
         desired, error = self._desired_state()
@@ -417,6 +421,7 @@ class ManifestService:
             return replace(result, notes=(*result.notes, f"resume with: {command}"))
         return result
 
+    @notes_retired_harnesses
     def reconcile(self, apply: bool = False) -> ServiceReport:
         """Inspect desired state and optionally repair owned harnesses."""
         if apply:
@@ -452,6 +457,7 @@ class ManifestService:
         result = _reconcile_desired(self, receipt, desired, apply=apply)
         return _reconcile_runtime_diagnostics(self, desired, result, apply=apply)
 
+    @notes_retired_harnesses
     def uninstall(self) -> ServiceReport:
         """Remove only receipt-recorded ownership in reverse harness order."""
         results = {}

@@ -36,9 +36,6 @@ from manifest_agent.plugin_view_renderers import (
     devin_rule as _devin_rule,
 )
 from manifest_agent.plugin_view_renderers import (
-    gemini_view as _gemini_view,
-)
-from manifest_agent.plugin_view_renderers import (
     generic_view as _generic_view,
 )
 from manifest_agent.plugin_view_renderers import (
@@ -55,7 +52,6 @@ _ALL_HARNESSES = (
     "codex",
     "cursor",
     "devin",
-    "gemini",
 )
 _GENERIC_HARNESSES = ("antigravity", "codex", "cursor", "devin")
 _CODEX_IMPLICIT_ALLOWLIST_KEY = "codex_implicit_invocation_allowlist"
@@ -255,7 +251,6 @@ def _bundle_expected_views(
         target / ".claude-plugin" / "plugin.json": _json(
             _claude_view(contract, skills)
         ),
-        target / "gemini-extension.json": _json(_gemini_view(contract, policies)),
         target / "plugin.json": generic,
         # Same generic document, second location: `devin plugins install` reads
         # .devin-plugin/plugin.json and nothing else, so a bundle carrying only
@@ -270,7 +265,7 @@ def _bundle_expected_views(
     devin_rule = _devin_rule(contract, bundle_path)
     if devin_rule is not None:
         expected[target / "devin" / "global-rule.md"] = devin_rule
-    for harness in ("gemini", *_GENERIC_HARNESSES):
+    for harness in _GENERIC_HARNESSES:
         guidance = _model_policy_guidance(policies, harness)
         if guidance is not None:
             expected[target / "guidance" / f"model-policy-{harness}.md"] = guidance

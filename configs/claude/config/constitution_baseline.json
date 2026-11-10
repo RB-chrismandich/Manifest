@@ -262,9 +262,6 @@
     "src/manifest_agent/adapters/codex.py": {
       "C-SIZE": 1
     },
-    "src/manifest_agent/adapters/gemini.py": {
-      "C-SIZE": 1
-    },
     "src/manifest_agent/capabilities.py": {
       "C-SIZE": 1
     },

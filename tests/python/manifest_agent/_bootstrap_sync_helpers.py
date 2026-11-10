@@ -283,16 +283,16 @@ def record_prepared_handles(adapter) -> list:
 
 
 def three_harness_service(service_factory):
-    """An installed service with claude, gemini and codex all participating."""
+    """An installed service with claude, cursor and codex all participating."""
     claude = FakeAdapter("claude", harness_result("claude"))
-    gemini = FakeAdapter("gemini", harness_result("gemini"))
+    cursor = FakeAdapter("cursor", harness_result("cursor"))
     codex = FakeAdapter("codex", harness_result("codex"))
     service = service_factory(
-        {"claude": claude, "gemini": gemini, "codex": codex},
-        harnesses=("claude", "gemini", "codex"),
+        {"claude": claude, "cursor": cursor, "codex": codex},
+        harnesses=("claude", "cursor", "codex"),
     )
     assert service.install().state is ResultState.READY
-    return service, claude, gemini, codex
+    return service, claude, cursor, codex
 
 
 class ReleasePin:

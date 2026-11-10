@@ -83,7 +83,7 @@ def test_runtime_path_gate_reports_forbidden_instruction_dependency(
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
         "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [], guidance: []}\n"
         "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [], default: [], optional: []}}\n"
-        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
         "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
         encoding="utf-8",
     )
@@ -107,7 +107,7 @@ def test_runtime_path_gate_reports_undeclared_python_runtime_dependency(
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
         "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.py}], guidance: []}\n"
         "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [], default: [], optional: []}}\n"
-        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
         "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
         encoding="utf-8",
     )
@@ -134,7 +134,7 @@ def test_runtime_path_gate_reports_direct_undeclared_shell_command(
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
         "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.sh}], guidance: []}\n"
         "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [], default: [], optional: []}}\n"
-        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
         "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
         encoding="utf-8",
     )
@@ -158,7 +158,7 @@ def test_runtime_path_gate_rejects_unknown_direct_shell_command(tmp_path: Path) 
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
         "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.sh}], guidance: []}\n"
         "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [], default: [], optional: []}}\n"
-        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
         "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
         encoding="utf-8",
     )
@@ -190,7 +190,7 @@ def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
         "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.sh}], guidance: []}\n"
         "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [python3], default: [], optional: []}}\n"
-        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
         "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
         encoding="utf-8",
     )

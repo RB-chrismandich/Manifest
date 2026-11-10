@@ -16,7 +16,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
-        gemini: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
@@ -26,7 +25,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
-        gemini: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         cursor: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         antigravity: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
@@ -46,7 +44,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This package manifest is OMP-only.}
         codex: {mode: not_applicable, reason: This package manifest is OMP-only.}
-        gemini: {mode: not_applicable, reason: This package manifest is OMP-only.}
         cursor: {mode: not_applicable, reason: This package manifest is OMP-only.}
         antigravity: {mode: not_applicable, reason: This package manifest is OMP-only.}
         devin: {mode: not_applicable, reason: This package manifest is OMP-only.}
@@ -56,7 +53,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This MCP definition is OMP-only.}
         codex: {mode: not_applicable, reason: This MCP definition is OMP-only.}
-        gemini: {mode: not_applicable, reason: This MCP definition is OMP-only.}
         cursor: {mode: not_applicable, reason: This MCP definition is OMP-only.}
         antigravity: {mode: not_applicable, reason: This MCP definition is OMP-only.}
         devin: {mode: not_applicable, reason: This MCP definition is OMP-only.}
@@ -66,7 +62,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This extension is OMP-only.}
         codex: {mode: not_applicable, reason: This extension is OMP-only.}
-        gemini: {mode: not_applicable, reason: This extension is OMP-only.}
         cursor: {mode: not_applicable, reason: This extension is OMP-only.}
         antigravity: {mode: not_applicable, reason: This extension is OMP-only.}
         devin: {mode: not_applicable, reason: This extension is OMP-only.}
@@ -84,7 +79,6 @@ capabilities:
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
-  gemini: {mode: generated}
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}

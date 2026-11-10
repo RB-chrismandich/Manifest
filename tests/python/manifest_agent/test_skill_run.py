@@ -223,7 +223,6 @@ def test_repo_skill_run_transports_keep_prompts_out_of_argv() -> None:
         for name, entry in config["cli_agents"].items()
     } == {
         "claude": "stdin",
-        "gemini": "stdin",
         "cursor": "stdin",
         "codex": "stdin",
         "antigravity": "argv",
