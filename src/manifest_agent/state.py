@@ -179,6 +179,33 @@ def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
     return receipt
 
 
+def retired_receipt_rebinding(path: Path) -> tuple[str, str] | None:
+    """Return the receipt's (as-written, as-read) digests when they differ.
+
+    read_receipt drops retired harness records, so a receipt that still names
+    one has a different digest once read. Anything bound to the as-written
+    digest, such as a pending bootstrap journal, must be rebound to the as-read
+    digest instead of being rejected. None when the receipt is absent,
+    unreadable, or names no retired harness: read_receipt reports those cases.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        written = _decode_receipt(document)
+    except (
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+        return None
+    read = without_retired_harnesses(written)
+    if read is written:
+        return None
+    return receipt_digest(written), receipt_digest(read)
+
+
 def retired_graphify_transaction_path(receipt_path: Path) -> Path:
     """Return the private journal path paired with one installation receipt."""
     return receipt_path.with_name(f".{receipt_path.name}.retired-graphify.json")

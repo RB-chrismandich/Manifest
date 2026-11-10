@@ -16,6 +16,7 @@ import yaml
 from jsonschema import Draft202012Validator
 
 from manifest_agent.models import BundleContract, CapabilityTier
+from manifest_agent.retired_harnesses import RETIRED_HARNESSES
 
 DOMAIN_BUNDLES = (
     "manifest-code-quality",
@@ -192,6 +193,7 @@ def _compatibility_map(
                 mode=status["mode"], reason=status.get("reason")
             )
             for harness, status in raw_compatibility.items()
+            if harness not in RETIRED_HARNESSES
         }
     )
 

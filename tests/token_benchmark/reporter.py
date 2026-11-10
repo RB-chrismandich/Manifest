@@ -117,8 +117,14 @@ def compute_stats(records: list[dict], *, _include_per_run: bool = True) -> dict
         quality[provider][category][f"{cond}_score"] += r["quality_score"]
         quality[provider][category][f"{cond}_total"] += 1
 
-    # Cost summary per condition (API records with non-null cost_usd)
-    cost_records = [r for r in api_recs if r.get("cost_usd") is not None]
+    # Cost summary per condition (API records with non-null cost_usd). Result
+    # files can still hold rows for a provider that is no longer measured;
+    # blending those into a table that only shows PROVIDERS would misreport it.
+    cost_records = [
+        r
+        for r in api_recs
+        if r.get("cost_usd") is not None and r.get("provider") in PROVIDERS
+    ]
     cost_summary: dict = {}
     if cost_records:
         all_conditions = sorted({r["condition"] for r in cost_records})

@@ -549,6 +549,21 @@ class TestCostAnalysis:
         assert "tiered" in md
         assert "compressed" in md
 
+    def test_cost_summary_ignores_providers_no_longer_measured(self):
+        """Historical rows for a dropped provider must not blend into the costs."""
+        from tests.token_benchmark.reporter import compute_stats
+
+        records = self._make_cost_records()
+        historical = [
+            {**r, "provider": "gemini", "model": "gemini-old", "cost_usd": 9.0}
+            for r in records
+        ]
+
+        assert (
+            compute_stats(records + historical)["cost_summary"]
+            == compute_stats(records)["cost_summary"]
+        )
+
     def test_cost_table_omitted_when_no_cost_data(self):
         """Cost Analysis section absent when all cost_usd are None (old JSONL)."""
         from tests.token_benchmark.reporter import compute_stats, render_report
