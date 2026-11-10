@@ -197,19 +197,14 @@ class AntigravityAdapter(CapabilityAdapterMixin):
     def _expected_reconcile_source_identity(
         self, desired: DesiredState, bundle: str
     ) -> str:
-        contract = next(item for item in desired.all_contracts if item.name == bundle)
-        components = ["skills"]
-        components.extend(
-            f"{kind}:{component.stable_id}"
-            for kind, values in (
-                ("guidance", contract.components.guidance),
-                ("hook", contract.components.hooks),
-                ("runtime", contract.components.runtime),
-            )
-            for component in values
-        )
+        """Mirror the identity `_native_reconcile_inventory` derives from agy.
+
+        agy's inventory proves a plugin's skills and nothing finer, so the
+        expected identity names the same single component for every bundle.
+        """
+        del desired, bundle
         return json.dumps(
-            {"components": components, "source": _NATIVE_SOURCE},
+            {"components": ["skills"], "source": _NATIVE_SOURCE},
             sort_keys=True,
             separators=(",", ":"),
         )

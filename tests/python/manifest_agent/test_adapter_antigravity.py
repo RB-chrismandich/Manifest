@@ -225,7 +225,7 @@ def test_antigravity_inspect_treats_empty_plugin_list_text_as_no_imports(
     assert all(f"missing required plugin: {name}" in joined for name in DOMAIN_BUNDLES)
 
 
-def _json_flag_inventory(*, skills: list[str]) -> str:
+def _json_flag_inventory(*, skills: list[str], version: str | None = None) -> str:
     """The top-level array `agy plugin list --json` prints since the flag landed."""
     return json.dumps(
         [
@@ -237,6 +237,7 @@ def _json_flag_inventory(*, skills: list[str]) -> str:
                 "skills": skills,
                 "agents": [],
                 "hooks": [],
+                **({} if version is None else {"version": version}),
             }
             for name in DOMAIN_BUNDLES
         ]
@@ -446,3 +447,19 @@ def test_antigravity_uninstall_removes_only_canonical_receipt_ids() -> None:
     assert result.state is ResultState.BLOCKED
     assert runner.log == []
     assert "non-canonical" in " ".join(result.errors)
+
+
+def test_expected_reconcile_identity_matches_the_observed_native_identity(
+    desired: DesiredState,
+) -> None:
+    """Reconcile compares these two; a mismatch reinstalls every plugin."""
+    inventory = _json_flag_inventory(skills=["a-skill"], version="1.0.0")
+    adapter = AntigravityAdapter(runner=QueueRunner([command(stdout=inventory)]))
+
+    observed = adapter._native_reconcile_inventory(desired, capture_backups=False)
+
+    assert {item.identifier for item in observed} == set(DOMAIN_BUNDLES)
+    assert {item.source_identity for item in observed} == {
+        adapter._expected_reconcile_source_identity(desired, name)
+        for name in DOMAIN_BUNDLES
+    }

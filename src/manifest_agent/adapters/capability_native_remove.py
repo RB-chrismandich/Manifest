@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import secrets
 import shutil
+import stat
 from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass
@@ -19,6 +21,41 @@ from manifest_agent.models import (
     DesiredState,
 )
 from manifest_agent.process import redact_text
+
+# Claude Code drops this marker into any plugin-cache directory it does not
+# recognise, which includes Manifest's placeholder while a removal is running.
+_HOST_ORPHAN_MARKERS = frozenset({".orphaned_at"})
+
+
+def _rmdir_placeholder(name: str, parent_descriptor: int) -> None:
+    """Remove Manifest's own placeholder directory.
+
+    The placeholder is created empty. The only content tolerated at removal is
+    the host's orphan marker; anything else still fails as not empty, because
+    it means the directory is no longer the placeholder Manifest created.
+    """
+    try:
+        os.rmdir(name, dir_fd=parent_descriptor)
+        return
+    except OSError as error:
+        if error.errno not in {errno.ENOTEMPTY, errno.EEXIST}:
+            raise
+        not_empty = error
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(name, flags, dir_fd=parent_descriptor)
+    try:
+        entries = set(os.listdir(descriptor))
+        if not entries <= _HOST_ORPHAN_MARKERS:
+            raise not_empty
+        for entry in entries:
+            if not stat.S_ISREG(
+                os.stat(entry, dir_fd=descriptor, follow_symlinks=False).st_mode
+            ):
+                raise not_empty
+            os.unlink(entry, dir_fd=descriptor)
+    finally:
+        os.close(descriptor)
+    os.rmdir(name, dir_fd=parent_descriptor)
 
 
 @dataclass
@@ -178,7 +215,7 @@ class NativeRemoveMixin:
         if placeholder_descriptor >= 0:
             os.close(placeholder_descriptor)
         with suppress(FileNotFoundError):
-            os.rmdir(quarantine_name, dir_fd=parent_descriptor)
+            _rmdir_placeholder(quarantine_name, parent_descriptor)
         os.close(parent_descriptor)
 
     def _conditional_pathless_native_remove(
@@ -247,7 +284,7 @@ class NativeRemoveMixin:
                 parent_descriptor,
                 quarantine_name,
             )
-            os.rmdir(quarantine_name, dir_fd=parent_descriptor)
+            _rmdir_placeholder(quarantine_name, parent_descriptor)
             os.fsync(parent_descriptor)
             return
         raise ValueError("native removal rollback path changed concurrently")
@@ -268,5 +305,5 @@ class NativeRemoveMixin:
             placeholder.st_ino,
         ):
             return False
-        os.rmdir(installed_name, dir_fd=parent_descriptor)
+        _rmdir_placeholder(installed_name, parent_descriptor)
         return True
