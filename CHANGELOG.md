@@ -25,8 +25,9 @@
   `configs/gemini/GEMINI.md`). Gemini models via Antigravity are unaffected.
   The `ai-hooks-integration` skill no longer installs or handles Gemini CLI hooks
   (`--source gemini` is gone), and the token benchmark no longer measures a
-  Gemini provider (API or CLI; `--gemini-model` and the `google-genai` benchmark
-  dependency are removed).
+  Gemini provider (API or CLI; `--gemini-model` is removed). The now-unused
+  `google-genai` entry stays in the `benchmark` dependency group until the next
+  attested toolchain bump, because the root `pyproject.toml` is hash-pinned.
 - Add the seventh coordinator adapter, OMP (`manifest install --harness omp`),
   with typed native package/source/version inspection separate from unobserved
   activation qualification. Bind default-user native identities to full signed
