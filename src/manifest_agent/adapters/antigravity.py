@@ -11,6 +11,7 @@ from manifest_agent.adapters.antigravity_evidence import (
     _component_evidence,
     _expected_skill_paths,
     imported_plugin_roots,
+    read_antigravity_native_mcp_servers,
 )
 from manifest_agent.adapters.base import (
     CapabilityAdapterMixin,
@@ -101,9 +102,16 @@ class AntigravityAdapter(CapabilityAdapterMixin):
             rows,
             self._which,
             imported_plugin_roots(desired, self._env),
+            read_antigravity_native_mcp_servers(self._env),
         )
         components = verify_declared_components(self.name, desired, evidence)
         return combine_results(plugins, components)
+
+    def _native_mcp_inventory_for_apply(self) -> NativeMcpInventory | None:
+        """Prefer injected inventory; otherwise observe agy's live registrations."""
+        if self._native_mcp_inventory:
+            return self._native_mcp_inventory
+        return read_antigravity_native_mcp_servers(self._env)
 
     def install(self, desired: DesiredState) -> HarnessResult:
         """Validate all canonical bundles before linking or installing any plugin."""

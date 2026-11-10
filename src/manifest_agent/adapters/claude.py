@@ -27,16 +27,13 @@ from manifest_agent.adapters.claude_inventory import (
     _plugin_rows,
     read_claude_native_mcp_servers,
 )
+from manifest_agent.adapters.mcp_matching import declared_mcp, matching_mcp_names
 from manifest_agent.capabilities import (
-    CapabilityConflict,
     McpDefinition,
-    load_mcp_catalog,
-    merge_mcp_definitions,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES, PORTABLE_BUNDLES
 from manifest_agent.models import (
     AdapterPluginState,
-    BundleContract,
     CapabilityTier,
     CommandResult,
     DesiredState,
@@ -443,7 +440,7 @@ def _component_evidence(
 ) -> set[str]:
     roots: dict[str, Path] = {}
     mcp_servers: dict[str, tuple[str, ...]] = {}
-    matching_mcp = _matching_mcp_names(served_mcp)
+    matching_mcp = matching_mcp_names(served_mcp)
     by_id = {row.get("id"): row for row in rows if isinstance(row.get("id"), str)}
     for contract in desired.all_contracts:
         row = by_id.get(f"{contract.name}@{_MARKETPLACE}")
@@ -453,36 +450,11 @@ def _component_evidence(
         if isinstance(root_value, str):
             roots[contract.name] = Path(root_value)
         declared_and_served = tuple(
-            name for name in _declared_mcp(contract) if name in matching_mcp
+            name for name in declared_mcp(contract) if name in matching_mcp
         )
         if declared_and_served:
             mcp_servers[contract.name] = declared_and_served
     return collect_native_component_evidence(desired, roots, mcp_servers, which)
-
-
-def _declared_mcp(contract: BundleContract) -> tuple[str, ...]:
-    """Every MCP identity this bundle declares, across all tiers."""
-    return tuple(
-        dict.fromkeys(
-            name for tier in CapabilityTier for name in contract.capabilities.mcp[tier]
-        )
-    )
-
-
-def _matching_mcp_names(served_mcp: Mapping[str, McpDefinition]) -> frozenset[str]:
-    """Native registrations whose transport matches the reviewed catalog exactly."""
-    catalog = load_mcp_catalog()
-    matches: set[str] = set()
-    for name, observed in served_mcp.items():
-        expected = catalog.get(name)
-        if expected is None:
-            continue
-        try:
-            merge_mcp_definitions(expected, observed)
-        except CapabilityConflict:
-            continue
-        matches.add(name)
-    return frozenset(matches)
 
 
 def _native_mcp_definitions(inventory: NativeMcpInventory) -> dict[str, McpDefinition]:

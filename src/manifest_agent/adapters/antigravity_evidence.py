@@ -8,6 +8,8 @@ from manifest_agent.adapters.base import (
     collect_native_component_evidence,
     normalize_component_identity,
 )
+from manifest_agent.adapters.mcp_matching import served_declared_mcp
+from manifest_agent.capabilities import McpDefinition
 from manifest_agent.models import CapabilityTier, DesiredState
 
 _NATIVE_SOURCE = "antigravity"
@@ -93,6 +95,7 @@ def _component_evidence(
     rows: Sequence[Mapping[str, object]],
     which: Callable[[str], str | None],
     plugin_roots: Mapping[str, Path] | None = None,
+    served_mcp: Mapping[str, McpDefinition] | None = None,
 ) -> set[str]:
     """Return only components proven by Antigravity's native inventory."""
     evidence: set[str] = set()
@@ -121,7 +124,46 @@ def _component_evidence(
         imported = {
             name: root for name, root in plugin_roots.items() if name in by_name
         }
+        mcp_servers = {
+            name: served
+            for name, served in served_declared_mcp(
+                desired.all_contracts, served_mcp or {}
+            ).items()
+            if name in imported
+        }
         evidence.update(
-            collect_native_component_evidence(desired, imported, {}, lambda _name: None)
+            collect_native_component_evidence(
+                desired, imported, mcp_servers, lambda _name: None
+            )
         )
     return evidence
+
+
+def read_antigravity_native_mcp_servers(
+    env: Mapping[str, str] | None,
+) -> dict[str, McpDefinition]:
+    """Return agy's live HTTP MCP registrations, tolerating absence.
+
+    `agy mcp add` writes `mcpServers.<name>.serverUrl` into
+    ``$HOME/.gemini/config/mcp_config.json``; no plugin row reflects it, so this
+    file is the only source for servers already registered in Antigravity.
+    Header values are never read.
+    """
+    values = env or {}
+    home = Path(values["HOME"]) if "HOME" in values else Path.home()
+    path = home / ".gemini" / "config" / "mcp_config.json"
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    servers = document.get("mcpServers") if isinstance(document, Mapping) else None
+    if not isinstance(servers, Mapping):
+        return {}
+    definitions: dict[str, McpDefinition] = {}
+    for name, raw in servers.items():
+        if not isinstance(name, str) or not isinstance(raw, Mapping):
+            continue
+        url = raw.get("serverUrl")
+        if isinstance(url, str):
+            definitions[name] = McpDefinition(name=name, transport="http", url=url)
+    return definitions
