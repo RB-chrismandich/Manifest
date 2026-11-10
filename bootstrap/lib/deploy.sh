@@ -1742,7 +1742,11 @@ deploy_agy_gemini_home() {
     else
         create_symlink "$agy_home/config" "$TARGET_DIR/config" "Antigravity (agy) config"
     fi
-    local guide="$SCRIPT_DIR/configs/antigravity/GEMINI.md"
+    # Callers that source this library alone (smoke catalog, bats) leave
+    # SCRIPT_DIR unset; derive the repo root from this file instead.
+    local repo_root
+    repo_root="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+    local guide="$repo_root/configs/antigravity/GEMINI.md"
     if [[ -f "$guide" ]]; then
         cp "$guide" "$agy_home/GEMINI.md"
         print_success "Deployed Antigravity guide to $agy_home/GEMINI.md"
