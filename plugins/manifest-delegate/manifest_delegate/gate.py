@@ -107,11 +107,17 @@ _GATE_PROMPT_INSTRUCTIONS = (
 
 
 def _gate_build_prompt(entry):
-    """Assemble and size-check the gate review prompt. Returns (prompt, prompt_bytes, error_reason)."""
+    """Assemble and size-check the gate review prompt.
+
+    Returns (prompt, prompt_bytes, error_reason). An assembled diff that is
+    empty yields (None, None, None): nothing to review and no error.
+    """
     try:
         diff = review.assemble_review_diff("auto", None, cwd=None)
     except (OSError, ValueError, RuntimeError, review.ReviewDiffError):
         return None, None, "could not assemble review diff"
+    if not diff.strip():
+        return None, None, None
     prompt = _GATE_PROMPT_INSTRUCTIONS + diff
     prompt_bytes = prompt.encode("utf-8")
     limit_error = backend.check_payload_limits(entry, prompt_bytes)
@@ -188,6 +194,11 @@ def cmd_gate(args, backends, user_config, services_disabled):
     prompt, prompt_bytes, error_reason = _gate_build_prompt(entry)
     if error_reason:
         return _gate_block_infra("prompt_unavailable", json_mode=json_mode)
+
+    # Edit tools ran but git has nothing to show (reverted, ignored, or
+    # out-of-repo edits). An empty diff gives a reviewer no evidence to judge.
+    if prompt is None:
+        return _gate_allow(json_mode=json_mode, cause="no code edits")
 
     budget = min(
         backend.resolve_budget(entry, user_config, gate_cfg.get("budget_seconds")),
