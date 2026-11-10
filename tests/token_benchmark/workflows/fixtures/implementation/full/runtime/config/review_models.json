@@ -11,9 +11,9 @@
     "antigravity": {
       "binary": "agy",
       "models": {
-        "advanced": "claude-opus-5-5-high",
-        "flash": "gemini-3.8-flash-high",
-        "sonnet": "claude-opus-5-5-high"
+        "advanced": "claude-opus-4-6-thinking",
+        "flash": "gemini-3.6-flash-high",
+        "sonnet": "claude-opus-4-6-thinking"
       }
     },
     "claude": {
