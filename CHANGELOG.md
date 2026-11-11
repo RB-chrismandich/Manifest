@@ -35,6 +35,15 @@
   journal is still rejected. The legacy migration inventory drops its seven
   `~/.gemini` entries and the `gemini` harness tag, all unreachable since the
   harness can no longer be requested.
+- **Security:** the live-parity job no longer runs unpinned installers near a
+  protected credential (#1063). `tools/live_harness_setup.py` is split into
+  `install` and `authenticate`, run as separate workflow steps: `install`
+  references no secret and refuses to run if the credential is present. Claude
+  Code and Codex install with `npm ci --ignore-scripts` from committed lockfiles
+  (`tools/live_harness/`); Cursor, Antigravity, and Devin install from versioned
+  archives checked against a committed SHA-256 before extraction. No upstream
+  installer script is executed. A digest mismatch, failed download, or a runner
+  other than Linux x86_64 is `BLOCKED`.
 - Add the seventh coordinator adapter, OMP (`manifest install --harness omp`),
   with typed native package/source/version inspection separate from unobserved
   activation qualification. Bind default-user native identities to full signed

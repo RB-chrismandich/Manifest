@@ -1,0 +1,9 @@
+{
+  "name": "manifest-live-harness-claude",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned claude CLI for the protected live-parity job; installed with npm ci.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.322"
+  }
+}

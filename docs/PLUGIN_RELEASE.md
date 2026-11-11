@@ -172,6 +172,22 @@ gh secret set LIVE_CLAUDE_CREDENTIAL --env manifest-plugin-live < key.txt
 `tools/live_harness_setup.py` performs the install, credential placement, and
 the CLI's own authentication probe. It is committed code on purpose: a step that
 handles credentials must be reviewable, so no secret may carry executable shell.
-The credential is withheld from the third-party installer's environment, the
-probe failing fails the job, and a missing secret is an explicit `BLOCKED`
+A failing probe fails the job, and a missing secret is an explicit `BLOCKED`
 error rather than a silent skip.
+
+Install and authentication are separate workflow steps. `install` runs first,
+in a step that references no secret, and refuses to run if the credential is
+present; `authenticate` runs afterwards and is the only step that receives it.
+What `install` fetches is pinned and verified before anything executes:
+
+| Harness | Pin | Verified by |
+|---------|-----|-------------|
+| claude, codex | `tools/live_harness/<name>/package-lock.json` | `npm ci --ignore-scripts` (integrity hash per package) |
+| cursor, antigravity, devin | Versioned archive URL in `tools/live_harness_setup.py` | Committed SHA-256, checked before extraction |
+
+No upstream installer script runs and nothing comes from a "latest" channel. A
+digest mismatch, a failed download, or a runner other than Linux x86_64 is
+`BLOCKED`. Renovate updates the npm lockfiles. To move an archive pin, change
+its `version`, `url`, and `sha256` together in one reviewed commit, taking the
+digest from a fresh download of that exact URL (`sha256sum`) and comparing it
+with the vendor's release manifest where one is published.

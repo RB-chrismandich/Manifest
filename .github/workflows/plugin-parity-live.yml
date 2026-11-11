@@ -52,7 +52,19 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install and authenticate the requested native harness
+      - name: Install the pinned native harness (no credential)
+        shell: bash
+        # No secret is referenced here, so nothing this step downloads or runs
+        # can read one. Every source is pinned: an npm lockfile or an archive
+        # whose SHA-256 is committed in tools/live_harness_setup.py.
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          PATH="$HOME/.local/bin:$PATH" python3 tools/live_harness_setup.py \
+            install --harness "$HARNESS"
+
+      - name: Authenticate the requested native harness
         shell: bash
         env:
           # A public PR runner cannot manufacture a licensed CLI: the credential
@@ -60,10 +72,7 @@ jobs:
           LIVE_HARNESS_CREDENTIAL: ${{ secrets[matrix.secret] }}
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.local/bin"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          PATH="$HOME/.local/bin:$PATH" python3 tools/live_harness_setup.py \
-            --harness "$HARNESS"
+          python3 tools/live_harness_setup.py authenticate --harness "$HARNESS"
 
       - name: Build immutable coordinator and release artifacts
         shell: bash
