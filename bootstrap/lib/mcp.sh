@@ -166,7 +166,7 @@ prompt_mcp_selection() {
 # ---------------------------------------------------------------------------
 
 # Check if a CLI-based MCP server is already registered with the expected URL.
-# Works for Claude and Gemini (both use "name: url (transport) - status" format).
+# Works for CLIs that print "name: url (transport) - status" (Claude).
 # Returns 0 if configured, 1 otherwise (including on any error).
 is_cli_mcp_present() {
     local cli="$1"
@@ -304,7 +304,6 @@ configure_context7_persistent_auth() {
     [[ "${ENABLE_CLAUDE:-true}" == true ]] && targets+=(--claude)
     [[ "${ENABLE_CURSOR:-true}" == true ]] && targets+=(--cursor)
     [[ "${ENABLE_CODEX:-true}" == true ]] && targets+=(--codex)
-    [[ "${ENABLE_GEMINI:-true}" == true ]] && targets+=(--gemini)
     [[ "${ENABLE_ANTIGRAVITY:-true}" == true ]] && targets+=(--antigravity)
     [[ "${ENABLE_DEVIN:-false}" == true ]] && targets+=(--devin)
 
@@ -346,40 +345,6 @@ non_context7_is_selected() {
 # Per-agent installers
 # ---------------------------------------------------------------------------
 
-# Fallback writer for Gemini MCP server entries.
-# Uses jq when available to merge without clobbering unrelated settings.
-ensure_gemini_mcp_server_in_settings() {
-    local name="$1"
-    local url="$2"
-    local transport="${3:-http}"
-    local settings_file="$GEMINI_TARGET_DIR/settings.json"
-    local tmp_file=""
-
-    mkdir -p "$GEMINI_TARGET_DIR"
-    if [[ ! -f "$settings_file" ]]; then
-        echo "{}" > "$settings_file"
-    fi
-
-    if ! command_exists jq; then
-        return 1
-    fi
-
-    tmp_file="$(mktemp "${TMPDIR:-/tmp}/gemini-mcp.XXXXXX")"
-    if jq \
-        --arg name "$name" \
-        --arg url "$url" \
-        --arg transport "$transport" \
-        '.mcpServers = (.mcpServers // {}) | .mcpServers[$name] = {"url": $url, "type": $transport}' \
-        "$settings_file" > "$tmp_file"; then
-        mv "$tmp_file" "$settings_file"
-        chmod 600 "$settings_file" 2> /dev/null || true
-        return 0
-    fi
-
-    rm -f "$tmp_file"
-    return 1
-}
-
 # Best-effort: extract the URL currently registered for an MCP server name
 # from a CLI's `mcp list` output. Empty when the server is not registered.
 # Used to restore a registration if remove-then-add fails halfway (issue #322).
@@ -418,45 +383,6 @@ install_claude_mcp_server() {
     else
         print_warning "Failed to configure Claude MCP server '$name'"
     fi
-    return 1
-}
-
-# Install/update one Gemini MCP server.
-install_gemini_mcp_server() {
-    local name="$1"
-    local url="$2"
-    local transport="${3:-http}"
-
-    # Skip if already configured with the correct URL (preserves existing auth)
-    if is_cli_mcp_present gemini "$name" "$url"; then
-        print_info "Gemini MCP already configured: $name (skipped)"
-        return 0
-    fi
-
-    # Capture any existing registration for restore-on-failure (issue #322).
-    local prev_url
-    prev_url=$(get_registered_mcp_url "$(gemini mcp list 2> /dev/null || true)" "$name")
-
-    # Remove existing definitions across scopes to avoid name collisions.
-    gemini mcp remove --scope user "$name" > /dev/null 2>&1 || true
-    gemini mcp remove --scope project "$name" > /dev/null 2>&1 || true
-    gemini mcp remove --scope "$GEMINI_MCP_SCOPE" "$name" > /dev/null 2>&1 || true
-    if gemini mcp add --scope "$GEMINI_MCP_SCOPE" --transport "$transport" "$name" "$url" > /dev/null 2>&1; then
-        print_success "Gemini MCP configured: $name -> $url ($transport)"
-        return 0
-    fi
-
-    if [[ -n "$prev_url" ]]; then
-        gemini mcp add --scope "$GEMINI_MCP_SCOPE" --transport "$transport" "$name" "$prev_url" > /dev/null 2>&1 &&
-            print_warning "Gemini MCP add failed for '$name'; restored previous registration ($prev_url)"
-    fi
-
-    if ensure_gemini_mcp_server_in_settings "$name" "$url" "$transport"; then
-        print_warning "Gemini CLI MCP add failed; wrote '$name' to settings.json fallback"
-        return 0
-    fi
-
-    print_warning "Failed to configure Gemini MCP server '$name'"
     return 1
 }
 
@@ -546,20 +472,6 @@ install_mcp_servers() {
         print_info "Claude is disabled; skipped Claude MCP setup"
     fi
 
-    if [[ "$ENABLE_GEMINI" == true ]]; then
-        if command_exists gemini; then
-            print_step "Configuring Gemini MCP servers..."
-            for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
-                [[ "${MCP_SERVER_NAMES[$idx]}" == "context7" ]] && continue
-                install_gemini_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
-            done
-        else
-            print_warning "Gemini CLI unavailable; skipped Gemini MCP setup"
-        fi
-    else
-        print_info "Gemini is disabled; skipped Gemini MCP setup"
-    fi
-
     if [[ "$ENABLE_CODEX" == true ]]; then
         if command_exists codex; then
             print_step "Configuring Codex MCP servers..."
@@ -589,7 +501,7 @@ install_mcp_servers() {
     # through to the general usage banner. agy has an interactive `/mcp` TUI
     # panel and a bulk `plugin import [gemini|claude]` command, but neither is
     # a scriptable `add <name> <url>` surface this loop could drive
-    # idempotently the way install_{claude,gemini,codex}_mcp_server do. agy's
+    # idempotently the way install_{claude,codex}_mcp_server do. agy's
     # config also lives under ~/.gemini/config (Gemini-CLI lineage), not a
     # dedicated ~/.antigravity MCP config this script could write directly.
     # Do not add an install_antigravity_mcp_server that shells a CLI that

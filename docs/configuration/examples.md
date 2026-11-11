@@ -26,7 +26,7 @@ unavailable, execute inline and report `DEGRADED`.
 `model_policy.yml` controls retained single-provider integrations:
 
 ```yaml
-provider_order: [antigravity, cursor, gemini, codex, claude, devin]
+provider_order: [antigravity, cursor, codex, claude, devin]
 model_tiers:
   codex:
     advanced: gpt-5.6-sol

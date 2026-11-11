@@ -34,8 +34,6 @@ jobs:
             secret: LIVE_CLAUDE_CREDENTIAL
           - harness: codex
             secret: LIVE_CODEX_CREDENTIAL
-          - harness: gemini
-            secret: LIVE_GEMINI_CREDENTIAL
           - harness: cursor
             secret: LIVE_CURSOR_CREDENTIAL
           - harness: antigravity
@@ -124,7 +122,7 @@ jobs:
           }
           BUNDLE_KEYS = {"contract_schema_version", "sha256", "version"}
           FILE_KEYS = {"mode", "sha256", "size"}
-          ADAPTERS = {"antigravity", "claude", "codex", "cursor", "devin", "gemini", "omp"}
+          ADAPTERS = {"antigravity", "claude", "codex", "cursor", "devin", "omp"}
           COMMIT = re.compile(r"^[0-9a-f]{40}$")
           SHA256 = re.compile(r"^[0-9a-f]{64}$")
           VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$")

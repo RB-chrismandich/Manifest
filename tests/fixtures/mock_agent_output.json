@@ -10,11 +10,11 @@
       "credit_fallback": false,
       "output": "Mock cursor output: Code review complete. No critical issues found. Suggested improvements: add input validation on line 42, consider error handling for edge cases."
     },
-    "gemini": {
+    "codex": {
       "status": "complete",
       "validated": true,
-      "model": "gemini-3-flash-preview",
-      "output": "Mock gemini output: Review analysis complete. The code follows best practices. Recommendations: improve error handling, add input validation, consider performance optimization for the inner loop."
+      "model": "gpt-5.6-terra",
+      "output": "Mock codex output: Review analysis complete. The code follows best practices. Recommendations: improve error handling, add input validation, consider performance optimization for the inner loop."
     },
     "claude": {
       "status": "complete",
@@ -26,7 +26,7 @@
   },
   "output_files": {
     "cursor": "/tmp/test_outputs/cursor_20260211_120000.txt",
-    "gemini": "/tmp/test_outputs/gemini_20260211_120000.txt",
+    "codex": "/tmp/test_outputs/codex_20260211_120000.txt",
     "claude": "/tmp/test_outputs/claude_20260211_120000.txt",
     "summary": "/tmp/test_outputs/summary_20260211_120000.md"
   },

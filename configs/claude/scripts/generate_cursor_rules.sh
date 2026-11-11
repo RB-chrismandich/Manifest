@@ -231,7 +231,7 @@ done
 
 # --- Command discovery index rule (spec 362 / T015) ------------------------ #
 # Emit an always-applied Cursor rule carrying the compact command index, so
-# Cursor reaches the same always-loaded discovery parity as GEMINI.md/AGENTS.md.
+# Cursor reaches the same always-loaded discovery parity as the Antigravity GEMINI.md/AGENTS.md.
 # The index body comes from the Python generator (single source of truth); guard
 # on python3+pyyaml so a machine lacking them still generates the per-skill
 # rules above (CI has pyyaml, so drift is still caught there).

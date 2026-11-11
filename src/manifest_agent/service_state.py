@@ -316,8 +316,8 @@ def _downgraded_status(key: str, value: str, result: HarnessResult) -> str:
     failed something unrelated used to land `installed-by-manifest` -> `blocked`
     while its OwnedEntry survived. capability_ownership_errors then reported
     "receipt lacks Manifest-created capability evidence", and the receipt could
-    not be written at all -- observed for Gemini against release 0.3.0, whose MCP
-    add succeeded before its extension install hit the consent banner.
+    not be written at all -- observed against release 0.3.0 for a harness whose
+    MCP add succeeded before its extension install hit a consent banner.
 
     Ownership evidence is a record of a mutation Manifest performed, not a
     success claim, so it survives the downgrade. Dropping it instead would

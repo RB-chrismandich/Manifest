@@ -3,6 +3,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
@@ -203,27 +204,10 @@ class TestConsistentProviderRendering:
     with only `unsupported` CLI rows must still get a row/column in every
     table, rendered as `unsupported` rather than silently dropped."""
 
-    UNSUPPORTED_RECORDS = [
+    UNSUPPORTED_RECORDS: ClassVar[list[dict]] = [
         {
             "run_id": "2026-07-11T00-00-00",
             "provider": "antigravity",
-            "model": None,
-            "condition": cond,
-            "category": "mmlu",
-            "prompt_id": "mmlu_001",
-            "input_tokens": None,
-            "output_tokens": None,
-            "quality_score": None,
-            "response_text": None,
-            "source": "cli",
-            "error": None,
-            "unsupported": True,
-        }
-        for cond in ("before", "after")
-    ] + [
-        {
-            "run_id": "2026-07-11T00-00-00",
-            "provider": "gemini",
             "model": None,
             "condition": cond,
             "category": "mmlu",
@@ -246,7 +230,6 @@ class TestConsistentProviderRendering:
         assert (
             "| antigravity | unsupported | unsupported | unsupported |" in delta_section
         )
-        assert "| gemini | unsupported | unsupported | unsupported |" in delta_section
 
     def test_historical_runs_table_includes_antigravity_column(self):
         stats = compute_stats(self.UNSUPPORTED_RECORDS)
@@ -262,7 +245,6 @@ class TestConsistentProviderRendering:
         stats = compute_stats(FIXTURE_RECORDS)  # claude-only fixture
         md = render_report(stats, run_id="2026-06-12T10-00-00")
         delta_section = md.split("## Output Token Delta")[1].split("##")[0]
-        assert "| gemini | — | — | — |" in delta_section
         assert "| antigravity | — | — | — |" in delta_section
 
     def test_compute_stats_defensively_gets_unsupported_key(self):
@@ -294,8 +276,8 @@ class TestUnsupportedOutcome:
     (unsupported_providers, used by the other tables, does not have a
     category axis so is not subject to the same staleness bug)."""
 
-    def _gemini_cli_rows(self, run_id, *, unsupported, quality_score=None):
-        """Derive gemini CLI before/after rows from the claude CLI fixture."""
+    def _agy_cli_rows(self, run_id, *, unsupported, quality_score=None):
+        """Derive antigravity CLI before/after rows from the claude CLI fixture."""
         cli_base = next(
             r
             for r in FIXTURE_RECORDS
@@ -305,7 +287,7 @@ class TestUnsupportedOutcome:
             {
                 **cli_base,
                 "run_id": run_id,
-                "provider": "gemini",
+                "provider": "antigravity",
                 "condition": cond,
                 "quality_score": quality_score,
                 "unsupported": unsupported,
@@ -314,22 +296,22 @@ class TestUnsupportedOutcome:
         ]
 
     def _with_unsupported(self):
-        """FIXTURE_RECORDS plus gemini mmlu CLI rows marked unsupported (#546)."""
-        return FIXTURE_RECORDS + self._gemini_cli_rows(
+        """FIXTURE_RECORDS plus antigravity mmlu CLI rows marked unsupported (#546)."""
+        return FIXTURE_RECORDS + self._agy_cli_rows(
             "2026-06-12T10-00-00", unsupported=True
         )
 
     def test_compute_stats_tracks_unsupported_cells(self):
         stats = compute_stats(self._with_unsupported())
-        assert stats["cli_unsupported"] == [("gemini", "mmlu")]
+        assert stats["cli_unsupported"] == [("antigravity", "mmlu")]
 
     def test_render_marks_unsupported_cells_scoped_to_category(self):
         stats = compute_stats(self._with_unsupported())
         md = render_report(stats, run_id="2026-06-12T10-00-00")
-        assert "| gemini | mmlu | unsupported | unsupported | — |" in md
-        # Only the cell with unsupported rows is marked; other gemini
+        assert "| antigravity | mmlu | unsupported | unsupported | — |" in md
+        # Only the cell with unsupported rows is marked; other antigravity
         # categories were never run and must stay `—`.
-        assert "| gemini | humaneval | — | — | — |" in md
+        assert "| antigravity | humaneval | — | — | — |" in md
 
     def test_legend_distinguishes_no_data_from_unsupported(self):
         stats = compute_stats(self._with_unsupported())
@@ -343,22 +325,22 @@ class TestUnsupportedOutcome:
         stats = compute_stats(FIXTURE_RECORDS)
         assert stats["cli_unsupported"] == []
         md = render_report(stats, run_id="2026-06-12T10-00-00")
-        assert "| gemini | mmlu | — | — | — |" in md
-        assert "| gemini | mmlu | unsupported" not in md
+        assert "| antigravity | mmlu | — | — | — |" in md
+        assert "| antigravity | mmlu | unsupported" not in md
 
     def test_newer_measured_run_clears_stale_unsupported(self):
         """A later run with real scores overrides an older unsupported marker."""
         records = (
             FIXTURE_RECORDS
-            + self._gemini_cli_rows("2026-06-12T10-00-00", unsupported=True)
-            + self._gemini_cli_rows(
+            + self._agy_cli_rows("2026-06-12T10-00-00", unsupported=True)
+            + self._agy_cli_rows(
                 "2026-07-01T10-00-00", unsupported=False, quality_score=1
             )
         )
         stats = compute_stats(records)
         assert stats["cli_unsupported"] == []
         md = render_report(stats, run_id="2026-07-01T10-00-00")
-        assert "| gemini | mmlu | 1/1 | 1/1 | 0 |" in md
+        assert "| antigravity | mmlu | 1/1 | 1/1 | 0 |" in md
 
     def test_latest_unsupported_overrides_older_contaminated_scores(self):
         """Newer unsupported rows invalidate older (pre-#546, polluted) scores —
@@ -366,34 +348,34 @@ class TestUnsupportedOutcome:
         table (e.g. Historical Runs) can re-publish the contaminated scores."""
         records = (
             FIXTURE_RECORDS
-            + self._gemini_cli_rows(
+            + self._agy_cli_rows(
                 "2026-06-12T10-00-00", unsupported=False, quality_score=1
             )
-            + self._gemini_cli_rows("2026-07-01T10-00-00", unsupported=True)
+            + self._agy_cli_rows("2026-07-01T10-00-00", unsupported=True)
         )
         stats = compute_stats(records)
-        assert stats["cli_unsupported"] == [("gemini", "mmlu")]
+        assert stats["cli_unsupported"] == [("antigravity", "mmlu")]
         # Invalidated scores are excluded from the aggregates entirely
-        assert stats["quality"].get("gemini", {}) == {}
+        assert stats["quality"].get("antigravity", {}) == {}
         md = render_report(stats, run_id="2026-07-01T10-00-00")
-        assert "| gemini | mmlu | unsupported | unsupported | — |" in md
+        assert "| antigravity | mmlu | unsupported | unsupported | — |" in md
 
     def test_watermark_excludes_only_rows_up_to_unsupported_run(self):
         """After an unsupported watermark, a still-newer measured run counts
         alone — pre-watermark contaminated scores never blend back in."""
         records = (
             FIXTURE_RECORDS
-            + self._gemini_cli_rows(
+            + self._agy_cli_rows(
                 "2026-06-12T10-00-00", unsupported=False, quality_score=1
             )
-            + self._gemini_cli_rows("2026-07-01T10-00-00", unsupported=True)
-            + self._gemini_cli_rows(
+            + self._agy_cli_rows("2026-07-01T10-00-00", unsupported=True)
+            + self._agy_cli_rows(
                 "2026-07-08T10-00-00", unsupported=False, quality_score=0
             )
         )
         stats = compute_stats(records)
         assert stats["cli_unsupported"] == []
-        q = stats["quality"]["gemini"]["mmlu"]
+        q = stats["quality"]["antigravity"]["mmlu"]
         # Only the post-watermark run is counted: 0/1, not a 1/2 blend
         assert (q["before_score"], q["before_total"]) == (0, 1)
         assert (q["after_score"], q["after_total"]) == (0, 1)
@@ -566,6 +548,21 @@ class TestCostAnalysis:
         assert "cached" in md
         assert "tiered" in md
         assert "compressed" in md
+
+    def test_cost_summary_ignores_providers_no_longer_measured(self):
+        """Historical rows for a dropped provider must not blend into the costs."""
+        from tests.token_benchmark.reporter import compute_stats
+
+        records = self._make_cost_records()
+        historical = [
+            {**r, "provider": "gemini", "model": "gemini-old", "cost_usd": 9.0}
+            for r in records
+        ]
+
+        assert (
+            compute_stats(records + historical)["cost_summary"]
+            == compute_stats(records)["cost_summary"]
+        )
 
     def test_cost_table_omitted_when_no_cost_data(self):
         """Cost Analysis section absent when all cost_usd are None (old JSONL)."""

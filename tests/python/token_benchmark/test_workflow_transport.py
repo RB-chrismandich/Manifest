@@ -20,7 +20,6 @@ from tests.token_benchmark.workflows.transport import TransportOverrides, invoke
 FAKE_POLICY = {
     "model_tiers": {
         "claude": {"sonnet": "claude-sonnet-5[1m]"},
-        "gemini": {"flash": "gemini-3-flash-preview"},
     },
 }
 

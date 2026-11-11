@@ -32,11 +32,10 @@ from tests.python.manifest_agent._omp_native_fixture import (
 )
 
 
-def test_registry_resolves_the_seventh_omp_adapter() -> None:
+def test_registry_resolves_the_sixth_omp_adapter() -> None:
     assert AdapterRegistry.names() == (
         "claude",
         "codex",
-        "gemini",
         "cursor",
         "antigravity",
         "devin",
@@ -45,18 +44,17 @@ def test_registry_resolves_the_seventh_omp_adapter() -> None:
     assert AdapterRegistry.create("omp").name == "omp"
 
 
-def test_harness_order_and_supported_harnesses_are_seven() -> None:
+def test_harness_order_and_supported_harnesses_are_six() -> None:
     assert HARNESS_ORDER == (
         "claude",
         "codex",
-        "gemini",
         "cursor",
         "antigravity",
         "devin",
         "omp",
     )
     assert "omp" in _SUPPORTED_HARNESSES
-    assert len(_SUPPORTED_HARNESSES) == 7
+    assert len(_SUPPORTED_HARNESSES) == 6
 
 
 @pytest.fixture

@@ -40,17 +40,6 @@ _NATIVE_HTTP_COMMANDS = {
         url,
     ),
     "codex": lambda name, url: ("codex", "mcp", "add", name, "--url", url),
-    "gemini": lambda name, url: (
-        "gemini",
-        "mcp",
-        "add",
-        "--scope",
-        "user",
-        "--transport",
-        "http",
-        name,
-        url,
-    ),
     "devin": lambda name, url: (
         "devin",
         "mcp",

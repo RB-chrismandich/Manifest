@@ -38,12 +38,10 @@ cat ~/.claude/config/model_policy.yml
 
 # Check CLI installations
 which claude
-which gemini
 which cursor-agent
 
 # Check versions
 claude --version
-gemini --version
 cursor-agent --version
 node --version
 npm --version
@@ -55,12 +53,8 @@ npm --version
 # Claude CLI
 claude auth status
 
-# Gemini CLI
-gemini auth status
-
 # Check API key environment variables (if set)
 echo $ANTHROPIC_API_KEY
-echo $GEMINI_API_KEY
 ```
 
 ### Test a Retained Provider Route
@@ -116,7 +110,6 @@ curl -I https://registry.npmjs.org
    ```bash
    cat ~/.claude/config/services.yml
    claude auth status
-   gemini auth status
    ```
 
 2. **Collect status output:**

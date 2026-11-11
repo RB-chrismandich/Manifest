@@ -33,7 +33,6 @@ if TYPE_CHECKING:
 TOOL_SIGNATURES = {
     "cursor": ["cursor", "/cursor/"],
     "opencode": ["opencode", "/opencode/"],
-    "gemini": ["gemini", "/gemini/"],
     "windsurf": ["windsurf", "/windsurf/"],
     "zed": ["/zed/", "zed.app"],
 }
@@ -178,7 +177,7 @@ def detect_parent_source(max_depth: int = MAX_DEPTH) -> str | None:
         max_depth: Maximum number of parent processes to check (default: 8).
 
     Returns:
-        Detected tool name ("cursor", "opencode", "gemini", "windsurf", "zed"),
+        Detected tool name ("cursor", "opencode", "windsurf", "zed"),
         or None if no known tool is detected.
 
     Example:

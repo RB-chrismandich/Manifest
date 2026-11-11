@@ -44,7 +44,6 @@ def is_quota_error(output: str) -> bool:
 # `cli_agents.<provider>.binary`.
 BINARY_TO_PROVIDER = {
     "claude": "claude",
-    "gemini": "gemini",
     "cursor-agent": "cursor",
     "codex": "codex",
     "agy": "antigravity",

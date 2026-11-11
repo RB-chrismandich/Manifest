@@ -1,7 +1,7 @@
 """Session-scoped HOME isolation for the coordinator suite.
 
 Several tests in this package shell out to real harness binaries (`cursor`,
-`codex`, `gemini`). Those binaries write config, logs and conversation history
+`codex`). Those binaries write config, logs and conversation history
 into ``$HOME``, so running the suite against a developer's real home mutated it:
 a measured run touched ``~/.cursor/cli-config.json``, ``~/.codex/logs_2.sqlite``
 and ``~/.gemini/antigravity-cli/history.jsonl``, and created 480 entries in a

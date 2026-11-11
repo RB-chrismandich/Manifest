@@ -35,7 +35,7 @@ function isRunningInOtherAI() {{
   const ppid = process.ppid;
   // This is a simplified check - real implementation would walk process tree
   const env = process.env;
-  if (env.CLAUDE_SESSION || env.CURSOR_SESSION || env.GEMINI_SESSION) {{
+  if (env.CLAUDE_SESSION || env.CURSOR_SESSION) {{
     return true;
   }}
   return false;

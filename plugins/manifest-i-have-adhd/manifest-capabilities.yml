@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-i-have-adhd
-  version: 0.2.7
+  version: 0.2.8
   description: ADHD-friendly always-on response guidance with fail-open diagnostics.
   category: productivity
 components:
@@ -15,7 +15,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: generated}
@@ -28,7 +27,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: generated}
@@ -41,7 +39,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: generated}
@@ -60,7 +57,6 @@ capabilities:
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
-  gemini: {mode: generated}
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}

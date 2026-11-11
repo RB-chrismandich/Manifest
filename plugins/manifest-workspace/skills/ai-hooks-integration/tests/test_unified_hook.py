@@ -28,11 +28,6 @@ class TestExtractCwd(unittest.TestCase):
         payload = {"cwd": "/path/to/project"}
         self.assertEqual(extract_cwd(payload), "/path/to/project")
 
-    def test_working_directory(self):
-        """Should extract from working_directory (Gemini format)."""
-        payload = {"working_directory": "/path/to/project"}
-        self.assertEqual(extract_cwd(payload), "/path/to/project")
-
     def test_nested_tool_input(self):
         """Should extract from tool_input.cwd."""
         payload = {"tool_input": {"cwd": "/path/to/project"}}
@@ -52,7 +47,7 @@ class TestExtractCommand(unittest.TestCase):
     """Test command extraction from various payload formats."""
 
     def test_tool_input_command(self):
-        """Should extract from tool_input.command (Claude/Gemini)."""
+        """Should extract from tool_input.command (Claude)."""
         payload = {"tool_input": {"command": "npm test"}}
         self.assertEqual(extract_command(payload), "npm test")
 
@@ -109,11 +104,6 @@ class TestShouldDropEvent(unittest.TestCase):
         should_drop, _ = should_drop_event("claude", {})
         self.assertFalse(should_drop)
 
-    def test_allow_gemini_events(self):
-        """Gemini events should be allowed."""
-        should_drop, _ = should_drop_event("gemini", {})
-        self.assertFalse(should_drop)
-
 
 class TestNormalizeEvent(unittest.TestCase):
     """Test event normalization."""
@@ -138,21 +128,6 @@ class TestNormalizeEvent(unittest.TestCase):
         self.assertEqual(event["tool_input"], {"command": "npm test"})
         self.assertEqual(event["timestamp"], "2025-01-15T10:30:00Z")
         self.assertEqual(event["raw_payload"], payload)
-
-    def test_gemini_payload(self):
-        """Should normalize Gemini payload (different field names)."""
-        payload = {
-            "tool": "run_shell_command",
-            "args": {"command": "git status"},
-            "working_directory": "/path/to/project",
-        }
-
-        event = normalize_event("gemini", payload, "PreToolUse")
-
-        self.assertEqual(event["source"], "gemini")
-        self.assertEqual(event["tool_name"], "run_shell_command")
-        self.assertEqual(event["tool_input"], {"command": "git status"})
-        self.assertEqual(event["cwd"], "/path/to/project")
 
     def test_missing_fields(self):
         """Should handle missing fields gracefully."""
@@ -200,14 +175,6 @@ class TestResponses(unittest.TestCase):
         self.assertEqual(
             allow_response("PostToolUse")["hookSpecificOutput"]["hookEventName"],
             "PostToolUse",
-        )
-
-    def test_gemini_responses_use_decision_contract(self):
-        """Gemini BeforeTool hooks consume decision/reason, not Claude output."""
-        self.assertEqual(allow_response("BeforeTool", "gemini"), {"decision": "allow"})
-        self.assertEqual(
-            deny_response("blocked", "BeforeTool", "gemini"),
-            {"decision": "deny", "reason": "blocked"},
         )
 
     def test_cursor_responses_use_permission_contract(self):

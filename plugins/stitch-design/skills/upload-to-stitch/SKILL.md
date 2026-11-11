@@ -30,7 +30,7 @@ authorization and policy-extension state are the precondition for every later
 step; an absent tool, error, unavailable extension, or unapproved result means
 stop without a mutation.
 
-On Claude, Cursor, Gemini, or any other non-OMP host, upload-to-stitch is
+On Claude, Cursor, or any other non-OMP host, upload-to-stitch is
 unavailable even when a Stitch MCP server is configured. Stop; do not invoke
 `list_projects`, `mcp__stitch_upload_design_md`, or any other Stitch MCP tool.
 

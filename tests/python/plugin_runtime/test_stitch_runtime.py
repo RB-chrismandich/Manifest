@@ -148,7 +148,7 @@ def test_upload_skill_limits_mcp_upload_to_markdown(stitch_bundle: Path) -> None
     assert "ui_delivery_status" in skill
     assert "policy extension" in skill
     assert "Before any mutation" in skill
-    assert "Claude, Cursor, Gemini, or any other non-OMP host" in skill
+    assert "Claude, Cursor, or any other non-OMP host" in skill
     assert "even when a Stitch MCP server is configured" in skill
     assert "unavailable" in skill
     assert "text/html" not in skill

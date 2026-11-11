@@ -32,11 +32,10 @@ def _all_synced_text(dst: Path) -> str:
 
 def _fake_home_with_secret(tmp_path: Path) -> Path:
     """A fake ~ whose settings.json carries a realistic secret under `env`,
-    plus the two files the benchmark actually reads (CLAUDE.md, GEMINI.md)
+    plus the one file the benchmark actually reads (CLAUDE.md)
     so a fix that narrows the copy set is still exercised end to end."""
     src = tmp_path / "home"
     (src / ".claude").mkdir(parents=True)
-    (src / ".gemini").mkdir(parents=True)
 
     (src / ".claude" / "settings.json").write_text(
         json.dumps(
@@ -51,7 +50,6 @@ def _fake_home_with_secret(tmp_path: Path) -> Path:
         )
     )
     (src / ".claude" / "CLAUDE.md").write_text("# Project guide\nNo secrets here.\n")
-    (src / ".gemini" / "GEMINI.md").write_text("# Gemini guide\nNo secrets here.\n")
     return src
 
 
@@ -72,7 +70,7 @@ class TestSyncFixturesNeverLeaksSecrets:
         )
 
     def test_settings_json_is_not_copied_into_fixtures(self, tmp_path):
-        """The benchmark only ever reads CLAUDE.md/GEMINI.md
+        """The benchmark only ever reads CLAUDE.md
         (tests/token_benchmark/benchmarks.py:MANIFEST_SYSTEM_PROMPT_PATHS) —
         settings.json must not be present in the fixture tree at all, not
         merely redacted."""
@@ -93,6 +91,3 @@ class TestSyncFixturesNeverLeaksSecrets:
         assert (
             dst / ".claude" / "CLAUDE.md"
         ).read_text() == "# Project guide\nNo secrets here.\n"
-        assert (
-            dst / ".gemini" / "GEMINI.md"
-        ).read_text() == "# Gemini guide\nNo secrets here.\n"

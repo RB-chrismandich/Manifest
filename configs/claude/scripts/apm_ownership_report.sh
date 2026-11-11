@@ -211,7 +211,7 @@ installed_manifest_bundles() {
 # Phase 4, so including it would redden every correct Phase-2 machine.
 diverted_siblings() {
     local home_dir link
-    for home_dir in "$HOME/.cursor" "$HOME/.gemini" "$HOME/.codex" "$HOME/.antigravity"; do
+    for home_dir in "$HOME/.cursor" "$HOME/.codex" "$HOME/.antigravity"; do
         link="$home_dir/skills"
         [[ -e "$link" || -L "$link" ]] || continue
         [[ "$(readlink "$link" 2> /dev/null || true)" == "$HARNESS_SKILLS" ]] || basename "$home_dir"

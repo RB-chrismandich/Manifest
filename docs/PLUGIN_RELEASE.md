@@ -159,7 +159,6 @@ exactly **one** credential, resolved from its matrix row
 |--------|-------|----------------------|
 | `LIVE_CLAUDE_CREDENTIAL` | Anthropic API key | `ANTHROPIC_API_KEY` |
 | `LIVE_CODEX_CREDENTIAL` | OpenAI API key | `OPENAI_API_KEY` |
-| `LIVE_GEMINI_CREDENTIAL` | AI Studio API key | `GEMINI_API_KEY` |
 | `LIVE_CURSOR_CREDENTIAL` | Cursor dashboard API key | `CURSOR_API_KEY` |
 | `LIVE_ANTIGRAVITY_CREDENTIAL` | AI Studio API key | `GEMINI_API_KEY` plus a pinned `modelProvider: gemini` |
 | `LIVE_DEVIN_CREDENTIAL` | Full `credentials.toml` document | `~/.local/share/devin/credentials.toml`, mode 0600 |

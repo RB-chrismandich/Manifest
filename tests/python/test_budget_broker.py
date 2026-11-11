@@ -46,7 +46,6 @@ def chain_for(config, provider):
 
 BINARIES = [
     ("claude", "claude"),
-    ("gemini", "gemini"),
     ("cursor-agent", "cursor"),
     ("codex", "codex"),
     ("agy", "antigravity"),

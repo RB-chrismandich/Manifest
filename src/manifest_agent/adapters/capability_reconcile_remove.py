@@ -32,7 +32,6 @@ class ReconcileRemoveMixin:
                 "user",
             ),
             "codex": lambda item: ("codex", "plugin", "remove", item, "--json"),
-            "gemini": lambda item: ("gemini", "extensions", "uninstall", item),
             "antigravity": lambda item: ("agy", "plugin", "uninstall", item),
             "devin": lambda item: ("devin", "plugins", "remove", item),
         }

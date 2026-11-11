@@ -180,7 +180,6 @@ def test_unified_hook_emits_complete_native_response_contracts(
             },
             "continue": False,
         },
-        "gemini": {"decision": "deny", "reason": "blocked"},
         "cursor": {
             "permission": "deny",
             "continue": False,
@@ -251,8 +250,6 @@ def test_hook_installer_records_native_harness_identity(
     expected = {
         Path(env["HOME"])
         / ".claude/settings.json": "--source claude --event-type PreToolUse",
-        Path(env["HOME"])
-        / ".gemini/settings.json": "--source gemini --event-type BeforeTool",
         Path(env["HOME"])
         / ".cursor/hooks.json": "--source cursor --event-type beforeShellExecution",
     }

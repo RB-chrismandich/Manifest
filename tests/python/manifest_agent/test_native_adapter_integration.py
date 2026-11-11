@@ -1,4 +1,4 @@
-# constitution: exempt C-SIZE — the shared six-harness lifecycle fixture keeps
+# constitution: exempt C-SIZE — the shared five-harness lifecycle fixture keeps
 # command ordering and receipt ownership comparable in one executable matrix.
 """Hermetic production-adapter lifecycle coverage for all supported harnesses."""
 
@@ -17,7 +17,6 @@ from manifest_agent.adapters.claude import ClaudeAdapter
 from manifest_agent.adapters.codex import CodexAdapter, _catalog_owned_entries
 from manifest_agent.adapters.cursor import CursorAdapter
 from manifest_agent.adapters.devin import DevinAdapter
-from manifest_agent.adapters.gemini import GeminiAdapter
 from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
     Capabilities,
@@ -43,7 +42,6 @@ _REPOSITORY = Path(__file__).parents[3]
 _HARNESS_EXECUTABLES = {
     "claude": "claude",
     "codex": "codex",
-    "gemini": "gemini",
     "cursor": "cursor-agent",
     "antigravity": "agy",
     "devin": "devin",
@@ -120,8 +118,6 @@ def _responses(harness: str, desired: DesiredState, phase: str) -> str:
         return _claude_responses(desired, phase)
     if harness == "codex":
         return _codex_responses(desired, phase)
-    if harness == "gemini":
-        return _gemini_responses(desired, phase)
     if harness == "cursor":
         return _cursor_responses(desired, phase)
     if harness == "antigravity":
@@ -166,8 +162,6 @@ def _adapter(harness: str, environment: dict[str, str]):
         return ClaudeAdapter(**common)
     if harness == "codex":
         return CodexAdapter(**common)
-    if harness == "gemini":
-        return GeminiAdapter(**common)
     if harness == "cursor":
         return CursorAdapter(
             repository_url="https://example.invalid/Manifest.git", **common
@@ -183,7 +177,6 @@ def _local_adapter(harness: str):
     adapters = {
         "claude": ClaudeAdapter,
         "codex": CodexAdapter,
-        "gemini": GeminiAdapter,
         "cursor": CursorAdapter,
         "antigravity": AntigravityAdapter,
         "devin": DevinAdapter,
@@ -343,9 +336,6 @@ def _assert_lifecycle_commands(
         "codex": [
             ("plugin", "add", f"{name}@manifest", "--json") for name in bundle_names
         ],
-        "gemini": [
-            ("extensions", "install", path, "--consent") for path in bundle_paths
-        ],
         "cursor": [
             (
                 "plugin",
@@ -369,7 +359,6 @@ def _assert_lifecycle_commands(
             ("plugin", "remove", f"{name}@manifest", "--json") for name in bundle_names
         ]
         + [("plugin", "marketplace", "remove", "manifest", "--json")],
-        "gemini": [("extensions", "uninstall", name) for name in bundle_names],
         "cursor": [("plugin", "marketplace", "remove", desired.repository_url)],
         "antigravity": [("plugin", "uninstall", name) for name in bundle_names],
         "devin": [("plugins", "remove", name) for name in bundle_names]
@@ -398,12 +387,8 @@ def _assert_pre_install_inspection(
             # test_codex_mcp_inventory.py.
             ("mcp", "list", "--json"),
         ],
-        "gemini": [
-            ("extensions", "list", "--output-format", "json"),
-            ("skills", "list", "--all"),
-        ],
         "cursor": [("plugin", "marketplace", "list", "--format", "json")],
-        "antigravity": [("plugin", "list")],
+        "antigravity": [("plugin", "list", "--json")],
         "devin": [("plugins", "list")]
         + [("plugins", "info", name) for name in bundle_names],
     }
@@ -411,8 +396,6 @@ def _assert_pre_install_inspection(
         "claude": [f"missing required plugin: {name}@manifest" for name in bundle_names]
         + _missing_adapter_evidence(desired),
         "codex": [f"missing required plugin: {name}@manifest" for name in bundle_names]
-        + _missing_adapter_evidence(desired),
-        "gemini": [f"missing required extension: {name}" for name in bundle_names]
         + _missing_adapter_evidence(desired),
         "cursor": ["Cursor marketplace list must contain exactly one manifest source"],
         "antigravity": [f"missing required plugin: {name}" for name in bundle_names]
@@ -673,66 +656,6 @@ def _codex_responses(desired: DesiredState, phase: str) -> str:
     raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
-def _gemini_responses(desired: DesiredState, phase: str) -> str:
-    bundle_names = _bundle_names(desired)
-    rows = [
-        {
-            "name": name,
-            "version": _bundle_version(desired, name),
-            "path": str(desired.bundle_path(name)),
-            "isActive": True,
-        }
-        for name in bundle_names
-    ]
-    skills: list[str] = ["Discovered Agent Skills:", ""]
-    for contract in desired.all_contracts:
-        root = desired.bundle_path(contract.name) / contract.components.skills_root
-        for pattern in contract.components.skills_include:
-            for path in sorted(root.glob(pattern)):
-                skills.extend(
-                    [
-                        f"{path.parent.name} [Enabled]",
-                        f"  Location: {path}",
-                        "",
-                    ]
-                )
-    inspect_responses = [
-        _response(["extensions", "list", "--output-format", "json"], json.dumps(rows)),
-        _response(["skills", "list", "--all"], "\n".join(skills)),
-    ]
-    if phase == "detect":
-        return _fixture([_response(["--version"], "0.2.0\n")])
-    if phase == "pre":
-        return _fixture(
-            [
-                _response(["extensions", "list", "--output-format", "json"], "[]"),
-                inspect_responses[1],
-            ]
-        )
-    if phase == "installed":
-        return _fixture(
-            [
-                *[
-                    _response(
-                        [
-                            "extensions",
-                            "install",
-                            str(desired.bundle_path(name)),
-                            "--consent",
-                        ]
-                    )
-                    for name in bundle_names
-                ],
-                *inspect_responses,
-            ]
-        )
-    if phase == "removed":
-        return _fixture(
-            [_response(["extensions", "uninstall", name]) for name in bundle_names]
-        )
-    raise AssertionError(f"unsupported fixture phase: {phase}")
-
-
 def _cursor_responses(desired: DesiredState, phase: str) -> str:
     marketplace = json.dumps(
         [
@@ -799,7 +722,7 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
     if phase == "detect":
         return _fixture([_response(["--version"], "0.2.0\n")])
     if phase == "pre":
-        return _fixture([_response(["plugin", "list"], '{"imports":[]}')])
+        return _fixture([_response(["plugin", "list", "--json"], '{"imports":[]}')])
     if phase == "installed":
         responses = [
             _response(["plugin", "validate", str(desired.bundle_path(name))])
@@ -809,7 +732,7 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
             _response(["plugin", "install", str(desired.bundle_path(name))])
             for name in bundle_names
         )
-        responses.append(_response(["plugin", "list"], inventory))
+        responses.append(_response(["plugin", "list", "--json"], inventory))
         return _fixture(responses)
     if phase == "removed":
         return _fixture(

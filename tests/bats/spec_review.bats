@@ -409,7 +409,7 @@ model_tiers:
 EOF
     source "$SCRIPT"
     SPEC_REVIEW_MODEL=""
-    SPEC_REVIEW_CLI="gemini"
+    SPEC_REVIEW_CLI="codex"
     SPEC_REVIEW_CONFIG="$SANDBOX/pa.yml"
     run resolve_review_model
     assert_success

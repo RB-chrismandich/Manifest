@@ -2,7 +2,6 @@
   "provider_order": [
     "antigravity",
     "cursor",
-    "gemini",
     "codex",
     "claude",
     "devin"
@@ -42,14 +41,6 @@
     "devin": {
       "binary": "devin",
       "models": {}
-    },
-    "gemini": {
-      "binary": "gemini",
-      "models": {
-        "flash": "gemini-3-flash-preview",
-        "pro": "gemini-3-pro-preview",
-        "sonnet": "gemini-3-pro-preview"
-      }
     }
   },
   "schema_version": 1

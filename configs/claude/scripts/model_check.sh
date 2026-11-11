@@ -9,12 +9,12 @@
 # Usage: model_check.sh
 #   env: MODEL_CHECK_CONFIG overrides the config path
 #        MODEL_CHECK_PROBE=1 enables live one-shot CLI probes — one tiny LLM call
-#        per pin — for claude/gemini (when no API key is set: OAuth-only
+#        per pin — for claude (when no API key is set: OAuth-only
 #        machines), antigravity (when `agy models` fails, e.g. not logged in),
 #        cursor, and codex (which has no listing command at all, so a probe is
 #        the ONLY way to verify its pins). devin is deliberately never probed:
 #        `devin -p` starts an interactive login when logged out.
-#        MODEL_CHECK_CLAUDE_BIN / MODEL_CHECK_GEMINI_BIN override probe binaries
+#        MODEL_CHECK_CLAUDE_BIN overrides the claude probe binary
 set -uo pipefail
 
 # --help before any config read or provider probe: it must succeed in a clean
@@ -31,12 +31,11 @@ Report lines: OK / STALE / SKIPPED / UNSUPPORTED
 
 Environment:
   MODEL_CHECK_CONFIG          config path (default ~/.claude/config/model_policy.yml)
-  MODEL_CHECK_PROBE=1         live one-shot CLI probes (claude, gemini, antigravity,
+  MODEL_CHECK_PROBE=1         live one-shot CLI probes (claude, antigravity,
                               cursor, codex) — one tiny LLM call per pin. Required to
                               verify codex at all: it has no listing command. Never
                               probes devin (`devin -p` starts an interactive login).
   MODEL_CHECK_CLAUDE_BIN      override the claude probe binary
-  MODEL_CHECK_GEMINI_BIN      override the gemini probe binary
 EOF
     exit 0
 fi
@@ -92,7 +91,7 @@ check_cli_provider() {
 
 # probe_pins PROVIDER BINARY -> per-pin OK/STALE/SKIPPED via a live one-shot
 # CLI call. Used when no API key is available but the OAuth-authenticated CLI
-# is (claude/gemini), or when a CLI-only provider's model-listing command
+# is (claude), or when a CLI-only provider's model-listing command
 # fails (antigravity: `agy models` needs a login) — without this, broken pins
 # read as green (or permanently SKIPPED) on those machines.
 # Opt-in (MODEL_CHECK_PROBE=1): each pin costs one tiny LLM call.
@@ -105,7 +104,6 @@ probe_pins() {
         # the read loop's pin list and silently probe only the first pin.
         case "$provider" in
             claude) out="$("$binary" --model "$model" -p "Reply with exactly: OK" 2>&1 < /dev/null)" ;;
-            gemini) out="$("$binary" -m "$model" -p "Reply with exactly: OK" 2>&1 < /dev/null)" ;;
             antigravity) out="$("$binary" --model "$model" -p "Reply with exactly: OK" 2>&1 < /dev/null)" ;;
             # cursor-agent aborts with "Workspace Trust Required" in an
             # untrusted directory, so a bare probe always fails. --trust clears
@@ -172,7 +170,7 @@ maybe_probe() {
     return 1
 }
 
-# check_api_provider PROVIDER -> report lines (claude|gemini), creds-gated
+# check_api_provider PROVIDER -> report lines (claude), creds-gated
 check_api_provider() {
     local provider="$1" listing=""
     case "$provider" in
@@ -186,18 +184,6 @@ check_api_provider() {
                 -H "x-api-key: $ANTHROPIC_API_KEY" \
                 -H "anthropic-version: 2023-06-01" 2> /dev/null)" || {
                 echo "SKIPPED: claude (models endpoint unreachable)"
-                return 0
-            }
-            ;;
-        gemini)
-            if [[ -z "${GOOGLE_API_KEY:-}" ]]; then
-                maybe_probe gemini "${MODEL_CHECK_GEMINI_BIN:-gemini}" ||
-                    echo "SKIPPED: gemini (no credentials)"
-                return 0
-            fi
-            listing="$(curl -sf --connect-timeout 5 --max-time 10 \
-                "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_API_KEY" 2> /dev/null)" || {
-                echo "SKIPPED: gemini (models endpoint unreachable)"
                 return 0
             }
             ;;
@@ -235,7 +221,6 @@ check_devin() {
 
 main() {
     check_api_provider claude
-    check_api_provider gemini
     check_cli_provider antigravity agy agy models
     # cursor-agent --list-models needs auth; check_cli_provider degrades to
     # SKIPPED when unauthenticated, OK/STALE per tier when logged in.

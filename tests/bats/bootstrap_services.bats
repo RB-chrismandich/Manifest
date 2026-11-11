@@ -27,7 +27,7 @@ teardown() {
 }
 
 @test "write_services_config emits antigravity section with enabled: false" {
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true ENABLE_CODEX=true
     export ENABLE_ANTIGRAVITY=false ENABLE_SKILLCLAW=false
     export ENABLE_GH=auto ENABLE_GLAB=auto
 
@@ -39,7 +39,7 @@ teardown() {
 }
 
 @test "write_services_config emits antigravity section with enabled: true" {
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true ENABLE_CODEX=true
     export ENABLE_ANTIGRAVITY=true ENABLE_SKILLCLAW=false
     export ENABLE_GH=auto ENABLE_GLAB=auto
 

@@ -10,7 +10,6 @@ from manifest_agent.adapters.base import HarnessAdapter
 _ADAPTER_TYPES = {
     "claude": ("manifest_agent.adapters.claude", "ClaudeAdapter"),
     "codex": ("manifest_agent.adapters.codex", "CodexAdapter"),
-    "gemini": ("manifest_agent.adapters.gemini", "GeminiAdapter"),
     "cursor": ("manifest_agent.adapters.cursor", "CursorAdapter"),
     "antigravity": ("manifest_agent.adapters.antigravity", "AntigravityAdapter"),
     "devin": ("manifest_agent.adapters.devin", "DevinAdapter"),

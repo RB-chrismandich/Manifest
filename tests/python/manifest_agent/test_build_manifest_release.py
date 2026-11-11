@@ -145,7 +145,6 @@ def test_builds_exact_deterministic_eight_bundle_release(
         "codex": "1",
         "cursor": "1",
         "devin": "1",
-        "gemini": "1",
         "omp": "1",
     }
     assert tuple(metadata["bundles"]) == DOMAIN_BUNDLES
@@ -310,7 +309,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
 
 def test_rejects_generated_view_drift(repo_root: Path, tmp_path: Path) -> None:
     source = _clean_fixture(repo_root, tmp_path)
-    view = source / "plugins/manifest-docs/gemini-extension.json"
+    view = source / "plugins/manifest-docs/antigravity-extension.json"
     view.write_text(view.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     _commit(source, "drift generated view")
 

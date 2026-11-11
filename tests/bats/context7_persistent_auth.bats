@@ -52,7 +52,6 @@ teardown() {
     ENABLE_CLAUDE=true
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
-    ENABLE_GEMINI=true
     ENABLE_ANTIGRAVITY=true
     ENABLE_DEVIN=false
 
@@ -69,7 +68,6 @@ h=Path('$HOME')
 assert json.load(open(h/'.claude.json'))['mcpServers']['context7']['headers']['Authorization'].startswith('Bearer ')
 assert json.load(open(h/'.cursor/mcp.json'))['mcpServers']['context7']['url'] == 'https://mcp.context7.com/mcp'
 assert json.load(open(h/'.cursor/mcp.json'))['mcpServers']['private']['url'] == 'https://private.example/mcp'
-assert json.load(open(h/'.gemini/settings.json'))['mcpServers']['context7']['httpUrl'] == 'https://mcp.context7.com/mcp'
 assert json.load(open(h/'.gemini/config/mcp_config.json'))['mcpServers']['context7']['serverUrl'] == 'https://mcp.context7.com/mcp'
 assert '[mcp_servers.context7.http_headers]' in (h/'.codex/config.toml').read_text()
 assert '[mcp_servers.private]' in (h/'.codex/config.toml').read_text()
@@ -86,13 +84,11 @@ print('all-harnesses-configured')"
     }
     prompt_mcp_selection() { MCP_SELECTED_INDICES=(0); }
     install_claude_mcp_server() { echo "GENERIC claude $*" >> "$MCP_STUB_LOG"; }
-    install_gemini_mcp_server() { echo "GENERIC gemini $*" >> "$MCP_STUB_LOG"; }
     install_codex_mcp_server() { echo "GENERIC codex $*" >> "$MCP_STUB_LOG"; }
     configure_cursor_mcp_config() { echo "GENERIC cursor" >> "$MCP_STUB_LOG"; }
     ENABLE_CLAUDE=true
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
-    ENABLE_GEMINI=true
     ENABLE_ANTIGRAVITY=false
     ENABLE_DEVIN=false
     FORCE=true

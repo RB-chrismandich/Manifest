@@ -28,12 +28,13 @@ from manifest_agent.process import (
     contains_credential_material,
     names_credential_field,
 )
+from manifest_agent.retired_harnesses import without_retired_harnesses
 
 _FULL_COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 _RETIREMENT_PHASES = frozenset({"prepared", "cleanup-complete"})
 _SUPPORTED_HARNESSES = frozenset(
-    {"claude", "codex", "gemini", "cursor", "antigravity", "devin", "omp"}
+    {"claude", "codex", "cursor", "antigravity", "devin", "omp"}
 )
 _NON_SUCCESS_CAPABILITY_VALUES = frozenset(
     {
@@ -173,8 +174,36 @@ def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
         receipt = _decode_receipt(document)
     except (KeyError, TypeError, ValueError) as error:
         raise StateError("installation receipt has an invalid schema") from error
+    receipt = without_retired_harnesses(receipt)
     _validate_receipt(receipt, ownership_key_path=source.parent / "ownership.key")
     return receipt
+
+
+def retired_receipt_rebinding(path: Path) -> tuple[str, str] | None:
+    """Return the receipt's (as-written, as-read) digests when they differ.
+
+    read_receipt drops retired harness records, so a receipt that still names
+    one has a different digest once read. Anything bound to the as-written
+    digest, such as a pending bootstrap journal, must be rebound to the as-read
+    digest instead of being rejected. None when the receipt is absent,
+    unreadable, or names no retired harness: read_receipt reports those cases.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        written = _decode_receipt(document)
+    except (
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+        return None
+    read = without_retired_harnesses(written)
+    if read is written:
+        return None
+    return receipt_digest(written), receipt_digest(read)
 
 
 def retired_graphify_transaction_path(receipt_path: Path) -> Path:
@@ -316,8 +345,9 @@ def _permitted_on_unverified(value: str) -> bool:
     harness that CREATED a capability and then failed something unrelated:
     ownership.py requires the owned entry's status to read `installed-by-manifest`,
     while this rule permits only non-success values, so no value satisfies both
-    and the receipt cannot be written at all. Observed for Gemini against release
-    0.3.0 -- its MCP add succeeded, its extension install hit the consent banner.
+    and the receipt cannot be written at all. Observed against release 0.3.0 for
+    a harness whose MCP add succeeded and whose extension install hit a consent
+    banner.
 
     Ownership evidence is a record of a mutation, not a success claim, so it is
     not a contradiction of the unverified verdict: `verified` remains False and

@@ -43,7 +43,7 @@ PORTABLE_BUNDLES = (*DOMAIN_BUNDLES, *ADDON_BUNDLES)
 # reason and an owner.  Prefer giving the bundle a contract over adding it here.
 UNGOVERNED_BUNDLES: dict[str, str] = {
     # Ships in the marketplace and installs under Claude Code, but has no
-    # manifest-capabilities.yml and no generated Gemini/Antigravity views, so
+    # manifest-capabilities.yml and no generated Antigravity views, so
     # no harness adapter can install it and delegation is Claude-only in
     # practice.  Recorded here so the gap is declared rather than invisible.
     # Removing this entry is the fix tracked by issue #784 (delegation setup
@@ -502,7 +502,7 @@ def _shell_command_violations(
         re.findall(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)", text, re.M)
     )
     local_functions.update(component_functions)
-    harness_commands = {"claude", "codex", "gemini", "cursor-agent", "agy", "devin"}
+    harness_commands = {"claude", "codex", "cursor-agent", "agy", "devin"}
     heredoc: str | None = None
     quoted_assignment = False
     inline_python = False

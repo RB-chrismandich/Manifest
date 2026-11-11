@@ -254,7 +254,7 @@ PY
 }
 
 @test "the MIRROR carries BARE names, because its consumers have no namespace" {
-    # ~/.manifest/skills is a FLAT tree read by cursor, gemini, codex,
+    # ~/.manifest/skills is a FLAT tree read by cursor, codex,
     # antigravity and devin. None of them know a bundle namespace, so a
     # qualified name there points at a command that cannot exist. One source,
     # two renderings.

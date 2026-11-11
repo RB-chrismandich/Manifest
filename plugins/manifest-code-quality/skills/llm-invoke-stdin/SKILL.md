@@ -1,6 +1,6 @@
 ---
 name: llm-invoke-stdin
-description: Use when a script needs to call an LLM/agent CLI (claude -p, gemini -p, agy -p) as a step — pipe the prompt via stdin behind an injectable seam so it is ARG_MAX-safe and testable offline.
+description: Use when a script needs to call an LLM/agent CLI (claude -p, agy -p) as a step — pipe the prompt via stdin behind an injectable seam so it is ARG_MAX-safe and testable offline.
 ---
 # Invoke an LLM CLI as a Pipeline Step (stdin seam)
 
@@ -22,7 +22,7 @@ The robust, testable shape is the same every time.
    Keep only a short fixed instruction as the argv; the large body goes through the pipe.
 2. **Put the CLI behind a named, injectable seam** (env var or function), e.g.
    `SPEC_REVIEW_CLI="${SPEC_REVIEW_CLI:-agy}"` / `run_reviewer()`. Name it for the
-   *role* (reviewer), not the vendor, so swapping `gemini`→`agy` is a one-line change.
+   *role* (reviewer), not the vendor, so swapping `claude`→`agy` is a one-line change.
 3. **Make tests inject a stub** through that seam (a fake executable on PATH or an
    injected runner) so the suite never hits the network, the real account, or quota.
 4. **Verify the prompt/instruction is model-agnostic** before swapping engines, and

@@ -1,5 +1,5 @@
-# agent_roster.yml — single enumeration of the 6-agent fleet
-# (claude/gemini/cursor/codex/antigravity/devin). This is the canonical source
+# agent_roster.yml — single enumeration of the 5-agent fleet
+# (claude/cursor/codex/antigravity/devin). This is the canonical source
 # for binary/home_dir/auth_check facts; consumers in Tasks 24-26.
 #
 # This registry EXTRACTS facts already declared elsewhere — it does not
@@ -9,7 +9,7 @@
 #     two files agree on each agent binary; it is not a migration.
 #   - `bootstrap/lib/config.sh` write_services_config() is the source for
 #     `enabled_default` (all 5 agents default to true there).
-#   - `.apm/skills/env-check/SKILL.md` documents claude/gemini
+#   - `.apm/skills/env-check/SKILL.md` documents the claude
 #     `auth_check` verbatim; it has no Authentication Status entries for
 #     codex/antigravity and its cursor entry says `cursor --version` (missing
 #     the `-agent` suffix used by the actual binary everywhere else in this
@@ -22,7 +22,7 @@
 #   binary           CLI executable name (must match model_policy.yml
 #                    cli_agents[name].binary — enforced by drift-guard test)
 #   home_dir         this agent's deployed config home. `~/.<name>` for the
-#                    five original agents; devin is the exception — its CLI
+#                    original agents; devin is the exception — its CLI
 #                    reads `~/.config/devin` (XDG), and `~/.devin` is already
 #                    taken by the Devin *Desktop* app's data folder
 #                    (product.json dataFolderName), so deploying there would
@@ -50,16 +50,6 @@ agents:
     prompt_args: ["-p", "{prompt}"]
     model_args: ["--model", "{model}"]
     auth_check: "claude auth status"
-    enabled_default: true
-    skills_sync: true
-
-  gemini:
-    name: gemini
-    binary: gemini
-    home_dir: ~/.gemini
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["-m", "{model}"]
-    auth_check: "gemini auth status"
     enabled_default: true
     skills_sync: true
 

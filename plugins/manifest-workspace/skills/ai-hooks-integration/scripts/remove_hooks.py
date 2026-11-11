@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Remove hook entries from Claude/Gemini/Cursor JSON configs.
+"""Remove hook entries from Claude/Cursor JSON configs.
 
 Usage:
   remove_hooks.py --tool claude  --path ~/.claude/settings.json --command "<hook-cmd>"
-  remove_hooks.py --tool gemini  --path ~/.gemini/settings.json --command "<hook-cmd>"
   remove_hooks.py --tool cursor  --path ~/.cursor/hooks.json     --command "<hook-cmd>"
 
 Behavior:

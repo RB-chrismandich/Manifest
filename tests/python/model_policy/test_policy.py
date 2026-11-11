@@ -83,7 +83,7 @@ def test_untrusted_provider_text_is_not_classified() -> None:
             FailureClass.RATE_LIMIT,
         ),
         (
-            "gemini",
+            "antigravity",
             {"code": "insufficient_quota", "status": "RESOURCE_EXHAUSTED"},
             FailureClass.QUOTA,
         ),
@@ -98,12 +98,12 @@ def test_untrusted_provider_text_is_not_classified() -> None:
             FailureClass.CAPACITY,
         ),
         (
-            "gemini",
+            "antigravity",
             {"response": SimpleNamespace(status=503)},
             FailureClass.TRANSIENT,
         ),
         (
-            "gemini",
+            "antigravity",
             {"code": lambda: SimpleNamespace(name="RESOURCE_EXHAUSTED")},
             FailureClass.CAPACITY,
         ),

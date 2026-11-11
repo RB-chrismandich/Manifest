@@ -7,14 +7,6 @@ agents:
     model_args: ["--model", "{model}"]
     auth_check: "claude auth status"
     enabled_default: true
-  gemini:
-    name: gemini
-    binary: gemini
-    home_dir: ~/.gemini
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["-m", "{model}"]
-    auth_check: "gemini auth status"
-    enabled_default: true
   cursor:
     name: cursor
     binary: cursor-agent

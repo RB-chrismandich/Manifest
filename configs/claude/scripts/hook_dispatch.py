@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resolve and dispatch to the ai-hooks-integration unified hook wherever it
-currently lives, so `~/.claude/settings.json` (and the Gemini/Cursor
-equivalents) never need hand-editing again when skill storage moves.
+currently lives, so `~/.claude/settings.json` (and the Cursor
+equivalent) never need hand-editing again when skill storage moves.
 
 Background: skill storage has relocated three times in ~5 weeks -- plain
 bootstrap copy to ~/.claude/skills, then apm-managed ~/.manifest/skills, then
@@ -163,7 +163,7 @@ def allow_response() -> dict:
     }
 
 
-USAGE = """Usage: hook_dispatch.py --source <claude|gemini|cursor> [options]
+USAGE = """Usage: hook_dispatch.py --source <claude|cursor> [options]
 
 Resolve the ai-hooks-integration unified hook and its handler wherever they
 currently live (plugin cache, newest non-orphaned version first; falls back to

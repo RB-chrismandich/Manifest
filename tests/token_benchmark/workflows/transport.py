@@ -2,8 +2,8 @@
 
 Resolves the requested policy tier through the shared model-policy resolver
 and invokes an isolated provider adapter. Credentials are read directly from
-the process environment by each adapter (`measure_api_claude`/
-`measure_api_gemini` in `tests/token_benchmark/harness.py`); they never
+the process environment by each adapter (`measure_api_claude` in
+`tests/token_benchmark/harness.py`); they never
 appear in the fixture request payload built by `fixtures.build_request()`,
 nor in any value this module returns. No CLI, home directory, or session
 state is consulted here.
@@ -29,7 +29,7 @@ MODEL_POLICY_PATH = REPO_ROOT / "configs" / "claude" / "config" / "model_policy.
 # Every other harness routes through a CLI whose isolation this transport
 # cannot guarantee (no verified way to suppress tool access or session
 # state), so it is recorded "unsupported" rather than invoked (Task 5 #2).
-SUPPORTED_PROVIDERS = ("claude", "gemini")
+SUPPORTED_PROVIDERS = ("claude",)
 
 AdapterFn = Callable[[str, str, str], Awaitable[dict]]
 
@@ -93,15 +93,8 @@ async def _call_claude(prompt: str, system_prompt: str, model_id: str) -> dict:
     return await measure_api_claude(prompt, system_prompt, model_id)
 
 
-async def _call_gemini(prompt: str, system_prompt: str, model_id: str) -> dict:
-    from tests.token_benchmark.harness import measure_api_gemini
-
-    return await measure_api_gemini(prompt, system_prompt, model_id)
-
-
 DEFAULT_ADAPTERS: dict[str, AdapterFn] = {
     "claude": _call_claude,
-    "gemini": _call_gemini,
 }
 
 

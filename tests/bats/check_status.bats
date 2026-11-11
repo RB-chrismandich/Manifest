@@ -5,7 +5,7 @@
 # Hermetic strategy:
 #   - HOME is redirected to a mktemp sandbox (script reads ~/.claude/config/services.yml
 #     and defaults MANIFEST_STATE_ROOT to $HOME/.manifest)
-#   - PATH is reduced to MOCK_BIN + system dirs so real claude/gemini/cursor/codex
+#   - PATH is reduced to MOCK_BIN + system dirs so real claude/cursor/codex
 #     (typically in /opt/homebrew or ~/.local) are never found unless mocked
 #   - `timeout` is mocked (GNU coreutils, not guaranteed on macOS) so auth probes
 #     are deterministic
@@ -41,7 +41,7 @@ EOF
     # Keep auth env out of the sandbox
     unset OPENAI_API_KEY CODEX_HOME
     unset MANIFEST_STATE_ROOT MANIFEST_TMP_DIR
-    unset CLAUDE_STATE_DIR GEMINI_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR ANTIGRAVITY_STATE_DIR
+    unset CLAUDE_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR ANTIGRAVITY_STATE_DIR
     unset MANIFEST_AGENT_ROSTER
 }
 
@@ -57,21 +57,19 @@ teardown() {
 # --- Fixture helpers ---
 
 write_services_yml() {
-    # write_services_yml <claude> <gemini> <cursor> <codex> [antigravity] [devin]
+    # write_services_yml <claude> <cursor> <codex> [antigravity] [devin]
     cat > "$HOME/.claude/config/services.yml" << EOF
 services:
   claude:
     enabled: $1
-  gemini:
-    enabled: $2
   cursor:
-    enabled: $3
+    enabled: $2
   codex:
-    enabled: $4
+    enabled: $3
   antigravity:
-    enabled: ${5:-false}
+    enabled: ${4:-false}
   devin:
-    enabled: ${6:-false}
+    enabled: ${5:-false}
 EOF
 }
 
@@ -92,36 +90,35 @@ EOF
 # --- services.yml parsing ---
 
 @test "detects services.yml when present" {
-    write_services_yml true true true true
+    write_services_yml true true true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "services.yml found"
 }
 
 @test "fixture with one enabled and one disabled service is reflected correctly" {
-    write_services_yml true false false false
+    write_services_yml true false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     # enabled service shows plain name; disabled services get the (disabled) suffix
     assert_output --partial "Claude"
     refute_output --partial "Claude (disabled)"
-    assert_output --partial "Gemini (disabled)"
     assert_output --partial "Cursor (disabled)"
     assert_output --partial "Codex (disabled)"
 }
 
-@test "counts enabled services (1/6)" {
-    write_services_yml true false false false
+@test "counts enabled services (1/5)" {
+    write_services_yml true false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (1/6):"
+    assert_output --partial "Enabled Services (1/5):"
 }
 
-@test "counts enabled services (6/6)" {
-    write_services_yml true true true true true true
+@test "counts enabled services (5/5)" {
+    write_services_yml true true true true true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (6/6):"
+    assert_output --partial "Enabled Services (5/5):"
     refute_output --partial "(disabled)"
 }
 
@@ -137,28 +134,27 @@ EOF
 # --- CLI tool detection (mocked via MOCK_BIN on PATH) ---
 
 @test "reports installed CLIs from PATH" {
-    write_services_yml true true false false
+    write_services_yml true true false
     make_mock_cli claude
-    make_mock_cli gemini
+    make_mock_cli cursor-agent
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Claude CLI installed"
-    assert_output --partial "Gemini CLI installed"
+    assert_output --partial "cursor-agent CLI available"
 }
 
 @test "reports missing CLIs with install hints" {
-    write_services_yml true true true true
+    write_services_yml true true true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Claude CLI not installed"
     # assert_output --partial "npm install -g @anthropic-ai/claude-code"
-    assert_output --partial "Gemini CLI not installed"
     assert_output --partial "cursor-agent not available (optional)"
     assert_output --partial "Codex CLI not installed (optional)"
 }
 
 @test "verbose mode shows CLI location and version" {
-    write_services_yml true false false false
+    write_services_yml true false false
     make_mock_cli claude
     run bash "$SCRIPT_UNDER_TEST" --verbose
     assert_success
@@ -168,18 +164,18 @@ EOF
 
 # --- Authentication ---
 
-@test "reports claude/gemini authenticated when auth status succeeds" {
-    write_services_yml true true false false
+@test "reports claude/cursor authenticated when auth status succeeds" {
+    write_services_yml true true false
     make_mock_cli claude 0
-    make_mock_cli gemini 0
+    make_mock_cli cursor-agent 0
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Claude authenticated"
-    assert_output --partial "Gemini authenticated"
+    assert_output --partial "Cursor authenticated"
 }
 
 @test "reports authentication unknown when auth status fails" {
-    write_services_yml true false false false
+    write_services_yml true false false
     make_mock_cli claude 1
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -188,7 +184,7 @@ EOF
 }
 
 @test "codex authenticated via OPENAI_API_KEY" {
-    write_services_yml false false false true
+    write_services_yml false false true
     make_mock_cli codex
     export OPENAI_API_KEY="sk-test"
     run bash "$SCRIPT_UNDER_TEST"
@@ -197,7 +193,7 @@ EOF
 }
 
 @test "codex authenticated via auth.json in CODEX_HOME" {
-    write_services_yml false false false true
+    write_services_yml false false true
     make_mock_cli codex
     mkdir -p "$TEST_DIR/codex_home"
     touch "$TEST_DIR/codex_home/auth.json"
@@ -208,7 +204,7 @@ EOF
 }
 
 @test "codex authentication unknown without key or auth.json" {
-    write_services_yml false false false true
+    write_services_yml false false true
     make_mock_cli codex
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -230,7 +226,7 @@ EOF
 }
 
 @test "antigravity authenticated when 'agy models' succeeds" {
-    write_services_yml false false false false true
+    write_services_yml false false false true
     make_mock_agy 0
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -238,7 +234,7 @@ EOF
 }
 
 @test "antigravity authentication unknown when 'agy models' fails" {
-    write_services_yml false false false false true
+    write_services_yml false false false true
     make_mock_agy 1
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -267,7 +263,7 @@ EOF
 }
 
 @test "devin authenticated when 'devin models list' succeeds" {
-    write_services_yml false false false false false false true
+    write_services_yml false false false false true
     make_mock_devin 0
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -277,7 +273,7 @@ EOF
 @test "devin reported unauthenticated when 'devin models list' fails" {
     # The regression guard: this mock's `auth status` exits 0, so a check that
     # used it would print "authenticated" here.
-    write_services_yml false false false false false false true
+    write_services_yml false false false false true
     make_mock_devin 1
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -290,20 +286,19 @@ EOF
 
 @test "auth probe is bounded by the pure-bash fallback when no timeout binary exists" {
     # Regression: run_with_timeout was a no-op without timeout(1)/gtimeout(1),
-    # so a slow `gemini auth status` (~60s) ran unbounded and made the whole
+    # so a slow auth probe (~60s) ran unbounded and made the whole
     # readiness check take ~196s on stock macOS. The fallback must cap it at ~3s.
-    write_services_yml true true false false
+    write_services_yml true true false
     make_mock_cli claude 0
-    # gemini whose `auth` hangs well past the 3s bound
-    cat > "$MOCK_BIN/gemini" << 'EOF'
+    # cursor-agent whose roster auth probe (`--version`) hangs well past the 3s bound
+    cat > "$MOCK_BIN/cursor-agent" << 'EOF'
 #!/bin/bash
 case "$1" in
-    auth) sleep 30 ;;
-    --version) echo "gemini 1.0.0-mock"; exit 0 ;;
+    --version) sleep 30 ;;
     *) exit 0 ;;
 esac
 EOF
-    chmod +x "$MOCK_BIN/gemini"
+    chmod +x "$MOCK_BIN/cursor-agent"
 
     local start=$SECONDS
     run env CHECK_STATUS_NO_TIMEOUT_CMD=1 bash "$SCRIPT_UNDER_TEST"
@@ -311,42 +306,27 @@ EOF
 
     assert_success
     # slow probe is killed -> reported as unknown, not hung
-    assert_output --partial "Gemini authentication unknown"
+    assert_output --partial "Cursor authentication unknown"
     [ "$elapsed" -lt 15 ]
-}
-
-@test "gemini auth uses the fast credential check, not the slow CLI probe" {
-    # oauth_creds.json present must short-circuit to authenticated WITHOUT
-    # calling `gemini auth status` (which would exit 1 here -> "unknown").
-    write_services_yml true true false false
-    make_mock_cli claude 0
-    make_mock_cli gemini 1
-    mkdir -p "$HOME/.gemini"
-    echo '{}' > "$HOME/.gemini/oauth_creds.json"
-    run bash "$SCRIPT_UNDER_TEST"
-    assert_success
-    assert_output --partial "Gemini authenticated"
-    refute_output --partial "Gemini authentication unknown"
 }
 
 # --- State directory resolution (MANIFEST_STATE_ROOT seam) ---
 
 @test "MANIFEST_STATE_ROOT is honored and state dirs are created" {
-    write_services_yml true true false false
+    write_services_yml true true false
     export MANIFEST_STATE_ROOT="$TEST_DIR/custom_state"
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Manifest state root ready: $TEST_DIR/custom_state"
     [ -d "$TEST_DIR/custom_state/tmp" ]
     [ -d "$TEST_DIR/custom_state/claude" ]
-    [ -d "$TEST_DIR/custom_state/gemini" ]
     [ -d "$TEST_DIR/custom_state/cursor" ]
     [ -d "$TEST_DIR/custom_state/codex" ]
     [ -d "$TEST_DIR/custom_state/antigravity" ]
 }
 
-@test "antigravity state dir env override is honored (verbose, symmetry with codex/gemini/cursor)" {
-    write_services_yml false false false false true
+@test "antigravity state dir env override is honored (verbose, symmetry with codex/cursor)" {
+    write_services_yml false false false true
     export ANTIGRAVITY_STATE_DIR="$TEST_DIR/alt_antigravity_state"
     run bash "$SCRIPT_UNDER_TEST" --verbose
     assert_success
@@ -355,7 +335,7 @@ EOF
 }
 
 @test "defaults state root to HOME/.manifest" {
-    write_services_yml true false false false
+    write_services_yml true false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Manifest state root ready: $HOME/.manifest"
@@ -363,7 +343,7 @@ EOF
 }
 
 @test "per-service state dir env overrides are honored (verbose)" {
-    write_services_yml true false false false
+    write_services_yml true false false
     export CLAUDE_STATE_DIR="$TEST_DIR/alt_claude_state"
     run bash "$SCRIPT_UNDER_TEST" --verbose
     assert_success
@@ -375,7 +355,7 @@ EOF
     if [[ "$(id -u)" -eq 0 ]]; then
         skip "root ignores directory permissions"
     fi
-    write_services_yml true false false false
+    write_services_yml true false false
     export MANIFEST_STATE_ROOT="$TEST_DIR/ro_state"
     mkdir -p "$TEST_DIR/ro_state"
     chmod 500 "$TEST_DIR/ro_state"
@@ -388,17 +368,17 @@ EOF
 # --- Overall status / agent readiness ---
 
 @test "system ready when 2 enabled CLIs are installed" {
-    write_services_yml true true false false
+    write_services_yml true true false
     make_mock_cli claude
-    make_mock_cli gemini
+    make_mock_cli cursor-agent
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "System ready (2 agents available)"
 }
 
 @test "reports limited CLI coverage when only 1 agent is available" {
-    # gemini enabled but not installed; claude installed and enabled
-    write_services_yml true true false false
+    # cursor enabled but not installed; claude installed and enabled
+    write_services_yml true true false
     make_mock_cli claude
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -406,16 +386,16 @@ EOF
 }
 
 @test "not operational when no agents are available and exit code is still 0" {
-    write_services_yml false false false false
+    write_services_yml false false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "System not operational (no agents available)"
 }
 
 @test "installed but disabled service does not count as a working agent" {
-    write_services_yml false false false false
+    write_services_yml false false false
     make_mock_cli claude
-    make_mock_cli gemini
+    make_mock_cli cursor-agent
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "System not operational"
@@ -424,7 +404,7 @@ EOF
 # --- Output shape ---
 
 @test "output includes header, section labels, and documentation pointers" {
-    write_services_yml true true false false
+    write_services_yml true true false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Manifest Runtime Health Check"
@@ -438,14 +418,14 @@ EOF
 }
 
 @test "quick test hint shown only when at least one agent is available" {
-    write_services_yml true false false false
+    write_services_yml true false false
     make_mock_cli claude
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Quick Test:"
     assert_output --partial "manifest --help"
 
-    write_services_yml false false false false
+    write_services_yml false false false
     rm -f "$MOCK_BIN/claude"
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -458,9 +438,9 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "model pins summary warns when providers were skipped (no false green)" {
-    write_services_yml true true false false
-    # Sandbox PATH has no agent CLIs and no API keys -> claude/gemini SKIPPED
-    ANTHROPIC_API_KEY="" GOOGLE_API_KEY="" run bash "$SCRIPT_UNDER_TEST"
+    write_services_yml true true false
+    # Sandbox PATH has no agent CLIs and no API keys -> claude SKIPPED
+    ANTHROPIC_API_KEY="" run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "unverified"
     refute_output --partial "Model pin check complete (stale pins above, if any)"
@@ -486,14 +466,6 @@ agents:
     prompt_args: ["-p", "{prompt}"]
     model_args: ["--model", "{model}"]
     auth_check: "claude auth status"
-    enabled_default: true
-  gemini:
-    name: gemini
-    binary: gemini
-    home_dir: ~/.gemini
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["-m", "{model}"]
-    auth_check: "gemini auth status"
     enabled_default: true
   cursor:
     name: cursor
@@ -538,8 +510,6 @@ EOF
 services:
   claude:
     enabled: false
-  gemini:
-    enabled: false
   cursor:
     enabled: false
   codex:
@@ -552,9 +522,9 @@ EOF
     export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    # 6 agents now enumerated (5 historical + beta), 1 enabled -- the
-    # denominator itself proves the roster (not a hardcoded 5) drove the count.
-    assert_output --partial "Enabled Services (1/6):"
+    # 6 agents now enumerated (4 historical + beta), 1 enabled -- the
+    # denominator itself proves the roster (not a hardcoded 4) drove the count.
+    assert_output --partial "Enabled Services (1/5):"
     assert_output --partial "Beta"
     refute_output --partial "Beta (disabled)"
 }
@@ -569,7 +539,7 @@ case "$1" in
 esac
 EOF
     chmod +x "$MOCK_BIN/beta-agent"
-    write_services_yml true false false false
+    write_services_yml true false false
     export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -578,7 +548,7 @@ EOF
 
 @test "6th roster-only agent without its binary installed reports not-installed, not a crash" {
     write_sixth_agent_roster
-    write_services_yml false false false false
+    write_services_yml false false false
     export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
@@ -601,25 +571,24 @@ EOF
     export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
 
     make_mock_cli claude
-    make_mock_cli gemini
-    write_services_yml true true false false
+    make_mock_cli cursor-agent
+    write_services_yml true true false
 
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
 
     # Denominator is the hardcoded historical agents, not 0 -- proves the
     # third fallback tier populated ROSTER_NAMES instead of leaving it empty.
-    assert_output --partial "Enabled Services (2/6):"
+    assert_output --partial "Enabled Services (2/5):"
     refute_output --partial "Enabled Services (0/0)"
     refute_output --partial "Claude (disabled)"
-    refute_output --partial "Gemini (disabled)"
-    assert_output --partial "Cursor (disabled)"
+    refute_output --partial "Cursor (disabled)"
     assert_output --partial "Codex (disabled)"
     assert_output --partial "Antigravity (disabled)"
 
     # CLI Tools section reflects real installed state, not an empty roster.
     assert_output --partial "Claude CLI installed"
-    assert_output --partial "Gemini CLI installed"
+    assert_output --partial "cursor-agent CLI available"
 
     # verdict -- not the false "no agents available" the bug produced.
     assert_output --partial "System ready (2 agents available)"

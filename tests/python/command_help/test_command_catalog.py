@@ -281,7 +281,7 @@ def test_categories_block_is_closed_set(env):
 # `.apm/skills` is a gitignored, generated mirror that is EMPTY in a fresh
 # checkout. Building a catalog from it used to succeed with zero commands, and
 # generate_commands_doc.py rendered that as a doc with every row deleted — 178
-# lines removed from COMMANDS.md, AGENTS.md and GEMINI.md, exit 0. Two guards
+# lines removed from COMMANDS.md, AGENTS.md and the Antigravity GEMINI.md, exit 0. Two guards
 # now stand between an empty tree and a destructive doc write.
 # --------------------------------------------------------------------------- #
 

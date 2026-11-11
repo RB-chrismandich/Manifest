@@ -25,7 +25,7 @@ from manifest_agent.contracts import (  # noqa: E402
     load_domain_contracts,
 )
 
-HARNESSES = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
+HARNESSES = ("claude", "codex", "cursor", "antigravity", "devin")
 UNVERIFIED_HARNESSES = ("omp",)
 _COMPONENT_KINDS = (
     ("skill", "skills"),
@@ -281,8 +281,8 @@ def _render_rows(
         "`configs/omp/extensions/manifest-health.ts` and a full repository source root;",
         "the portable `env-check-scripts` component is therefore declared degraded.",
         "",
-        "| Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin | OMP |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Capability | Evidence | Claude | Codex | Cursor | Antigravity | Devin | OMP |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for identity, source, cells in rows:
         lines.append("| " + " | ".join((f"`{identity}`", source, *cells)) + " |")
@@ -338,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 1
         print(
-            "OMP coverage is UNVERIFIED and excluded from this six-harness qualification."
+            "OMP coverage is UNVERIFIED and excluded from this five-harness qualification."
         )
         return 0
     target.write_text(output, encoding="utf-8")

@@ -48,6 +48,7 @@ from manifest_agent.ownership import (
     bootstrap_journal_proof,
     ensure_bootstrap_journal_authority,
 )
+from manifest_agent.retired_harnesses import RETIRED_HARNESSES
 from manifest_agent.service_state import (
     build_receipt,
     bundle_checksums,
@@ -61,6 +62,7 @@ from manifest_agent.state import (
     read_receipt,
     receipt_digest,
     receipt_for_persistence,
+    retired_receipt_rebinding,
     write_receipt_atomic,
 )
 
@@ -169,6 +171,41 @@ def _write_journal(path: Path, saga: ReconciliationSaga) -> None:
     _write_private_json_atomic(path, {**unsigned, "ownership_proof": proof})
 
 
+_JOURNAL_SUFFIX = ".bootstrap-sync.json"
+
+
+def _participant_phase(harness: str, phase: str) -> str:
+    """Tombstone a journal participant whose harness has since been retired.
+
+    Its adapter no longer exists, so it can be neither classified nor
+    compensated, and Manifest no longer manages that harness's native state.
+    Left in a live phase it would block recovery of every other participant.
+    """
+    return "tombstoned" if harness in RETIRED_HARNESSES else phase
+
+
+def _rebound_receipt_digests(journal: Path, prior: str, target: str) -> tuple[str, str]:
+    """Follow a journal's receipt bindings across retired-harness pruning.
+
+    A journal written before a harness was retired is bound to the digest of
+    the receipt as written. Reading that receipt now drops the retired record
+    and changes its digest, so a binding to the as-written digest is carried
+    over to the as-read one; any other digest is left alone and still fails.
+    """
+    name = journal.name
+    if not (name.startswith(".") and name.endswith(_JOURNAL_SUFFIX)):
+        return prior, target
+    receipt_path = journal.with_name(name[1 : -len(_JOURNAL_SUFFIX)])
+    rebinding = retired_receipt_rebinding(receipt_path)
+    if rebinding is None:
+        return prior, target
+    written, read = rebinding
+    return (
+        read if prior == written else prior,
+        read if target == written else target,
+    )
+
+
 # constitution: exempt C-SIZE -- validation covers the complete signed journal schema atomically.
 def _read_journal(
     path: Path,
@@ -230,7 +267,13 @@ def _read_journal(
             ):
                 raise ValueError
             _deserialize_handle(item["handle"])
-            decoded_mutations.append(HarnessMutationCheckpoint(**item))
+            decoded_mutations.append(
+                HarnessMutationCheckpoint(
+                    item["harness"],
+                    _participant_phase(item["harness"], item["phase"]),
+                    item["handle"],
+                )
+            )
         phase = document.get("phase")
         harness = document.get("harness")
         prior_receipt_digest = document.get("prior_receipt_digest")
@@ -251,6 +294,9 @@ def _read_journal(
             )
         ):
             raise ValueError
+        prior_receipt_digest, target_receipt_digest = _rebound_receipt_digests(
+            path, prior_receipt_digest, target_receipt_digest
+        )
         if (
             expected_prior_receipt_digest is not None
             and prior_receipt_digest != expected_prior_receipt_digest
@@ -1330,7 +1376,6 @@ class BootstrapSyncService:
                     (
                         "claude",
                         "codex",
-                        "gemini",
                         "cursor",
                         "antigravity",
                         "devin",

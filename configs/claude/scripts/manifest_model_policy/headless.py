@@ -16,7 +16,6 @@ from .skill_process import CommandRunner
 _DEFAULT_PROVIDER_ORDER = (
     "antigravity",
     "cursor",
-    "gemini",
     "codex",
     "claude",
     "devin",

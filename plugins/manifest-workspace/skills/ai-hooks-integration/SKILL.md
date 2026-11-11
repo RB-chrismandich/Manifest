@@ -1,6 +1,6 @@
 ---
 name: ai-hooks-integration
-description: Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks.
+description: Integrate lifecycle hooks across AI coding tools (Claude Code, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks.
 ---
 
 # AI Hooks Integration
@@ -9,13 +9,13 @@ description: Integrate lifecycle hooks across AI coding tools (Claude Code, Gemi
 
 ```text
 Does the target tool have a hooks API?
-├── YES (Claude, Gemini CLI, Cursor, OpenCode)
+├── YES (Claude, Cursor, OpenCode)
 │   └── Installing hooks for multiple tools at once?
 │       ├── YES → Use install_all.py
 │       │   ├── One normalizer per native target → --unified mode
 │       │   └── Tool-specific command → --command mode
 │       └── NO  → Use single-tool scripts
-│           ├── Claude/Gemini/Cursor → merge_hooks.py
+│           ├── Claude/Cursor → merge_hooks.py
 │           └── OpenCode → install_opencode_plugin.py
 └── NO (gh, aws, kubectl, docker, etc.)
     └── Use install_cli_wrapper.py
@@ -58,10 +58,8 @@ scripts/remove_cli_wrapper.py --cli gh
 | Tool | Config | Events | Hook Types | Has Hooks API |
 |------|--------|--------|------------|---------------|
 | Claude | `~/.claude/settings.json` | See reference | command, http, prompt, agent | Yes |
-| Gemini CLI | `~/.gemini/settings.json` | See reference | command | Yes |
 | Cursor | `~/.cursor/hooks.json` | See reference | command | Yes |
 | OpenCode | `~/.config/opencode/plugins/*.js` | See reference | ES module | Yes (plugin) |
-| Gemini IDE | N/A | N/A | N/A | **No** |
 | gh, aws, etc. | N/A | N/A | N/A | **No** → Use wrapper |
 
 Full event lists per tool: `references/tool-reference.md`.

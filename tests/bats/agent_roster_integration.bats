@@ -46,14 +46,6 @@ agents:
     model_args: ["--model", "{model}"]
     auth_check: "claude auth status"
     enabled_default: true
-  gemini:
-    name: gemini
-    binary: gemini
-    home_dir: ~/.gemini
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["-m", "{model}"]
-    auth_check: "gemini auth status"
-    enabled_default: true
   cursor:
     name: cursor
     binary: cursor-agent
@@ -100,8 +92,6 @@ EOF
     cat > "$HOME/.claude/config/services.yml" << 'EOF'
 services:
   claude:
-    enabled: false
-  gemini:
     enabled: false
   cursor:
     enabled: false
@@ -152,9 +142,9 @@ EOF
     echo "body" > "$MANIFEST_ROOT/.apm/skills/demo-skill/SKILL.md"
 
     export PATH="$MOCK_BIN:$PATH"
-    unset OPENAI_API_KEY CODEX_HOME ANTHROPIC_API_KEY GOOGLE_API_KEY GEMINI_API_KEY
+    unset OPENAI_API_KEY CODEX_HOME ANTHROPIC_API_KEY
     unset MANIFEST_STATE_ROOT MANIFEST_TMP_DIR
-    unset CLAUDE_STATE_DIR GEMINI_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR ANTIGRAVITY_STATE_DIR
+    unset CLAUDE_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR ANTIGRAVITY_STATE_DIR
 }
 
 teardown() {
@@ -176,11 +166,10 @@ teardown() {
     assert_success
     assert_line "beta"
     assert_line "test-agent"
-    # The 5 historical agents are still present too -- this is additive, not
+    # The 4 historical agents are still present too -- this is additive, not
     # a replacement of the known fleet.
     assert_line "claude"
     assert_line "cursor"
-    assert_line "gemini"
     assert_line "codex"
     assert_line "antigravity"
 }
@@ -192,14 +181,14 @@ teardown() {
 @test "[2/4 check_status.sh] Enabled Services and CLI Tools enumerate the plain 6th agent correctly" {
     run bash "$CHECK_STATUS"
     assert_success
-    # 7 roster agents now enumerated (5 historical + beta + test-agent); the
-    # denominator itself proves the roster (not a hardcoded 5) drove the
+    # 6 roster agents now enumerated (4 historical + beta + test-agent); the
+    # denominator itself proves the roster (not a hardcoded 4) drove the
     # count. Numerator is 2 (beta + test-agent, both enabled: true in
     # services.yml) now that the hyphenated-name identifier bug (see the
     # next test) is fixed and test-agent's enabled-state is read correctly
-    # too -- pre-fix this was "(1/7)" because test-agent's own state was
+    # too -- pre-fix this was "(1/6)" because test-agent's own state was
     # always misread as disabled.
-    assert_output --partial "Enabled Services (2/7):"
+    assert_output --partial "Enabled Services (2/6):"
     assert_output --partial "Beta"
     refute_output --partial "Beta (disabled)"
     assert_output --partial "Beta CLI installed"

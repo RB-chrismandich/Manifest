@@ -40,10 +40,9 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands/skills
 │   ├── mcp.json                     # Cursor MCP server defaults
 │   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans (skills via rules/)
-├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
-│   ├── GEMINI.md                    # Orchestration guide for Gemini
-│   ├── settings.json                # Gemini settings (includes MCP server defaults)
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
+├── antigravity/                     # → ~/.antigravity/ (+ GEMINI.md → ~/.gemini/, read by agy)
+│   ├── GEMINI.md                    # Orchestration guide for the Antigravity CLI (agy)
+│   └── (symlinks to ../claude/)     # config, skills, .plans
 ├── codex/                           # → ~/.codex/ (Codex CLI configuration)
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide
 │   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
@@ -67,7 +66,7 @@ bootstrap/                           # Modular bootstrap libraries + hookable mo
 │   ├── deploy.sh                    # Deploy/verify/summary routines
 │   └── mcp.sh                       # MCP configuration/install routines
 └── modules/README.md                # How to add custom bootstrap extensions
-AGENTS.md                            # AI agent instructions (Cursor, Claude, Gemini, Codex, Antigravity)
+AGENTS.md                            # AI agent instructions (Cursor, Claude, Codex, Antigravity)
 ```
 
 ## Bootstrap (macOS / Linux)
@@ -87,7 +86,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 
 # Setup with specific services disabled
 ./bootstrap.sh --disable-cursor
-./bootstrap.sh --disable-gemini --disable-cursor
+./bootstrap.sh --disable-codex --disable-cursor
 
 # Skip interactive prompts
 ./bootstrap.sh --skip-auth --force
@@ -96,7 +95,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ./bootstrap.sh --install-mcp
 ```
 
-Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
+Service toggles (`--enable-*/--disable-*` for claude, cursor, codex,
 antigravity, devin, skillclaw, apm, browser-use, smoke, gh, glab), other flags (`--skip-install`,
 `--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
 list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
@@ -107,7 +106,7 @@ checks authentication.
 
 ## Manual Deployment
 
-Per-platform manual copy/symlink steps (Claude, Cursor, Gemini, Codex,
+Per-platform manual copy/symlink steps (Claude, Cursor, Codex,
 Antigravity) and required CLI installs are in
 [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
@@ -117,7 +116,7 @@ Antigravity) and required CLI installs are in
 |------|---------|
 | `configs/claude/CLAUDE.md` | Main current-host native orchestration guide |
 | `configs/cursor/rules/orchestration.mdc` | Cursor always-on guidance |
-| `configs/gemini/GEMINI.md` | Gemini CLI guide |
+| `configs/antigravity/GEMINI.md` | Antigravity CLI guide (deployed to `~/.gemini/GEMINI.md`) |
 | `configs/codex/AGENTS.md` | Codex CLI guide |
 | `configs/claude/config/model_policy.yml` | Model tiers and CLI fallback for retained single-provider tools |
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
@@ -132,7 +131,7 @@ Antigravity) and required CLI installs are in
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
 | `plugins/manifest-forge/runtime/bin/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
-| `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
+| `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Codex, Antigravity) |
 
 ## Available Commands
 
@@ -180,7 +179,7 @@ plugins/manifest-forge/runtime/bin/label_sync.sh --dry-run  # preview
 Create `plugins/<bundle>/skills/<name>/SKILL.md` (source of truth; `.apm/skills`
 is the generated mirror), give it a bundle in `skill_policies.yml` + the bundle's
 `plugin.json`, and add `tool_policies` in `command_config.yml` — then **run the
-generators**, or CI fails: `docs/COMMANDS.md`, the `GEMINI.md`/`AGENTS.md` index
+generators**, or CI fails: `docs/COMMANDS.md`, the `configs/antigravity/GEMINI.md`/`AGENTS.md` index
 (`--inject-guides` — a *different* file set), and `configs/cursor/rules/`. Traps:
 [docs/SKILL-NAMING.md](docs/SKILL-NAMING.md#lifecycle-adding-renaming-retiring).
 

@@ -59,7 +59,7 @@ assert_budget() {
     # bullet lines of the section (the /token-conserve re-assert line is
     # platform-specific and excluded).
     local ref="" cur f
-    for f in "configs/claude/CLAUDE.md" "configs/gemini/GEMINI.md" \
+    for f in "configs/claude/CLAUDE.md" "configs/antigravity/GEMINI.md" \
              "AGENTS.md" "configs/cursor/rules/orchestration.mdc"; do
         cur=$(awk '/^## Token Economy \(always on\)$/{found=1; next}
                    found && /^## /{exit}
@@ -138,7 +138,7 @@ BUDGET
 
 @test "injected command index stays within always-loaded budget" {
     local budget=3500 f size
-    for f in "configs/gemini/GEMINI.md" "AGENTS.md"; do
+    for f in "configs/antigravity/GEMINI.md" "AGENTS.md"; do
         # Extract the block between the INDEX markers (inclusive).
         size=$(awk '/BEGIN COMMAND INDEX/{c=1} c{print} /END COMMAND INDEX/{c=0}' \
                "$REPO_ROOT/$f" | wc -c)

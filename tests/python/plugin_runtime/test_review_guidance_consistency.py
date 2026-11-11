@@ -14,7 +14,7 @@ def repo_root() -> Path:
 
 
 ACTIVE_INDEPENDENT_REVIEW_GUIDES = (
-    "configs/gemini/GEMINI.md",
+    "configs/antigravity/GEMINI.md",
     "configs/claude/prompts/preflight_analysis.md",
     "docs/commands/state-machines.md",
     "docs/templates/README.md",
@@ -78,7 +78,7 @@ def test_validation_configs_do_not_duplicate_code_audit_activation(
     (
         "AGENTS.md",
         "configs/claude/CLAUDE.md",
-        "configs/gemini/GEMINI.md",
+        "configs/antigravity/GEMINI.md",
         "configs/cursor/rules/orchestration.mdc",
         "docs/commands/builtin.md",
         "docs/configuration/commands.md",

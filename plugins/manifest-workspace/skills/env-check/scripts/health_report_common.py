@@ -39,9 +39,7 @@ MAX_WORKERS = 4
 NESTED_PROBE_CLEANUP_SECONDS = 1.5
 MAX_RECEIPT_AGE_SECONDS = 7 * 24 * 60 * 60
 WEEKLY_RETENTION = 12
-COORDINATOR_HARNESSES = frozenset(
-    {"claude", "codex", "gemini", "cursor", "antigravity", "devin"}
-)
+COORDINATOR_HARNESSES = frozenset({"claude", "codex", "cursor", "antigravity", "devin"})
 SAFE_NAME = re.compile(r"^[A-Za-z0-9_.:@+-]{1,240}$")
 SAFE_CODE = re.compile(r"^[a-z][a-z0-9_.:-]{0,119}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")

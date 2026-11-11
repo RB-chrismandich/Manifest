@@ -7,7 +7,7 @@ from pathlib import Path
 # Canonical provider set, shared by every table so no table can silently drop
 # a provider by hard-coding a shorter tuple (#546/G11). Table order == display
 # order.
-PROVIDERS = ("claude", "gemini", "antigravity")
+PROVIDERS = ("claude", "antigravity")
 
 
 def load_results(results_dir: Path) -> list[dict]:
@@ -117,8 +117,14 @@ def compute_stats(records: list[dict], *, _include_per_run: bool = True) -> dict
         quality[provider][category][f"{cond}_score"] += r["quality_score"]
         quality[provider][category][f"{cond}_total"] += 1
 
-    # Cost summary per condition (API records with non-null cost_usd)
-    cost_records = [r for r in api_recs if r.get("cost_usd") is not None]
+    # Cost summary per condition (API records with non-null cost_usd). Result
+    # files can still hold rows for a provider that is no longer measured;
+    # blending those into a table that only shows PROVIDERS would misreport it.
+    cost_records = [
+        r
+        for r in api_recs
+        if r.get("cost_usd") is not None and r.get("provider") in PROVIDERS
+    ]
     cost_summary: dict = {}
     if cost_records:
         all_conditions = sorted({r["condition"] for r in cost_records})
@@ -325,7 +331,7 @@ def render_report(stats: dict, run_id: str, workflow_stats: dict | None = None) 
                 lines.append(f"| {provider} | {category} | — | — | — |")
 
     # Historical Runs columns are driven by PROVIDERS (not a hard-coded
-    # claude/gemini pair) so every provider — including agy, which is always
+    # single provider) so every provider — including agy, which is always
     # `unsupported` here today — gets a column rather than being silently
     # dropped from this table (#546/G11).
     overhead_headers = " | ".join(f"{p.capitalize()} Input Overhead" for p in PROVIDERS)
@@ -368,7 +374,7 @@ def render_report(stats: dict, run_id: str, workflow_stats: dict | None = None) 
             "",
             "> Cost is computed only from the API path (`PRICING` in "
             "`tests/token_benchmark/harness.py`), so this table reflects "
-            "claude/gemini only — antigravity has no API/tokenizer path and "
+            "claude only — antigravity has no API/tokenizer path and "
             "is `unsupported` here by design (see legend above).",
             "",
             "| Condition  | Avg input tok | Avg cost/call | Quality | vs after |",

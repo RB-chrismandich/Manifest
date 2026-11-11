@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remove a hook command from Claude/Gemini/Cursor and delete an OpenCode plugin.
+"""Remove a hook command from Claude/Cursor and delete an OpenCode plugin.
 
 Usage:
   remove_all.py --command "<hook-cmd>" --plugin ~/.config/opencode/plugins/<name>.js
@@ -42,20 +42,6 @@ def main() -> None:
             "claude",
             "--path",
             str(get_default_path("claude")),
-            "--command",
-            args.command,
-            *owner,
-            *dry,
-        ]
-    )
-
-    run(
-        [
-            str(REMOVE),
-            "--tool",
-            "gemini",
-            "--path",
-            str(get_default_path("gemini")),
             "--command",
             args.command,
             *owner,

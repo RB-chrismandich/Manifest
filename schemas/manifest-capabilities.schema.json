@@ -73,15 +73,19 @@
         "compatibility-map": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["claude", "codex", "gemini", "cursor", "antigravity", "devin"],
+            "required": ["claude", "codex", "cursor", "antigravity", "devin"],
             "properties": {
                 "claude": {"$ref": "#/$defs/compatibility-status"},
                 "codex": {"$ref": "#/$defs/compatibility-status"},
-                "gemini": {"$ref": "#/$defs/compatibility-status"},
                 "cursor": {"$ref": "#/$defs/compatibility-status"},
                 "antigravity": {"$ref": "#/$defs/compatibility-status"},
                 "devin": {"$ref": "#/$defs/compatibility-status"},
-                "omp": {"$ref": "#/$defs/compatibility-status"}
+                "omp": {"$ref": "#/$defs/compatibility-status"},
+                "gemini": {
+                    "$ref": "#/$defs/compatibility-status",
+                    "deprecated": true,
+                    "$comment": "Retired harness. Still accepted so contracts from releases before the removal stay readable; the loader drops it."
+                }
             }
         },
         "component": {

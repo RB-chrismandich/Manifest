@@ -19,7 +19,6 @@ ALL_HARNESSES = (
     "codex",
     "cursor",
     "devin",
-    "gemini",
 )
 # Pinned independently of plugins/*/.claude-plugin/marketplace-entry.json — the
 # whole point of the assertion is that a change to those canonical files is
@@ -57,12 +56,12 @@ def test_generator_emits_three_native_views_per_domain(
     assert report.bundles == DOMAIN_BUNDLES
     assert report.harnesses == ALL_HARNESSES
     assert (tmp_path / "manifest-docs/.claude-plugin/plugin.json").is_file()
-    assert (tmp_path / "manifest-docs/gemini-extension.json").is_file()
+    assert (tmp_path / "manifest-docs/antigravity-extension.json").is_file()
     generic_path = tmp_path / "manifest-docs/plugin.json"
     assert generic_path.is_file()
     generic = json.loads(generic_path.read_text())
     native_harnesses = set(generic["harnesses"]) - {"omp"}
-    assert set(report.harnesses) == {"claude", "gemini", *native_harnesses}
+    assert set(report.harnesses) == {"claude", *native_harnesses}
     assert generic["harnesses"]["omp"]["qualified"] is False
 
 
@@ -155,7 +154,7 @@ def test_adhd_views_generate_effective_antigravity_and_devin_context(
 def test_antigravity_projection_states_antigravity_reasons(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    """agy imports Gemini's file shape, never Gemini's compatibility verdicts."""
+    """agy's extension view states Antigravity's own compatibility verdicts."""
     render_views(repo_root, output_root=tmp_path, check=False)
     contract = yaml.safe_load(
         (repo_root / "plugins/manifest-workspace/manifest-capabilities.yml").read_text(
@@ -181,7 +180,6 @@ def test_antigravity_projection_states_antigravity_reasons(
         reasons["claude-compaction-continuity"]
         == hook["compatibility"]["antigravity"]["reason"]
     )
-    assert not any("Gemini" in reason for reason in reasons.values())
 
 
 def test_workspace_token_economy_guidance_reaches_every_harness_or_records_blocker(
@@ -191,7 +189,7 @@ def test_workspace_token_economy_guidance_reaches_every_harness_or_records_block
 
     Claude/Codex get it through the workspace-token-economy-context
     SessionStart hook (same registered surface ADHD's always_on.py uses).
-    Gemini/Antigravity already get it through the guidance component's
+    Antigravity already gets it through the guidance component's
     contextFileName. Devin has no reachable delivery path without touching
     the adapter's Devin owned-file model (out of this change's scope), so it
     must be recorded as not_applicable rather than silently claimed.
@@ -212,9 +210,10 @@ def test_workspace_token_economy_guidance_reaches_every_harness_or_records_block
     }
     assert "workspace-token-economy-context" in codex_hook_ids
 
-    for harness_file in ("gemini-extension.json", "antigravity-extension.json"):
-        view = json.loads((bundle / harness_file).read_text(encoding="utf-8"))
-        assert "guidance/token-economy.md" in view["contextFileName"]
+    view = json.loads(
+        (bundle / "antigravity-extension.json").read_text(encoding="utf-8")
+    )
+    assert "guidance/token-economy.md" in view["contextFileName"]
 
     devin_view = json.loads((bundle / "plugin.json").read_text(encoding="utf-8"))[
         "harnesses"
@@ -289,7 +288,6 @@ def test_generator_translates_model_policy_for_every_target_and_agy_alias(
         "description: Example fixture skill.\n"
         "models:\n"
         "  codex: [advanced, flash, auto]\n"
-        "  gemini: [pro, flash]\n"
         "  cursor: [advanced, auto]\n"
         "  agy: [flash, auto]\n"
         "model_fallback: {mode: auto}\n"
@@ -299,24 +297,21 @@ def test_generator_translates_model_policy_for_every_target_and_agy_alias(
 
     output_root = tmp_path / "views"
     render_views(fixture_root, output_root=output_root, check=False)
-    gemini = json.loads(
-        (output_root / "manifest-docs/gemini-extension.json").read_text()
+    antigravity = json.loads(
+        (output_root / "manifest-docs/antigravity-extension.json").read_text()
     )
     generic = json.loads((output_root / "manifest-docs/plugin.json").read_text())
 
     expected = {
         "codex": ["advanced", "flash", "auto"],
-        "gemini": ["pro", "flash"],
         "cursor": ["advanced", "auto"],
         "antigravity": ["flash", "auto"],
     }
     records = {
-        "gemini": gemini["modelPolicy"][0],
-        **{
-            harness: generic["harnesses"][harness]["model_policy"][0]
-            for harness in ("codex", "cursor", "antigravity")
-        },
+        harness: generic["harnesses"][harness]["model_policy"][0]
+        for harness in ("codex", "cursor", "antigravity")
     }
+    assert antigravity["modelPolicy"][0] == records["antigravity"]
     for harness, tiers in expected.items():
         record = records[harness]
         assert record["first_tier"] == tiers[0]
@@ -331,7 +326,7 @@ def test_generator_translates_model_policy_for_every_target_and_agy_alias(
         assert guidance.is_file()
         assert record["launcher"] in guidance.read_text(encoding="utf-8")
 
-    assert gemini["contextFileName"] == "guidance/model-policy-gemini.md"
+    assert antigravity["contextFileName"] == "guidance/model-policy-antigravity.md"
     for harness in ("codex", "cursor", "antigravity"):
         assert {
             "id": "model-aware-skill-invocation",
@@ -369,15 +364,15 @@ def test_check_reports_all_drift_without_writing(
 ) -> None:
     render_views(repo_root, output_root=tmp_path, check=False)
     claude_path = tmp_path / "manifest-docs/.claude-plugin/plugin.json"
-    gemini_path = tmp_path / "manifest-forge/gemini-extension.json"
+    agy_path = tmp_path / "manifest-forge/antigravity-extension.json"
     claude_path.write_text("drifted claude\n", encoding="utf-8")
-    gemini_path.write_text("drifted gemini\n", encoding="utf-8")
+    agy_path.write_text("drifted agy\n", encoding="utf-8")
 
     report = render_views(repo_root, output_root=tmp_path, check=True)
 
-    assert report.drifted_paths == tuple(sorted((claude_path, gemini_path)))
+    assert report.drifted_paths == tuple(sorted((claude_path, agy_path)))
     assert claude_path.read_text(encoding="utf-8") == "drifted claude\n"
-    assert gemini_path.read_text(encoding="utf-8") == "drifted gemini\n"
+    assert agy_path.read_text(encoding="utf-8") == "drifted agy\n"
 
 
 def test_marketplace_preserves_independent_addon_entries(

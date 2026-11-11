@@ -15,7 +15,7 @@
 #
 # LLM CLI seam (llm-invoke-stdin pattern): the evolve stage (manifest skillclaw evolve,
 # invoked below) shells out to EVOLVE_CLI="${EVOLVE_CLI:-claude}" -p to distill
-# candidates. Role-named, not vendor-named — swapping claude->gemini is a
+# candidates. Role-named, not vendor-named — swapping claude->agy is a
 # one-line env-var change; no edit needed in this script or the evolve module.
 # This does NOT change the transcript data source (~/.claude/projects/**/*.jsonl,
 # read by manifest skillclaw ingest above): that is Claude Code session format and is

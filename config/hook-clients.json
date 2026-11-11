@@ -34,17 +34,6 @@
       "verified_at": null,
       "fixture_dir": "tests/fixtures/hooks/cursor/unverified",
       "model_labels": []
-    },
-    "gemini": {
-      "name": "gemini",
-      "executable_candidates": ["gemini"],
-      "version_argv": ["--version"],
-      "version_pattern": "(\\d+\\.\\d+\\.\\d+)",
-      "protocol_probe_argv": null,
-      "verified_version": null,
-      "verified_at": null,
-      "fixture_dir": "tests/fixtures/hooks/gemini/unverified",
-      "model_labels": []
     }
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: token-benchmark
-description: "Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI, from a Manifest checkout only (MONOREPO-ONLY: the installed bundle does not ship the runtime). Default --suite workflow scores code-review/security-triage/implementation/documentation fixtures across none/slim/full context with bounded repair; --suite academic keeps the legacy MMLU/HumanEval/HellaSwag/TruthfulQA regression prompts. Regenerates docs/TOKEN_BENCHMARK.md."
+description: "Measure token overhead and quality delta from Manifest config across Claude and Antigravity CLI, from a Manifest checkout only (MONOREPO-ONLY: the installed bundle does not ship the runtime). Default --suite workflow scores code-review/security-triage/implementation/documentation fixtures across none/slim/full context with bounded repair; --suite academic keeps the legacy MMLU/HumanEval/HellaSwag/TruthfulQA regression prompts. Regenerates docs/TOKEN_BENCHMARK.md."
 ---
 
 # Token Benchmark Skill
@@ -36,21 +36,18 @@ fi
 
 # API keys
 echo "${ANTHROPIC_API_KEY:+claude api key: set}" || echo "ANTHROPIC_API_KEY: missing"
-echo "${GOOGLE_API_KEY:+gemini api key: set}" || echo "GOOGLE_API_KEY: missing (or use OAuth)"
 
 # CLI binaries
 command -v claude    && echo "claude binary: ok"    || echo "claude binary: missing"
-command -v gemini    && echo "gemini binary: ok"    || echo "gemini binary: missing"
 command -v agy       && echo "agy binary: ok"       || echo "agy binary: missing (antigravity)"
 
 # Python packages (uv-managed via the `benchmark` dependency group — #547).
-# Only relevant to the API path (claude/gemini); skip entirely for a --cli-only run
+# Only relevant to the API path (claude); skip entirely for a --cli-only run
 # (e.g. antigravity), which needs neither uv nor these SDKs.
 if command -v uv >/dev/null 2>&1; then
   uv run --group benchmark python -c "import anthropic; print(f'anthropic {anthropic.__version__}: ok')" 2>/dev/null || echo "anthropic: missing — check [dependency-groups].benchmark in pyproject.toml"
-  uv run --group benchmark python -c "from google import genai; print('google-genai: ok')" 2>/dev/null || echo "google-genai: missing — check [dependency-groups].benchmark in pyproject.toml"
 else
-  echo "uv: missing — required only for the API path (claude/gemini); not needed for --cli-only"
+  echo "uv: missing — required only for the API path (claude); not needed for --cli-only"
 fi
 ```
 
@@ -77,7 +74,7 @@ below predate the workflow suite and remain academic-suite-only). `--suite
 all` runs both, using each suite's own default conditions — pass
 `--conditions` only with a single explicit `--suite`; it is rejected as
 ambiguous with `--suite all`. The workflow suite only ever calls the
-isolated, no-tool Claude/Gemini API adapters (`tests/token_benchmark/
+isolated, no-tool Claude API adapter (`tests/token_benchmark/
 workflows/transport.py`); a requested provider/model tier that Manifest's
 central model policy does not resolve is recorded `unsupported`, never
 called.
@@ -91,14 +88,13 @@ Parse `$ARGUMENTS` for flags. The table mirrors the harness argparse
 |------|--------|---------|
 | (none) | Workflow suite: all four fixtures, `none/slim/full`, 3 trials | — |
 | `--suite <academic\|workflow\|all>` | Which suite(s) to run | `workflow` |
-| `--providers <list>` | Comma-separated providers to run (e.g. `claude` alone is ~3 min) | `claude,gemini,antigravity` |
-| `--api-only` | Academic suite only: skip the CLI path; API token/cost counts only (claude, gemini) | off |
+| `--providers <list>` | Comma-separated providers to run (e.g. `claude` alone is ~3 min) | `claude,antigravity` |
+| `--api-only` | Academic suite only: skip the CLI path; API token/cost counts only (claude) | off |
 | `--cli-only` | Academic suite only: skip the API path; run only the CLI behavioral/quality path — the only viable path for CLI-only providers with no SDK (e.g. `antigravity`) | off |
 | `--sync-fixtures` | Sync `fixtures/manifest/` (and `fixtures-compressed/` if `--compression` given) from the live home before running | off |
 | `--compression <N>` | With `--sync-fixtures`: also write `fixtures-compressed/` keeping the first N% of `CLAUDE.md` lines | unset |
 | `--report-only` | Regenerate `docs/TOKEN_BENCHMARK.md` from existing `results/*.jsonl`; no new model calls at all | off |
 | `--claude-model <id>` | Academic suite only: Claude model id used for the API path | `claude-sonnet-5` |
-| `--gemini-model <id>` | Academic suite only: Gemini model id used for the API path | `gemini-3-flash-preview` |
 | `--conditions <list>` | Comma-separated conditions for the single selected `--suite`: `before,after,cached,tiered,compressed` (academic) or `none,slim,full` (workflow). Rejected with `--suite all`. | suite's own default |
 | `--trials <N>` | Workflow suite: repeated trials per fixture/condition, balanced rotation across reps (must be positive) | `3` |
 | `--timeout-seconds <N>` | Workflow suite: per-call timeout, including each repair attempt (must be positive) | `120` |
@@ -110,7 +106,7 @@ Run the harness from the repo root:
 
 ```bash
 # Parse flags from $ARGUMENTS; default to the workflow suite, all providers
-PROVIDERS="${PROVIDERS:-claude,gemini,antigravity}"
+PROVIDERS="${PROVIDERS:-claude,antigravity}"
 API_ONLY_FLAG="${API_ONLY_FLAG:-}"
 CLI_ONLY_FLAG="${CLI_ONLY_FLAG:-}"
 SYNC_FLAG="${SYNC_FLAG:-}"
@@ -162,7 +158,7 @@ $PYRUN tests/token_benchmark/harness.py \
 
 `--cli-only` (academic suite only) is the only viable path for a CLI-only provider with no API
 SDK: pass `--suite academic --providers antigravity --cli-only` to run just its (currently
-`unsupported`) quality path without touching claude/gemini's API path — and without requiring
+`unsupported`) quality path without touching claude's API path — and without requiring
 `uv` to be installed.
 
 ## After the run
@@ -178,8 +174,8 @@ git commit -m "chore: update token benchmark results $(date +%Y-%m-%d)"
 
 `tests/token_benchmark/fixtures/` is a **committed, publicly-readable** tree.
 Do not stage or commit `--sync-fixtures` output as part of this routine step.
-`sync_fixtures()` only ever writes the two files the benchmark actually reads
-(`.claude/CLAUDE.md`, `.gemini/GEMINI.md`) — it never copies
+`sync_fixtures()` only ever writes the one file the benchmark actually reads
+(`.claude/CLAUDE.md`) — it never copies
 `~/.claude/settings.json`, which can carry API keys under its `env` mapping.
 If a fixture refresh is genuinely needed, review the diff and commit it as
 its own deliberate change, separately from routine result updates.

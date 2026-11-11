@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-spec-planning
-  version: 0.7.2
+  version: 0.8.0
   description: Specification, planning, trade-off, and implementation-loop workflows.
   category: project-management
 components:
@@ -30,7 +30,6 @@ capabilities:
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
-  gemini: {mode: generated}
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}

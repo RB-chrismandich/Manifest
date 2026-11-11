@@ -98,7 +98,7 @@ flowchart TD
     PLATFORM["Check platform +<br/>create ~/.manifest state dirs"]:::process
 
     SKIP_INSTALL{"--skip-install?"}:::decision
-    INSTALLS["Install CLIs (soft-fail, counted):<br/>package manager · node · claude<br/>gemini · codex · gh · glab · jq · cursor"]:::process
+    INSTALLS["Install CLIs (soft-fail, counted):<br/>package manager · node · claude<br/>codex · gh · glab · jq · cursor"]:::process
 
     DEPLOY["deploy_configs<br/>(~/.claude primary; chmod +x<br/>scripts/*.sh AND *.py;<br/>write services.yml)"]:::process
     SKILLCLAW["skillclaw_apply_state<br/>(launchd cleanup guarded —<br/>no set -e abort)"]:::process
@@ -108,7 +108,7 @@ flowchart TD
     INSTALL_MCP["Configure MCP servers<br/>(interactive per-server)"]:::process
 
     SKIP_AUTH{"--skip-auth?"}:::decision
-    AUTH["Auth checks (soft-fail, counted):<br/>claude · gemini · codex<br/>gh · glab · cursor info"]:::process
+    AUTH["Auth checks (soft-fail, counted):<br/>claude · codex<br/>gh · glab · cursor info"]:::process
 
     VERIFY["verify_installation<br/>(errors counted, never aborts)"]:::process
     SUMMARY["print_summary<br/>(quick-start + auth guidance)"]:::process

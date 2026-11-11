@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-ops
-  version: 0.7.2
+  version: 0.8.0
   description: CI, deployment, configuration, container, and runtime operations workflows.
   category: deployment
 components:
@@ -17,9 +17,6 @@ components:
         codex:
           mode: degraded
           reason: Codex exposes the on-demand version-pin skill but has no native file-save hook surface.
-        gemini:
-          mode: degraded
-          reason: Gemini exposes the on-demand version-pin skill but cannot install this advisory plugin hook natively.
         cursor: {mode: generated}
         antigravity:
           mode: degraded
@@ -37,9 +34,6 @@ components:
         codex:
           mode: degraded
           reason: Codex exposes the on-demand docker-compose-commandments skill but has no native file-save hook surface.
-        gemini:
-          mode: degraded
-          reason: Gemini exposes the on-demand docker-compose-commandments skill but cannot install this advisory plugin hook natively.
         cursor: {mode: generated}
         antigravity:
           mode: degraded
@@ -68,7 +62,6 @@ capabilities:
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
-  gemini: {mode: generated}
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}

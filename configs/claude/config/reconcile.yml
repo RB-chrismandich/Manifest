@@ -2,7 +2,7 @@
 #
 # Patterns here mark a deployed ORPHAN as KEEP (it is never moved to the removal
 # backup). An orphan is a unit present in a managed assistant home (~/.claude and
-# the mirrored ~/.cursor ~/.gemini ~/.codex ~/.antigravity) with no corresponding
+# the mirrored ~/.cursor ~/.codex ~/.antigravity) with no corresponding
 # source in the current project.
 #
 # MATCH SEMANTICS (see configs/claude/scripts/deploy_reconcile.sh):
@@ -77,7 +77,7 @@ reconcile:
     - ".pytest_cache"
     # --- secondary homes: auth/state with no project source ---
     - "auth.json"                   # ~/.codex
-    - "oauth_creds.json"            # ~/.gemini
+    - "oauth_creds.json"            # ~/.gemini (Antigravity CLI home)
     - "history"
     - "log"
     - "*.log"

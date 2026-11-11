@@ -104,7 +104,7 @@ def test_journal_hmac_rejects_tampered_transaction_fields(
     backup = capture_plugin_backup(_installed_row(plugin), {"HOME": str(tmp_path)})
     handle = AdapterMutationHandle(
         1,
-        "gemini",
+        "cursor",
         "1",
         "b" * 64,
         (AdapterPluginState("manifest-workspace", "1.0.0", True),),
@@ -115,7 +115,7 @@ def test_journal_hmac_rejects_tampered_transaction_fields(
         "codex",
         repairs=(RepairCheckpoint("captured", backup.to_dict()),),
         harness_mutations=(
-            HarnessMutationCheckpoint("gemini", "prepared", _serialize_handle(handle)),
+            HarnessMutationCheckpoint("cursor", "prepared", _serialize_handle(handle)),
         ),
         prior_receipt_digest="c" * 64,
         target_identity="d" * 64,

@@ -23,13 +23,12 @@ setup() {
     export HOME="$SANDBOX/home"
     export TARGET_DIR="$HOME/.claude"
     export CURSOR_TARGET_DIR="$HOME/.cursor"
-    export GEMINI_TARGET_DIR="$HOME/.gemini"
     export CODEX_TARGET_DIR="$HOME/.codex"
     export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
     export MANIFEST_STATE_DIR="$HOME/.manifest"
     export MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
     export MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
-    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true \
+    export ENABLE_CLAUDE=true ENABLE_CURSOR=true \
         ENABLE_CODEX=true ENABLE_ANTIGRAVITY=false ENABLE_GH=false ENABLE_GLAB=false
     mkdir -p "$HOME"
 
@@ -56,22 +55,21 @@ retire_skills() { printf 'domains:\n  - skills\nretired:\n  - skills\n' > "$MANI
 # exit can only come from the skills assertions under test.
 fabricate_verified_install() {
     mkdir -p "$TARGET_DIR/scripts" "$TARGET_DIR/config" "$CURSOR_TARGET_DIR/rules" \
-        "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR"
+        "$CODEX_TARGET_DIR"
     touch "$TARGET_DIR/scripts/git_platform.sh" \
         "$TARGET_DIR/config/command_config.yml" \
         "$TARGET_DIR/config/mcp_servers.yml" "$TARGET_DIR/config/validation_criteria.yml" \
         "$TARGET_DIR/config/services.yml" "$TARGET_DIR/CLAUDE.md" \
         "$CURSOR_TARGET_DIR/rules/orchestration.mdc" "$CURSOR_TARGET_DIR/mcp.json" \
-        "$CURSOR_TARGET_DIR/hooks.json" "$GEMINI_TARGET_DIR/GEMINI.md" \
-        "$CODEX_TARGET_DIR/AGENTS.md"
+        "$CURSOR_TARGET_DIR/hooks.json" "$CODEX_TARGET_DIR/AGENTS.md"
     mkdir -p "$MANIFEST_OUTPUT_DIR" "$MANIFEST_TMP_DIR" "$MANIFEST_STATE_DIR/claude" \
-        "$MANIFEST_STATE_DIR/gemini" "$MANIFEST_STATE_DIR/cursor" \
+        "$MANIFEST_STATE_DIR/cursor" \
         "$MANIFEST_STATE_DIR/codex/sessions" "$MANIFEST_STATE_DIR/antigravity"
 }
 
 deploy_skill_files() {
     local d
-    for d in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR"; do
+    for d in "$CURSOR_TARGET_DIR" "$CODEX_TARGET_DIR"; do
         mkdir -p "$d/skills/code-audit"
         printf -- '---\nname: code-audit\n---\n' > "$d/skills/code-audit/SKILL.md"
     done

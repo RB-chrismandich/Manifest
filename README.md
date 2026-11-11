@@ -2,7 +2,7 @@
 
 [![Manifest CI](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml/badge.svg)](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml)
 
-> OMP-native AI coding workflow configuration for Claude Code, Cursor IDE, Gemini CLI,
+> OMP-native AI coding workflow configuration for Claude Code, Cursor IDE,
 > Codex CLI, Antigravity IDE, and the Devin CLI
 
 [Jules](docs/JULES.md) is an optional remote GitHub task backend: bootstrap with
@@ -12,7 +12,7 @@ or the official `jules` issue-label workflow.
 **Last Updated**: 2026-10-07
 
 Manifest deploys shared guides, skills, prompts, and scripts to `~/.claude/`,
-`~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`. Interactive
+`~/.cursor/`, `~/.codex/`, and `~/.antigravity/` (plus `~/.gemini/GEMINI.md` for the Antigravity CLI). Interactive
 sub-agent work uses OMP-native `task` batches and `hub` coordination; the parent
 agent validates and aggregates evidence. Retained single-provider tools use
 `model_policy.yml` for model tiers and CLI fallback.
@@ -138,7 +138,6 @@ For licensing inquiries: [ReefBytes/Manifest](https://github.com/ReefBytes/Manif
 
 - [Claude Code](https://claude.ai/code) - Official Anthropic CLI
 - [Cursor](https://cursor.sh) - AI-powered IDE
-- [Google Gemini CLI](https://www.npmjs.com/package/@google/gemini-cli) - Gemini command-line interface
 - [OpenAI Codex CLI](https://github.com/openai/codex) - Codex terminal coding agent
 
 ---

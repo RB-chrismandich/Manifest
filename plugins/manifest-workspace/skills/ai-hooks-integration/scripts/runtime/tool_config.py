@@ -34,12 +34,6 @@ TOOL_CONFIG: dict[str, ToolConfig] = {
         "nested": True,
         "config_path": "~/.claude/settings.json",
     },
-    "gemini": {
-        "hook_key": "BeforeTool",
-        "default_matcher": "run_shell_command",
-        "nested": True,
-        "config_path": "~/.gemini/settings.json",
-    },
     "cursor": {
         "hook_key": "beforeShellExecution",
         "default_matcher": None,
@@ -54,7 +48,7 @@ TOOL_CONFIG: dict[str, ToolConfig] = {
 }
 
 # Tools that support JSON-based hooks (not OpenCode)
-JSON_TOOLS = ["claude", "gemini", "cursor"]
+JSON_TOOLS = ["claude", "cursor"]
 
 
 def hook_support(tool: str, event: str) -> dict[str, object]:
@@ -82,7 +76,7 @@ def get_config(tool: str) -> ToolConfig:
     """Get configuration for a tool.
 
     Args:
-        tool: Tool name (claude, gemini, cursor, opencode).
+        tool: Tool name (claude, cursor, opencode).
 
     Returns:
         Tool configuration dict.

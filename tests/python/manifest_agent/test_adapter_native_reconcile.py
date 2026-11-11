@@ -227,7 +227,7 @@ def test_expected_executable_target_uses_deterministic_install_path_not_prior_wh
     monkeypatch.setattr(lifecycle, "resolve_capabilities", lambda *args, **kwargs: plan)
 
     class ExecutableCasAdapter(CapabilityAdapterMixin):
-        name = "gemini"
+        name = "antigravity"
         adapter_version = "1"
         _native_mcp_inventory = ()
 
@@ -262,7 +262,7 @@ def test_native_removal_preserves_change_at_final_mutation_boundary(
     )
 
     class NativeAdapter(CapabilityAdapterMixin):
-        name = "gemini"
+        name = "antigravity"
         adapter_version = "1"
 
         def __init__(self) -> None:

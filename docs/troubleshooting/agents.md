@@ -23,17 +23,14 @@
 ```bash
 # Check if CLI is installed
 which claude
-which gemini
 which cursor-agent
 
 # If missing, install
 npm install -g @anthropic-ai/claude-code
-npm install -g @google/gemini-cli
 curl https://cursor.com/install -fsS | bash
 
 # Verify installation
 claude --version
-gemini --version
 cursor-agent --version
 ```
 
@@ -63,7 +60,6 @@ cursor-agent --version
 ```bash
 # Check authentication
 claude auth status
-gemini auth status
 
 # Inspect configured runtime status
 manifest check-status

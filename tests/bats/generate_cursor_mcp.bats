@@ -300,21 +300,6 @@ print('real-repo-ok')
     assert_output --partial "real-repo-ok"
 }
 
-@test "real repo: gemini and cursor register the same shipped set" {
-    run python3 -c "
-import yaml, json
-registry = yaml.safe_load(open('$REPO_ROOT/configs/claude/config/mcp_servers.yml'))['mcp_servers']
-shipped = {n for n, c in registry.items() if c.get('shipped') is True}
-cursor = set(json.load(open('$REPO_ROOT/configs/cursor/mcp.json'))['mcpServers'])
-gemini = set(json.load(open('$REPO_ROOT/configs/gemini/settings.json'))['mcpServers'])
-assert cursor == shipped, f'cursor {sorted(cursor)} != shipped {sorted(shipped)}'
-assert gemini == shipped, f'gemini {sorted(gemini)} != shipped {sorted(shipped)}'
-print('parity-ok')
-"
-    assert_success
-    assert_output --partial "parity-ok"
-}
-
 @test "real repo: regenerating mcp.json leaves the tree git-clean" {
     if ! git -C "$REPO_ROOT" diff --exit-code --quiet configs/cursor/mcp.json; then
         skip "configs/cursor/mcp.json has local modifications; skipping repo-level check"

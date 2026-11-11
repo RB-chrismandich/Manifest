@@ -107,7 +107,7 @@ teardown() {
 }
 
 @test "--api-only (API path in play) does invoke uv run --group benchmark" {
-    ARGUMENTS="--api-only --providers claude,gemini"
+    ARGUMENTS="--api-only --providers claude"
     run env PATH="$MOCK_BIN:$PATH" ARGUMENTS="$ARGUMENTS" bash "$SANDBOX/execution.sh"
     assert_failure
     run grep -c '^uv .*--group benchmark' "$CALL_LOG"

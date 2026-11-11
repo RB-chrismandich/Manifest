@@ -14,16 +14,16 @@ TEMPLATE = "LIB:\n{{LIBRARY}}\nSESS:\n{{SESSIONS}}\n"
 
 @pytest.fixture
 def evolve_provider_home(monkeypatch, tmp_path):
-    """Hermetic policy + claude/gemini stubs for headless route resolution."""
+    """Hermetic policy + claude/codex stubs for headless route resolution."""
     cfgdir = tmp_path / "home" / ".claude" / "config"
     cfgdir.mkdir(parents=True)
     (cfgdir / "model_policy.yml").write_text(
         "skillclaw_evolve:\n  provider: auto\n"
-        "cli_agents:\n  claude: {binary: claude}\n  gemini: {binary: gemini}\n"
+        "cli_agents:\n  claude: {binary: claude}\n  codex: {binary: codex}\n"
     )
     bindir = tmp_path / "bin"
     bindir.mkdir()
-    for name in ("claude", "gemini"):
+    for name in ("claude", "codex"):
         stub = bindir / name
         stub.write_text("#!/bin/sh\ntrue\n")
         stub.chmod(0o755)
@@ -241,7 +241,7 @@ def test_subprocess_runner_defaults_to_claude(monkeypatch, evolve_provider_home)
 def test_subprocess_runner_honors_evolve_cli_env_seam(
     monkeypatch, evolve_provider_home
 ):
-    monkeypatch.setenv("EVOLVE_CLI", "gemini")
+    monkeypatch.setenv("EVOLVE_CLI", "codex")
     seen = {}
 
     def fake_prompt(route, *args, **kwargs):
@@ -251,7 +251,7 @@ def test_subprocess_runner_honors_evolve_cli_env_seam(
     monkeypatch.setattr(ev, "run_headless_prompt", fake_prompt)
     with contextlib.suppress(RuntimeError):
         ev.subprocess_runner("prompt")
-    assert seen["binary"] == "gemini"
+    assert seen["binary"] == "codex"
 
 
 def test_chunk_timeout_env_override(monkeypatch):

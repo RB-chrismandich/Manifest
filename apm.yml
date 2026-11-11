@@ -7,7 +7,7 @@
 # targets: [claude] implements T013's arrangement, and it is measured rather than
 # assumed. T005 cell (i) recorded that apm PRESERVES a symlinked target directory
 # instead of replacing it with an independent copy, so ~/.cursor/skills,
-# ~/.gemini/skills, ~/.codex/skills and ~/.antigravity/skills — all symlinks to
+# ~/.codex/skills and ~/.antigravity/skills — all symlinks to
 # ~/.claude/skills — inherit this deploy for free. Naming the other harnesses here
 # would replace one shared tree with five independent copies free to drift apart,
 # which is the outcome FR-033 exists to prevent. Do not "fix" this by adding them.

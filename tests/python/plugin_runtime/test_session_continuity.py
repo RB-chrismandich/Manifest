@@ -91,7 +91,7 @@ def test_invalid_threshold_configuration_is_rejected(
 
 
 @pytest.mark.parametrize(
-    "harness", ["codex", "gemini", "cursor", "antigravity", "devin", "other"]
+    "harness", ["codex", "cursor", "antigravity", "devin", "other"]
 )
 def test_unavailable_compaction_telemetry_is_unknown(
     runtime, state_home: Path, harness: str

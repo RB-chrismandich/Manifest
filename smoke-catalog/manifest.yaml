@@ -16,9 +16,8 @@ app: manifest
 #     external backend CLIs (delegate.py); foreground (--wait) and background
 #     (--background + status/result/cancel, Constitution Principle VI) paths
 #     both run against a hermetic stub backend, never a real external CLI.
-#   - nightly (Full): deeper deploy e2e, cursor rule pruning, gemini hook merge,
+#   - nightly (Full): deeper deploy e2e, cursor rule pruning,
 #     and a deterministic Playwright UI fixture step.
-#   - edge (Full+Extra): idempotent hook-merge regressions.
 # Indentation follows the repo yamllint (indent-sequences); smoke_test.py append
 # emits this style automatically but strips comments, so restore this header if
 # a re-append drops it.
@@ -86,7 +85,7 @@ tests:
             \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\nexport TARGET_DIR=\"$sb/claude\"\n\
             mkdir -p \"$TARGET_DIR\"/scripts \"$TARGET_DIR\"/config \"$TARGET_DIR\"\
             /prompts \\\n  \"$TARGET_DIR\"/.plans \"$TARGET_DIR\"/skills\ndest=\"\
-            $sb/gemini\"; mkdir -p \"$dest\"\n# shellcheck disable=SC1090\nsource\
+            $sb/assistant\"; mkdir -p \"$dest\"\n# shellcheck disable=SC1090\nsource\
             \ \"$root/bootstrap/lib/common.sh\"\nlink_shared_assets \"$dest\" \"SmokeAssistant\"\
             \ \"true\" > /dev/null\nfor l in scripts config prompts .plans skills;\
             \ do\n  [ -L \"$dest/$l\" ] || { echo \"FAIL: standard assistant missing\
@@ -211,11 +210,11 @@ tests:
 
             export TARGET_DIR="$HOME/.claude" CURSOR_TARGET_DIR="$HOME/.cursor"
 
-            export GEMINI_TARGET_DIR="$HOME/.gemini" CODEX_TARGET_DIR="$HOME/.codex"
+            export AGY_GEMINI_HOME="$HOME/.gemini" CODEX_TARGET_DIR="$HOME/.codex"
 
             export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity" MANIFEST_OUTPUT_DIR="$HOME/.manifest/outputs"
 
-            export ENABLE_CURSOR=false ENABLE_GEMINI=false ENABLE_CODEX=false ENABLE_ANTIGRAVITY=false
+            export ENABLE_CURSOR=false ENABLE_CODEX=false ENABLE_ANTIGRAVITY=false
 
             source "$root/bootstrap/lib/common.sh"
 
@@ -225,7 +224,7 @@ tests:
 
             deploy_cursor_configs() { :; }
 
-            deploy_gemini_configs() { :; }
+            retire_gemini_cli_deployment() { :; }
 
             deploy_codex_configs() { :; }
 
@@ -318,59 +317,6 @@ tests:
             echo "RESULT cursor_prune=ok"
 
             '
-  - id: gemini-hooks-merge-preserve
-    title: merge_settings_hooks unions repo hooks into an existing settings.json
-    tier: Full
-    steps:
-      - name: hooks_merge
-        type: cli
-        expect_exit: 0
-        captures:
-          result: RESULT hooks_merge=(ok)
-        command:
-          - bash
-          - -c
-          - 'set -euo pipefail
-
-            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-
-            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
-
-            SRC="$sb/src.json" TGT="$sb/tgt.json"
-
-            printf ''{"hooks":{"BeforeAgent":[{"hooks":[{"name":"token-economy-reminder","type":"command","command":"echo
-            reminder","timeout":5000}]}]}}'' > "$SRC"
-
-            printf ''{"mcpServers":{"user-server":{"url":"https://example.test"}}}''
-            > "$TGT"
-
-            command_exists() { command -v "$1" >/dev/null 2>&1; }
-
-            print_info() { :; }
-
-            print_success() { :; }
-
-            print_warning() { :; }
-
-            source "$root/bootstrap/lib/deploy.sh"
-
-            merge_settings_hooks "$SRC" "$TGT" > /dev/null
-
-            python3 - "$TGT" <<''INNER''
-
-            import json, sys
-
-            d = json.load(open(sys.argv[1]))
-
-            assert d["mcpServers"]["user-server"]["url"] == "https://example.test"
-
-            assert d["hooks"]["BeforeAgent"][0]["hooks"][0]["name"] == "token-economy-reminder"
-
-            INNER
-
-            echo "RESULT hooks_merge=ok"
-
-            '
   - id: bootstrap-smoke-ui-fixture
     title: Playwright UI step loads a committed fixture page and asserts visible copy
     tier: Full
@@ -407,58 +353,6 @@ tests:
         value: Manifest smoke gate
         needs:
           - fixture_url
-  - id: gemini-hooks-merge-idempotent
-    title: merge_settings_hooks is idempotent on a second run (no duplicate hooks)
-    tier: Full+Extra
-    steps:
-      - name: hooks_idempotent
-        type: cli
-        expect_exit: 0
-        captures:
-          result: RESULT hooks_idempotent=(ok)
-        command:
-          - bash
-          - -c
-          - 'set -euo pipefail
-
-            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-
-            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
-
-            SRC="$sb/src.json" TGT="$sb/tgt.json"
-
-            printf ''{"hooks":{"BeforeAgent":[{"hooks":[{"name":"token-economy-reminder","type":"command","command":"echo
-            reminder","timeout":5000}]}]}}'' > "$SRC"
-
-            printf ''{}'' > "$TGT"
-
-            command_exists() { command -v "$1" >/dev/null 2>&1; }
-
-            print_info() { :; }
-
-            print_success() { :; }
-
-            print_warning() { :; }
-
-            source "$root/bootstrap/lib/deploy.sh"
-
-            merge_settings_hooks "$SRC" "$TGT" > /dev/null
-
-            merge_settings_hooks "$SRC" "$TGT" > /dev/null
-
-            python3 - "$TGT" <<''INNER''
-
-            import json, sys
-
-            d = json.load(open(sys.argv[1]))
-
-            assert len(d["hooks"]["BeforeAgent"]) == 1, d
-
-            INNER
-
-            echo "RESULT hooks_idempotent=ok"
-
-            '
   - id: apm-ownership-single-owner
     title: apm_ownership_report.sh reports one owner, and can detect when it is zero
     tier: Lite

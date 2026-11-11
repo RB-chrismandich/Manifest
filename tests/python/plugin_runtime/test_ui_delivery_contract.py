@@ -14,7 +14,6 @@ from tools.generate_plugin_views import render_views
 HARNESS_NAMES = (
     "claude",
     "codex",
-    "gemini",
     "cursor",
     "antigravity",
     "devin",
@@ -162,15 +161,11 @@ def test_portable_views_expose_skills_but_never_omp_only_agents(
     assert "./agents/ui-delivery/ui-builder.md" not in claude.get("agents", [])
     assert "./agents/ui-delivery/ui-reviewer.md" not in claude.get("agents", [])
 
-    gemini = json.loads(
-        (tmp_path / "stitch-design/gemini-extension.json").read_text(encoding="utf-8")
-    )
     portable = json.loads(
         (tmp_path / "stitch-design/plugin.json").read_text(encoding="utf-8")
     )
     compatibility_surfaces = (
         claude["metadata"]["compatibility"]["degraded"],
-        gemini["compatibility"]["degraded"],
         *(
             portable["harnesses"][harness]["compatibility"]["degraded"]
             for harness in ("antigravity", "codex", "cursor", "devin")

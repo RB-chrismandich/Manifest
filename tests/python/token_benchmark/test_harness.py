@@ -15,7 +15,6 @@ from tests.token_benchmark.benchmarks import BENCHMARKS
 from tests.token_benchmark.harness import (
     isolated_environments,
     measure_api_claude,
-    measure_api_gemini,
     measure_cli,
     run_benchmark,
     write_result,
@@ -120,75 +119,6 @@ class TestMeasureApiClaude:
         assert call_kwargs["system"] == "SYSTEM CONTEXT"
 
 
-class TestMeasureApiGemini:
-    @pytest.mark.asyncio
-    async def test_returns_token_counts_and_text(self):
-        mock_usage = MagicMock(prompt_token_count=308, candidates_token_count=52)
-        mock_response = MagicMock(text="C", usage_metadata=mock_usage)
-
-        mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = mock_response
-
-        with (
-            patch("tests.token_benchmark.harness.HAS_GENAI", True),
-            patch("tests.token_benchmark.harness.genai") as mock_genai,
-            patch("tests.token_benchmark.harness.genai_types") as mock_types,
-        ):
-            mock_types.GenerateContentConfig.return_value = MagicMock()
-            mock_genai.Client.return_value = mock_client
-            with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
-                result = await measure_api_gemini(
-                    prompt_text="What is 2+2?",
-                    system_prompt="",
-                    model="gemini-3-flash-preview",
-                )
-
-        assert result["input_tokens"] == 308
-        assert result["output_tokens"] == 52
-        assert result["response_text"] == "C"
-        assert result["error"] is None
-
-    @pytest.mark.asyncio
-    async def test_missing_api_key_returns_error(self):
-        env = {
-            k: v
-            for k, v in os.environ.items()
-            if k not in ("GOOGLE_API_KEY", "GEMINI_API_KEY")
-        }
-        with (
-            patch("tests.token_benchmark.harness.HAS_GENAI", True),
-            patch.dict(os.environ, env, clear=True),
-            patch("tests.token_benchmark.harness.genai") as mock_genai,
-        ):
-            mock_genai.Client.side_effect = Exception("no auth")
-            result = await measure_api_gemini("prompt", "", "gemini-3-flash-preview")
-        assert result["error"] is not None
-
-    @pytest.mark.asyncio
-    async def test_genai_types_none_omits_config(self):
-        """When genai_types is None, generate_content is called without config kwarg."""
-        mock_usage = MagicMock(prompt_token_count=10, candidates_token_count=5)
-        mock_response = MagicMock(text="D", usage_metadata=mock_usage)
-        mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = mock_response
-
-        with (
-            patch("tests.token_benchmark.harness.HAS_GENAI", True),
-            patch("tests.token_benchmark.harness.genai_types", None),
-            patch("tests.token_benchmark.harness.genai") as mock_genai,
-        ):
-            mock_genai.Client.return_value = mock_client
-            with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
-                result = await measure_api_gemini(
-                    "prompt", "system ctx", "gemini-3-flash-preview"
-                )
-
-        assert result["error"] is None
-        assert result["response_text"] == "D"
-        call_kwargs = mock_client.models.generate_content.call_args.kwargs
-        assert "config" not in call_kwargs
-
-
 class TestMeasureCli:
     def test_returns_response_text_and_latency(self):
         cli_config = {"binary": "echo", "flags": []}
@@ -244,8 +174,8 @@ class TestMeasureCli:
         assert "--system-prompt" not in captured["cmd"]
 
     def test_system_prompt_ignored_without_strategy(self):
-        """(#546/G8) A provider with NO system_prompt_flag strategy (e.g. agy,
-        gemini) is NEVER invoked with a system-prompt flag, even when a
+        """(#546/G8) A provider with NO system_prompt_flag strategy (e.g. agy)
+        is NEVER invoked with a system-prompt flag, even when a
         system_prompt value is supplied — there is no verified mechanism to
         honor it."""
         import subprocess as sp
@@ -329,7 +259,7 @@ class TestRunBenchmarkCliStrategy:
 
     @pytest.mark.asyncio
     async def test_unsupported_providers_yield_zero_invocations(self, tmp_path):
-        """gemini/antigravity (no system_prompt_flag strategy) never touch
+        """antigravity (no system_prompt_flag strategy) never touches
         subprocess.run and instead get an explicit unsupported row in both
         the before and after conditions."""
         fixtures = tmp_path / "fixtures"
@@ -345,7 +275,7 @@ class TestRunBenchmarkCliStrategy:
             "tests.token_benchmark.harness.subprocess.run", side_effect=fake_run
         ):
             records = await run_benchmark(
-                providers=["gemini", "antigravity"],
+                providers=["antigravity"],
                 api_only=False,
                 cli_only=True,
                 conditions=["before", "after"],
@@ -355,10 +285,10 @@ class TestRunBenchmarkCliStrategy:
             )
 
         assert calls == []  # zero invocations at all, flag-bearing or otherwise
-        # 2 providers * 2 conditions * len(BENCHMARKS) prompts
-        assert len(records) == len(BENCHMARKS) * 2 * 2
+        # 1 provider * 2 conditions * len(BENCHMARKS) prompts
+        assert len(records) == len(BENCHMARKS) * 2
         assert {r["condition"] for r in records} == {"before", "after"}
-        assert {r["provider"] for r in records} == {"gemini", "antigravity"}
+        assert {r["provider"] for r in records} == {"antigravity"}
         for r in records:
             assert r["unsupported"] is True
             assert r["error"] is None  # distinct from an error outcome
@@ -376,7 +306,7 @@ class TestRunBenchmarkCliStrategy:
         fixtures.mkdir()
 
         await run_benchmark(
-            providers=["gemini", "antigravity"],
+            providers=["antigravity"],
             api_only=False,
             cli_only=True,
             conditions=["before", "after"],
@@ -388,7 +318,7 @@ class TestRunBenchmarkCliStrategy:
         # The console must disclose the skip — exactly once per provider,
         # not silently and not once per prompt.
         out = capsys.readouterr().out
-        for provider in ("gemini", "antigravity"):
+        for provider in ("antigravity",):
             assert out.count(f"[{provider}][cli] unsupported") == 1
 
 
@@ -408,10 +338,8 @@ class TestMainSdkGuard:
         from tests.token_benchmark import harness
 
         monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
-        monkeypatch.setattr(harness, "HAS_GENAI", False)
-        missing = harness.missing_api_sdks(["claude", "gemini", "antigravity"])
+        missing = harness.missing_api_sdks(["claude", "antigravity"])
         assert any("anthropic" in m for m in missing)
-        assert any("google-genai" in m for m in missing)
         # antigravity has no API path, so alone it needs no SDK
         assert harness.missing_api_sdks(["antigravity"]) == []
         monkeypatch.setattr(harness, "HAS_ANTHROPIC", True)
@@ -422,15 +350,11 @@ class TestMainSdkGuard:
     ):
         harness = self._patched_harness(monkeypatch, tmp_path)
         monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
-        monkeypatch.setattr(harness, "HAS_GENAI", False)
         with pytest.raises(SystemExit) as exc:
-            harness.main(
-                ["--api-only", "--providers", "claude,gemini", "--suite", "academic"]
-            )
+            harness.main(["--api-only", "--providers", "claude", "--suite", "academic"])
         assert exc.value.code == 2
         err = capsys.readouterr().err
         assert "anthropic" in err
-        assert "google-genai" in err
         assert not (tmp_path / "results").exists(), "no result rows may be written"
         assert not (tmp_path / "docs" / "TOKEN_BENCHMARK.md").exists(), (
             "report must not be regenerated on hard-fail"
@@ -449,7 +373,6 @@ class TestMainSdkGuard:
         """Regression guard: --cli-only must stay runnable with no SDK installed."""
         harness = self._patched_harness(monkeypatch, tmp_path)
         monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
-        monkeypatch.setattr(harness, "HAS_GENAI", False)
         fake = MagicMock(stdout="B\n", stderr="", returncode=0)
         with patch("tests.token_benchmark.harness.subprocess.run", return_value=fake):
             harness.main(["--cli-only", "--providers", "claude", "--suite", "academic"])
@@ -719,7 +642,7 @@ class TestSyncFixturesScrubsPii:
     (its `env` mapping), which _scrub_fixture_pii() never redacted, so a
     later fix (see test_sync_fixtures_secrets.py) stopped sync_fixtures()
     from copying it at all — the allowlist is now derived from
-    MANIFEST_SYSTEM_PROMPT_PATHS, which only names CLAUDE.md/GEMINI.md.
+    MANIFEST_SYSTEM_PROMPT_PATHS, which only names CLAUDE.md.
     _scrub_fixture_pii() itself is unchanged and still runs over every file
     the allowlist does cover, so these guarantees are re-pointed at
     CLAUDE.md, not weakened.

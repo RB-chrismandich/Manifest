@@ -90,11 +90,11 @@ Return ONLY the following JSON object. No commentary outside the JSON block.
       "disagreement_type": "methodological",
       "domain_category": "architectural",
       "resolution_strategy": "compare",
-      "gemini_position": "Use try-catch with specific exceptions",
+      "codex_position": "Use try-catch with specific exceptions",
       "cursor_position": "Use Result type pattern",
       "claude_position": "Use try-catch for external calls, Result for internal",
       "evidence_scores": {
-        "gemini": {"specificity": 2, "reasoning": 2, "confidence_signal": 1, "consistency": 1, "weights_applied": "methodological", "weighted_total": 7},
+        "codex": {"specificity": 2, "reasoning": 2, "confidence_signal": 1, "consistency": 1, "weights_applied": "methodological", "weighted_total": 7},
         "cursor": {"specificity": 1, "reasoning": 2, "confidence_signal": 2, "consistency": 2, "weights_applied": "methodological", "weighted_total": 8},
         "claude": {"specificity": 3, "reasoning": 3, "confidence_signal": 2, "consistency": 2, "weights_applied": "methodological", "weighted_total": 12}
       },
@@ -105,7 +105,7 @@ Return ONLY the following JSON object. No commentary outside the JSON block.
     }
   ],
   "scope_contributions": {
-    "gemini_unique_findings": ["Found deprecated API usage in utils.py"],
+    "codex_unique_findings": ["Found deprecated API usage in utils.py"],
     "cursor_unique_findings": ["Identified missing null check in parser.go:88"],
     "claude_unique_findings": ["Flagged race condition in worker pool initialization"]
   },
@@ -116,7 +116,7 @@ Return ONLY the following JSON object. No commentary outside the JSON block.
   ],
   "confidence": 0.85,
   "action_items": [
-    {"priority": "high", "action": "Fix SQL injection in auth.py:42", "source_agents": ["gemini", "claude"]},
+    {"priority": "high", "action": "Fix SQL injection in auth.py:42", "source_agents": ["codex", "claude"]},
     {"priority": "medium", "action": "Refactor error handling in service layer", "source_agents": ["claude"]},
     {"priority": "low", "action": "Consider renaming variables for clarity", "source_agents": ["cursor"]}
   ]

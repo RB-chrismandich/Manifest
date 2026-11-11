@@ -85,11 +85,11 @@ def test_release_change_blocks_before_codex_when_owned_harness_is_unavailable(
 def test_cross_harness_transaction_prepares_every_participant_before_mutation(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service, claude, gemini, _codex = three_harness_service(service_factory)
+    service, claude, cursor, _codex = three_harness_service(service_factory)
     bump_release(service)
     service.harnesses = ("codex",)
     claude.inspection = harness_result("claude", ResultState.DRIFTED)
-    gemini.inspection = harness_result("gemini", ResultState.DRIFTED)
+    cursor.inspection = harness_result("cursor", ResultState.DRIFTED)
     events: list[str] = []
     prepared: list[ReconciliationSaga] = []
     real_write = bootstrap_module._write_journal
@@ -112,7 +112,7 @@ def test_cross_harness_transaction_prepares_every_participant_before_mutation(
         adapter.install = install
 
     wrap_install(claude, "claude")
-    wrap_install(gemini, "gemini")
+    wrap_install(cursor, "cursor")
     monkeypatch.setattr(bootstrap_module, "_write_journal", record_write)
     _home, _legacy = legacy_skill_home(tmp_path, monkeypatch)
 
@@ -122,7 +122,7 @@ def test_cross_harness_transaction_prepares_every_participant_before_mutation(
     assert events[0] == "prepared"
     assert {item.harness for item in prepared[0].harness_mutations} == {
         "claude",
-        "gemini",
+        "cursor",
     }
     assert all(item.phase == "prepared" for item in prepared[0].harness_mutations)
 
@@ -130,13 +130,13 @@ def test_cross_harness_transaction_prepares_every_participant_before_mutation(
 def test_cross_harness_transaction_resumes_after_partial_failure(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service, claude, gemini, _codex = three_harness_service(service_factory)
+    service, claude, cursor, _codex = three_harness_service(service_factory)
     bump_release(service)
     service.harnesses = ("codex",)
     claude.inspection = harness_result("claude", ResultState.DRIFTED)
-    gemini.inspection = harness_result("gemini", ResultState.DRIFTED)
-    gemini.result = harness_result(
-        "gemini", ResultState.BLOCKED, errors=("injected failure",)
+    cursor.inspection = harness_result("cursor", ResultState.DRIFTED)
+    cursor.result = harness_result(
+        "cursor", ResultState.BLOCKED, errors=("injected failure",)
     )
     original_claude_install = claude.install
 
@@ -160,22 +160,22 @@ def test_cross_harness_transaction_resumes_after_partial_failure(
     assert legacy.is_symlink()
 
     claude.inspection = harness_result("claude")
-    gemini.result = harness_result("gemini")
-    gemini.inspection = harness_result("gemini")
+    cursor.result = harness_result("cursor")
+    cursor.inspection = harness_result("cursor")
     second = service.bootstrap_sync()
 
     assert second.state is ResultState.READY
     assert claude.calls.count("prepare") == 2
-    assert gemini.calls.count("prepare") == 2
+    assert cursor.calls.count("prepare") == 2
 
 
 def test_codex_failure_compensates_all_verified_owned_harnesses(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service, claude, gemini, codex = three_harness_service(service_factory)
+    service, claude, cursor, codex = three_harness_service(service_factory)
     bump_release(service)
     service.harnesses = ("codex",)
-    for adapter in (claude, gemini):
+    for adapter in (claude, cursor):
         adapter.inspection = harness_result(adapter.name, ResultState.DRIFTED)
         original_install = adapter.install
 
@@ -194,7 +194,7 @@ def test_codex_failure_compensates_all_verified_owned_harnesses(
 
     assert result.state is ResultState.BLOCKED
     assert claude.calls.count("rollback") == 1
-    assert gemini.calls.count("rollback") == 1
+    assert cursor.calls.count("rollback") == 1
     saga = _read_journal(
         service.receipt_path.with_name(
             f".{service.receipt_path.name}.bootstrap-sync.json"
@@ -209,7 +209,7 @@ def test_codex_failure_compensates_all_verified_owned_harnesses(
 def test_cross_harness_changed_target_compensates_before_accepting_new_target(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service, claude, gemini, _codex = three_harness_service(service_factory)
+    service, claude, cursor, _codex = three_harness_service(service_factory)
     previous = read_receipt(service.receipt_path)
     assert previous is not None
     pin = ReleasePin(service, previous.release_version)
@@ -224,14 +224,14 @@ def test_cross_harness_changed_target_compensates_before_accepting_new_target(
     mutations = tuple(
         HarnessMutationCheckpoint(
             name,
-            "applied" if name == "gemini" else "prepared",
+            "applied" if name == "cursor" else "prepared",
             _serialize_handle(
                 service.adapters[name].prepare_reconcile(
                     previous.harnesses[name], prior_desired, desired
                 )
             ),
         )
-        for name in ("claude", "gemini")
+        for name in ("claude", "cursor")
     )
     journal = service.receipt_path.with_name(
         f".{service.receipt_path.name}.bootstrap-sync.json"
@@ -247,15 +247,15 @@ def test_cross_harness_changed_target_compensates_before_accepting_new_target(
         ),
     )
     rollback_releases: list[str] = []
-    original_rollback = gemini.rollback_reconcile
+    original_rollback = cursor.rollback_reconcile
 
     def record_rollback(handle, prior):
         rollback_releases.append(prior.release_version)
         return original_rollback(handle, prior)
 
-    gemini.rollback_reconcile = record_rollback
+    cursor.rollback_reconcile = record_rollback
     claude.calls.clear()
-    gemini.calls.clear()
+    cursor.calls.clear()
     _home, _legacy = legacy_skill_home(tmp_path, monkeypatch)
 
     pin.target = pin.release("3.0.0", "e" * 40, "f" * 64)
@@ -263,7 +263,7 @@ def test_cross_harness_changed_target_compensates_before_accepting_new_target(
 
     assert result.state is ResultState.READY
     assert rollback_releases == [old_release.version]
-    assert gemini.calls.index("rollback") < gemini.calls.index("prepare")
+    assert cursor.calls.index("rollback") < cursor.calls.index("prepare")
 
 
 def test_changed_target_rebinds_empty_preparation_journal(

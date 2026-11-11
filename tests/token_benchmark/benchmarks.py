@@ -16,7 +16,6 @@ class Prompt:
 # into the CLI's "before"/"after" conditions. Only providers with a verified
 # injection mechanism define one — do not add a flag speculatively.
 #   claude → "--system-prompt" (verified: claude CLI help).
-#   gemini → NONE (unverified; do not assume the gemini CLI's flag shape).
 #   antigravity → NONE (verified absent: agy 1.1.1 --help has no
 #     --system-prompt flag; see agy-live-ground-truth, issue #546).
 # Providers without a strategy are never invoked with a system-prompt flag;
@@ -27,13 +26,11 @@ PROVIDER_CLI_CONFIG = {
         "flags": ["--print"],
         "system_prompt_flag": "--system-prompt",
     },
-    "gemini": {"binary": "gemini", "flags": ["-p"]},
     "antigravity": {"binary": "agy", "flags": ["--print"]},
 }
 
 MANIFEST_SYSTEM_PROMPT_PATHS = {
     "claude": ".claude/CLAUDE.md",
-    "gemini": ".gemini/GEMINI.md",
     "antigravity": None,
 }
 

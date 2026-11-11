@@ -3,6 +3,9 @@
 
 # Deployment, verification, and summary helpers for bootstrap.sh. This file is sourced, not executed.
 
+# shellcheck source=bootstrap/lib/retired_gemini.sh
+source "$(dirname "${BASH_SOURCE[0]}")/retired_gemini.sh"
+
 # foreign_state_rules BACKUP_DIR — emit rsync rules (one per line) for state that
 # lives under a repo-owned NAME but that no copy path actually redeploys.
 #
@@ -181,15 +184,15 @@ deploy_configs() {
     # user/runtime state (plugins, sessions, settings.json, …) from the backup.
     local restore_from=""
 
-    # $TARGET_DIR (~/.claude) is shared infrastructure: Gemini/Cursor/Codex/
-    # Antigravity all symlink into its scripts/config/prompts/.plans/skills
+    # $TARGET_DIR (~/.claude) is shared infrastructure: Cursor/Codex/Antigravity
+    # all symlink into its scripts/config/prompts/.plans/skills
     # (link_shared_assets) regardless of ENABLE_CLAUDE, so this function must
-    # NOT early-return like deploy_gemini_configs/deploy_cursor_configs/etc do —
+    # NOT early-return like deploy_cursor_configs/deploy_codex_configs/etc do —
     # that would break every other enabled assistant's deploy. CLAUDE.md itself,
     # however, is Claude-CLI-specific content (nothing else reads it), so it
     # alone is excluded from the copy when Claude is disabled — matching the
     # same "disabled → don't (re)deploy the guide file" behavior used for
-    # GEMINI.md/AGENTS.md, and making warn_stale_disabled_configs' "claude"
+    # AGENTS.md and the agy GEMINI.md, and making warn_stale_disabled_configs' "claude"
     # entry meaningful instead of a guaranteed false positive (#549).
     local claude_md_exclude=()
     if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
@@ -339,8 +342,7 @@ deploy_configs() {
                     # That file is inert at user scope (measured; see
                     # merge_claude_runtime_settings), so hooks merged there never fired.
                     # They now ship in settings.hooks.json and are merged into
-                    # settings.json below. merge_settings_hooks is still used by the
-                    # Gemini path, which reads its own settings.json.
+                    # settings.json below.
                     # ...and repo session defaults (env vars, skillListingBudgetFraction)
                     # that option 2's --ignore-existing skip would strand on existing
                     # installs. Idempotent, so option 4 runs it too.
@@ -362,7 +364,7 @@ deploy_configs() {
                     create_symlink "$TARGET_DIR/.agent_outputs" "$MANIFEST_OUTPUT_DIR" "Claude agent outputs"
                     # Keep secondary agent configs synced in merge mode
                     deploy_cursor_configs
-                    deploy_gemini_configs
+                    retire_gemini_cli_deployment
                     deploy_codex_configs
                     deploy_antigravity_configs
                     deploy_sync_skills
@@ -461,8 +463,8 @@ deploy_configs() {
     # Deploy Cursor configuration
     deploy_cursor_configs
 
-    # Deploy Gemini configuration
-    deploy_gemini_configs
+    # Remove what earlier bootstraps deployed for the retired Gemini CLI
+    retire_gemini_cli_deployment
 
     # Deploy Codex configuration
     deploy_codex_configs
@@ -1027,7 +1029,7 @@ sync_native_plugins() {
 
 # sync_all_native_harnesses — install the Manifest bundles into every harness
 # whose CLI is present, each through its OWN native plugin mechanism
-# (claude plugin install, codex, gemini extensions install, cursor-agent
+# (claude plugin install, codex, cursor-agent
 # marketplace add, agy plugin link, devin plugins install).
 #
 # Deliberately passes NO --harness. `_detect_requested` (service.py) records an
@@ -1116,7 +1118,7 @@ repoint_sibling_skill_links() {
     # nothing. Adding it in Phase 4, together with the emptying, is the step
     # that is actually safe.
     local home_dir
-    for home_dir in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$ANTIGRAVITY_TARGET_DIR"; do
+    for home_dir in "$CURSOR_TARGET_DIR" "$ANTIGRAVITY_TARGET_DIR"; do
         [[ -n "$home_dir" ]] || continue
         mkdir -p "$home_dir"
         create_symlink "$home_dir/skills" "$root" "$(basename "$home_dir") skills"
@@ -1218,70 +1220,6 @@ merge_mcp_defaults() {
     else
         print_warning "Could not merge MCP defaults into $tgt; preserved existing config"
     fi
-}
-
-# Union repo-shipped hooks into an EXISTING settings JSON that rsync's
-# --ignore-existing would otherwise skip. Event-agnostic: works for any
-# hooks.<event>[] shape (Gemini BeforeAgent, Claude SessionStart, …). Also
-# retires the exact shared-home version-pin hook now owned by manifest-ops.
-# Shared by deploy_gemini_configs and the Claude merge-mode path.
-merge_settings_hooks() {
-    local src="$1" tgt="$2"
-    if ! command_exists python3; then
-        print_info "python3 unavailable — skipped hooks merge into existing settings.json"
-        return 0
-    fi
-    local rc=0
-    python3 - "$src" "$tgt" << 'PYEOF' || rc=$?
-import json, sys
-src_path, tgt_path = sys.argv[1], sys.argv[2]
-src = json.load(open(src_path))
-tgt = json.load(open(tgt_path))
-changed = False
-
-def is_legacy_version_pin_hook(hook):
-    command = hook.get("command") if isinstance(hook, dict) else None
-    return isinstance(command, str) and (
-        command == "~/.claude/scripts/version_pin_hook.sh"
-        or command.endswith("/.claude/scripts/version_pin_hook.sh")
-    )
-
-# The Ops plugin owns this hook now. Remove only its retired shared-home
-# command, preserving sibling hooks inside the same matcher entry.
-for event, entries in list((tgt.get("hooks") or {}).items()):
-    retained_entries = []
-    for entry in entries:
-        hooks = entry.get("hooks") if isinstance(entry, dict) else None
-        if not isinstance(hooks, list):
-            retained_entries.append(entry)
-            continue
-        retained_hooks = [hook for hook in hooks if not is_legacy_version_pin_hook(hook)]
-        if len(retained_hooks) != len(hooks):
-            changed = True
-            if retained_hooks:
-                entry["hooks"] = retained_hooks
-                retained_entries.append(entry)
-        else:
-            retained_entries.append(entry)
-    tgt["hooks"][event] = retained_entries
-
-for event, entries in src.get("hooks", {}).items():
-    cur = tgt.setdefault("hooks", {}).setdefault(event, [])
-    for e in entries:
-        if e not in cur:
-            cur.append(e)
-            changed = True
-if changed:
-    with open(tgt_path, "w") as f:
-        json.dump(tgt, f, indent=2)
-        f.write("\n")
-sys.exit(0 if changed else 3)
-PYEOF
-    case $rc in
-        0) print_success "Merged repo hooks into existing settings.json" ;;
-        3) print_info "Existing settings.json already has repo hooks - preserved" ;;
-        *) print_warning "Could not merge hooks into existing settings.json (manual merge may be needed)" ;;
-    esac
 }
 
 # Union repo-shipped RUNTIME settings (configs/claude/settings.runtime.json)
@@ -1714,50 +1652,6 @@ PYEOF2
     return 0
 }
 
-# Deploy Gemini CLI configuration (mirrors .claude with symlinks)
-deploy_gemini_configs() {
-    if [[ "${ENABLE_GEMINI:-true}" != true ]]; then
-        print_info "Gemini disabled — skipping config deployment"
-        return 0
-    fi
-
-    print_step "Deploying Gemini CLI configuration..."
-
-    local gemini_source_dir="$SCRIPT_DIR/configs/gemini"
-
-    if [[ ! -d "$gemini_source_dir" ]]; then
-        print_warning "Gemini configuration source not found: $gemini_source_dir"
-        print_info "Skipping Gemini config deployment"
-        return 0
-    fi
-
-    # Create .gemini directory structure
-    mkdir -p "$GEMINI_TARGET_DIR"
-
-    # Copy GEMINI.md
-    if [[ -f "$gemini_source_dir/GEMINI.md" ]]; then
-        cp "$gemini_source_dir/GEMINI.md" "$GEMINI_TARGET_DIR/GEMINI.md"
-        print_success "Deployed GEMINI.md to $GEMINI_TARGET_DIR/"
-    fi
-
-    # Copy settings.json (project settings, not auth)
-    if [[ -f "$gemini_source_dir/settings.json" ]]; then
-        # Merge with existing settings rather than overwriting (preserve auth)
-        if [[ -f "$GEMINI_TARGET_DIR/settings.json" ]]; then
-            merge_mcp_defaults "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
-            merge_settings_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
-        else
-            cp "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
-            print_success "Deployed settings.json to $GEMINI_TARGET_DIR/"
-        fi
-    fi
-
-    # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
-    link_shared_assets "$GEMINI_TARGET_DIR" "Gemini" "true"
-
-    print_success "Gemini configuration deployed to $GEMINI_TARGET_DIR"
-}
-
 # Deploy Codex configuration (mirrors shared assets from .claude)
 deploy_codex_configs() {
     if [[ "${ENABLE_CODEX:-true}" != true ]]; then
@@ -1796,30 +1690,18 @@ deploy_codex_configs() {
 }
 
 # Deploy Antigravity configuration (mirrors .claude with symlinks, matching
-# Cursor/Gemini; Codex may be plugin-native). Antigravity shares the source in
+# Cursor; Codex may be plugin-native). Antigravity shares the source in
 # ~/.claude via symlinks for config, skills, and .plans.
 #
-# Antigravity intentionally links only the shared config, skills, and plans.
-#
-# Unlike deploy_gemini_configs/deploy_codex_configs, this function also does
-# NOT copy a standalone home guide (no GEMINI.md/AGENTS.md analog deployed
-# under ~/.antigravity). Verified live (G14, agy-batchD-groundtruth.md): the
-# `agy` CLI reads its config from ~/.gemini/config (agy is Gemini-CLI
-# lineage), never from ~/.antigravity, so a guide file placed there would
-# simply never be read by the CLI. The Antigravity IDE's bundled Claude-Code
-# extension already reads ~/.claude/CLAUDE.md natively, and agy ships its own
-# builtin `antigravity_guide` skill for in-context reference. By-design
-# omission — do not "fix" by deploying a guide agy cannot read.
-#
-# Bound-probed live (2026-07-11): `agy --print` with a prompt asking it to
-# quote its context file's first heading verbatim returned the exact text of
-# the Manifest-deployed ~/.gemini/GEMINI.md ("# Gemini Orchestration Guide"),
-# confirming agy inherits that file as context — closing the open question
-# noted in G14. So agy already receives Manifest orchestration guidance via
-# the Gemini home when ENABLE_GEMINI is true; it just has no dedicated
-# ~/.antigravity guide of its own (caveat: a claude+agy-only install with
-# gemini disabled gives agy no home guide context at all — inherent to it
-# being config-driven, not a gap this deploy step can close).
+# Two homes. ~/.antigravity gets the shared config/skills/.plans links. The
+# `agy` CLI itself is Gemini-CLI lineage and reads ~/.gemini instead, never
+# ~/.antigravity (verified live, G14, agy-batchD-groundtruth.md):
+#   - its config from ~/.gemini/config, linked here to the shared config;
+#   - its context file from ~/.gemini/GEMINI.md. Bound-probed live
+#     (2026-07-11): `agy --print` asked to quote its context file's first
+#     heading returned the Manifest-deployed ~/.gemini/GEMINI.md verbatim.
+# Both used to be deployed by the removed Gemini CLI path; this function owns
+# them now so a claude+agy install still gives agy its guide.
 deploy_antigravity_configs() {
     if [[ "${ENABLE_ANTIGRAVITY:-true}" != true ]]; then
         print_info "Antigravity disabled — skipping config deployment"
@@ -1845,12 +1727,37 @@ deploy_antigravity_configs() {
     # Link shared assets from ~/.claude (config, skills, .plans), excluding the
     # orchestrator wiring (scripts, prompts).
     link_shared_assets "$ANTIGRAVITY_TARGET_DIR" "Antigravity" "true" "scripts prompts"
+    deploy_agy_gemini_home
     print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
+}
+
+# deploy_agy_gemini_home — agy's ~/.gemini/config link and GEMINI.md guide.
+# A real ~/.gemini/config directory is agy's own live config (plugins installed
+# into it), so it is left in place rather than backed up and replaced.
+deploy_agy_gemini_home() {
+    local agy_home="${AGY_GEMINI_HOME:-$HOME/.gemini}"
+    mkdir -p "$agy_home"
+    if [[ -d "$agy_home/config" && ! -L "$agy_home/config" ]]; then
+        print_info "Keeping agy's own config directory $agy_home/config"
+    else
+        create_symlink "$agy_home/config" "$TARGET_DIR/config" "Antigravity (agy) config"
+    fi
+    # Callers that source this library alone (smoke catalog, bats) leave
+    # SCRIPT_DIR unset; derive the repo root from this file instead.
+    local repo_root
+    repo_root="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+    local guide="$repo_root/configs/antigravity/GEMINI.md"
+    if [[ -f "$guide" ]]; then
+        cp "$guide" "$agy_home/GEMINI.md"
+        print_success "Deployed Antigravity guide to $agy_home/GEMINI.md"
+    else
+        print_warning "Antigravity guide source not found: $guide"
+    fi
 }
 
 # Deploy Devin CLI configuration.
 #
-# Deliberately NOT a mirror of the Cursor/Gemini/Codex/Antigravity trees: the
+# Deliberately NOT a mirror of the Cursor/Codex/Antigravity trees: the
 # Devin CLI already discovers Manifest's deployed Claude home on its own.
 # Measured against devin 3000.2.17 (2026-07-29):
 #   - `devin skills list` lists every ~/.claude/skills/<name>/SKILL.md as
@@ -2232,11 +2139,6 @@ verify_installation() {
         skill_files+=("$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md")
     fi
 
-    if [[ "${ENABLE_GEMINI:-true}" == true ]]; then
-        required_files+=("$GEMINI_TARGET_DIR/GEMINI.md")
-        skill_files+=("$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md")
-    fi
-
     if [[ "${ENABLE_CODEX:-true}" == true ]]; then
         required_files+=("$CODEX_TARGET_DIR/AGENTS.md")
         skill_files+=("$CODEX_TARGET_DIR/skills/code-audit/SKILL.md")
@@ -2255,6 +2157,7 @@ verify_installation() {
     # checking this file unconditionally would false-positive "Missing" on a
     # deliberately-disabled service.
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        required_files+=("${AGY_GEMINI_HOME:-$HOME/.gemini}/GEMINI.md")
         skill_files+=("$ANTIGRAVITY_TARGET_DIR/skills/code-audit/SKILL.md")
     fi
     # Devin deploys exactly one file (the read_config_from pin) — it inherits
@@ -2322,7 +2225,6 @@ verify_installation() {
         "$MANIFEST_OUTPUT_DIR"
         "$MANIFEST_TMP_DIR"
         "$MANIFEST_STATE_DIR/claude"
-        "$MANIFEST_STATE_DIR/gemini"
         "$MANIFEST_STATE_DIR/cursor"
         "$MANIFEST_STATE_DIR/codex"
         "$MANIFEST_STATE_DIR/codex/sessions"
@@ -2356,18 +2258,6 @@ verify_installation() {
         fi
     else
         print_info "claude is disabled"
-    fi
-
-    if [[ "$ENABLE_GEMINI" == true ]]; then
-        enabled_count=$((enabled_count + 1))
-        if command_exists gemini; then
-            print_success "gemini is available (enabled)"
-            available_tools=$((available_tools + 1))
-        else
-            print_warning "gemini is not available (enabled but not installed)"
-        fi
-    else
-        print_info "gemini is disabled"
     fi
 
     if [[ "$ENABLE_CURSOR" == true ]]; then
@@ -2513,7 +2403,6 @@ warn_stale_disabled_configs() {
     # Each entry: <service>|<enabled-flag>|<deployed managed-config path>
     local entries=(
         "claude|${ENABLE_CLAUDE:-true}|$TARGET_DIR/CLAUDE.md"
-        "gemini|${ENABLE_GEMINI:-true}|$GEMINI_TARGET_DIR/GEMINI.md"
         "cursor|${ENABLE_CURSOR:-true}|$CURSOR_TARGET_DIR/rules"
         "codex|${ENABLE_CODEX:-true}|$CODEX_TARGET_DIR/AGENTS.md"
         "antigravity|${ENABLE_ANTIGRAVITY:-true}|$ANTIGRAVITY_TARGET_DIR/config"
@@ -2555,7 +2444,6 @@ print_summary() {
     echo ""
     echo "  Claude Config:  $TARGET_DIR"
     echo "  Cursor Config:  $CURSOR_TARGET_DIR"
-    echo "  Gemini Config:  $GEMINI_TARGET_DIR"
     echo "  Codex Config:   $CODEX_TARGET_DIR"
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
         echo "  Antigravity Config: $ANTIGRAVITY_TARGET_DIR"
@@ -2586,16 +2474,6 @@ print_summary() {
         fi
     else
         echo -e "  ${YELLOW}○${NC} claude (disabled)"
-    fi
-
-    if [[ "$ENABLE_GEMINI" == true ]]; then
-        if command_exists gemini; then
-            echo -e "  ${GREEN}✓${NC} gemini (enabled, installed)"
-        else
-            echo -e "  ${YELLOW}○${NC} gemini (enabled, not installed)"
-        fi
-    else
-        echo -e "  ${YELLOW}○${NC} gemini (disabled)"
     fi
 
     if [[ "$ENABLE_CURSOR" == true ]]; then
@@ -2665,9 +2543,6 @@ print_summary() {
     if [[ "$ENABLE_CLAUDE" == true ]]; then
         echo -e "    Claude:  ${CYAN}claude auth login${NC}  or  ${CYAN}export ANTHROPIC_API_KEY='...'${NC}"
     fi
-    if [[ "$ENABLE_GEMINI" == true ]]; then
-        echo -e "    Gemini:  ${CYAN}gemini${NC} (first run prompts OAuth)  or  ${CYAN}export GEMINI_API_KEY='...'${NC}"
-    fi
     if [[ "$ENABLE_CODEX" == true ]]; then
         echo -e "    Codex:   ${CYAN}codex auth login${NC}  or  ${CYAN}export OPENAI_API_KEY='...'${NC}"
     fi
@@ -2689,7 +2564,7 @@ print_summary() {
     if [[ "$INSTALL_MCP" == true ]]; then
         echo "    MCP OAuth:"
         echo -e "      Codex:   ${CYAN}codex mcp login sentry${NC} (repeat for context7, linear)"
-        echo "      Claude/Gemini: OAuth runs automatically on first MCP tool use"
+        echo "      Claude: OAuth runs automatically on first MCP tool use"
     fi
     echo ""
 
@@ -2698,7 +2573,7 @@ print_summary() {
     echo "  # Enable/disable services"
     echo "  ./bootstrap.sh --reconfigure --disable-cursor"
     echo "  ./bootstrap.sh --reconfigure --disable-codex"
-    echo "  ./bootstrap.sh --reconfigure --enable-gemini --disable-claude"
+    echo "  ./bootstrap.sh --reconfigure --enable-codex --disable-claude"
     echo ""
     echo "  # Or edit directly:"
     echo "  \$EDITOR ~/.claude/config/services.yml"
@@ -2724,12 +2599,11 @@ print_summary() {
     echo "  Main guide:     ~/.claude/CLAUDE.md"
     echo "  Skills:         ~/.claude/skills/"
     echo "  Cursor rules:   ~/.cursor/rules/"
-    echo "  Gemini guide:   ~/.gemini/GEMINI.md"
     echo "  Codex guide:    ~/.codex/AGENTS.md"
-    # No "Antigravity guide:" line by design (G14/G22): the agy CLI reads
-    # config from ~/.gemini/config, not ~/.antigravity, so a guide dropped
-    # there would never be read — see deploy_antigravity_configs() above for
-    # the full rationale.
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        # agy reads ~/.gemini, not ~/.antigravity (see deploy_antigravity_configs).
+        echo "  Antigravity guide: ~/.gemini/GEMINI.md"
+    fi
     echo "  Config:         ~/.claude/config/"
     echo ""
 }

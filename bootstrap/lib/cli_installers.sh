@@ -38,43 +38,6 @@ install_claude() {
     fi
 }
 
-# Install Gemini CLI
-install_gemini() {
-    if [[ "$ENABLE_GEMINI" == false ]]; then
-        print_info "Gemini CLI is disabled - skipping installation"
-        return 0
-    fi
-
-    print_step "Checking for Gemini CLI..."
-
-    if command_exists gemini; then
-        print_success "Gemini CLI is installed"
-    else
-        print_warning "Gemini CLI not found"
-        echo ""
-        echo -e "${BOLD}Gemini CLI Installation Options:${NC}"
-        echo "  1. npm install -g @google/gemini-cli"
-        echo "  2. See https://github.com/google-gemini/gemini-cli"
-        echo ""
-
-        if prompt_yes_no "Install Gemini CLI via npm?"; then
-            if command_exists npm; then
-                print_step "Installing Gemini CLI..."
-                npm install -g @google/gemini-cli
-                print_success "Gemini CLI installed"
-            else
-                print_error "npm not found. Please install Node.js first."
-                return 1
-            fi
-        else
-            print_warning "Gemini CLI not installed"
-            if prompt_yes_no "Disable Gemini in service configuration?"; then
-                ENABLE_GEMINI=false
-            fi
-        fi
-    fi
-}
-
 # Install Codex CLI
 install_codex() {
     if [[ "$ENABLE_CODEX" == false ]]; then

@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-security
-  version: 0.7.2
+  version: 0.8.0
   description: Security review, threat analysis, hardening, and finding-triage workflows.
   category: security
 components:
@@ -26,7 +26,6 @@ capabilities:
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
-  gemini: {mode: generated}
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}

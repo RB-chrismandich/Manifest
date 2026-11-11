@@ -110,7 +110,7 @@ def read_api_key(home: Path) -> str:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
-    for target in ("claude", "cursor", "codex", "gemini", "antigravity", "devin"):
+    for target in ("claude", "cursor", "codex", "antigravity", "devin"):
         parser.add_argument(f"--{target}", action="store_true")
     args = parser.parse_args(argv)
     home = Path.home()
@@ -129,12 +129,8 @@ def main(argv: list[str]) -> int:
             )
         if args.codex:
             write_codex(home / ".codex" / "config.toml", api_key)
-        if args.gemini:
-            write_json_server(
-                home / ".gemini" / "settings.json",
-                {"httpUrl": CONTEXT7_URL, "headers": bearer},
-            )
         if args.antigravity:
+            # agy (Antigravity CLI) reads its MCP config from ~/.gemini/config.
             write_json_server(
                 home / ".gemini" / "config" / "mcp_config.json",
                 {"serverUrl": CONTEXT7_URL, "headers": bearer},

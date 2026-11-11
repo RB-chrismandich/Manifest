@@ -72,7 +72,6 @@ def test_stitch_contract_inventories_omp_delivery_assets(
     non_omp_harnesses = {
         "claude",
         "codex",
-        "gemini",
         "cursor",
         "antigravity",
         "devin",

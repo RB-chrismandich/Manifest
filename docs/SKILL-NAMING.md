@@ -134,7 +134,7 @@ generators in the same commit.
 | Command | Writes |
 |---|---|
 | `configs/claude/scripts/generate_commands_doc.py` | `docs/COMMANDS.md` |
-| `configs/claude/scripts/generate_commands_doc.py --inject-guides` | `configs/gemini/GEMINI.md`, `AGENTS.md` (the compact index) |
+| `configs/claude/scripts/generate_commands_doc.py --inject-guides` | `configs/antigravity/GEMINI.md`, `AGENTS.md` (the compact index) |
 | `configs/claude/scripts/generate_cursor_rules.sh` | `configs/cursor/rules/*.mdc` |
 
 The two `generate_commands_doc.py` invocations write **different files** — running

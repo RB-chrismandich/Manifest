@@ -15,7 +15,7 @@ v1 scope: reconciles ``~/.claude/skills/*`` (skill dirs) and ``~/.claude/config/
 (config files) — everything Manifest shares is symlinked into ``~/.claude`` from
 the secondary homes, so realpath-dedup collapses the secondary copies onto the
 canonical ``~/.claude`` unit and they are reconciled once (FR-017). Real
-secondary-home-only artifacts (rules/*.mdc, GEMINI.md, ...) are intentionally not
+secondary-home-only artifacts (rules/*.mdc, agy's GEMINI.md, ...) are intentionally not
 flagged in v1 (safe under-report). The secondary homes are still scanned to build
 the dependent-edge index (FR-015/FR-016).
 """
@@ -43,7 +43,7 @@ import sys
 # folder — treating it as a managed root would put an unrelated product's
 # files in front of a removal prompt.
 # --------------------------------------------------------------------------- #
-_DEFAULT_ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")
+_DEFAULT_ROOT_TAGS = ("claude", "cursor", "codex", "antigravity")
 
 
 def _default_roster_path():
@@ -118,10 +118,10 @@ def _fallback_roster_tags(path):
 
 
 def _order_tags(tags):
-    """Order tags to match the historical ``ROOT_TAGS`` order for the 5 known
+    """Order tags to match the historical ``ROOT_TAGS`` order for the 4 known
     agents exactly, regardless of the registry's own key order (drift-safe:
-    ``agent_roster.yml`` lists ``gemini`` before ``cursor``) — this is a
-    drop-in data-source swap, not a redesign, so the 5-agent output (roots
+    the registry may list agents in any order) — this is a
+    drop-in data-source swap, not a redesign, so the 4-agent output (roots
     listing, ``--root`` error message) must stay byte-identical. A tag not in
     the historical set (e.g. a config-only 6th agent) is appended afterward,
     in the order the registry declared it.

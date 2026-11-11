@@ -64,122 +64,6 @@ check_claude_auth() {
     return 1
 }
 
-# Setup Gemini authentication
-setup_gemini_auth() {
-    echo ""
-    echo -e "${BOLD}Gemini Authentication Setup${NC}"
-    echo "  1. Browser-based OAuth (recommended)"
-    echo "  2. API Key (for headless/CI)"
-    echo "  3. Skip"
-    echo ""
-
-    local auth_choice
-    read -r -p "Choose option [1/2/3]: " auth_choice
-
-    case $auth_choice in
-        1)
-            if command_exists gemini; then
-                # There is no `gemini auth login` subcommand — the CLI treats
-                # unknown args as a prompt and spawns an agent session
-                # (issue #319). First run of the bare CLI triggers OAuth.
-                print_step "Launching Gemini CLI — choose 'Login with Google', then exit with /quit..."
-                gemini
-                return $?
-            else
-                print_error "Gemini CLI not found."
-                return 1
-            fi
-            ;;
-        2)
-            echo ""
-            echo "  Get an API key at: https://aistudio.google.com/apikey"
-            echo -n "  Enter your Gemini API Key: "
-            local api_key
-            read -rs api_key
-            echo "" # Newline after silent input
-
-            if [[ -n "$api_key" ]]; then
-                local env_file="$TARGET_DIR/gemini_env.sh"
-
-                # Escape single quotes to prevent injection
-                local safe_key="${api_key//\'/\'\\\'\'}"
-
-                # Create file with restrictive permissions
-                touch "$env_file"
-                chmod 600 "$env_file"
-
-                echo "export GEMINI_API_KEY='$safe_key'" > "$env_file"
-                print_success "API key saved to $env_file (mode 600)"
-
-                # Source it for current session
-                export GEMINI_API_KEY="$api_key"
-                return 0
-            else
-                print_warning "No API key entered."
-                return 1
-            fi
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# Check Gemini authentication
-# NOTE: We check credential files directly instead of running `gemini auth status`
-# because that command spawns a full agent session that can hang on tool execution
-check_gemini_auth() {
-    if [[ "$ENABLE_GEMINI" == false ]]; then
-        return 0
-    fi
-
-    print_step "Checking Gemini CLI authentication..."
-
-    if ! command_exists gemini; then
-        print_warning "Gemini CLI not installed - skipping auth check"
-        return 1
-    fi
-
-    # Check for API key in environment or config
-    if [[ -n "$GOOGLE_API_KEY" ]] || [[ -n "$GEMINI_API_KEY" ]]; then
-        print_success "Gemini CLI is authenticated (API key)"
-        return 0
-    fi
-
-    # Check for OAuth credentials file (more reliable than `gemini auth status` which spawns an agent)
-    if [[ -f "$HOME/.gemini/oauth_creds.json" ]]; then
-        print_success "Gemini CLI is authenticated (OAuth)"
-        return 0
-    fi
-
-    # Check for config file
-    if [[ -f "$HOME/.gemini/config.json" ]] || [[ -f "$HOME/.config/gemini/credentials.json" ]]; then
-        print_success "Gemini CLI is authenticated (credentials file)"
-        return 0
-    fi
-
-    print_warning "Gemini CLI is NOT authenticated"
-
-    if prompt_yes_no "Do you want to set up Gemini authentication now?"; then
-        setup_gemini_auth
-        return $?
-    fi
-
-    print_error "Gemini CLI remains unauthenticated"
-    echo ""
-    echo "  To authenticate, run one of the following after bootstrap completes:"
-    echo ""
-    echo "    # Browser-based OAuth (recommended for personal use):"
-    echo -e "    ${CYAN}gemini${NC}  # first run prompts a Google login (or use /auth inside the CLI)"
-    echo ""
-    echo "    # Or set an API key in your shell profile:"
-    echo -e "    ${CYAN}export GEMINI_API_KEY='your-api-key'${NC}"
-    echo ""
-    echo "  Get an API key at: https://aistudio.google.com/apikey"
-    echo ""
-    return 1
-}
-
 # Check Codex authentication
 check_codex_auth() {
     if [[ "$ENABLE_CODEX" == false ]]; then
@@ -436,9 +320,6 @@ setup_manifest_state_dirs() {
         "$MANIFEST_STATE_DIR/claude"
         "$MANIFEST_STATE_DIR/claude/outputs"
         "$MANIFEST_STATE_DIR/claude/tmp"
-        "$MANIFEST_STATE_DIR/gemini"
-        "$MANIFEST_STATE_DIR/gemini/outputs"
-        "$MANIFEST_STATE_DIR/gemini/tmp"
         "$MANIFEST_STATE_DIR/cursor"
         "$MANIFEST_STATE_DIR/cursor/outputs"
         "$MANIFEST_STATE_DIR/cursor/tmp"

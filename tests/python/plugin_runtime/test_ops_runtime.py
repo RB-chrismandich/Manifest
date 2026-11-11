@@ -12,7 +12,7 @@ import pytest
 
 from manifest_agent.contracts import CapabilityTier, load_contract
 
-HARNESSES = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
+HARNESSES = ("claude", "codex", "cursor", "antigravity", "devin")
 
 
 @pytest.fixture
@@ -296,7 +296,7 @@ def test_ops_contract_declares_runtime_and_explicit_hook_cells(
         assert set(hook.compatibility) == {*HARNESSES, "omp"}
         assert hook.compatibility["claude"].mode == "native"
         assert hook.compatibility["cursor"].mode == "generated"
-        for harness in {"codex", "gemini", "antigravity", "devin"}:
+        for harness in {"codex", "antigravity", "devin"}:
             assert hook.compatibility[harness].mode == "degraded"
             assert hook.compatibility[harness].reason
         assert hook.compatibility["omp"].mode == "degraded"
@@ -331,9 +331,6 @@ def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> N
     claude = json.loads(
         (ops_bundle / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
     )
-    gemini = json.loads(
-        (ops_bundle / "gemini-extension.json").read_text(encoding="utf-8")
-    )
     generic = json.loads((ops_bundle / "plugin.json").read_text(encoding="utf-8"))
 
     records = {
@@ -341,7 +338,6 @@ def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> N
         # `metadata` (the documented free-form field); other harnesses keep
         # it at the top level.
         "claude": claude["metadata"]["compatibility"]["native"],
-        "gemini": gemini["compatibility"]["degraded"],
     }
     for harness in ("codex", "cursor", "antigravity", "devin"):
         compatibility = generic["harnesses"][harness]["compatibility"]
@@ -352,7 +348,6 @@ def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> N
     expected_modes = {
         "claude": "native",
         "codex": "degraded",
-        "gemini": "degraded",
         "cursor": "generated",
         "antigravity": "degraded",
         "devin": "degraded",
@@ -372,11 +367,9 @@ def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> N
 def test_legacy_harness_configs_do_not_duplicate_the_ops_hook(repo_root: Path) -> None:
     claude_path = repo_root / "configs/claude/settings.runtime.json"
     cursor_path = repo_root / "configs/cursor/hooks.json"
-    gemini_path = repo_root / "configs/gemini/settings.json"
     configs = {
         "claude": json.loads(claude_path.read_text(encoding="utf-8")),
         "cursor": json.loads(cursor_path.read_text(encoding="utf-8")),
-        "gemini": json.loads(gemini_path.read_text(encoding="utf-8")),
     }
 
     for harness, document in configs.items():
@@ -393,11 +386,6 @@ def test_legacy_harness_configs_do_not_duplicate_the_ops_hook(repo_root: Path) -
     cursor_commands = json.dumps(cursor["hooks"]["afterFileEdit"])
     assert "spec_review.sh --silent" in cursor_commands
     assert "lint_on_edit_hook.sh" in cursor_commands
-
-    gemini = configs["gemini"]
-    gemini_commands = json.dumps(gemini["hooks"]["AfterTool"])
-    assert "spec-review" in gemini_commands
-    assert "lint-on-edit" in gemini_commands
 
 
 def test_ops_skills_use_bundle_runtime_not_shared_home(ops_bundle: Path) -> None:

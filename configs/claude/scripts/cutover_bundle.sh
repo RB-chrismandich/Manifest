@@ -197,7 +197,7 @@ fi
 # 3. Every sibling home must already resolve into the harness root with a
 #    READABLE canary. Content, not -f: a dangling symlink passes an existence
 #    test and then silently serves nothing.
-for home_dir in "$HOME/.cursor" "$HOME/.gemini" "$HOME/.codex" "$HOME/.antigravity"; do
+for home_dir in "$HOME/.cursor" "$HOME/.codex" "$HOME/.antigravity"; do
     link="$home_dir/skills"
     target="$(readlink "$link" 2> /dev/null || true)"
     case "$target" in
@@ -235,9 +235,8 @@ fi
 printf 'cutover_bundle.sh: %s owns %s skill(s)\n' "$BUNDLE" "${#BUNDLE_SKILLS[@]}"
 
 # 4. Nothing outside the skills tree may still POINT INTO it. Hooks are the
-#    case the plan missed entirely: ~/.claude/settings.json and
-#    ~/.gemini/settings.json each ran a PreToolUse hook out of
-#    ~/.claude/skills/ai-hooks-integration/, so deleting that skill killed every
+#    case the plan missed entirely: ~/.claude/settings.json ran a
+#    PreToolUse hook out of ~/.claude/skills/ai-hooks-integration/, so deleting that skill killed every
 #    Bash tool call in the session -- a total outage from a step whose own
 #    postcondition reported "no residue". Checked BEFORE the delete, because
 #    afterwards the tool that would fix it cannot run.
@@ -248,7 +247,7 @@ while IFS= read -r cfg; do
         [[ -n "$ref" ]] && hook_refs+=("${cfg}|${ref}")
     done < <(grep -ohE "$CLAUDE_SKILLS/[A-Za-z0-9_./-]+" "$cfg" 2> /dev/null | sort -u)
 done < <(printf '%s\n' "$HOME/.claude/settings.json" "$HOME/.claude/settings.local.json" \
-    "$HOME/.gemini/settings.json" "$HOME/.codex/config.toml")
+    "$HOME/.codex/config.toml")
 
 doomed=()
 for entry in ${hook_refs[@]+"${hook_refs[@]}"}; do

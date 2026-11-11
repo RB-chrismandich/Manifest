@@ -1,7 +1,7 @@
 schema_version: 1
 bundle:
   name: manifest-workspace
-  version: 0.7.2
+  version: 0.8.0
   description: Workspace configuration, environment, session, and learning workflows.
   category: productivity
 components:
@@ -14,7 +14,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -26,7 +25,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -38,7 +36,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -50,7 +47,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -62,7 +58,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -74,7 +69,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -86,7 +80,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -98,7 +91,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -110,7 +102,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -122,7 +113,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -134,7 +124,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -146,7 +135,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -158,7 +146,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -170,7 +157,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -182,7 +168,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -195,7 +180,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: not_applicable, reason: Codex exposes no verified completed-compaction lifecycle sequence.}
-        gemini: {mode: not_applicable, reason: Gemini exposes no verified completed-compaction lifecycle sequence.}
         cursor: {mode: not_applicable, reason: Cursor exposes no verified completed-compaction lifecycle sequence.}
         antigravity: {mode: not_applicable, reason: Antigravity exposes no verified completed-compaction lifecycle sequence.}
         devin: {mode: not_applicable, reason: Devin exposes no verified completed-compaction lifecycle sequence.}
@@ -207,7 +191,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
         codex: {mode: native}
-        gemini: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
         cursor: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex SessionStart surface only.}
@@ -219,7 +202,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
         codex: {mode: native}
-        gemini: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
         cursor: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex Stop surface only.}
@@ -231,7 +213,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         codex: {mode: native}
-        gemini: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         cursor: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         antigravity: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
         devin: {mode: not_applicable, reason: This component records the Codex PermissionRequest surface only.}
@@ -243,7 +224,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: not_applicable, reason: "Gemini already receives this guidance through the guidance component's generated contextFileName; a duplicate SessionStart hook is not a verified Gemini extension surface."}
         cursor: {mode: not_applicable, reason: "Cursor's hook events (beforeShellExecution etc.) have no SessionStart/always-on-context equivalent and CursorAdapter deliberately indexes bundles without inventing an activation mechanism; Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."}
         antigravity: {mode: not_applicable, reason: Antigravity already receives this guidance through the guidance component's imported contextFileName; a duplicate SessionStart hook is not a verified Antigravity surface.}
         devin: {mode: not_applicable, reason: Devin has no SessionStart-equivalent hook execution surface.}
@@ -262,7 +242,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -279,7 +258,6 @@ components:
       compatibility:
         claude: {mode: native}
         codex: {mode: native}
-        gemini: {mode: generated}
         cursor: {mode: generated}
         antigravity: {mode: imported}
         devin: {mode: native}
@@ -291,7 +269,6 @@ components:
       compatibility:
         claude: {mode: not_applicable, reason: Claude Code's plugin.json has no context-injection field; delivered instead via the workspace-token-economy-context SessionStart hook.}
         codex: {mode: not_applicable, reason: Codex has no plugin guidance-file surface; delivered instead via the workspace-token-economy-context SessionStart hook.}
-        gemini: {mode: generated}
         cursor: {mode: not_applicable, reason: "Cursor's plugin adapter indexes bundles without inventing an activation mechanism (see CursorAdapter); Cursor instead receives this guidance from the bootstrap-deployed configs/cursor/rules/orchestration.mdc."}
         antigravity: {mode: imported}
         devin: {mode: not_applicable, reason: 'MIGRATION BLOCKER — Devin single-owns ~/.codeium/windsurf/memories/global_rules.md exclusively for the manifest-i-have-adhd bundle (the Devin adapter guards that file for the ADHD rule and only the ADHD deploy step writes it). Sharing that file across bundles requires extending the Devin adapter''s owned-file ownership model, which is out of scope here; /token-conserve remains available for Devin users until that adapter work ships.'}
@@ -310,7 +287,6 @@ capabilities:
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
-  gemini: {mode: generated}
   cursor: {mode: generated}
   antigravity: {mode: imported}
   devin: {mode: native}
