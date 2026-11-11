@@ -51,7 +51,6 @@ def test_inventory_covers_known_legacy_home_outputs(legacy_inventory):
         "cursor-agents",
         "cursor-scripts-link",
         "cursor-rule-manifest",
-        "gemini-scripts-link",
         "codex-scripts-link",
         "claude-python-project",
         "claude-python-lock",

@@ -42,13 +42,6 @@ Unlisted paths and credential stores are user-owned and are never changed by mig
 | cursor-scripts-link | `~/.cursor/scripts` | bundle-owned | domain-bundle-runtime | symlink-target: `~/.claude/scripts` | disable | restore-symlink | `plugin_migration.bats` |
 | deploy-stamp | `~/.claude/config/deploy_stamp` | coordinator-owned | installation-receipt | unproven: `historical-stamp-format-varies` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | devin-claude-inheritance | `~/.config/devin/config.json` | mixed | native-plugin-registration | exact-marker: `read_config_from` | retain | restore-owned-settings-entry | `plugin_migration.bats` |
-| gemini-config-link | `~/.gemini/config` | bundle-owned | domain-bundle-runtime | symlink-target: `~/.claude/config` | disable | restore-symlink | `plugin_migration.bats` |
-| gemini-guidance | `~/.gemini/GEMINI.md` | bundle-owned | manifest-workspace | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
-| gemini-plans-link | `~/.gemini/.plans` | bundle-owned | xdg-plan-store | symlink-target: `~/.claude/.plans` | disable | restore-symlink | `plugin_migration.bats` |
-| gemini-prompts-link | `~/.gemini/prompts` | bundle-owned | domain-bundle-runtime | symlink-target: `~/.claude/prompts` | disable | restore-symlink | `plugin_migration.bats` |
-| gemini-scripts-link | `~/.gemini/scripts` | bundle-owned | domain-bundle-runtime | symlink-target: `~/.claude/scripts` | disable | restore-symlink | `plugin_migration.bats` |
-| gemini-settings | `~/.gemini/settings.json` | mixed | native-settings-registration | exact-marker: `manifest-settings-v1` | retain | restore-owned-settings-entry | `plugin_migration.bats` |
-| gemini-shared-skills | `~/.gemini/skills` | bundle-owned | native-plugin-managers | symlink-target: `~/.manifest/skills` | disable | restore-symlink | `plugin_migration.bats` |
 | manifest-cli | `~/.local/bin/manifest` | coordinator-owned | ephemeral-uvx-coordinator | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | manifest-release-metadata | `~/.manifest/releases.json` | coordinator-owned | xdg-release-metadata | unproven: `legacy-release-format-varies` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | manifest-skills-hub | `~/.manifest/skills` | user-owned | native-plugin-managers | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |

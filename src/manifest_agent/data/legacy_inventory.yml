@@ -35,16 +35,6 @@ entries:
     action: disable
     recovery: restore-symlink
     parity_test: plugin_migration.bats
-  - id: gemini-shared-skills
-    category: skills
-    path: ~/.gemini/skills
-    harnesses: [gemini]
-    classification: bundle-owned
-    destination: native-plugin-managers
-    ownership_proof: {type: symlink-target, value: ~/.manifest/skills}
-    action: disable
-    recovery: restore-symlink
-    parity_test: plugin_migration.bats
   - id: cursor-generated-rules
     category: agents
     path: ~/.cursor/rules
@@ -98,7 +88,7 @@ entries:
   - id: manifest-cli
     category: scripts
     path: ~/.local/bin/manifest
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: coordinator-owned
     destination: ephemeral-uvx-coordinator
     ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
@@ -108,7 +98,7 @@ entries:
   - id: sync-skills-cli
     category: scripts
     path: ~/.local/bin/sync-skills
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: bundle-owned
     destination: manifest-workspace
     ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
@@ -148,7 +138,7 @@ entries:
   - id: bootstrap-uninstall-marker
     category: uninstall
     path: ~/.manifest/bootstrap-uninstall.json
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: coordinator-owned
     destination: native-receipt-uninstall
     ownership_proof: {type: unproven, value: historical-uninstall-marker-varies}
@@ -158,7 +148,7 @@ entries:
   - id: native-credentials
     category: configuration
     path: ~/.config/manifest/credentials.json
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: harness-native
     destination: native-credential-store
     ownership_proof: {type: exact-marker, value: never-migrate}
@@ -255,56 +245,6 @@ entries:
     action: retain
     recovery: restore-owned-mcp-entry
     parity_test: plugin_migration.bats
-  - id: gemini-guidance
-    category: guidance
-    path: ~/.gemini/GEMINI.md
-    harnesses: [gemini]
-    classification: bundle-owned
-    destination: manifest-workspace
-    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
-    action: retain
-    recovery: user-directed-removal-after-parity
-    parity_test: plugin_migration.bats
-  - id: gemini-settings
-    category: configuration
-    path: ~/.gemini/settings.json
-    harnesses: [gemini]
-    classification: mixed
-    destination: native-settings-registration
-    ownership_proof: {type: exact-marker, value: manifest-settings-v1}
-    action: retain
-    recovery: restore-owned-settings-entry
-    parity_test: plugin_migration.bats
-  - id: gemini-config-link
-    category: configuration
-    path: ~/.gemini/config
-    harnesses: [gemini]
-    classification: bundle-owned
-    destination: domain-bundle-runtime
-    ownership_proof: {type: symlink-target, value: ~/.claude/config}
-    action: disable
-    recovery: restore-symlink
-    parity_test: plugin_migration.bats
-  - id: gemini-prompts-link
-    category: guidance
-    path: ~/.gemini/prompts
-    harnesses: [gemini]
-    classification: bundle-owned
-    destination: domain-bundle-runtime
-    ownership_proof: {type: symlink-target, value: ~/.claude/prompts}
-    action: disable
-    recovery: restore-symlink
-    parity_test: plugin_migration.bats
-  - id: gemini-plans-link
-    category: configuration
-    path: ~/.gemini/.plans
-    harnesses: [gemini]
-    classification: bundle-owned
-    destination: xdg-plan-store
-    ownership_proof: {type: symlink-target, value: ~/.claude/.plans}
-    action: disable
-    recovery: restore-symlink
-    parity_test: plugin_migration.bats
   - id: codex-guidance
     category: guidance
     path: ~/.codex/AGENTS.md
@@ -388,7 +328,7 @@ entries:
   - id: manifest-skills-hub
     category: skills
     path: ~/.manifest/skills
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: user-owned
     destination: native-plugin-managers
     ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
@@ -398,7 +338,7 @@ entries:
   - id: manifest-release-metadata
     category: updates
     path: ~/.manifest/releases.json
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: coordinator-owned
     destination: xdg-release-metadata
     ownership_proof: {type: unproven, value: legacy-release-format-varies}
@@ -455,16 +395,6 @@ entries:
     action: retain
     recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
-  - id: gemini-scripts-link
-    category: scripts
-    path: ~/.gemini/scripts
-    harnesses: [gemini]
-    classification: bundle-owned
-    destination: domain-bundle-runtime
-    ownership_proof: {type: symlink-target, value: ~/.claude/scripts}
-    action: disable
-    recovery: restore-symlink
-    parity_test: plugin_migration.bats
   - id: codex-scripts-link
     category: scripts
     path: ~/.codex/scripts
@@ -498,7 +428,7 @@ entries:
   - id: apm-dev-sync-cli
     category: scripts
     path: ~/.local/bin/apm-dev-sync
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    harnesses: [claude, codex, cursor, antigravity, devin]
     classification: retired
     destination: retired-apm-runtime
     ownership_proof: {type: unproven, value: retired-wrapper-without-hash}

@@ -28,6 +28,13 @@
   Gemini provider (API or CLI; `--gemini-model` is removed). The now-unused
   `google-genai` entry stays in the `benchmark` dependency group until the next
   attested toolchain bump, because the root `pyproject.toml` is hash-pinned.
+- An interrupted Graphify retirement journal
+  (`.installation.json.retired-graphify.json`) whose receipts still name the
+  retired `gemini` harness now recovers instead of blocking install with
+  `unsupported receipt harness: gemini`; any other unknown harness name in the
+  journal is still rejected. The legacy migration inventory drops its seven
+  `~/.gemini` entries and the `gemini` harness tag, all unreachable since the
+  harness can no longer be requested.
 - Add the seventh coordinator adapter, OMP (`manifest install --harness omp`),
   with typed native package/source/version inspection separate from unobserved
   activation qualification. Bind default-user native identities to full signed
