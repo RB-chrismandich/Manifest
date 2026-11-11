@@ -17,6 +17,7 @@ import hashlib
 import io
 import json
 import stat
+import subprocess
 import tarfile
 from dataclasses import replace
 from pathlib import Path
@@ -152,6 +153,30 @@ def test_npm_harnesses_are_pinned_by_a_committed_lockfile(harness: str) -> None:
     for entry in fetched:
         assert entry["integrity"].startswith("sha512-"), entry["resolved"]
         assert entry["resolved"].startswith("https://registry.npmjs.org/")
+
+
+@pytest.mark.parametrize("harness", _NPM)
+def test_npm_lockfiles_are_tracked_by_git(harness: str) -> None:
+    """An ignored lockfile passes locally and is absent from every CI checkout."""
+    project = _LOCKFILES / HARNESSES[harness].source.project
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "package.json", "package-lock.json"],
+        cwd=project,
+        capture_output=True,
+        check=False,
+    )
+
+    assert tracked.returncode == 0, tracked.stderr.decode()
+
+
+def test_a_missing_lockfile_is_blocked(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(live_harness_setup, "_LOCKFILES", tmp_path / "absent")
+
+    status, runner, _ = _install("claude", tmp_path)
+
+    assert status == 1
+    assert runner.dispatched == []
+    assert "BLOCKED" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("harness", _ARCHIVE)

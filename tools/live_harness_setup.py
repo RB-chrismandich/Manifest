@@ -337,10 +337,13 @@ def _install_npm(
 ) -> str | None:
     """Install from the committed lockfile, outside the checkout."""
     root = _resolved_within(home, _INSTALL_ROOT / "npm" / source.project)
-    shutil.rmtree(root, ignore_errors=True)
-    root.mkdir(parents=True)
-    for name in ("package.json", "package-lock.json"):
-        shutil.copyfile(_LOCKFILES / source.project / name, root / name)
+    try:
+        shutil.rmtree(root, ignore_errors=True)
+        root.mkdir(parents=True)
+        for name in ("package.json", "package-lock.json"):
+            shutil.copyfile(_LOCKFILES / source.project / name, root / name)
+    except OSError as error:
+        return f"pinned {source.project} lockfile is unavailable: {error}"
     # `npm ci` installs exactly the lockfile and fails on any integrity mismatch.
     argv = ("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund")
     status = runner((*argv, "--prefix", str(root)), env)
