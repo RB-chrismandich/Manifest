@@ -239,13 +239,36 @@ def read_retired_graphify_transaction(
         ValueError,
     ) as error:
         raise StateError("unable to read retired Graphify transaction") from error
-    _validate_receipt(
-        transaction.legacy_receipt, ownership_key_path=path.parent / "ownership.key"
-    )
-    _validate_receipt(
-        transaction.target_receipt, ownership_key_path=path.parent / "ownership.key"
-    )
+    # Retired harness records are pruned on read, exactly as read_receipt does,
+    # so only the records that survive pruning are validated. The transaction
+    # keeps its receipts as written: its digest and ownership proof cover those.
+    for receipt in (transaction.legacy_receipt, transaction.target_receipt):
+        _validate_receipt(
+            without_retired_harnesses(receipt),
+            ownership_key_path=path.parent / "ownership.key",
+        )
     return transaction
+
+
+def without_retired_transaction_harnesses(
+    transaction: RetiredGraphifyTransaction,
+) -> RetiredGraphifyTransaction:
+    """Rebind a verified Graphify journal to its receipts as read_receipt sees them.
+
+    Call only after the as-written digest and ownership proof have been
+    verified: the returned proof still covers the as-written receipts, so the
+    journal must be re-signed before it is written again.
+    """
+    legacy = without_retired_harnesses(transaction.legacy_receipt)
+    target = without_retired_harnesses(transaction.target_receipt)
+    if legacy is transaction.legacy_receipt and target is transaction.target_receipt:
+        return transaction
+    return replace(
+        transaction,
+        legacy_receipt_digest=receipt_digest(legacy),
+        legacy_receipt=legacy,
+        target_receipt=target,
+    )
 
 
 def write_retired_graphify_transaction_atomic(

@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
+import pytest
+
+import manifest_agent.service as service_module
 from manifest_agent.bootstrap_sync import (
     HarnessMutationCheckpoint,
     ReconciliationSaga,
@@ -14,16 +18,29 @@ from manifest_agent.bootstrap_sync import (
     _write_journal,
     pending_bootstrap_journal_error,
 )
-from manifest_agent.models import AdapterMutationHandle
+from manifest_agent.models import AdapterMutationHandle, ResultState
+from manifest_agent.ownership import graphify_retirement_transaction_proof
+from manifest_agent.service_state import bundle_checksums
 from manifest_agent.state import (
+    StateError,
+    _decode_receipt,
     read_receipt,
+    read_retired_graphify_transaction,
     receipt_digest,
+    retired_graphify_transaction_path,
     retired_receipt_rebinding,
     write_receipt_atomic,
 )
 from tests.python.manifest_agent.test_retired_harnesses import (
     _GEMINI_RECORD,
     _add_record,
+    _raw_harnesses,
+)
+from tests.python.manifest_agent.test_service_install import (
+    FakeAdapter,
+    _write_legacy_graphify_receipt,
+    harness_result,
+    make_service_factory,
 )
 from tests.python.manifest_agent.test_state import SAMPLE_RECEIPT
 
@@ -132,3 +149,71 @@ def test_journal_bound_to_an_unrelated_receipt_keeps_its_digests(
     assert json.loads(journal.read_text(encoding="utf-8"))["prior_receipt_digest"] == (
         unrelated
     )
+
+
+def _graphify_journal_naming(service, name: str) -> Path:
+    """Write a signed Graphify retirement journal whose receipts name `name`."""
+    _write_legacy_graphify_receipt(service)
+    _add_record(service.receipt_path, name, {**_GEMINI_RECORD, "harness": name})
+    written = _decode_receipt(
+        json.loads(service.receipt_path.read_text(encoding="utf-8"))
+    )
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+    target = service_module._retired_graphify_target(
+        written, desired, bundle_checksums(desired)
+    )
+    digest = receipt_digest(written)
+    proof = graphify_retirement_transaction_proof(
+        "cleanup-complete",
+        digest,
+        written,
+        target,
+        key_path=service.receipt_path.parent / "ownership.key",
+    )
+    journal = retired_graphify_transaction_path(service.receipt_path)
+    journal.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "phase": "cleanup-complete",
+                "legacy_receipt_digest": digest,
+                "legacy_receipt": asdict(written),
+                "target_receipt": asdict(target),
+                "ownership_proof": proof,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return journal
+
+
+def test_graphify_journal_naming_a_retired_harness_still_recovers(
+    tmp_path: Path,
+) -> None:
+    service_factory = make_service_factory(tmp_path)
+    claude = FakeAdapter("claude", harness_result("claude", plugin_ids=()))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    journal = _graphify_journal_naming(service, "gemini")
+
+    report = service.install()
+
+    assert report.state is ResultState.READY, report.errors
+    assert service.runner.calls == []
+    assert not journal.exists()
+    after = read_receipt(service.receipt_path)
+    assert after is not None
+    assert set(after.harnesses) == {"claude"}
+    assert _raw_harnesses(service.receipt_path) == {"claude"}
+
+
+def test_graphify_journal_naming_an_unknown_harness_is_still_rejected(
+    tmp_path: Path,
+) -> None:
+    service_factory = make_service_factory(tmp_path)
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    journal = _graphify_journal_naming(service, "bogus")
+
+    with pytest.raises(StateError):
+        read_retired_graphify_transaction(journal)

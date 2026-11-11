@@ -63,6 +63,7 @@ from manifest_agent.state import (
     read_retired_graphify_transaction,
     receipt_digest,
     retired_graphify_transaction_path,
+    without_retired_transaction_harnesses,
     write_receipt_atomic,
     write_retired_graphify_transaction_atomic,
 )
@@ -248,6 +249,8 @@ class ManifestService:
                     "retired Graphify transaction does not match its recorded legacy "
                     "receipt"
                 )
+            # Verified as written; compared and upgraded as read_receipt sees it.
+            transaction = without_retired_transaction_harnesses(transaction)
             if not _is_graphify_retirement_receipt(
                 transaction.legacy_receipt, desired, checksums
             ):
