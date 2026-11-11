@@ -38,6 +38,40 @@ def service_factory(tmp_path: Path):
     return make_service_factory(tmp_path)
 
 
+def test_user_managed_codex_skills_sync_without_cutover_ownership(
+    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = _ProbeAdapter()
+    service = service_factory({"codex": adapter}, harnesses=("codex",))
+    desired = _addon_desired(service)
+    service._desired_state = lambda receipt_release=None: (desired, None)
+    home = tmp_path / "home"
+    source = home / ".manifest/skills"
+    (source / ".system").mkdir(parents=True)
+    skills = home / ".codex/skills"
+    (skills / ".system").mkdir(parents=True)
+    skill = skills / "my-skill/SKILL.md"
+    skill.parent.mkdir()
+    contents = b"user-owned skill\n"
+    skill.write_bytes(contents)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("MANIFEST_SKILLS_DIR", str(source))
+
+    report = service.bootstrap_sync()
+
+    assert report.state is ResultState.READY
+    assert skill.read_bytes() == contents
+    receipt = read_receipt(service.receipt_path)
+    assert receipt is not None
+    assert all(
+        entry.kind != "codex-skill-source"
+        for entry in receipt.harnesses["codex"].owned_entries
+    )
+    journal = bootstrap_module._journal_path(service.receipt_path)
+    if journal.exists():
+        assert _read_journal(journal).cutover_entry is None
+
+
 def test_probe_failure_preserves_upstream_and_legacy_skill_source(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
