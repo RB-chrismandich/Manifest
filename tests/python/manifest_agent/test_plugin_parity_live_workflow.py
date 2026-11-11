@@ -153,6 +153,33 @@ def test_live_parity_workflow_scopes_one_credential_per_harness_job() -> None:
         assert f"secrets.{secret}" not in workflow
 
 
+def test_live_parity_workflow_installs_before_any_credential_exists() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    workflow = _workflow(repo_root)
+
+    steps = workflow.split("\n      - ")
+    (install,) = [step for step in steps if "live_harness_setup.py \\\n" in step]
+    (authenticate,) = [
+        step for step in steps if "live_harness_setup.py authenticate" in step
+    ]
+
+    # The install step references no secret and precedes the only step that does,
+    # so nothing it downloads shares an environment or process tree with one.
+    assert "install --harness" in install
+    assert "secrets" not in install and "LIVE_HARNESS_CREDENTIAL" not in install
+    assert steps.index(install) < steps.index(authenticate)
+    assert "LIVE_HARNESS_CREDENTIAL: ${{ secrets[matrix.secret] }}" in authenticate
+    assert all("secrets[" not in step for step in steps if step is not authenticate)
+
+    # Secrets never sit at job level, where every step would inherit them.
+    job_env = workflow.split("    steps:\n")[0]
+    assert "${{ secrets" not in job_env
+
+    # No mutable installer channel is reachable from the workflow itself.
+    for forbidden in ("npm install", "curl ", "| bash", "install.sh"):
+        assert forbidden not in workflow
+
+
 def test_live_parity_workflow_embeds_a_strict_archive_verifier() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     verifier = _verifier(_workflow(repo_root))
