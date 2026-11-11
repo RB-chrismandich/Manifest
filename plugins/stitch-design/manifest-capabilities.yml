@@ -9,10 +9,10 @@ components:
     root: skills
     include: ["*/SKILL.md"]
   agents:
-    - {id: design-lens-reviewer, path: agents/design-lens-reviewer.md}
-    - {id: skeptic-verifier, path: agents/skeptic-verifier.md}
+    - {id: design-lens-reviewer, path: agents/design-loop/design-lens-reviewer.md}
+    - {id: skeptic-verifier, path: agents/design-loop/skeptic-verifier.md}
     - id: ui-builder
-      path: agents/ui-builder.md
+      path: agents/ui-delivery/ui-builder.md
       compatibility:
         claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
@@ -22,7 +22,7 @@ components:
         devin: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         omp: {mode: native}
     - id: ui-reviewer
-      path: agents/ui-reviewer.md
+      path: agents/ui-delivery/ui-reviewer.md
       compatibility:
         claude: {mode: not_applicable, reason: This constrained agent is OMP-only.}
         codex: {mode: not_applicable, reason: This constrained agent is OMP-only.}
