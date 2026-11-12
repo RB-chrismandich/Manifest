@@ -162,3 +162,8 @@ summaries, never raw transcripts or secrets.
 Use empty arrays when a list has no entries. Required scalar values must not be
 empty. The runtime stores a SHA-256 digest in its envelope and rejects later
 reads whose content no longer matches it.
+
+Redact the payload before writing it to disk or passing it to any tool. Record a
+secret exposure only as value-free state in `unresolved_uncertainty` (surface and
+remediation status, e.g. `"STRIPE_KEY exposed in chat; rotation not verified"`);
+never include the value or a substring of it.
