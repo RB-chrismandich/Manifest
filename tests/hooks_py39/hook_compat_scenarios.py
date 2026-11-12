@@ -293,7 +293,7 @@ def _run_python_hook_scenarios(env, home):
         {"stop_hook_active": True},
         env,
         home,
-        '"decision": "approve"',
+        ("{}\n", '{"decision": "approve", "reason": "stop-hook-active"}\n'),
         "",
         "manifest-delegate Stop recursion guard",
     )
