@@ -127,6 +127,22 @@ class PrRegressionContractTests(unittest.TestCase):
         self.assertIn("test_configured.py", result.stdout)
         self.assertIn("| python tests | FAIL |", result.stdout)
 
+    def test_missing_pytest_is_warn_not_fail(self) -> None:
+        python = self.bin / "python3"
+        python.unlink()
+        python.write_text(
+            '#!/bin/sh\nexec "$PR_SMOKE_TEST_REAL_PYTHON" -S "$@"\n',
+            encoding="utf-8",
+        )
+        python.chmod(0o755)
+        self.env["PR_SMOKE_TEST_REAL_PYTHON"] = REAL_PYTHON
+        self.env["PYTHONPATH"] = ""
+
+        result = self.run_runner()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("| python tests | WARN (missing pytest) |", result.stdout)
+        self.assertNotIn("| python tests | FAIL", result.stdout)
+
     def test_no_tests_is_warn_not_fail(self) -> None:
         result = self.run_runner()
         self.assertEqual(result.returncode, 1, result.stdout)

@@ -83,12 +83,31 @@ local_script_gate() {
 # (testpaths, tests/, tests/python/, ...) decides the suite. Exit 5 means no
 # tests were collected; every other nonzero status is a real failure.
 python_gate() {
-    local name='python tests' status
+    local name='python tests' status pytest_module
     if ! command -v python3 > /dev/null 2>&1; then
         printf '| %s | WARN (missing python3) |\n' "$name"
         WARNINGS=$((WARNINGS + 1))
         return
     fi
+    if ! pytest_module="$(python3 -c 'import importlib.util; print("available" if importlib.util.find_spec("pytest") is not None else "missing")' 2> /dev/null)"; then
+        printf '| %s | FAIL (pytest availability check failed) |\n' "$name"
+        FAILURES=$((FAILURES + 1))
+        return
+    fi
+    case "$pytest_module" in
+        missing)
+            printf '| %s | WARN (missing pytest) |\n' "$name"
+            WARNINGS=$((WARNINGS + 1))
+            return
+            ;;
+        available) ;;
+        *)
+            printf '| %s | FAIL (unexpected pytest availability result) |\n' "$name"
+            FAILURES=$((FAILURES + 1))
+            return
+            ;;
+    esac
+
     python3 -m pytest -q
     status=$?
     case "$status" in
