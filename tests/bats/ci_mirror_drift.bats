@@ -130,9 +130,10 @@ assert_mirrored() {
         "bats|tests/bats/"
 }
 
-@test "pytest tests/python/ is mirrored" {
+@test "pytest tests/python/ is covered by root discovery" {
     assert_mirrored "pytest tests/python/" \
-        "pytest|tests/python/"
+        "pytest|tests/python/" \
+        "python3|-m pytest|-q"
 }
 
 # Smoke execution is coordinator-owned (`manifest smoke`) and forbidden from
