@@ -197,22 +197,53 @@ except Exception:
 PY
 }
 
-# run_reviewer PROMPT -> raw reviewer output. The prompt body is stdin and the
-# short instruction requests the contract expected by format_findings.
+# run_reviewer PROMPT -> raw reviewer output. agy takes the full prompt as its
+# --print argv value (its declared transport; stdin is ignored). Other injected
+# CLIs keep the stdin body plus a short -p instruction.
 run_reviewer() {
     local prompt="$1" model
     model="$(resolve_review_model)"
     local cli_args=()
     [[ -n "$model" ]] && cli_args+=(--model "$model")
+    if [[ "$(basename -- "$SPEC_REVIEW_CLI")" == "agy" ]]; then
+        "$SPEC_REVIEW_CLI" ${cli_args[@]+"${cli_args[@]}"} --print "$prompt" < /dev/null
+        return
+    fi
     cli_args+=(-p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES.")
     printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" ${cli_args[@]+"${cli_args[@]}"}
 }
 
-# format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
-# message (with the artifact count when COUNT is supplied).
+# Clean result: the whole trimmed response is the single NO_ISSUES token, per the
+# prompt contract. A mere mention of the token inside chatter is not a verdict.
+is_clean_review() {
+    local raw="$1"
+    raw="${raw#"${raw%%[![:space:]]*}"}"
+    raw="${raw%"${raw##*[![:space:]]}"}"
+    [[ "$raw" == "NO_ISSUES" ]]
+}
+
+# Findings: at least one line that starts a CLARIFICATION REQUIRED block header
+# (optional leading marker such as the warning emoji), not a prose mention.
+has_finding_blocks() {
+    printf '%s\n' "$1" | grep -E '^[^[:alnum:]]*CLARIFICATION REQUIRED: *[^[:space:]]' > /dev/null
+}
+
+# validate_findings RAW -> 0 when RAW honors the output contract; else nonzero.
+# Empty output and chatter are unverifiable, never clean.
+validate_findings() {
+    local raw="$1"
+    if is_clean_review "$raw" || has_finding_blocks "$raw"; then
+        return 0
+    fi
+    err "unverifiable reviewer output (expected NO_ISSUES or CLARIFICATION REQUIRED)"
+    return 3
+}
+
+# format_findings RAW FORMAT [COUNT] -> formatted output. Exact NO_ISSUES ->
+# clean message (with the artifact count when COUNT is supplied).
 format_findings() {
     local raw="$1" fmt="${2:-tree}" count="${3:-}"
-    if [[ -z "${raw//[[:space:]]/}" || "$raw" == *NO_ISSUES* ]]; then
+    if is_clean_review "$raw"; then
         if [[ "$fmt" == "json" ]]; then
             echo "[]"
         elif [[ -n "$count" ]]; then
@@ -286,7 +317,8 @@ review() {
     echo "[spec-review] Cross-referencing project artifacts with one reviewer…"
     local prompt raw
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
-    raw="$(run_reviewer "$prompt")"
+    raw="$(run_reviewer "$prompt")" || return $?
+    validate_findings "$raw" || return $?
     format_findings "$raw" "$fmt" "${#arts[@]}"
 }
 
@@ -302,6 +334,9 @@ _silent_review_inline() {
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
     if ! raw="$(run_reviewer "$prompt" 2>> "$state/error.log")"; then
         return 0 # fail-open: reviewer failed, never block; hash not recorded
+    fi
+    if ! validate_findings "$raw" 2>> "$state/error.log"; then
+        return 0 # fail-open: unverifiable output is retried, never reported clean
     fi
     # Record the hash only when feedback.md was actually written — a failed
     # write (disk full, permissions) must stay retryable, same as a failed
