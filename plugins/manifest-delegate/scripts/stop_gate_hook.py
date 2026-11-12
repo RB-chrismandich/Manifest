@@ -94,7 +94,10 @@ def _relay_gate_decision(result):
     ):
         _fail_closed("invalid_decision")
         return
-    print(json.dumps({"decision": decision["decision"], "reason": decision["reason"]}))
+    if decision["decision"] == "block":
+        print(json.dumps({"decision": "block", "reason": decision["reason"]}))
+    else:
+        print("{}")
 
 
 def main(argv=None):
@@ -109,7 +112,7 @@ def main(argv=None):
     # transcript check, import, and subprocess launch so a blocked turn can be
     # reported to the developer without recursively reviewing that report.
     if payload.get("stop_hook_active") is True:
-        print(json.dumps({"decision": "approve", "reason": "stop-hook-active"}))
+        print("{}")
         return 0
 
     transcript_path = payload.get("transcript_path")
