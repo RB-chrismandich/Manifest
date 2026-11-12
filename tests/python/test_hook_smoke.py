@@ -43,22 +43,23 @@ try:
 except Exception:
     raise SystemExit(1)
 if '-c' in args:
-    print(json.dumps(
-        {'decision': document.get('decision'), 'reason': document.get('reason')},
-        separators=(',', ':'),
-    ))
+    if document == {}:
+        print('{}')
+    elif (
+        document.get('decision') == 'block'
+        and isinstance(document.get('reason'), str)
+        and document['reason'].strip()
+    ):
+        print(json.dumps(
+            {'decision': 'block', 'reason': document['reason']},
+            separators=(',', ':'),
+        ))
+    else:
+        raise SystemExit(1)
     raise SystemExit(0)
 if 'stop_hook_active == true' in expression:
     raise SystemExit(0 if document.get('stop_hook_active') is True else 1)
-valid = isinstance(document, dict)
-if '.decision' in expression:
-    valid = (
-        valid
-        and document.get('decision') in {'approve', 'block'}
-        and isinstance(document.get('reason'), str)
-        and bool(document['reason'])
-    )
-raise SystemExit(0 if valid else 1)
+raise SystemExit(0 if isinstance(document, dict) else 1)
 """,
         encoding="utf-8",
     )
@@ -126,6 +127,12 @@ def _run_smoke(
     )
 
 
+def test_invalid_review_rejects_empty_approval_object():
+    module = _load_module()
+
+    assert not module._expected_observation("invalid_review", {}, 0, 1)
+
+
 def test_smoke_proves_clean_block_and_recursion_paths_and_writes_receipt(tmp_path):
     result = _run_smoke(tmp_path)
 
@@ -134,6 +141,7 @@ def test_smoke_proves_clean_block_and_recursion_paths_and_writes_receipt(tmp_pat
     assert report["status"] == "ok"
     assert {item["name"]: item["status"] for item in report["checks"]} == {
         "clean_review": "ok",
+        "finding_review": "ok",
         "invalid_review": "ok",
         "recursion_guard": "ok",
     }

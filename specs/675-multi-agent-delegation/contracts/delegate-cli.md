@@ -239,6 +239,11 @@ delegate.py gate --transcript <path> [--stop-hook-active] [--json]
 Stop-hook block) ⇒ immediate `approve`, before any other work. A `gate`-kind
 job is still recorded per run as the audit trail.
 
+
+The hook wrapper preserves these internal `approve` decisions for CLI callers
+but translates successful Stop-hook output to `{}`; blocked hook output retains
+`{"decision":"block","reason":<text>}` for continuation.
+
 **Edit detection (deterministic)**: scan the transcript JSONL for the last
 user message that is not a tool-result carrier; the finishing turn = all
 entries after it. The gate reviews when either (a) any assistant `tool_use`

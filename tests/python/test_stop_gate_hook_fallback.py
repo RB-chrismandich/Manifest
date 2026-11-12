@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -53,7 +54,7 @@ def test_explicit_config_root_works_without_home(tmp_path):
         '{"review_gate":{"enabled":false}}', encoding="utf-8"
     )
     result = _run_without_home(tmp_path, {"MANIFEST_CONFIG_DIR": str(config_dir)})
-    assert _decision(result) == {"decision": "approve", "reason": "gate disabled"}
+    assert _decision(result) == {}
 
 
 def test_help_exits_zero_within_15_lines():
@@ -79,7 +80,7 @@ def test_missing_jq_and_python_approves_only_top_level_guard(tmp_path):
         tmp_path,
         {"PATH": no_parser_path},
     )
-    assert _decision(result) == {"decision": "approve", "reason": "stop-hook-active"}
+    assert _decision(result) == {}
 
     nested = _run_shell(
         {"hook_event_name": "Stop", "metadata": {"stop_hook_active": True}},
@@ -165,10 +166,8 @@ def test_missing_jq_python_rejects_non_json_constant_with_enabled_gate(tmp_path)
     [
         ('{"some_field":1}', "not_stop_event"),
         ('{"hook_event_name":"Stop"}', "missing_transcript"),
-        (
-            '{"hook_event_name":"Stop","transcript_path":"/missing.jsonl"}',
-            None,
-        ),
+        ('{"hook_event_name":"Stop","transcript_path":"/missing.jsonl"}', None),
+        ('{"hook_event_name":"Stop","transcript_path":null}', None),
     ],
 )
 def test_no_jq_disabled_gate_applies_stop_contract(
@@ -183,7 +182,7 @@ def test_no_jq_disabled_gate_applies_stop_contract(
     )
     decision = _decision(result)
     if expected is None:
-        assert decision == {"decision": "approve", "reason": "gate disabled"}
+        assert decision == {}
     else:
         assert decision["decision"] == "block"
         assert expected in decision["reason"]
@@ -195,6 +194,7 @@ def test_no_jq_disabled_gate_applies_stop_contract(
         '{"some_field":1}',
         '{"hook_event_name":"Stop"}',
         '{"hook_event_name":"Stop","transcript_path":"/missing.jsonl"}',
+        '{"hook_event_name":"Stop","transcript_path":null}',
     ],
 )
 def test_no_jq_no_python_disabled_gate_fails_closed(tmp_path, stdin_text: str) -> None:
@@ -208,3 +208,29 @@ def test_no_jq_no_python_disabled_gate_fails_closed(tmp_path, stdin_text: str) -
     decision = _decision(result)
     assert decision["decision"] == "block"
     assert "invalid_input" in decision["reason"]
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_disabled_gate_accepts_codex_null_transcript(tmp_path):
+    result = _run_shell({"hook_event_name": "Stop", "transcript_path": None}, tmp_path)
+    assert _decision(result) == {}
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
+def test_enabled_gate_fails_closed_when_codex_transcript_is_null(tmp_path):
+    config_dir = tmp_path / "delegate-config"
+    config_dir.mkdir()
+    (config_dir / "delegation.json").write_text(
+        '{"review_gate":{"enabled":true}}', encoding="utf-8"
+    )
+    runtime_python = tmp_path / ".claude/.venv/bin/python"
+    runtime_python.parent.mkdir(parents=True)
+    runtime_python.symlink_to(sys.executable)
+    result = _run_shell(
+        {"hook_event_name": "Stop", "transcript_path": None},
+        tmp_path,
+        {"MANIFEST_CONFIG_DIR": str(config_dir)},
+    )
+    decision = _decision(result)
+    assert decision["decision"] == "block"
+    assert "missing_transcript" in decision["reason"]

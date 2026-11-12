@@ -10,6 +10,12 @@ block() {
     printf '%s\n' "{\"decision\":\"block\",\"reason\":\"Review gate could not verify this turn ($1); make no tool calls or edits; report the failure to the developer for a decision.\"}"
 }
 
+# Letting the turn end is an empty hook object: Codex rejects the legacy
+# `"decision":"approve"` Stop output, and Claude Code treats `{}` as allow.
+allow() {
+    printf '%s\n' '{}'
+}
+
 JQ=$(command -v jq 2> /dev/null || true)
 
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/manifest-stop-gate.XXXXXX" 2> /dev/null || true)
@@ -36,9 +42,11 @@ if ! chmod 600 "$INPUT_FILE" "$OUTPUT_FILE" "$FORWARD_FILE" "$ERROR_FILE" 2> /de
     exit 0
 fi
 
+# shellcheck disable=SC2329
 cleanup() {
     rm -rf "$WORK_DIR" 2> /dev/null || true
 }
+# shellcheck disable=SC2329
 interrupted() {
     cleanup
     block "launcher_interrupted"
@@ -53,6 +61,7 @@ if ! dd bs=4096 count=257 of="$INPUT_FILE" 2> /dev/null; then
     exit 0
 fi
 INPUT_BYTES_RAW=$(wc -c < "$INPUT_FILE" 2> /dev/null || printf '%s' 1048577)
+# shellcheck disable=SC2086
 set -- $INPUT_BYTES_RAW
 INPUT_BYTES=${1:-}
 case "$INPUT_BYTES" in
@@ -79,7 +88,7 @@ fi
 if [ -n "$JQ" ]; then
     if "$JQ" -e -s 'length == 1 and (.[0] | type == "object" and .stop_hook_active == true)' \
         "$INPUT_FILE" > /dev/null 2>&1; then
-        printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+        allow
         exit 0
     fi
 elif python3 - "$INPUT_FILE" << 'PY' > /dev/null 2>&1; then
@@ -94,7 +103,7 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 if not isinstance(value, dict) or value.get("stop_hook_active") is not True:
     raise SystemExit(1)
 PY
-    printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+    allow
     exit 0
 elif awk '
     function valid_value(value) {
@@ -175,7 +184,7 @@ elif awk '
     }
     END { exit !(active && complete && depth == 0 && !in_string && !escaped && !unicode_digits && !invalid) }
 ' "$INPUT_FILE" 2> /dev/null; then
-    printf '%s\n' '{"decision":"approve","reason":"stop-hook-active"}'
+    allow
     exit 0
 fi
 
@@ -218,12 +227,9 @@ DELEGATION_FILE=$(find_delegation_file \
 # jq is optional. Without it, only an explicit enabled review gate blocks;
 # malformed or absent configuration uses the gate's disabled default.
 
-# validate_stop_input mirrors the jq checks below — JSON object, hook_event_name
-# == "Stop", nonblank transcript_path — using python3's strict parser (NaN and
-# friends rejected like the recursion-guard fallback). It exits 0 only for a
-# verifiably valid Stop payload and prints nothing; the caller classifies the
-# failure. With no python3 either, the input is unverifiable and the disabled
-# gate must fail closed, never approve.
+# validate_stop_input mirrors the jq event-shape checks. Codex permits a null
+# transcript_path on a valid Stop event; an enabled gate will still fail closed
+# in stop_gate_hook.py because it cannot review without a transcript.
 validate_stop_input() {
     python3 - "$INPUT_FILE" << 'PY' > /dev/null 2>&1
 import json
@@ -241,21 +247,24 @@ if not isinstance(value, dict):
     raise SystemExit(1)
 if value.get("hook_event_name") != "Stop":
     raise SystemExit(2)
-transcript = value.get("transcript_path")
+if "transcript_path" not in value:
+    raise SystemExit(3)
+transcript = value["transcript_path"]
+if transcript is None:
+    raise SystemExit(0)
 if not isinstance(transcript, str) or not transcript.strip():
     raise SystemExit(3)
 PY
 }
 
-# approve_disabled emits the disabled-gate approval only after the same input
-# contract the jq path enforces. python3 gives the exact block reason; with no
-# parser at all, unverifiable input blocks like the jq path's first check.
+# approve_disabled accepts the valid Codex Stop shape with a null transcript
+# because no review is requested. An enabled gate still requires the transcript.
 approve_disabled() {
     validate_stop_input
     VALIDATION=$?
     case "$VALIDATION" in
         0)
-            printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+            allow
             ;;
         2)
             block "not_stop_event"
@@ -302,25 +311,31 @@ if ! "$JQ" -e -s 'length == 1 and (.[0] | type == "object")' \
     exit 0
 fi
 
-# Only a genuine Stop event may take the disabled-gate approve path. Every
-# other object — non-event payloads or a Stop event with no usable transcript
-# — stays fail-closed rather than being silently approved. The transcript
-# check mirrors the wrapper's `str.strip()` rule so both paths agree on what
-# counts as malformed.
+# Only a genuine Stop event may take the disabled-gate approve path. Its
+# transcript_path must be a nonblank string or explicit null (Codex's valid
+# shape); an enabled gate still rejects null in the Python wrapper.
 if ! "$JQ" -e -s 'length == 1 and (.[0] | .hook_event_name == "Stop")' \
     "$INPUT_FILE" > /dev/null 2>&1; then
     block "not_stop_event"
     exit 0
 fi
-if ! "$JQ" -e -s 'length == 1 and (.[0] | .transcript_path | type == "string" and test("\\S"))' \
-    "$INPUT_FILE" > /dev/null 2>&1; then
+if ! "$JQ" -e -s '
+    length == 1 and
+    (.[0] |
+        has("transcript_path") and
+        (
+            .transcript_path == null or
+            (.transcript_path | type == "string" and test("\\S"))
+        )
+    )
+' "$INPUT_FILE" > /dev/null 2>&1; then
     block "missing_transcript"
     exit 0
 fi
 
 case "$DELEGATION_FILE" in
     "")
-        printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+        allow
         exit 0
         ;;
     *.json)
@@ -330,7 +345,7 @@ case "$DELEGATION_FILE" in
         fi
         if ! "$JQ" -e '.review_gate.enabled == true' "$DELEGATION_FILE" \
             > /dev/null 2>&1; then
-            printf '%s\n' '{"decision":"approve","reason":"gate disabled"}'
+            allow
             exit 0
         fi
         ;;
@@ -357,16 +372,22 @@ if ! "$RUNTIME_PYTHON" "$PYTHON_WRAPPER" --stdin-json "$INPUT_FILE" \
     exit 0
 fi
 
+# The wrapper speaks the same native shapes: exactly `{}` to allow, or a block
+# shellcheck disable=SC2016
+# with a nonblank reason. Anything else (including a legacy approve) fails closed.
 if ! "$JQ" -c -s '
-    if (
-        length == 1 and
-        (.[0] |
-            type == "object" and
-            ((.decision == "approve") or (.decision == "block")) and
-            (.reason | if type == "string" then test("\\S") else false end)
-        )
-    ) then
-        .[0] | {decision, reason}
+    if length == 1 and (.[0] | type == "object") then
+        .[0] as $decision
+        | if $decision == {} then
+            {}
+        elif (
+            $decision.decision == "block" and
+            ($decision.reason | if type == "string" then test("\\S") else false end)
+        ) then
+            $decision | {decision, reason}
+        else
+            error("invalid decision")
+        end
     else
         error("invalid decision")
     end
