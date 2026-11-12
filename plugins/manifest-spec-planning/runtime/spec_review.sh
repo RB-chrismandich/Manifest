@@ -204,9 +204,24 @@ run_reviewer() {
     esac
 }
 
+# Clean result: the whole trimmed response is the single NO_ISSUES token, per the
+# prompt contract. A mere mention of the token inside chatter is not a verdict.
+is_clean_review() {
+    local raw="$1"
+    raw="${raw#"${raw%%[![:space:]]*}"}"
+    raw="${raw%"${raw##*[![:space:]]}"}"
+    [[ "$raw" == "NO_ISSUES" ]]
+}
+
+# Findings: at least one line that starts a CLARIFICATION REQUIRED block header
+# (optional leading marker such as the warning emoji), not a prose mention.
+has_finding_blocks() {
+    printf '%s\n' "$1" | grep -E '^[^[:alnum:]]*CLARIFICATION REQUIRED: *[^[:space:]]' > /dev/null
+}
+
 validate_findings() {
     local raw="$1"
-    if [[ "$raw" == *NO_ISSUES* || "$raw" == *"CLARIFICATION REQUIRED"* ]]; then
+    if is_clean_review "$raw" || has_finding_blocks "$raw"; then
         return 0
     fi
     err "unverifiable reviewer output (expected NO_ISSUES or CLARIFICATION REQUIRED)"
@@ -215,7 +230,7 @@ validate_findings() {
 
 format_findings() {
     local raw="$1" fmt="${2:-tree}" count="${3:-}"
-    if [[ "$raw" == *NO_ISSUES* ]]; then
+    if is_clean_review "$raw"; then
         if [[ "$fmt" == "json" ]]; then
             printf '[]\n'
         elif [[ -n "$count" ]]; then

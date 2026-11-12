@@ -118,12 +118,81 @@ STUB
 }
 
 
-@test "run_reviewer pipes prompt through the injectable seam" {
-    _fake_reviewer
-    source "$SCRIPT"
-    SPEC_REVIEW_CLI="$SANDBOX/agy" run run_reviewer "any prompt"
+_argv_only_agy() {  # agy stub: ignores stdin; clean only when argv carries the prompt
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/agy" <<'STUB'
+#!/usr/bin/env bash
+stdin="$(cat)"
+[[ -z "$stdin" ]] || { printf 'stdin was used\n'; exit 0; }
+prompt=""
+while [[ $# -gt 0 ]]; do [[ "$1" == "--print" ]] && { prompt="${2:-}"; break; }; shift; done
+[[ "$prompt" == *"=== SPEC:"*"spec body marker"*"=== PLAN:"*"plan body marker"* ]] || exit 0
+printf 'NO_ISSUES\n'
+STUB
+    chmod +x "$SANDBOX/bin/agy"
+    mkdir -p "$SANDBOX/specs/001"
+    printf 'spec body marker\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'plan body marker\n' > "$SANDBOX/specs/001/plan.md"
+}
+
+_stub_output() {  # non-agy reviewer stub emitting exactly $1
+    printf '%s' "$1" > "$SANDBOX/reply"
+    printf '#!/usr/bin/env bash\ncat >/dev/null\ncat "%s"\n' "$SANDBOX/reply" > "$SANDBOX/reviewer"
+    chmod +x "$SANDBOX/reviewer"
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+}
+
+@test "run_reviewer passes the full prompt to agy as --print argv (issue #743)" {
+    _argv_only_agy
+    PATH="$SANDBOX/bin:$PATH" \
+        SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" "$SANDBOX"
     assert_success
-    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+    assert_output --partial "No inconsistencies found across 2 artifacts"
+}
+
+@test "run_reviewer keeps the stdin seam for non-agy reviewers" {
+    printf '#!/usr/bin/env bash\nprintf "STDIN:%%s\\n" "$(cat)"\n' > "$SANDBOX/reviewer"
+    chmod +x "$SANDBOX/reviewer"
+    source "$SCRIPT"
+    SPEC_REVIEW_CLI="$SANDBOX/reviewer" run run_reviewer "any prompt"
+    assert_success
+    assert_output "STDIN:any prompt"
+}
+
+@test "review rejects empty reviewer output (issue #743)" {
+    _stub_output ""
+    SPEC_REVIEW_CLI="$SANDBOX/reviewer" run bash "$SCRIPT" --format json "$SANDBOX"
+    assert_failure
+    assert_output --partial "unverifiable reviewer output"
+    refute_output --partial "[]"
+}
+
+@test "review rejects chatter that merely mentions NO_ISSUES (issue #743)" {
+    _stub_output "I cannot review these artifacts or return NO_ISSUES"
+    SPEC_REVIEW_CLI="$SANDBOX/reviewer" run bash "$SCRIPT" "$SANDBOX"
+    assert_failure
+    assert_output --partial "unverifiable reviewer output"
+    refute_output --partial "No inconsistencies"
+}
+
+@test "review accepts a warning-marked CLARIFICATION REQUIRED block as JSON" {
+    _stub_output $'⚠️  CLARIFICATION REQUIRED: Migration\n   └─ Reason Why: gap'
+    SPEC_REVIEW_CLI="$SANDBOX/reviewer" run bash "$SCRIPT" --format json "$SANDBOX"
+    assert_success
+    echo "${lines[${#lines[@]}-1]}" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "CLARIFICATION REQUIRED: Migration" in d[0]'
+}
+
+@test "silent mode never records unverifiable output as reviewed" {
+    _stub_output ""
+    SPEC_REVIEW_CLI="$SANDBOX/reviewer" SPEC_REVIEW_NO_DETACH=1 \
+        SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
+        run bash "$SCRIPT" --silent "$SANDBOX"
+    assert_success
+    assert [ ! -f "$SANDBOX/.spec-review/feedback.md" ]
+    assert [ ! -f "$SANDBOX/.spec-review/.last-run" ]
 }
 
 @test "format_findings tree passes structured findings through" {
@@ -280,11 +349,13 @@ STUB
 }
 
 @test "spec-review SKILL.md has valid frontmatter and points at the engine" {
-    local skill="$REPO_ROOT/.apm/skills/spec-review/SKILL.md"
+    local skill="$REPO_ROOT/plugins/manifest-spec-planning/skills/spec-review/SKILL.md"
     assert [ -f "$skill" ]
     run head -1 "$skill"; assert_output "---"
     run grep -E '^name: spec-review' "$skill"; assert_success
-    run grep -E 'spec_review\.sh' "$skill"; assert_success
+    run grep -E '\.\./\.\./runtime/spec_review\.sh' "$skill"; assert_success
+    # The skill's relative engine reference must resolve inside the bundle.
+    assert [ -x "$(dirname "$skill")/../../runtime/spec_review.sh" ]
 }
 
 @test "spec-artifact-discovery.md's relative script refs resolve in the deployed layout" {
@@ -455,4 +526,11 @@ EOF
     run run_reviewer "prompt body"
     assert_success
     refute_output --partial "--model"
+}
+
+@test "validate_findings accepts a large finding response (no SIGPIPE false reject)" {
+    source "$SCRIPT"
+    big="$(printf '⚠️  CLARIFICATION REQUIRED: Gap\n'; awk 'BEGIN{for(i=0;i<200000;i++)print "filler finding text"}')"
+    run validate_findings "$big"
+    assert_success
 }

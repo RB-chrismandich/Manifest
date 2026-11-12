@@ -62,3 +62,73 @@ EOF
     assert_failure
     assert_output --partial "unverifiable reviewer output"
 }
+
+@test "bundle-local spec review rejects chatter that merely mentions NO_ISSUES" {
+    mkdir -p "$SANDBOX/project/specs/001"
+    printf '# Spec\n' > "$SANDBOX/project/specs/001/spec.md"
+    printf '# Plan\n' > "$SANDBOX/project/specs/001/plan.md"
+    cat > "$SANDBOX/reviewer" <<'EOF'
+#!/usr/bin/env bash
+cat >/dev/null
+printf 'I cannot review these artifacts or return NO_ISSUES\n'
+EOF
+    chmod +x "$SANDBOX/reviewer"
+
+    run env SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
+        bash "$SCRIPT" "$SANDBOX/project"
+
+    assert_failure
+    assert_output --partial "unverifiable reviewer output"
+}
+
+_plugin_stub_reply() {  # non-agy reviewer emitting exactly $1
+    mkdir -p "$SANDBOX/project/specs/001"
+    printf '# Spec\n' > "$SANDBOX/project/specs/001/spec.md"
+    printf '# Plan\n' > "$SANDBOX/project/specs/001/plan.md"
+    printf '%s' "$1" > "$SANDBOX/reply"
+    printf '#!/usr/bin/env bash\ncat >/dev/null\ncat "%s"\n' "$SANDBOX/reply" > "$SANDBOX/reviewer"
+    chmod +x "$SANDBOX/reviewer"
+}
+
+@test "bundle-local spec review rejects empty reviewer output" {
+    _plugin_stub_reply ""
+    run env SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
+        bash "$SCRIPT" --format json "$SANDBOX/project"
+    assert_failure
+    assert_output --partial "unverifiable reviewer output"
+    refute_output --partial "[]"
+}
+
+@test "bundle-local spec review passes the full prompt to agy as argv" {
+    mkdir -p "$SANDBOX/project/specs/001" "$SANDBOX/bin"
+    printf 'spec body marker\n' > "$SANDBOX/project/specs/001/spec.md"
+    printf 'plan body marker\n' > "$SANDBOX/project/specs/001/plan.md"
+    cat > "$SANDBOX/bin/agy" <<'STUB'
+#!/usr/bin/env bash
+stdin="$(cat)"
+[[ -z "$stdin" ]] || { printf 'stdin was used\n'; exit 0; }
+prompt=""
+while [[ $# -gt 0 ]]; do [[ "$1" == "--print" ]] && { prompt="${2:-}"; break; }; shift; done
+[[ "$prompt" == *"spec body marker"*"plan body marker"* ]] || exit 0
+printf 'NO_ISSUES\n'
+STUB
+    chmod +x "$SANDBOX/bin/agy"
+    run env PATH="$SANDBOX/bin:$PATH" bash "$SCRIPT" "$SANDBOX/project" < /dev/null
+    assert_success
+    assert_output --partial "No inconsistencies found across 2 artifacts"
+}
+
+@test "bundle-local spec review keeps warning-marked finding blocks as JSON" {
+    _plugin_stub_reply $'⚠️  CLARIFICATION REQUIRED: Migration\n   └─ Reason Why: gap'
+    run env SPEC_REVIEW_CLI="$SANDBOX/reviewer" \
+        bash "$SCRIPT" --format json "$SANDBOX/project"
+    assert_success
+    printf '%s' "$output" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "CLARIFICATION REQUIRED: Migration" in d[0]'
+}
+
+@test "bundle-local spec review accepts a large finding response" {
+    _plugin_stub_reply "$(printf '⚠️  CLARIFICATION REQUIRED: Gap\n'; awk 'BEGIN{for(i=0;i<200000;i++)print "filler finding text"}')"
+    run env SPEC_REVIEW_CLI="$SANDBOX/reviewer" bash "$SCRIPT" "$SANDBOX/project"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Gap"
+}
