@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make `pr-smoke` portable to non-Manifest repositories: missing local lint
+  scripts and empty pytest collections warn, while root/configured test suites
+  are discovered and executed failures remain fatal (#999).
 - **BREAKING:** Remove Gemini CLI (`gemini`, `@google/gemini-cli`) as a supported
   harness. Bootstrap no longer installs, authenticates, configures, deploys to,
   or verifies it; `configs/gemini/` and the generated `gemini-extension.json`

@@ -67,6 +67,62 @@ optional_gate() {
     run_gate "$name" "$@"
 }
 
+# Repository-local scripts exist only in some targets (e.g. Manifest itself);
+# absence is a WARN, but a present script that fails is still a FAIL.
+local_script_gate() {
+    local name="$1" script="$2"
+    if [[ ! -e "$script" ]]; then
+        printf '| %s | WARN (missing %s) |\n' "$name" "$script"
+        WARNINGS=$((WARNINGS + 1))
+        return
+    fi
+    run_gate "$name" "${@:2}"
+}
+
+# Run pytest from the repository root so its own rootdir/config discovery
+# (testpaths, tests/, tests/python/, ...) decides the suite. Exit 5 means no
+# tests were collected; every other nonzero status is a real failure.
+python_gate() {
+    local name='python tests' status pytest_module
+    if ! command -v python3 > /dev/null 2>&1; then
+        printf '| %s | WARN (missing python3) |\n' "$name"
+        WARNINGS=$((WARNINGS + 1))
+        return
+    fi
+    if ! pytest_module="$(python3 -c 'import importlib.util; print("available" if importlib.util.find_spec("pytest") is not None else "missing")' 2> /dev/null)"; then
+        printf '| %s | FAIL (pytest availability check failed) |\n' "$name"
+        FAILURES=$((FAILURES + 1))
+        return
+    fi
+    case "$pytest_module" in
+        missing)
+            printf '| %s | WARN (missing pytest) |\n' "$name"
+            WARNINGS=$((WARNINGS + 1))
+            return
+            ;;
+        available) ;;
+        *)
+            printf '| %s | FAIL (unexpected pytest availability result) |\n' "$name"
+            FAILURES=$((FAILURES + 1))
+            return
+            ;;
+    esac
+
+    python3 -m pytest -q
+    status=$?
+    case "$status" in
+        0) printf '| %s | PASS |\n' "$name" ;;
+        5)
+            printf '| %s | WARN (no Python tests collected) |\n' "$name"
+            WARNINGS=$((WARNINGS + 1))
+            ;;
+        *)
+            printf '| %s | FAIL |\n' "$name"
+            FAILURES=$((FAILURES + 1))
+            ;;
+    esac
+}
+
 echo '| Gate | Result |'
 echo '|---|---|'
 run_gate 'git diff check' git diff --check
@@ -76,8 +132,8 @@ if [[ "$QUICK" -eq 0 ]]; then
         optional_gate 'ShellCheck Manifest scripts' shellcheck \
             shellcheck -S warning "$manifest_scripts_dir"/*.sh
     fi
-    run_gate 'empty-array expansion lint' tests/lint/check_array_expansion.sh
-    run_gate 'Bats assertion lint' tests/lint/check_bats_assertions.sh
+    local_script_gate 'empty-array expansion lint' tests/lint/check_array_expansion.sh
+    local_script_gate 'Bats assertion lint' tests/lint/check_bats_assertions.sh
     optional_gate 'Markdown lint' markdownlint-cli2 \
         markdownlint-cli2 AGENTS.md CLAUDE.md README.md docs/*.md
     if [[ -n "$manifest_scripts_dir" ]]; then
@@ -86,8 +142,8 @@ if [[ "$QUICK" -eq 0 ]]; then
     fi
 fi
 
-if [[ "$QUICK" -eq 0 && -d tests/python ]]; then
-    optional_gate 'python tests' python3 python3 -m pytest tests/python/ -q
+if [[ "$QUICK" -eq 0 ]]; then
+    python_gate
 fi
 if [[ "$QUICK" -eq 0 && -d tests/bats ]]; then
     optional_gate 'bats tests' bats bats tests/bats/
@@ -97,7 +153,7 @@ if [[ "$FAILURES" -gt 0 ]]; then
     exit 2
 fi
 if [[ "$WARNINGS" -gt 0 ]]; then
-    echo "Verdict: WARN ($WARNINGS unavailable optional gate(s))"
+    echo "Verdict: WARN ($WARNINGS warning gate(s))"
     exit 1
 fi
 echo 'Verdict: PASS'
