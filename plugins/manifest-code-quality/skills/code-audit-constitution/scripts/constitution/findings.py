@@ -20,7 +20,7 @@ def worst(severities: list[str]) -> str:
     return max(severities, key=SEVERITIES.index, default="info")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Finding:
     """One violation, at one place, with the fix already named.
 
