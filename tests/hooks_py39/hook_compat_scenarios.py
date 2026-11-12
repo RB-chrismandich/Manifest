@@ -50,7 +50,10 @@ def run_case(command, payload, env, home, stdout, stderr, label):
         cwd=home,
         check=False,
     )
-    stdout_matches = stdout in result.stdout if stdout else result.stdout == ""
+    if isinstance(stdout, tuple):
+        stdout_matches = result.stdout in stdout
+    else:
+        stdout_matches = stdout in result.stdout if stdout else result.stdout == ""
     stderr_matches = stderr in result.stderr if stderr else result.stderr == ""
     if (
         result.returncode != 0
@@ -151,7 +154,10 @@ def _run_managed_delegate(env, home):
         {"hook_event_name": "Stop", "transcript_path": str(transcript)},
         dict(env, CLAUDE_PLUGIN_ROOT=str(root)),
         home,
-        '"decision":"approve"',
+        (
+            '{"decision":"approve","reason":"no code edits"}\n',
+            "{}\n",
+        ),
         "",
         "manifest-delegate Stop shell/Python/delegate no-edit path",
     )
