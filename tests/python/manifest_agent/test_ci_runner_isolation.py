@@ -24,8 +24,12 @@ def test_every_ci_runner_is_hosted_including_dispatch_matrix() -> None:
                 for row in job["strategy"]["matrix"]["include"]
             ]
         assert runners
+        allowed_runners = ("ubuntu-latest", "ubuntu-24.04-arm")
+        if name == "hooks-python39":
+            # This hosted image supplies the required PATH-selected Python 3.9.
+            allowed_runners += ("ubuntu-22.04",)
         for runner in runners:
-            assert runner in ("ubuntu-latest", "ubuntu-24.04-arm"), (
+            assert runner in allowed_runners, (
                 f"{name}: checkout-controlled code must use a hosted VM, got {runner!r}"
             )
 

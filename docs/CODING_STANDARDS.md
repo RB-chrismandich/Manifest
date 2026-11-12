@@ -119,6 +119,15 @@ array-expansion lint at commit and CI.
 
 ### Python (Active — primary)
 
+**Deployed Claude hook floor:** Python hook commands in
+`configs/claude/settings.runtime.json` and plugin manifests under
+`plugins/*/hooks/` may run with PATH-selected `python3`; those entry points and
+their reachable imports must remain executable on CPython 3.9 (the macOS
+Command Line Tools runtime). This is narrower than the repository/development
+floor of Python 3.11+ declared by `pyproject.toml`;
+`tests/hooks_py39/run_hook_compat.py` is the behavioral CI gate. Do not raise
+the hook floor by changing interpreter routing.
+
 **Rules:**
 
 - Format with ruff-format; lint with ruff. Configuration lives only in

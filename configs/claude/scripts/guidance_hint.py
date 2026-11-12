@@ -25,10 +25,13 @@ import json
 import os
 import re
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
+
+# Python 3.9 compatibility: datetime.UTC was added in Python 3.11.
+UTC = timezone.utc  # noqa: UP017 -- datetime.UTC is unavailable on Python 3.9.
 
 PROG = "guidance_hint.py"
 

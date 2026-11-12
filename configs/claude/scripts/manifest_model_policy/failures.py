@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 STREAM_LIMIT = 64 * 1024
 FIELD_LIMIT = 4 * 1024
@@ -15,7 +15,7 @@ SUMMARY_FIELD_LIMIT = 512
 SUMMARY_LIMIT = 4 * 1024
 
 
-class FailureClass(StrEnum):
+class FailureClass(str, Enum):  # noqa: UP042 - StrEnum is unavailable on Python 3.9.
     MODEL_UNAVAILABLE = "model_unavailable"
     RATE_LIMIT = "rate_limit"
     TRANSIENT = "transient"
@@ -196,7 +196,7 @@ def sdk_failure_evidence(
                 value = value()
             except Exception:
                 return
-        if isinstance(value, StrEnum):
+        if isinstance(value, str) and isinstance(value, Enum):
             value = value.value
         elif hasattr(value, "name") and isinstance(value.name, str):
             value = value.name

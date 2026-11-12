@@ -26,7 +26,7 @@ EXEMPT_RE = re.compile(
 EXEMPT_SPAN = 3
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Exemption:
     check: str
     line: int
@@ -36,7 +36,7 @@ class Exemption:
         return self.line <= line <= self.line + EXEMPT_SPAN
 
 
-@dataclass(slots=True)
+@dataclass
 class SourceFile:
     path: Path
     text: str

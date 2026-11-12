@@ -1,5 +1,7 @@
 """Fail-closed, bounded Git capture for review and Stop-gate observations."""
 
+from __future__ import annotations
+
 import contextlib
 import os
 import selectors

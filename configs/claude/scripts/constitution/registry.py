@@ -30,7 +30,7 @@ class RegistryError(Exception):
     """The registry could not be loaded or does not satisfy its own schema."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Article:
     id: str
     title: str
@@ -40,7 +40,7 @@ class Article:
     see_also: list[str] = field(default_factory=list)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Check:
     id: str
     article: str
@@ -61,7 +61,7 @@ class Check:
         return "info"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Language:
     key: str
     extensions: tuple[str, ...]
@@ -80,7 +80,7 @@ class Language:
         return int(value) if isinstance(value, int) else 0
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Registry:
     version: str
     articles: tuple[Article, ...]

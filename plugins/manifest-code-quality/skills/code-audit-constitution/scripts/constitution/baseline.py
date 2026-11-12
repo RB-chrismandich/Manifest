@@ -28,7 +28,7 @@ DEFAULT_PATH = (
 SCHEMA_VERSION = 1
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Baseline:
     """Recorded violation counts, keyed by repo-relative path then check id."""
 

@@ -1,0 +1,60 @@
+{
+  "python_cases": {
+    "guidance_hint.py": {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "payload": {
+        "session_id": "compat",
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "git commit -m x"},
+        "cwd": "/tmp"
+      },
+      "stdout": "/project-verify",
+      "stderr": "",
+      "args": []
+    },
+    "block_cwd_delete.py": {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {"command": "rm -rf /tmp/py39-victim"},
+        "cwd": "/tmp/py39-actor"
+      },
+      "stdout": "\"permissionDecision\": \"deny\"",
+      "stderr": ""
+    },
+    "subagent_model_default.py": {
+      "event": "PreToolUse",
+      "matcher": "Agent",
+      "payload": {
+        "tool_name": "Agent",
+        "tool_input": {"prompt": "p", "subagent_type": "general-purpose"}
+      },
+      "stdout": "",
+      "stderr": "subagent_model_default.py: native default unobserved; worker model coverage is incomplete\n",
+      "args": ["--native-default-only"]
+    },
+    "constitution_hook.py": {
+      "event": "PreToolUse",
+      "matcher": "Read|Write|Edit|MultiEdit",
+      "payload": {
+        "session_id": "py39-check",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "constitution_input.py"}
+      },
+      "stdout": "Code Constitution",
+      "stderr": ""
+    }
+  },
+  "plugin_cases": [
+    {"plugin": "manifest-delegate", "manifest": "hooks/hooks.json", "event": "SessionStart", "matcher": "", "script": "scripts/session_hook.py", "args": [], "payload": {"hook_event_name": "SessionStart", "session_id": "py39", "cwd": "/tmp"}, "stdout": "", "stderr": ""},
+    {"plugin": "manifest-delegate", "manifest": "hooks/hooks.json", "event": "SessionEnd", "matcher": "", "script": "scripts/session_hook.py", "args": [], "payload": {"hook_event_name": "SessionEnd", "session_id": "py39", "cwd": "/tmp"}, "stdout": "", "stderr": ""},
+    {"plugin": "manifest-i-have-adhd", "manifest": "hooks/hooks.json", "event": "SessionStart", "matcher": "", "script": "hooks/always_on.py", "args": [], "payload": {"hook_event_name": "SessionStart", "session_id": "py39", "cwd": "/tmp", "source": "startup"}, "stdout": "Manifest ADHD guidance", "stderr": ""},
+    {"plugin": "manifest-ops", "manifest": "hooks/compose-commandments.json", "event": "PostToolUse", "matcher": "Write|Edit|MultiEdit", "script": "runtime/bin/compose_commandments_hook.py", "args": [], "payload": {"hook_event_name": "PostToolUse", "tool_name": "Write", "tool_input": {"file_path": "docker-compose.yml"}}, "stdout": "", "stderr": "DC-002"},
+    {"plugin": "manifest-workspace", "manifest": "hooks/session-continuity.json", "event": "PreCompact", "matcher": "manual|auto", "script": "skills/session-checkpoint/scripts/session_continuity.py", "args": ["hook-event", "--harness", "claude"], "payload": {"hook_event_name": "PreCompact", "session_id": "py39", "trigger": "manual", "cwd": "/tmp"}, "stdout": "", "stderr": ""},
+    {"plugin": "manifest-workspace", "manifest": "hooks/token-economy-context.json", "event": "SessionStart", "matcher": "", "script": "hooks/token_economy_context.py", "args": [], "payload": {"hook_event_name": "SessionStart", "session_id": "py39", "cwd": "/tmp", "source": "startup"}, "stdout": "Manifest token-economy guidance", "stderr": ""},
+    {"plugin": "manifest-workspace", "manifest": "hooks/session-continuity.json", "event": "SessionStart", "matcher": "compact", "script": "skills/session-checkpoint/scripts/session_continuity.py", "args": ["hook-event", "--harness", "claude"], "payload": {"hook_event_name": "SessionStart", "session_id": "py39", "cwd": "/tmp", "source": "compact"}, "stdout": "session-continuity:", "stderr": ""}
+  ]
+}
