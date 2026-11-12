@@ -17,6 +17,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  hooks-python39:
+    name: Claude hooks on Python 3.9
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Set up Python 3.9
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.9"
+      - name: Set up managed runtime Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.14"
+      - name: Install pinned hook dependency
+        run: python3.9 -m pip install pyyaml==6.0.3
+      - name: Exercise deployed Python hooks
+        run: python3.9 tests/hooks_py39/run_hook_compat.py
   lint:
     name: Lint & Validate
     timeout-minutes: 20

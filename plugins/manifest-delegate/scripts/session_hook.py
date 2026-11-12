@@ -44,26 +44,27 @@ options:
   --stdin-json FILE  read hook payload from FILE instead of stdin (testing)
 """
 
-# `--help` must answer before importing `delegate`, whose module chain requires
-# the manifest-model-policy distribution. Otherwise a clean checkout or CI image
-# cannot discover this entry point at all. Bare `--help` reads no payload and
-# dispatches nothing, so answering early skips no runtime check.
+#
+# `--help` must answer before importing `delegate`. The PATH-selected Python
+# running this hook may not share the plugin runtime's installed packages, so
+# expose the repository-deployed model-policy source beside ~/.claude/scripts.
+# This keeps the hook on the caller's interpreter while making its local import
+# graph available on the declared Python 3.9 floor.
 if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help"):
     sys.stdout.write(_USAGE)
     sys.exit(0)
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if _SCRIPT_DIR not in _sys.path:
-    _sys.path.insert(0, _SCRIPT_DIR)
+_SHARED_SCRIPTS = os.path.join(os.path.expanduser("~"), ".claude", "scripts")
+for _path in (_SCRIPT_DIR, _SHARED_SCRIPTS):
+    if os.path.isdir(_path) and _path not in _sys.path:
+        _sys.path.insert(0, _path)
+
 try:
     import delegate
 except ImportError:
-    # Same exposure the --help guard above documents, on the hook path: the
-    # delegate module chain requires the manifest-model-policy distribution,
-    # which a clean checkout, a CI image, or a user who installed the bundle
-    # without that dependency will not have. This hook's whole contract is to
-    # never block the session it is attached to, so a missing dependency must
-    # degrade to "track nothing" -- not raise and take the session with it.
+    # Missing hook dependencies still fail open as the session hook contract
+    # requires; supported local source imports are resolved above.
     delegate = None  # type: ignore[assignment]
 
 

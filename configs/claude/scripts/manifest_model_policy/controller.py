@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from .failures import FALLBACK_ELIGIBLE, FailureClass
 from .frontmatter import ModelFallbackMode
 from .resolver import ResolvedModel
 
 
-class FallbackAction(StrEnum):
+class FallbackAction(str, Enum):  # noqa: UP042 - StrEnum is unavailable on Python 3.9.
     RETRY = "retry"
     STOP = "stop"
     NEEDS_CONFIRMATION = "needs_confirmation"

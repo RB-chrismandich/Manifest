@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
 
@@ -20,7 +20,7 @@ class ModelPolicyError(ValueError):
     """Skill model metadata is malformed or cannot be represented safely."""
 
 
-class ModelFallbackMode(StrEnum):
+class ModelFallbackMode(str, Enum):  # noqa: UP042 - StrEnum is unavailable on Python 3.9.
     AUTO = "auto"
     CONFIRM = "confirm"
 
