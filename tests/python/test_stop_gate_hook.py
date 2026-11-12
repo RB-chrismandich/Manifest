@@ -172,10 +172,7 @@ def test_boolean_recursion_guard_approves_without_spawning(
 
     monkeypatch.setattr(mod.subprocess, "run", forbidden)
     assert mod.main(["--stdin-json", str(payload)]) == 0
-    assert json.loads(capsys.readouterr().out) == {
-        "decision": "approve",
-        "reason": "stop-hook-active",
-    }
+    assert json.loads(capsys.readouterr().out) == {}
 
 
 def test_truthy_non_boolean_recursion_flag_does_not_bypass_review(tmp_path, capsys):
@@ -239,10 +236,7 @@ def test_disabled_gate_approves_without_managed_interpreter(tmp_path):
     result = _run_shell(
         {"hook_event_name": "Stop", "transcript_path": "/missing.jsonl"}, tmp_path
     )
-    assert _decision(result) == {
-        "decision": "approve",
-        "reason": "gate disabled",
-    }
+    assert _decision(result) == {}
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
@@ -278,10 +272,7 @@ def test_disabled_gate_approves_explicit_disabled_config(tmp_path):
         tmp_path,
         {"MANIFEST_CONFIG_DIR": str(config_dir)},
     )
-    assert _decision(result) == {
-        "decision": "approve",
-        "reason": "gate disabled",
-    }
+    assert _decision(result) == {}
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
@@ -302,10 +293,7 @@ def test_missing_managed_interpreter_blocks_then_guarded_followup_approves(tmp_p
     assert "interpreter_unavailable" in first_decision["reason"]
 
     followup = _run_shell({"stop_hook_active": True}, tmp_path, env)
-    assert _decision(followup) == {
-        "decision": "approve",
-        "reason": "stop-hook-active",
-    }
+    assert _decision(followup) == {}
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")
@@ -357,10 +345,7 @@ def test_missing_jq_disabled_gate_fails_open(tmp_path):
         },
     ):
         result = _run_shell(payload, tmp_path, {"PATH": no_jq_path})
-        assert _decision(result) == {
-            "decision": "approve",
-            "reason": "gate disabled",
-        }
+        assert _decision(result) == {}
 
 
 @pytest.mark.parametrize("config", [{}, {"review_gate": {"enabled": False}}])
@@ -378,10 +363,7 @@ def test_missing_jq_disabled_json_config_fails_open(tmp_path, config):
         },
     )
 
-    assert _decision(result) == {
-        "decision": "approve",
-        "reason": "gate disabled",
-    }
+    assert _decision(result) == {}
 
 
 def test_missing_jq_malformed_json_config_uses_disabled_default(tmp_path):
@@ -400,10 +382,7 @@ def test_missing_jq_malformed_json_config_uses_disabled_default(tmp_path):
         },
     )
 
-    assert _decision(result) == {
-        "decision": "approve",
-        "reason": "gate disabled",
-    }
+    assert _decision(result) == {}
 
 
 def test_missing_jq_enabled_yaml_config_blocks(tmp_path):
@@ -453,10 +432,7 @@ def test_missing_jq_configured_gate_blocks_once_then_guard_frees_session(tmp_pat
     assert "jq_unavailable" in nested_decision["reason"]
 
     followup = _run_shell({"stop_hook_active": True}, tmp_path, env)
-    assert _decision(followup) == {
-        "decision": "approve",
-        "reason": "stop-hook-active",
-    }
+    assert _decision(followup) == {}
 
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="launcher dependency jq absent")

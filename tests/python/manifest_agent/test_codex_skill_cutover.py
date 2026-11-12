@@ -36,21 +36,9 @@ def test_cutover_blocks_unowned_entries(tmp_path: Path) -> None:
     (skills / "foreign").mkdir()
     with pytest.raises(SkillCutoverError, match="user-managed"):
         cutover_codex_skills(home, source)
-
-
-def test_empty_codex_skills_directory_is_not_treated_as_converged(
-    tmp_path: Path,
-) -> None:
-    home = tmp_path / "home"
-    source = home / ".manifest/skills"
-    (source / ".system").mkdir(parents=True)
-    (home / ".codex/skills").mkdir(parents=True)
-
-    state = inspect_codex_skill_source(home, source)
-
-    assert state.kind == "user-managed"
-    with pytest.raises(SkillCutoverError, match="user-managed"):
-        prepare_codex_skill_cutover(home, source)
+    entry = prepare_codex_skill_cutover(home, source)
+    assert entry.previous_checksum is None
+    assert sorted(path.name for path in skills.iterdir()) == ["foreign"]
 
 
 def test_cutover_backup_is_retained_until_durable_commit(tmp_path: Path) -> None:

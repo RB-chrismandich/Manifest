@@ -18,6 +18,14 @@ ARTIFACTS = {
     "delegate.py": Path("scripts/delegate.py"),
 }
 
+_FINDING_BLOCK_REASON = (
+    "Review gate found issues before this turn ends:\n"
+    "- high: fixture finding must block\n\n"
+    "Do not make any tool calls or edits in response to this. "
+    "Relay these findings to the developer and ask how to proceed — "
+    "developer decides."
+)
+
 _STUB_BACKEND = """#!/usr/bin/env python3
 import json
 import os
@@ -28,11 +36,14 @@ with open(os.environ['MANIFEST_HOOK_SMOKE_CONTROL'], encoding='utf-8') as handle
 with open(control['spawn_count'], 'a', encoding='utf-8') as handle:
     handle.write('spawned\\n')
 sys.stdin.buffer.read()
-if control.get('mode') == 'clean':
+if control.get('mode') in {'clean', 'finding'}:
     envelope = {
         'backend': 'hook-smoke', 'model': None, 'outcome': 'success',
         'attempted': 'offline hook smoke fixture', 'changes': [],
-        'succeeded': [], 'failed': [], 'follow_ups': [], 'findings': [],
+        'succeeded': [], 'failed': [], 'follow_ups': [],
+        'findings': [] if control['mode'] == 'clean' else [
+            {'severity': 'high', 'text': 'fixture finding must block'}
+        ],
     }
     print('```json')
     print(json.dumps(envelope, separators=(',', ':')))
@@ -155,9 +166,12 @@ def _decision(result: CommandResult) -> dict[str, str] | None:
         document = json.loads(result.stdout)
     except ValueError:
         return None
+    if not isinstance(document, dict):
+        return None
+    if document == {}:
+        return {}
     if (
-        not isinstance(document, dict)
-        or document.get("decision") not in {"approve", "block"}
+        document.get("decision") != "block"
         or not isinstance(document.get("reason"), str)
         or not document["reason"]
     ):
@@ -177,7 +191,7 @@ def _reason_from_result(result: CommandResult, decision: dict[str, str] | None) 
             "invalid_decision",
             "wrapper_failed",
         ):
-            if f"({reason})" in decision["reason"]:
+            if f"({reason})" in decision.get("reason", ""):
                 return reason
     return "unexpected_decision"
 
@@ -266,21 +280,20 @@ def _expected_observation(
     after_spawns: int,
 ) -> bool:
     if name == "clean_review":
-        return (
-            decision == {"decision": "approve", "reason": "no findings"}
-            and after_spawns == before_spawns + 1
-        )
+        return decision == {} and after_spawns == before_spawns + 1
     if name == "invalid_review":
         return (
             decision is not None
-            and decision["decision"] == "block"
-            and "Review gate could not verify this turn" in decision["reason"]
+            and decision.get("decision") == "block"
+            and "Review gate could not verify this turn" in decision.get("reason", "")
             and after_spawns == before_spawns + 1
         )
-    return (
-        decision == {"decision": "approve", "reason": "stop-hook-active"}
-        and after_spawns == before_spawns
-    )
+    if name == "finding_review":
+        return (
+            decision == {"decision": "block", "reason": _FINDING_BLOCK_REASON}
+            and after_spawns == before_spawns + 1
+        )
+    return decision == {} and after_spawns == before_spawns
 
 
 def _observe_hook(
@@ -325,6 +338,7 @@ def _run_observations(
     observations = (
         ("clean_review", "clean", review_payload),
         ("invalid_review", "invalid", review_payload),
+        ("finding_review", "finding", review_payload),
         (
             "recursion_guard",
             None,

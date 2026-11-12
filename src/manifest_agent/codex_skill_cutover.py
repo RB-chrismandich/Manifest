@@ -144,24 +144,30 @@ def cutover_codex_skills(home: Path, expected_target: Path) -> OwnedEntry:
     entry = prepare_codex_skill_cutover(home, expected_target)
     if entry.previous_checksum is not None:
         apply_codex_skill_cutover(entry, expected_target)
+    elif inspect_codex_skill_source(home, expected_target).kind == "user-managed":
+        raise SkillCutoverError(
+            "Codex skills source is user-managed, not a Manifest-owned link"
+        )
     return entry
 
 
 def prepare_codex_skill_cutover(home: Path, expected_target: Path) -> OwnedEntry:
-    """Return durable prior-state evidence before changing the skills source."""
+    """Return durable prior-state evidence before changing the skills source.
+
+    Only a Manifest-owned legacy link is cut over. ``system-only`` (already
+    converged), ``user-managed`` and ``missing`` sources yield a no-op entry
+    with ``previous_checksum=None``: callers skip apply, journaling and receipt
+    ownership, so user skills are never touched or claimed.
+    """
     resume_interrupted_cutover(home)
     state = inspect_codex_skill_source(home, expected_target)
-    if state.kind == "system-only":
+    if state.kind != "legacy-link":
         return OwnedEntry(
             "codex-skill-source",
             "codex-shared-skills",
             "manifest",
             str(state.path),
             None,
-        )
-    if state.kind != "legacy-link":
-        raise SkillCutoverError(
-            f"Codex skills source is {state.kind}, not a Manifest-owned link"
         )
     system_source = expected_target / ".system"
     if not system_source.is_dir():
