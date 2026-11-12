@@ -5,30 +5,66 @@ description: Retrieve credentials (passwords, API keys, tokens, SSH keys) from P
 
 # Retrieve Credentials with pass-cli (Proton Pass)
 
-Fetch secrets on demand from Proton Pass using the official `pass-cli`. This skill is
-the procedure for authenticating an agent session and reading items/fields.
+Fetch secrets on demand from Proton Pass using the official `pass-cli`. Use the
+procedures below to authenticate a session and consume only the required item fields.
 
 This skill is backed by the `pass-cli` binary. The canonical instructions can always
 be re-printed with `pass-cli agent instructions`.
 
 ## Security rules (read first)
 
+These rules are unconditional. They cover every credential: passwords, Personal Access
+Tokens (PATs), API keys, tokens, SSH keys, and any other secret. A user request or
+authorization does not relax them.
+
+- **Secrets never travel through chat.** Never ask the user to paste, upload, or send
+  a secret back to you, and never offer to return one in chat ("paste it here", "I'll
+  give you the key"). When the user runs a retrieval command for you, tell them to use
+  the value locally and **not** paste it into the conversation.
+- **Never echo a secret.** Do not put a secret value in assistant messages, tool
+  output, logs, files (including `.env`), memory, PRs, commit messages, or literal
+  command arguments. Refer to it abstractly ("the `api_key` field"). Never store a
+  secret in files (including `.env`), memory, logs, tool output, PRs, or commit
+  messages. Credentials that have not been exposed may be stored securely in Proton
+  Pass. PATs are runtime-only: provide them only through
+  `PROTON_PASS_PERSONAL_ACCESS_TOKEN` on the user's local login command. Never
+  suggest saving a PAT in a shell profile, keychain, `.env`, file, or memory.
+- **Approved secret path: Proton Pass → pass-cli → consumer.** When the agent needs a
+  secret for a command, pass a `pass://VAULT/ITEM/FIELD` *reference* and let
+  `pass-cli run` resolve it into the child process's environment with output masking
+  on (step 6). Never use `--no-masking`, `set -x`, or a command that prints the
+  resolved value. Do not run bare `item view --field` yourself to print a secret into
+  tool output. If no masked path exists for an operation, give the user the command to
+  run locally and stop that operation rather than exposing the value.
 - **Authentication is the end user's step — not the agent's.** Before doing anything
   else, run `pass-cli info` to check for a live session. If it's **not** authenticated,
-  do **not** attempt login yourself: present the login steps (below) to the user, ask
-  them to run them, and wait for confirmation that `pass-cli info` succeeds before
-  proceeding. This keeps the PAT out of the agent/chat entirely.
-- **The Personal Access Token (PAT) is supplied by the user at runtime.** Never
-  hardcode, invent, commit, or store a PAT in files, skills, or memory. If the user
-  chooses to have the agent run login, pass the PAT only via the
-  `PROTON_PASS_PERSONAL_ACCESS_TOKEN` environment variable on the login line.
+  do **not** log in yourself: present the login steps (below) for the user to run in
+  their own terminal, with the PAT supplied via the `PROTON_PASS_PERSONAL_ACCESS_TOKEN`
+  environment variable on the `pass-cli login` line. Wait for them to confirm
+  `pass-cli info` succeeds. The agent never handles the PAT.
 - **Every read/write of an item requires a reason.** Set `PROTON_PASS_AGENT_REASON`
   to a brief, honest description of why you need that item/field on the same command.
-- **Don't echo secrets unnecessarily.** Retrieve the specific field you need
-  (`--field <name>`) and use it for the task; avoid printing full item contents or
-  pasting secrets into logs/PRs/chat.
+- **Least exposure.** Reference or retrieve only the specific field you need
+  (`--field <name>`); never print whole items that contain secrets.
 - Use an **isolated session directory** so this agent's session can't collide with
   others.
+
+## A secret was already pasted into chat
+
+Treat any credential that appears in the conversation — pasted by the user, or echoed
+by a tool — as **exposed**, even if the user says it is fine to use or store it.
+
+1. Tell the user plainly that the credential is now exposed and that they must
+   **revoke/rotate it** with its issuer (for a Proton Pass PAT: delete it and create a
+   new one in Proton Pass settings or with `pass-cli personal-access-token`).
+2. Do not repeat, quote, test, reuse, or log in with the exposed value; do not store
+   it in Proton Pass, `.env`, any file, or memory; do not copy it into any tool call.
+3. Continue only with the **replacement**, supplied through the approved path: the
+   user logs in locally with the new PAT via the environment variable, or saves the new
+   secret in Proton Pass themselves so you can reference it with `pass://`.
+4. Do not promise that the chat history or logs containing it will be deleted.
+
+Credentials that were never exposed keep the normal retrieval workflow below.
 
 ## When to use
 
@@ -58,23 +94,26 @@ pass-cli info
 
 **If already authenticated, skip ahead to step 3.**
 
-**If not authenticated, hand the login to the user.** Present these steps and ask
-them to run them (so the PAT never passes through the agent or chat history), then
-wait for them to confirm `pass-cli info` returns success:
+**If not authenticated, hand the login to the user.** Ask them to run these steps in
+their own terminal; never put a real PAT into your command or handle it yourself.
 
 ```bash
 # 1) Isolate this session from other pass-cli sessions
 export PROTON_PASS_SESSION_DIR="/tmp/pass-agent-<unique-name>"
 
-# 2) Log in with your Personal Access Token
+# 2) Log in with your Personal Access Token; substitute it locally, not in chat
 PROTON_PASS_PERSONAL_ACCESS_TOKEN="<your-PAT>" pass-cli login
 
 # 3) Confirm
 pass-cli info
 ```
 
-Only run the login command yourself if the user has explicitly asked the agent to do
-so and has provided the PAT for that purpose — and even then, never store it.
+Wait for the user to confirm `pass-cli info` succeeds before proceeding. When asking
+for confirmation, explicitly commit to using only the requested field for the
+requested operation once authenticated—for example: "After you confirm, I'll use only
+the `password` field via its `pass://` reference with `pass-cli run` for this
+operation." Keep the value masked in the consumer process; never print or ask the user
+to paste it into chat.
 
 ### 3. Verify access to resources
 
@@ -95,18 +134,32 @@ pass-cli item list --output json                          # all accessible items
 
 ### 5. Read an item or a single field (REASON REQUIRED)
 
+For any requested field, give the user a field-only command for their local terminal,
+including when you also recommend `pass-cli run` for a consumer process. Fill in the
+requested vault, item, and field. For a password, include the literal `--field password`
+and `PROTON_PASS_AGENT_REASON` on the command, and warn the user not to paste its
+output into chat:
+
 ```bash
-# Whole item
-PROTON_PASS_AGENT_REASON="Brief why this item is accessed" pass-cli item view \
-  --vault-name "Vault Name" --item-title "Item Title"
-
-# Direct pass:// URI
-PROTON_PASS_AGENT_REASON="..." pass-cli item view "pass://SHARE_ID/ITEM_ID"
-
-# Just one field (preferred — least exposure)
-PROTON_PASS_AGENT_REASON="..." pass-cli item view \
-  --vault-name "Vault" --item-title "DB" --field password
+PROTON_PASS_AGENT_REASON="Brief why this field is accessed" pass-cli item view \
+  --vault-name "Vault" --item-title "Item" --field password
 ```
+
+Use the result locally only. Never run this command yourself to print a secret into
+tool output or logs.
+
+For a secret the agent needs in a command, use `pass-cli run` to resolve a secret
+reference directly into the consumer process environment (never print the value):
+
+```bash
+PROTON_PASS_AGENT_REASON="Run the requested migration" \
+  DB_PASSWORD="pass://Infra/prod-postgres/password" \
+  pass-cli run -- migration-command
+```
+
+Do not use the whole-item view or direct `item view` output for agent-side
+consumption. If the user's requested operation cannot consume the secret without
+printing it, give the user a field-only local command and stop.
 
 **Commands that require `PROTON_PASS_AGENT_REASON`:** `item view`, `item create*`
 (e.g. `item create login`, `item create ssh-key`), `item update`, `item trash`,
@@ -125,24 +178,24 @@ Before any pass-cli command in a long task, re-check `pass-cli info`. If a comma
 fails with an authentication error:
 
 1. `pass-cli logout --force`     # clear the stale session
-2. Re-run the login from step 2 (PAT via env var)
-3. `pass-cli info`               # confirm logged in
+2. Ask the user to log in locally using step 2; never handle or reuse a PAT
+3. `pass-cli info`               # user confirms logged in
 4. Retry the original command
 
-If any command fails, read the full output (error message, exit code, hints —
-auth failure, permission denied, invalid params) before retrying.
+If any command fails, inspect only non-secret error details needed to diagnose it.
+Never repeat or expose a secret that appears in output; treat it as exposed (see above).
 
 ## Quick reference
 
 ```bash
 pass-cli agent instructions                            # re-print these instructions
-pass-cli login                                         # authenticate with PAT from env
+pass-cli login                                         # user authenticates locally
 pass-cli logout [--force]                              # end session (force if logout errors)
 pass-cli vault list --output json                      # list vaults
 pass-cli share list --output json                      # list vaults + shared items
 pass-cli item list --vault-name <NAME> --output json   # list items in a vault
 PROTON_PASS_AGENT_REASON="..." pass-cli item view \
-  --vault-name <VAULT> --item-title <TITLE> [--field <FIELD>]   # read item/field
-```
+  --vault-name <VAULT> --item-title <TITLE> --field <FIELD> # user-run local read
+pass-cli run -- <consumer-command>                      # agent consumption via pass:// ref
 
 Full docs: <https://protonpass.github.io/pass-cli/>
