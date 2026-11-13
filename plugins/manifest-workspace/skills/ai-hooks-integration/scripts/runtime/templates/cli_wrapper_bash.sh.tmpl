@@ -14,8 +14,13 @@
 set -euo pipefail
 HOOK_RUNNER_PID=""
 HOOK_OUTPUT_FILE=""
+HOOK_TMP_DIR=""
 HOOK_PID_FILE=""
 HOOK_SIGNAL=0
+HOOK_TMP_BASE=$(printenv TMPDIR 2> /dev/null || printf /tmp)
+if [[ -z "$HOOK_TMP_BASE" ]]; then
+    HOOK_TMP_BASE=/tmp
+fi
 # shellcheck disable=SC1054
 handle_hook_signal() {{
 local signum="$1"
@@ -44,6 +49,9 @@ fi
 if [[ -n "$HOOK_PID_FILE" ]]; then
     rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
 fi
+if [[ -n "$HOOK_TMP_DIR" ]]; then
+    rmdir "$HOOK_TMP_DIR" 2> /dev/null || true
+fi
 exit $((128 + signum))
 }}
 
@@ -67,11 +75,14 @@ if [[ -n "$PRE_HOOK" ]]; then
     HOOK_SIGNAL=0
     HOOK_RUNNER_PID=""
     HOOK_OUTPUT_FILE=""
+    HOOK_TMP_DIR=""
     HOOK_PID_FILE=""
     trap 'handle_hook_signal 2' INT
     trap 'handle_hook_signal 15' TERM
-    HOOK_OUTPUT_FILE=$(mktemp)
-    HOOK_PID_FILE=$(mktemp)
+    HOOK_TMP_DIR=$(mktemp -d "$HOOK_TMP_BASE/manifest-hook.XXXXXXXX")
+    HOOK_OUTPUT_FILE="$HOOK_TMP_DIR/output"
+    HOOK_PID_FILE="$HOOK_TMP_DIR/pid"
+    : > "$HOOK_OUTPUT_FILE"
     if [[ "$HOOK_SIGNAL" -ne 0 ]]; then
         handle_hook_signal "$HOOK_SIGNAL"
     fi
@@ -136,6 +147,8 @@ except Exception:
     wait "$HOOK_RUNNER_PID" || PRE_STATUS=$?
     PRE_RESULT=$(< "$HOOK_OUTPUT_FILE")
     rm -f "$HOOK_OUTPUT_FILE" "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+    rmdir "$HOOK_TMP_DIR" || true
+    HOOK_TMP_DIR=""
     HOOK_OUTPUT_FILE=""
     HOOK_PID_FILE=""
     HOOK_RUNNER_PID=""
@@ -172,7 +185,10 @@ if [[ -n "$POST_HOOK" ]]; then
     HOOK_SIGNAL=0
     HOOK_RUNNER_PID=""
     HOOK_OUTPUT_FILE=""
-    HOOK_PID_FILE=$(mktemp)
+    HOOK_TMP_DIR=""
+    HOOK_PID_FILE=""
+    HOOK_TMP_DIR=$(mktemp -d "$HOOK_TMP_BASE/manifest-hook.XXXXXXXX")
+    HOOK_PID_FILE="$HOOK_TMP_DIR/pid"
     trap 'handle_hook_signal 2' INT
     trap 'handle_hook_signal 15' TERM
     python3 -c 'import os,signal,subprocess,sys
@@ -227,6 +243,8 @@ sys.stdout.buffer.write(stdout)' "$HOOK_TIMEOUT" "$POST_HOOK" "$HOOK_PID_FILE" <
     fi
     wait "$HOOK_RUNNER_PID" || true
     rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+    rmdir "$HOOK_TMP_DIR" || true
+    HOOK_TMP_DIR=""
     HOOK_PID_FILE=""
     HOOK_RUNNER_PID=""
     trap - INT TERM

@@ -3,6 +3,7 @@
 
 import os
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -206,11 +207,40 @@ class TestPythonWrapperSignals(_ProcessGroupTestHelpers, unittest.TestCase):
 class TestShellWrapperSignals(_ProcessGroupTestHelpers, unittest.TestCase):
     """Verify Bash and minimal wrappers reap hooks when cancelled."""
 
+    def _make_shared_tmp(self, root: Path) -> Path:
+        shared_tmp = root / "shared-tmp"
+        shared_tmp.mkdir()
+        shared_tmp.chmod(0o1777)
+        return shared_tmp
+
+    def _assert_private_tmp_dir(self, shared_tmp: Path) -> None:
+        private_dirs = [path for path in shared_tmp.iterdir() if path.is_dir()]
+        self.assertEqual(
+            len(private_dirs),
+            1,
+            "hook temp files must be contained in a private directory",
+        )
+        self.assertEqual(
+            stat.S_IMODE(private_dirs[0].stat().st_mode) & 0o077,
+            0,
+            "hook temp directory must not be accessible by other users",
+        )
+
+    def _send_repeated_signal(
+        self, proc: subprocess.Popen[bytes], signum: signal.Signals
+    ) -> None:
+        deadline = time.monotonic() + 0.02
+        proc.send_signal(signum)
+        while proc.poll() is None and time.monotonic() < deadline:
+            proc.send_signal(signum)
+            time.sleep(0.001)
+
     def _assert_hook_cancellation(
         self, template: str, phase: str, signum: signal.Signals
     ) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
+            shared_tmp = self._make_shared_tmp(root)
             marker = root / "late-marker"
             hook_pid = root / "hook.pid"
             hook = root / "hook"
@@ -236,23 +266,26 @@ class TestShellWrapperSignals(_ProcessGroupTestHelpers, unittest.TestCase):
                 )
             )
             wrapper.chmod(0o700)
+            env = os.environ.copy()
+            env["TMPDIR"] = str(shared_tmp)
             proc = subprocess.Popen(
                 [str(wrapper)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env=env,
                 start_new_session=True,
             )
             try:
                 self.assertTrue(
                     self._wait_for_file(hook_pid, proc), f"{phase}-hook did not start"
                 )
+                self._assert_private_tmp_dir(shared_tmp)
                 # Repeated wrapper signals must preserve the first signal status.
-                deadline = time.monotonic() + 0.02
-                proc.send_signal(signum)
-                while proc.poll() is None and time.monotonic() < deadline:
-                    proc.send_signal(signum)
-                    time.sleep(0.001)
+                self._send_repeated_signal(proc, signum)
                 _, stderr = proc.communicate(timeout=5)
+                self.assertEqual(
+                    list(shared_tmp.iterdir()), [], "hook temp files leaked"
+                )
                 time.sleep(0.7)
                 self.assertFalse(marker.exists(), "hook descendant survived")
                 self.assertEqual(proc.returncode, 128 + signum, stderr)

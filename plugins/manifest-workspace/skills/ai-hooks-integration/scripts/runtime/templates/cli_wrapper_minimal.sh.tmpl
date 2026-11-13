@@ -10,8 +10,13 @@ POST_HOOK="{post_hook}"
 HOOK_TIMEOUT={hook_timeout}
 HOOK_RUNNER_PID=""
 HOOK_OUTPUT_FILE=""
+HOOK_TMP_DIR=""
 HOOK_PID_FILE=""
 HOOK_SIGNAL=0
+HOOK_TMP_BASE=$(printenv TMPDIR 2> /dev/null || printf /tmp)
+if [[ -z "$HOOK_TMP_BASE" ]]; then
+    HOOK_TMP_BASE=/tmp
+fi
 # shellcheck disable=SC1054
 handle_hook_signal() {{
 local signum="$1"
@@ -40,6 +45,9 @@ fi
 if [[ -n "$HOOK_PID_FILE" ]]; then
     rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
 fi
+if [[ -n "$HOOK_TMP_DIR" ]]; then
+    rmdir "$HOOK_TMP_DIR" 2> /dev/null || true
+fi
 exit $((128 + signum))
 }}
 
@@ -48,10 +56,12 @@ if [[ -n "$PRE_HOOK" ]]; then
     HOOK_SIGNAL=0
     HOOK_RUNNER_PID=""
     HOOK_OUTPUT_FILE=""
+    HOOK_TMP_DIR=""
     HOOK_PID_FILE=""
     trap 'handle_hook_signal 2' INT
     trap 'handle_hook_signal 15' TERM
-    HOOK_PID_FILE=$(mktemp)
+    HOOK_TMP_DIR=$(mktemp -d "$HOOK_TMP_BASE/manifest-hook.XXXXXXXX")
+    HOOK_PID_FILE="$HOOK_TMP_DIR/pid"
     exec 3<&0
     python3 -c 'import json,os,shlex,signal,subprocess,sys
 payload=json.dumps({{"cli":sys.argv[2],"args":sys.argv[5:],"cwd":os.getcwd(),"phase":"pre"}})
@@ -117,6 +127,8 @@ except Exception: sys.exit(1)' "$HOOK_TIMEOUT" "{cli_name}" "$PRE_HOOK" "$HOOK_P
     fi
     wait "$HOOK_RUNNER_PID" || PRE_STATUS=$?
     rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+    rmdir "$HOOK_TMP_DIR" || true
+    HOOK_TMP_DIR=""
     HOOK_PID_FILE=""
     HOOK_RUNNER_PID=""
     trap - INT TERM
@@ -136,10 +148,12 @@ if [[ -n "$POST_HOOK" ]]; then
     HOOK_SIGNAL=0
     HOOK_RUNNER_PID=""
     HOOK_OUTPUT_FILE=""
+    HOOK_TMP_DIR=""
     HOOK_PID_FILE=""
     trap 'handle_hook_signal 2' INT
     trap 'handle_hook_signal 15' TERM
-    HOOK_PID_FILE=$(mktemp)
+    HOOK_TMP_DIR=$(mktemp -d "$HOOK_TMP_BASE/manifest-hook.XXXXXXXX")
+    HOOK_PID_FILE="$HOOK_TMP_DIR/pid"
     exec 3<&0
     python3 -c 'import json,os,shlex,signal,subprocess,sys
 payload=json.dumps({{"cli":sys.argv[2],"args":sys.argv[6:],"cwd":os.getcwd(),"exit_code":int(sys.argv[3]),"phase":"post"}})
@@ -192,6 +206,8 @@ finally:
     fi
     wait "$HOOK_RUNNER_PID" || true
     rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+    rmdir "$HOOK_TMP_DIR" || true
+    HOOK_TMP_DIR=""
     HOOK_PID_FILE=""
     HOOK_RUNNER_PID=""
     trap - INT TERM
