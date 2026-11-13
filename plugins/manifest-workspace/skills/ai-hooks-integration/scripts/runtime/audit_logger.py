@@ -105,11 +105,24 @@ def append(path: str, record: bytes) -> None:
         os.close(parent_fd)
 
 
+class _ArgumentParser(argparse.ArgumentParser):
+    """Suppress argparse diagnostics that may echo sensitive arguments."""
+
+    def error(self, _message: str) -> None:
+        raise SystemExit(2)
+
+
 def main() -> int:
     """Validate and append one redacted event from standard input."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _ArgumentParser(description=__doc__)
     parser.add_argument("--path", default=os.environ.get("AI_HOOK_AUDIT_LOG"))
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except SystemExit as exc:
+        if exc.code == 0:
+            return 0
+        print(ERROR, file=sys.stderr)
+        return 1
     if not args.path:
         print(ERROR, file=sys.stderr)
         return 1

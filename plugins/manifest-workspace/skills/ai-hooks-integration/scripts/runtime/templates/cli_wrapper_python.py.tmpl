@@ -157,7 +157,7 @@ def run_pre_hook(payload):
         parsed, end = decoder.raw_decode(raw_out, start)
         if raw_out[end:].strip(" \t\r\n") or not isinstance(parsed, dict):
             raise ValueError
-    except ValueError:
+    except (ValueError, RecursionError):
         fail("pre-hook returned malformed output", EXIT_DENY)
     if parsed.get("decision") == "deny":
         fail("Blocked by pre-hook", EXIT_DENY)

@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -9,11 +10,32 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from _audit_logger_test_support import AuditLoggerTestCase
+from _audit_logger_test_support import LOGGER, AuditLoggerTestCase
 
 
 class AuditLoggerTests(AuditLoggerTestCase):
     """Pin accepted input and record size limits."""
+
+    def test_unexpected_argument_uses_generic_diagnostic(self):
+        with tempfile.TemporaryDirectory() as td:
+            log_path = Path(td) / "audit.jsonl"
+            probe_argument = "--unexpected=fixture-marker"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(LOGGER),
+                    "--path",
+                    str(log_path),
+                    probe_argument,
+                ],
+                input=b'{"event":"test"}',
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stderr, b"audit logger failed\n")
+            self.assertNotIn(probe_argument.encode(), result.stdout + result.stderr)
+            self.assertFalse(log_path.exists())
 
     def test_input_and_record_size_boundaries(self):
         with tempfile.TemporaryDirectory() as td:
