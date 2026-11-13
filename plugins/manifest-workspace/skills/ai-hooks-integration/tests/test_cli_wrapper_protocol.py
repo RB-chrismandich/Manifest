@@ -129,6 +129,33 @@ class TestWrapperResponseProtocol(unittest.TestCase):
                     self.assertEqual(proc.returncode, 1, proc.stderr)
                     self.assertFalse(marker.exists())
 
+    def test_python_wrapper_recursion_error_fails_without_traceback(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            hook = root / "hook"
+            cli = root / "cli"
+            marker = root / "cli-ran"
+            hook.write_text(
+                "#!/usr/bin/env python3\nimport sys\n"
+                "sys.stdin.buffer.read()\n"
+                "sys.stdout.write('{\"nested\":' + '[' * 100000 + '0' + ']' * 100000 + '}')\n"
+            )
+            cli.write_text(f"#!/bin/sh\ntouch '{marker}'\n")
+            hook.chmod(0o700)
+            cli.chmod(0o700)
+            wrapper = root / "wrapper"
+            wrapper.write_text(
+                generate_wrapper("test", str(cli), str(hook), template="python")
+            )
+            wrapper.chmod(0o700)
+
+            proc = subprocess.run([str(wrapper)], capture_output=True, text=True)
+
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("pre-hook returned malformed output", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+            self.assertFalse(marker.exists())
+
     def test_nonstandard_json_constants_fail_closed_all_templates(self):
         for template in ("bash", "python", "minimal"):
             for output in (
