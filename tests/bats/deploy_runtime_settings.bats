@@ -60,11 +60,18 @@ target.write_text(source.read_text().replace('__HOME__', str(home)))" \
         "$EXISTING_HOME_FIXTURE" "$1" "$SANDBOX/home"
 }
 
-@test "the repo ships the Agent hook in settings.runtime.json" {
-    run commands_for "$SRC" PreToolUse
+@test "the shipped guidance hook uses verified uv with explicit PyYAML" {
+    run python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+commands=[h['command'] for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
+expected='~/.local/bin/uv run --quiet --no-project --with pyyaml --python 3.11 ~/.claude/scripts/guidance_hint.py'
+assert commands.count(expected) == 1, commands
+assert d['permissions']['allow'].count('Bash(~/.local/bin/uv run --quiet --no-project --with pyyaml --python 3.11 ~/.claude/scripts/guidance_hint.py:*)') == 1
+" "$SRC"
     assert_success
-    assert_output --partial "subagent_model_default.py"
 }
+
 
 @test "every global Claude hook ships here, not in the inert settings.local.json" {
     # settings.local.json is inert at user scope (measured), so a hook left there
@@ -123,24 +130,26 @@ target.write_text(source.read_text().replace('__HOME__', str(home)))" \
 
     run python3 -c "
 import json, sys
+from pathlib import Path
 d = json.load(open(sys.argv[1]))
 commands = [h.get('command', '') for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
 assert not any(c.endswith('/.claude/scripts/version_pin_hook.sh') for c in commands), commands
 for expected in ('guidance_hint.py', 'spec_review.sh --silent', 'lint_on_edit_hook.sh', 'deploy_stamp_check.sh', '/opt/user-hooks/keep-me.sh'):
     assert sum(c.endswith(expected) for c in commands) == 1, (expected, commands)
-assert d['model'] == 'opus'
+assert sum(c == f'{Path.home()}/.local/bin/uv run --quiet --no-project --with pyyaml --python 3.11 {Path(sys.argv[1]).parent}/scripts/guidance_hint.py' for c in commands) == 1, commands
 allow = d['permissions']['allow']
 retired = {
     'Bash(~/.claude/scripts/version_pin.sh:*)',
     'Bash(~/.claude/scripts/version_pin_hook.sh:*)',
 }
 assert retired.isdisjoint(allow), allow
-assert allow[:4] == [
+assert 'Bash(~/.claude/scripts/guidance_hint.py:*)' not in allow, allow
+assert allow[:3] == [
     'Bash(/opt/user-hooks/keep-before.sh:*)',
-    'Bash(~/.claude/scripts/guidance_hint.py:*)',
     'Bash(~/.claude/scripts/version_pin.sh --check:*)',
     'Bash(/opt/user-hooks/keep-after.sh:*)',
 ], allow
+assert allow.count('Bash(~/.local/bin/uv run --quiet --no-project --with pyyaml --python 3.11 ~/.claude/scripts/guidance_hint.py:*)') == 1, allow
 print('legacy-removed-unrelated-preserved')" "$target"
     assert_success
     assert_output "legacy-removed-unrelated-preserved"

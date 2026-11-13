@@ -2,7 +2,7 @@
 
 > Git platform detection and the bootstrap installation sequence.
 
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-11-13
 
 ## Git Platform Detection & Operations
 
@@ -88,7 +88,7 @@ flowchart TD
     LOAD_LIBS["Load bootstrap/lib/*.sh<br/>+ parse CLI arguments"]:::process
 
     RECONFIG{"--reconfigure?"}:::decision
-    RECONFIG_PATH["Reconfigure path:<br/>services.yml → skillclaw state<br/>→ python deps + browser-use"]:::process
+    RECONFIG_PATH["Reconfigure path:<br/>services.yml → skillclaw state<br/>→ require verified uv → python deps + browser-use"]:::process
 
     LOAD_CONFIG["Load existing services.yml<br/>(merge with CLI flags;<br/>explicit flags win)"]:::process
     BANNER["Show services banner<br/>(printed AFTER config load —<br/>reflects merged toggles)"]:::process
@@ -99,6 +99,8 @@ flowchart TD
 
     SKIP_INSTALL{"--skip-install?"}:::decision
     INSTALLS["Install CLIs (soft-fail, counted):<br/>package manager · node · claude<br/>codex · gh · glab · jq · cursor"]:::process
+    UV_READY{"Verified uv available?"}:::decision
+    UV_FAIL["uv install/verification failed;<br/>bootstrap stops before deploy"]:::warning
 
     DEPLOY["deploy_configs<br/>(~/.claude primary; chmod +x<br/>scripts/*.sh AND *.py;<br/>write services.yml)"]:::process
     SKILLCLAW["skillclaw_apply_state<br/>(launchd cleanup guarded —<br/>no set -e abort)"]:::process
@@ -124,10 +126,11 @@ flowchart TD
     BANNER --> CONFIRM
     CONFIRM -->|No| CANCELLED
     CONFIRM -->|Yes| PLATFORM
-    PLATFORM --> SKIP_INSTALL
     SKIP_INSTALL -->|No| INSTALLS
-    SKIP_INSTALL -->|Yes| DEPLOY
-    INSTALLS --> DEPLOY
+    INSTALLS --> UV_READY
+    SKIP_INSTALL -->|Yes| UV_READY
+    UV_READY -->|No| UV_FAIL
+    UV_READY -->|Yes| DEPLOY
     DEPLOY --> SKILLCLAW
     SKILLCLAW --> PYDEPS
     PYDEPS --> MCP

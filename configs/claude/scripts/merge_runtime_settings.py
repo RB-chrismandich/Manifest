@@ -73,6 +73,7 @@ def merge_permissions(source: dict, target: dict) -> None:
     retired = {
         "Bash(~/.claude/scripts/version_pin.sh:*)",
         "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
+        "Bash(~/.claude/scripts/guidance_hint.py:*)",
     }
     permissions = target.setdefault("permissions", {})
     allow = [rule for rule in permissions.get("allow", []) if rule not in retired]
@@ -171,17 +172,29 @@ def _hook_targets_health_wrapper(command: object, directory: Path) -> bool:
     return any(resolved == wrapper.resolve(strict=False) for wrapper in known_wrappers)
 
 
+def _is_legacy_hook(event, entry, command, guidance, defaults):
+    return command in guidance or (
+        event == "PreToolUse"
+        and entry.get("matcher") == "Agent"
+        and command in defaults
+    )
+
+
+def _legacy_guidance_commands(directory: Path) -> set[str]:
+    """Return direct-script spellings that must be replaced during migration."""
+    path = str(directory / "scripts/guidance_hint.py")
+    return {"~/.claude/scripts/guidance_hint.py", path, shlex.quote(path)}
+
+
 def merge_hooks(source: dict, target: dict, directory: Path) -> None:
     """Resolve shipped commands at the target, preserving arbitrary user hooks."""
     hooks = target.setdefault("hooks", {})
-    legacy_default_commands = {
+    defaults = {
         "~/.claude/scripts/subagent_model_default.py",
         str(directory / "scripts/subagent_model_default.py"),
         shlex.quote(str(directory / "scripts/subagent_model_default.py")),
     }
-    # Retire the bootstrap-registered health hook only when the owned
-    # installer does not already manage it — otherwise bootstrap would
-    # deregister a live, working hook on every deploy.
+    guidance = _legacy_guidance_commands(directory)
     managed_health_command = _health_receipt_command()
     for event, entries in hooks.items():
         retained = []
@@ -194,15 +207,13 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
                     and (
                         h["command"] == "~/.claude/scripts/version_pin_hook.sh"
                         or h["command"].endswith("/.claude/scripts/version_pin_hook.sh")
+                        or _is_legacy_hook(
+                            event, entry, h["command"], guidance, defaults
+                        )
                         or (
                             event == "SessionStart"
                             and _hook_targets_health_wrapper(h["command"], directory)
                             and h["command"] != managed_health_command
-                        )
-                        or (
-                            event == "PreToolUse"
-                            and entry.get("matcher") == "Agent"
-                            and h["command"] in legacy_default_commands
                         )
                     )
                 )
@@ -210,15 +221,25 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
             if kept:
                 retained.append({**entry, "hooks": kept})
         hooks[event] = retained
+    uv_absolute = str(Path.home() / ".local" / "bin" / "uv")
     for event, entries in source.get("hooks", {}).items():
         current = hooks.setdefault(event, [])
         for entry in entries:
             resolved = deepcopy(entry)
             for hook in resolved["hooks"]:
                 command = hook.get("command", "")
-                if isinstance(command, str) and command.startswith("~/.claude/"):
+                if isinstance(command, str):
                     words = shlex.split(command)
-                    words[0] = str(directory / words[0][len("~/.claude/") :])
+                    words = [
+                        str(directory / word[len("~/.claude/") :])
+                        if word.startswith("~/.claude/")
+                        else (
+                            uv_absolute
+                            if word == "~/.local/bin/uv" and uv_absolute
+                            else word
+                        )
+                        for word in words
+                    ]
                     hook["command"] = shlex.join(words)
             if resolved not in current:
                 current.append(resolved)
