@@ -3,7 +3,7 @@
   "hooks": {
     "beforeShellExecution": [
       {
-        "command": "~/.cursor/scripts/guidance_hint.py",
+        "command": "~/.local/bin/uv run --quiet --no-project --with pyyaml --python 3.11 ~/.cursor/scripts/guidance_hint.py",
         "type": "command"
       }
     ],

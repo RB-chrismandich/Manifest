@@ -41,6 +41,50 @@ EOF
     chmod +x "$FAKE_BIN/$name"
 }
 
+_uv_release_target_for_tests() {
+    case "$(uname -s)-$(uname -m)" in
+        Darwin-arm64) echo "aarch64-apple-darwin" ;;
+        Darwin-x86_64) echo "x86_64-apple-darwin" ;;
+        Linux-x86_64) echo "x86_64-unknown-linux-gnu" ;;
+        Linux-aarch64 | Linux-arm64) echo "aarch64-unknown-linux-gnu" ;;
+        *) echo "" ;;
+    esac
+}
+
+# check_uv() always fetches the pinned release archive via curl. The suite-wide
+# curl stub blocks network, so tests that run full bootstrap must wire a local
+# archive copy through a curl shim (see bootstrap_verified_uv.bats).
+install_offline_verified_uv_curl_stub() {
+    local target archive cache_dir system_curl
+    target="$(_uv_release_target_for_tests)"
+    [[ -n "$target" ]] || skip "unsupported platform for verified uv bootstrap test"
+    archive="uv-${target}.tar.gz"
+    cache_dir="$SANDBOX/verified-uv"
+    mkdir -p "$cache_dir"
+    system_curl="$(command -v curl)"
+    [[ -x "$system_curl" && "$system_curl" != "$FAKE_BIN/curl" ]] || skip "system curl required to seed verified uv fixture"
+    "$system_curl" -fsSL \
+        -o "$cache_dir/$archive" \
+        "https://github.com/astral-sh/uv/releases/download/0.12.6/$archive" \
+        || skip "could not download verified uv fixture for $target"
+    cat > "$FAKE_BIN/curl" <<EOF
+#!/bin/bash
+out=""
+while [[ \$# -gt 0 ]]; do
+    case "\$1" in
+        -o) out="\$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+if [[ -n "\$out" ]]; then
+    cp "$cache_dir/$archive" "\$out"
+    exit 0
+fi
+exit 1
+EOF
+    chmod +x "$FAKE_BIN/curl"
+}
+
 seed_existing_claude_home() {
     mkdir -p "$HOME/.claude/plugins/cache/mkt/remember/0.7.3" \
              "$HOME/.claude/projects" "$HOME/.claude/config"
@@ -101,7 +145,7 @@ seed_existing_claude_home() {
 
 @test "bootstrap.sh --update-config dispatches option 4 non-interactively and preserves runtime state" {
     seed_existing_claude_home
-    make_stub uv 0
+    install_offline_verified_uv_curl_stub
     make_stub claude 0
 
     run env PATH="$FAKE_BIN:/usr/bin:/bin" \
