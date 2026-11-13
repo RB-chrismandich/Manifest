@@ -9,7 +9,7 @@
 `--enable-jules`, authenticate through browser OAuth, and submit through `/delegate`
 or the official `jules` issue-label workflow.
 
-- **Last Updated**: 2026-11-13
+**Last Updated**: 2026-11-13
 
 Manifest deploys shared guides, skills, prompts, and scripts to `~/.claude/`,
 `~/.cursor/`, `~/.codex/`, and `~/.antigravity/` (plus `~/.gemini/GEMINI.md` for the Antigravity CLI). Interactive
@@ -38,6 +38,10 @@ cd Manifest
 # Confirm the installed CLI surface
 ~/.local/bin/manifest --help
 ```
+
+Bootstrap installs and verifies `uv` at `~/.local/bin/uv` before deploying
+runtime hooks. If verification or installation fails, bootstrap stops before
+deployment rather than installing hooks with an unavailable Python dependency.
 
 Context7 uses a one-time device OAuth login. Its long-lived credential stays in
 `~/.config/context7/credentials.json`; subsequent installs reuse it across all
