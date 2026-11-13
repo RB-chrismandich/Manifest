@@ -71,6 +71,9 @@ PY
             printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}'
         fi
         ;;
+    fp-feedback)
+        printf '%s\n%s\n%s\n' "${SEAM_ISSUE_COMMENTS:-[[]]}" "${SEAM_REVIEWS:-[[]]}" "${SEAM_INLINE_COMMENTS:-[[]]}"
+        ;;
     list) echo "${SEAM_LIST:-[]}" ;;
     checks) printf '%s\n' ${SEAM_BUCKETS-pass} ;;
     reviewdecision) echo "${SEAM_RD:-APPROVED}" ;;

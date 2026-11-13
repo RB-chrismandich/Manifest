@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Delegate reliability (#1000, #983, #1032, #962, #960):** reconcile OMP
+  native inventories against receipts and degrade when inspection is unavailable;
+  package trusted delegate policy for standalone installs; bind Forge reviewer
+  schemas per task and honor host concurrency; cite producer contracts in briefs;
+  and stop idle review loops without suppressing later actionable feedback.
+
 - **Security (#1001):** generated CLI hook wrappers preserve pre-hook and CLI
   exit statuses, terminate timed-out hook process groups, and prevent post-hooks
   from overriding CLI results. Audit records are redacted and appended as

@@ -216,6 +216,7 @@ import sys
 
 scope_path, view_path, checks_path, threads_path = sys.argv[1:5]
 apply_mode, revision, max_revision, disposition, main_ci, hold = sys.argv[5:11]
+feedback_path = sys.argv[11]
 
 def load_json(path):
     with open(path, encoding="utf-8") as handle:
@@ -303,6 +304,38 @@ for check in checks_raw:
 checks.sort(key=lambda item: tuple("" if item[key] is None else item[key] for key in
     ("name", "bucket", "state", "link", "startedAt", "completedAt")))
 
+# gh api --paginate --slurp emits one array of pages per REST endpoint:
+# issue discussions, review bodies, and all inline comments (including edits
+# beyond the GraphQL per-thread first-comment page).
+with open(feedback_path, encoding="utf-8") as handle:
+    remaining = handle.read()
+feedback = []
+documents = 0
+decoder = json.JSONDecoder()
+while remaining.strip():
+    pages, end = decoder.raw_decode(remaining.lstrip())
+    remaining = remaining.lstrip()[end:]
+    if not isinstance(pages, list) or not pages:
+        raise ValueError("feedback.pages")
+    for page in pages:
+        if not isinstance(page, list):
+            raise ValueError("feedback.page")
+        for item in page:
+            if not isinstance(item, dict) or not isinstance(item.get("id"), int):
+                raise ValueError("feedback.item")
+            feedback.append({
+                "source": documents,
+                "id": item["id"],
+                "body": optional_text(item.get("body"), "feedback.body"),
+                "updated_at": optional_text(item.get("updated_at"), "feedback.updated_at"),
+                "submitted_at": optional_text(item.get("submitted_at"), "feedback.submitted_at"),
+                "state": optional_text(item.get("state"), "feedback.state"),
+            })
+    documents += 1
+if documents != 3:
+    raise ValueError("feedback.incomplete")
+feedback.sort(key=lambda item: (item["source"], item["id"]))
+
 with open(threads_path, encoding="utf-8") as handle:
     pages = [json.loads(line) for line in handle if line.strip()]
 if not pages:
@@ -361,6 +394,8 @@ for page_index, page in enumerate(pages):
                             comment.get("createdAt"), "comment.createdAt"
                         ),
                         "author": optional_text(author, "comment.author"),
+                        "updatedAt": optional_text(comment.get("updatedAt"), "comment.updatedAt"),
+                        "body": optional_text(comment.get("body"), "comment.body"),
                     })
         comment_authors.sort(key=lambda item: tuple(
             "" if item[key] is None else item[key]
@@ -376,6 +411,8 @@ for page_index, page in enumerate(pages):
             "latestCommentCreatedAt": optional_text(
                 latest_comment.get("createdAt"), "thread.latestComment.createdAt"
             ),
+            "latestCommentUpdatedAt": optional_text(latest_comment.get("updatedAt"), "thread.latestComment.updatedAt"),
+            "latestCommentBody": optional_text(latest_comment.get("body"), "thread.latestComment.body"),
         })
 threads.sort(key=lambda item: (
     item["id"], item["isResolved"], item["isOutdated"],
@@ -414,6 +451,7 @@ external = {
     },
     "checks": checks,
     "threads": threads,
+    "feedback": feedback,
     "hold": hold == "true",
     "main_ci": main_ci,
 }
@@ -452,6 +490,7 @@ collect_fingerprint_material() {
     if [[ $rc -eq 0 ]]; then gh_op fp-view "$pr" > "$tmp/view" || rc=$?; fi
     if [[ $rc -eq 0 ]]; then gh_op fp-checks "$pr" > "$tmp/checks" || rc=$?; fi
     if [[ $rc -eq 0 ]]; then gh_op fp-threads "$pr" > "$tmp/threads" || rc=$?; fi
+    if [[ $rc -eq 0 ]]; then gh_op fp-feedback "$pr" > "$tmp/feedback" || rc=$?; fi
     if [[ $rc -ne 0 ]]; then
         rm -rf "$tmp"
         err "#$pr: complete material observation unavailable (exit ${rc})"
@@ -469,7 +508,7 @@ collect_fingerprint_material() {
     out="$(python3 -c "${FINGERPRINT_PY}" \
         "$tmp/scope" "$tmp/view" "$tmp/checks" "$tmp/threads" \
         "$APPLY" "$(revisions_used "$pr")" "${MAX_REVISIONS:-3}" \
-        "$disposition" "$main_ci" "$hold" 2> /dev/null)" || rc=$?
+        "$disposition" "$main_ci" "$hold" "$tmp/feedback" 2> /dev/null)" || rc=$?
     rm -rf "$tmp"
     if [[ $rc -ne 0 || -z "$out" ]]; then
         err "#$pr: material observation was incomplete or unparseable"
@@ -554,14 +593,4 @@ except Exception:
         pass
     raise
 PY
-}
-
-fingerprint_external_matches() {
-    local before="${1:?before material required}" after="${2:?after material required}"
-    local before_scope after_scope before_external after_external
-    before_scope="$(printf '%s' "$before" | _jget scope_hash 2> /dev/null)" || return 1
-    after_scope="$(printf '%s' "$after" | _jget scope_hash 2> /dev/null)" || return 1
-    before_external="$(printf '%s' "$before" | _jget external_fingerprint 2> /dev/null)" || return 1
-    after_external="$(printf '%s' "$after" | _jget external_fingerprint 2> /dev/null)" || return 1
-    [[ "$before_scope" == "$after_scope" && "$before_external" == "$after_external" ]]
 }

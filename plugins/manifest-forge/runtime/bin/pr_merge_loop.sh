@@ -66,21 +66,9 @@ STATE_DIR="${PR_MERGE_LOOP_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/ma
 # shellcheck disable=SC2034  # consumed by the sourced lib/pr_merge_loop_fp.sh
 AUTHORS_FILE="${AUTOMATION_AUTHORS_FILE:-${SCRIPT_DIR}/../config/automation_authors.json}"
 
-usage() {
-    cat << 'USAGE'
-Usage: pr_merge_loop.sh <subcommand> [args]
-
-  list-managed [--json]        Automation-authored open PRs (skips humans).
-  signals <pr> [--json]        Recompute merge_decision input JSON for a PR.
-  empty-run <get|incr|reset>   Consecutive-empty-run counter (stops loop at 5).
-  address-cycle <pr>           Run one /pr-address-comments,/project-verify,/pr-review cycle.
-  set-disposition <pr> <v>     Record the /pr-review verdict (merge|keep|close) for signals.
-  merge <pr>                   HARD-GATED in this bundle: always refuses, exit 78.
-  tick <pr>                    Decide + dispatch one PR (lock, run-gate, act).
-  run [--apply]                Self-paced bounded loop (10-min ceiling; stop at 5 empty).
-  post-merge-check             main HEAD CI health (exit 10 on red).
-USAGE
-}
+# Static CLI usage contract, kept separate from the orchestration driver.
+# shellcheck source=lib/pr_merge_loop_usage.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_usage.sh"
 
 # --- platform I/O layer: split out of this file into lib/pr_merge_loop_gh.sh
 # (C-SIZE/CON-002 — see that file's header for the seam rationale). Provides
@@ -95,6 +83,10 @@ source "${SCRIPT_DIR}/lib/pr_merge_loop_gh.sh"
 # collect_fingerprint_material / fingerprint_state_* machinery.
 # shellcheck source=lib/pr_merge_loop_fp.sh disable=SC1091
 source "${SCRIPT_DIR}/lib/pr_merge_loop_fp.sh"
+
+# --- external fingerprint comparison, split from the observation library.
+# shellcheck source=lib/pr_merge_loop_fp_external.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_fp_external.sh"
 
 # --- repository-scoped empty-run counter: split out of this file into
 # lib/pr_merge_loop_empty_run.sh (C-SIZE/CON-002 — see that file's header for
@@ -393,22 +385,8 @@ print(json.dumps(s))' "$gate" 2> /dev/null)" || {
 # work the loop must keep polling, not an idle queue, and a `skip` means another
 # worker holds the lease. Five consecutive empty passes stop the loop early.
 
-# fingerprint_recorded_action <pr> <material> — print the action persisted
-# alongside a still-matching fingerprint (empty when no valid state exists).
-# cmd_run uses it to distinguish "unchanged because settled" (hand-human, a
-# hard-gated merge) from "unchanged but in flight" (wait/revise/update-branch);
-# only the former may advance the consecutive-empty counter.
-fingerprint_recorded_action() {
-    local pr="${1:?pr required}" material="${2:?material required}" path
-    fingerprint_state_matches "$pr" "$material" || return 0
-    path="$(fingerprint_state_path "$pr" "$material")" || return 0
-    python3 - "$path" << 'PY' 2> /dev/null || true
-import json
-import sys
-with open(sys.argv[1], encoding="utf-8") as handle:
-    print(json.load(handle)["action"])
-PY
-}
+# shellcheck source=lib/pr_merge_loop_idle.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/pr_merge_loop_idle.sh"
 
 # _managed_numbers <managed-json> — validate the cmd_list_managed payload and
 # print the PR numbers space-joined (empty output for an empty queue). Shared
@@ -430,7 +408,7 @@ print(" ".join(numbers))' 2> /dev/null
 
 cmd_run() {
     local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
-    local start deadline now managed_json managed pr act rc changed inflight complete n material scope_rc=0
+    local start deadline now managed_json managed pr act rc changed inflight complete n material scope_rc=0 all_human
     gh_op fp-scope > /dev/null || scope_rc=$?
     if [[ $scope_rc -ne 0 ]]; then
         if [[ $scope_rc -eq 13 ]]; then
@@ -456,6 +434,8 @@ cmd_run() {
         changed=0
         inflight=0
         complete=1
+        all_human=1
+        [[ -n "$managed" ]] || all_human=0
         # shellcheck disable=SC2086 # space-joined validated integer PR numbers
         for pr in $managed; do
             now="$(_now)"
@@ -485,20 +465,42 @@ cmd_run() {
                     # letting the empty counter advance toward a premature stop.
                     material="$(collect_fingerprint_material "$pr")" || return 13
                     case "$(fingerprint_recorded_action "$pr" "$material")" in
-                        wait | revise | update-branch) inflight=1 ;;
-                        # Empty: the material changed between the tick's
-                        # `unchanged` verdict and this re-observation, so no
-                        # fingerprint state matches. That is unhandled work —
-                        # counting the pass empty could end the loop at the
-                        # 5-empty stop with the new transition unprocessed.
-                        "") inflight=1 ;;
+                        hand-human) printf 'blocked on human: #%s\n' "$pr" ;;
+                        wait | revise | update-branch)
+                            inflight=1
+                            all_human=0
+                            ;;
+                        "")
+                            inflight=1
+                            all_human=0
+                            ;;
+                        *) all_human=0 ;;
                     esac
                     ;;
-                skip) inflight=1 ;;
-                *) changed=1 ;;
+                hand-human)
+                    material="$(collect_fingerprint_material "$pr")" || return 13
+                    if [[ "$(fingerprint_recorded_action "$pr" "$material")" == "hand-human" ]]; then
+                        printf 'blocked on human: #%s\n' "$pr"
+                    else
+                        inflight=1
+                        all_human=0
+                    fi
+                    ;;
+                skip)
+                    inflight=1
+                    all_human=0
+                    ;;
+                *)
+                    changed=1
+                    all_human=0
+                    ;;
             esac
         done
         ((complete == 1)) || break
+        if ((all_human == 1)); then
+            printf 'loop idle: waiting on human\n'
+            return 0
+        fi
         now="$(_now)"
         ((now < deadline)) || break
         if ((changed == 1 || inflight == 1)); then
@@ -545,12 +547,20 @@ main() {
             cmd_set_disposition "$@"
             exit $?
             ;;
+        record-human-blocked)
+            cmd_record_human_blocked "$@"
+            exit $?
+            ;;
         post-merge-check)
             cmd_post_merge_check "$@"
             exit $?
             ;;
         merge)
             cmd_merge "$@"
+            exit $?
+            ;;
+        address-status)
+            cmd_address_status "$@"
             exit $?
             ;;
         tick)

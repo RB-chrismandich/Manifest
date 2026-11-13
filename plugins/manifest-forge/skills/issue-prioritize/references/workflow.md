@@ -353,7 +353,16 @@ Save scored and sorted issues to `$TEMP_DIR/scored_issues.json`.
 
 Extract the top N+2 candidates (default: top 7). Assign independent, read-only
 reviewer units through the shared native dispatch contract. Each unit receives
-one candidate, optional project context, and this required JSON result contract:
+one candidate, optional project context, and this required JSON result contract.
+Build one native task item per reviewer and bind the JSON contract to that
+item with its supported `outputSchema` and `schemaMode` fields. Do not attach
+the schema only to the batch or rely on prompt wording to override specialist
+reviewer defaults. Preserve one result slot per submitted task in submission
+order; failed, missing, malformed, and wrong-candidate outputs remain
+attributed invalid slots and make the aggregate `DEGRADED`, never agreement.
+Bound active tasks by the host's current concurrency contract/configuration;
+the candidate count is not an active-concurrency limit. If the cap is unknown,
+do not dispatch an unknown-sized active wave.
 
 ```json
 {

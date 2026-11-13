@@ -133,7 +133,17 @@ The parent dispatches OMP-native, read-only `reviewer` tasks only for:
    verdict schema from Step 7.
 
 Dispatch each independent wave in one `task` call, with at most 32 task items
-per wave. Children execute one assigned review and never redispatch. The parent
+per wave. Children execute one assigned review and never redispatch. Bind each
+expected result schema to its task item using native per-task `outputSchema`
+and `schemaMode`; never put schema only on the batch or rely on prompt wording
+to override a specialist reviewer default. Keep one result slot per submitted
+task in submission order, including failed, missing, malformed, and
+wrong-candidate outputs; attribute each failure to its slot and mark the
+aggregate `DEGRADED`. A failed review is never agreement.
+
+Bound active work by the host's current concurrency contract/configuration;
+32 is only the per-wave maximum. If the host cap cannot be determined, do not
+dispatch a wave whose active size is unknown; report `DEGRADED`. The parent
 validates every structured result, excludes and names invalid results, and
 records attributed evidence for direct adjudication; it never applies a quorum
 or percentage threshold. If OMP `task` is unavailable, execute the review

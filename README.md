@@ -9,7 +9,7 @@
 `--enable-jules`, authenticate through browser OAuth, and submit through `/delegate`
 or the official `jules` issue-label workflow.
 
-**Last Updated**: 2026-10-07
+- **Last Updated**: 2026-11-13
 
 Manifest deploys shared guides, skills, prompts, and scripts to `~/.claude/`,
 `~/.cursor/`, `~/.codex/`, and `~/.antigravity/` (plus `~/.gemini/GEMINI.md` for the Antigravity CLI). Interactive
@@ -65,6 +65,11 @@ User → Supported coding harness → /skill or task
                                       ↓
                     Parent validates evidence and aggregates results
 ```
+
+The 32-item batch maximum limits submitted work, not active concurrency:
+`task.maxConcurrency` controls the session's active task cap. Per-item structured
+result schemas require `task.structured`; missing, invalid, or unavailable
+reviews remain attributed and degraded.
 
 Noninteractive single-provider integrations (such as CDDL, delegation, and
 SkillClaw) resolve their provider CLI and model tier from `model_policy.yml`.
