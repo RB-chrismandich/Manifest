@@ -111,9 +111,26 @@ def load_bundled_policy():
     return importlib.import_module("manifest_model_policy")
 
 
+def _policy_at_trusted_editable_source():
+    """Import policy reachable on sys.path from a trusted editable root only."""
+    spec = importlib.util.find_spec("manifest_model_policy")
+    if spec is None or not spec.origin:
+        return None
+    module_origin = Path(spec.origin).resolve()
+    trusted_init = {root / "__init__.py" for root in _trusted_editable_policy_roots()}
+    if module_origin not in trusted_init:
+        return None
+    return importlib.import_module("manifest_model_policy")
+
+
 def ensure_policy():
     """Apply the same trust gate for console, module, and script entry points."""
     policy, invalid = _trusted_model_policy_distribution()
     if invalid:
         raise ImportError("invalid manifest-model-policy distribution")
-    return policy if policy is not None else load_bundled_policy()
+    if policy is not None:
+        return policy
+    policy = _policy_at_trusted_editable_source()
+    if policy is not None:
+        return policy
+    return load_bundled_policy()
