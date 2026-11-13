@@ -130,6 +130,8 @@ class TestWrapperResponseProtocol(unittest.TestCase):
                     self.assertFalse(marker.exists())
 
     def test_python_wrapper_recursion_error_fails_without_traceback(self):
+        if os.name != "posix":
+            self.skipTest("requires POSIX stack limits for deterministic recursion")
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             hook = root / "hook"
@@ -149,8 +151,17 @@ class TestWrapperResponseProtocol(unittest.TestCase):
             )
             wrapper.chmod(0o700)
 
-            proc = subprocess.run([str(wrapper)], capture_output=True, text=True)
-
+            proc = subprocess.run(
+                [
+                    "/bin/sh",
+                    "-c",
+                    'ulimit -s 1024; exec "$1"',
+                    "sh",
+                    str(wrapper),
+                ],
+                capture_output=True,
+                text=True,
+            )
             self.assertEqual(proc.returncode, 1)
             self.assertIn("pre-hook returned malformed output", proc.stderr)
             self.assertNotIn("Traceback", proc.stderr)
