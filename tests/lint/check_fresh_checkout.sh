@@ -167,6 +167,7 @@ case "$1" in
     fp-view) echo '{"headRefOid":"sha1","baseRefName":"main","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":"APPROVED","latestReviews":[],"labels":[],"isDraft":false,"state":"OPEN"}' ;;
     fp-checks) echo '[{"name":"check-0","bucket":"pass","state":"COMPLETED","link":"https://checks.invalid/0","startedAt":"2026-09-19T00:00:00Z","completedAt":"2026-09-19T00:01:00Z"}]' ;;
     fp-threads) echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}' ;;
+    fp-feedback) printf '%s\n%s\n%s\n' '[[]]' '[[]]' '[[]]' ;;
     list) echo "${SEAM_LIST:-[]}" ;;
     checks) printf '%s\n' ${SEAM_BUCKETS-pass} ;;
     reviewdecision) echo "${SEAM_RD:-APPROVED}" ;;

@@ -100,6 +100,18 @@ def _trusted_model_policy_distribution():
         return None, False
 
 
+def _import_trusted_source_policy():
+    """Import policy from a trusted editable root without pip metadata."""
+    spec = importlib.util.find_spec("manifest_model_policy")
+    if spec is None or not spec.origin:
+        return None
+    module_origin = Path(spec.origin).resolve()
+    for source_policy in _trusted_editable_policy_roots():
+        if module_origin == source_policy / "__init__.py":
+            return importlib.import_module("manifest_model_policy")
+    return None
+
+
 def load_bundled_policy():
     """Use only byte-pinned bundle code; never mask an existing policy module."""
     if importlib.util.find_spec("manifest_model_policy") is not None:
@@ -116,4 +128,9 @@ def ensure_policy():
     policy, invalid = _trusted_model_policy_distribution()
     if invalid:
         raise ImportError("invalid manifest-model-policy distribution")
-    return policy if policy is not None else load_bundled_policy()
+    if policy is not None:
+        return policy
+    source_policy = _import_trusted_source_policy()
+    if source_policy is not None:
+        return source_policy
+    return load_bundled_policy()
