@@ -264,47 +264,38 @@ echo '{"continue":true}'
 
 Track AI agent activity.
 
-### Log All Tool Calls
+### Redacted JSONL Audit Log
 
-**When**: PreToolUse + PostToolUse / tool.execute.before + after
+Use the standard-library logger shipped with this skill for hook input. It reads
+the existing JSON event from stdin, recursively redacts common credentials, and
+appends one bounded JSONL record. It does not claim tamper-proof storage.
+
+Create a private directory owned by the account running the hook (for example
+`~/.ai-audit`, mode `0700`), then set `AI_HOOK_AUDIT_LOG` to a file inside it.
+Invoke the logger as a **pre-hook** when logging failure must block the action:
 
 ```bash
-#!/bin/bash
-# log-tool.sh
-
-LOG_FILE="$HOME/.ai-agent-logs/$(date +%Y-%m-%d).log"
-mkdir -p "$(dirname "$LOG_FILE")"
-
-read -r INPUT
-TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-TOOL=$(echo "$INPUT" | jq -r '.tool_name // .tool // "unknown"')
-ARGS=$(echo "$INPUT" | jq -c '.tool_input // .args // {}')
-
-echo "[$TIMESTAMP] $TOOL: $ARGS" >> "$LOG_FILE"
-echo '{"continue":true}'
+export AI_HOOK_AUDIT_LOG="$HOME/.ai-audit/events.jsonl"
+/path/to/ai-hooks-integration/scripts/runtime/audit_logger.py \
+  --path "$AI_HOOK_AUDIT_LOG"
 ```
+
+The logger requires the variable/path, rejects unsafe parents/files, and fails
+closed on invalid, oversized, or unredactable input; it emits no success
+response. Keep the path parent owned by the effective user and not
+group/world-writable. It redacts Bearer credentials, password/token command
+arguments, `*_TOKEN=` assignments, and URL userinfo, while preserving the
+original event structure. Treat logs as sensitive data despite redaction.
+
+For native hook protocols that require a response on stdout, use an adapter
+that invokes this logger and emits the protocol's success response only after
+the logger exits successfully; do not pipe raw events to a plain append command.
 
 ### Compliance Audit Trail
 
-```bash
-#!/bin/bash
-# audit.sh - Structured audit log
-
-AUDIT_FILE="$HOME/.ai-audit/audit.jsonl"
-mkdir -p "$(dirname "$AUDIT_FILE")"
-
-read -r INPUT
-
-ENTRY=$(jq -n \
-  --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --arg user "$USER" \
-  --arg cwd "$PWD" \
-  --argjson input "$INPUT" \
-  '{timestamp: $ts, user: $user, cwd: $cwd, event: $input}')
-
-echo "$ENTRY" >> "$AUDIT_FILE"
-echo '{"continue":true}'
-```
+Use the same logger and path policy above rather than appending raw hook input.
+Keep each invocation as a separate JSONL record; configure it as a pre-hook
+when audit-write failure must prevent the operation.
 
 ---
 

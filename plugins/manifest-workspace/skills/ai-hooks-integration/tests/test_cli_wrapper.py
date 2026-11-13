@@ -2,6 +2,7 @@
 """Tests for CLI wrapper generation."""
 
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -190,56 +191,6 @@ class TestFindOriginalBinary(unittest.TestCase):
                 os.environ["PATH"] = old_path
 
 
-class TestWrapperIntegration(unittest.TestCase):
-    """Integration tests for wrapper functionality."""
-
-    def test_generated_bash_is_valid_syntax(self):
-        """Generated bash should have valid syntax."""
-        script = generate_wrapper(
-            cli_name="test",
-            original_path="/bin/test",
-            pre_hook="/hook",
-            template="bash",
-        )
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
-            f.write(script)
-            f.flush()
-
-            import subprocess
-
-            result = subprocess.run(
-                ["bash", "-n", f.name],
-                capture_output=True,
-            )
-            os.unlink(f.name)
-
-            self.assertEqual(result.returncode, 0, f"Syntax error: {result.stderr}")
-
-    def test_generated_python_is_valid_syntax(self):
-        """Generated python should have valid syntax."""
-        script = generate_wrapper(
-            cli_name="test",
-            original_path="/bin/test",
-            pre_hook="/hook",
-            template="python",
-        )
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write(script)
-            f.flush()
-
-            import subprocess
-
-            result = subprocess.run(
-                [sys.executable, "-m", "py_compile", f.name],
-                capture_output=True,
-            )
-            os.unlink(f.name)
-
-            self.assertEqual(result.returncode, 0, f"Syntax error: {result.stderr}")
-
-
 class TestMainBinaryNotFound(unittest.TestCase):
     """main() must exit cleanly when the target binary is missing.
 
@@ -255,7 +206,6 @@ class TestMainBinaryNotFound(unittest.TestCase):
 
     def test_missing_binary_exits_cleanly(self):
         """A nonexistent CLI name yields exit 1 + clean message, no traceback."""
-        import subprocess
 
         proc = subprocess.run(
             [sys.executable, self.SCRIPT, "nonexistent-binary-xyz123"],

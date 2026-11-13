@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Security (#1001):** generated CLI hook wrappers preserve pre-hook and CLI
+  exit statuses, terminate timed-out hook process groups, and prevent post-hooks
+  from overriding CLI results. Audit records are redacted and appended as
+  bounded, private JSONL entries with rollback on short writes.
+
 - Make `pr-smoke` portable to non-Manifest repositories: missing local lint
   scripts and empty pytest collections warn, while root/configured test suites
   are discovered and executed failures remain fatal (#999).
