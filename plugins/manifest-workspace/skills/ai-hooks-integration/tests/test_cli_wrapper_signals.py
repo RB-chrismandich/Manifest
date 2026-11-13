@@ -16,9 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from runtime.cli_wrapper import generate_wrapper
 
 
-@unittest.skipUnless(os.name == "posix", "process-group behavior requires POSIX")
-class TestPythonWrapperSignals(unittest.TestCase):
-    """Verify cancellation lifecycle and signal scope in generated wrappers."""
+class _ProcessGroupTestHelpers:
+    """Shared readiness and cleanup helpers for process-group tests."""
 
     def _wait_for_file(self, path: Path, process: subprocess.Popen[bytes]) -> bool:
         deadline = time.monotonic() + 3
@@ -35,6 +34,11 @@ class TestPythonWrapperSignals(unittest.TestCase):
             return
         with suppress(ProcessLookupError):
             os.killpg(process_group, signal.SIGKILL)
+
+
+@unittest.skipUnless(os.name == "posix", "process-group behavior requires POSIX")
+class TestPythonWrapperSignals(_ProcessGroupTestHelpers, unittest.TestCase):
+    """Verify cancellation lifecycle and signal scope in generated wrappers."""
 
     def test_sigterm_during_popen_launch_kills_and_reaps_hook_group(self):
         """A signal received before Popen returns must still reap the hook group."""
@@ -196,3 +200,71 @@ class TestPythonWrapperSignals(unittest.TestCase):
                     proc.kill()
                     proc.communicate()
                 self._kill_hook_group_from_pid_file(hook_pid)
+
+
+@unittest.skipUnless(os.name == "posix", "process-group behavior requires POSIX")
+class TestShellWrapperSignals(_ProcessGroupTestHelpers, unittest.TestCase):
+    """Verify Bash and minimal wrappers reap hooks when cancelled."""
+
+    def _assert_hook_cancellation(
+        self, template: str, phase: str, signum: signal.Signals
+    ) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            marker = root / "late-marker"
+            hook_pid = root / "hook.pid"
+            hook = root / "hook"
+            hook.write_text(
+                "#!/bin/sh\n"
+                "trap '' INT TERM\n"
+                f"echo $$ > '{hook_pid}'\n"
+                f"(sleep 0.5; touch '{marker}') >/dev/null 2>&1 &\n"
+                "exec sleep 10\n"
+            )
+            hook.chmod(0o700)
+            cli = root / "cli"
+            cli.write_text("#!/bin/sh\nexit 0\n")
+            cli.chmod(0o700)
+            wrapper = root / "wrapper"
+            wrapper.write_text(
+                generate_wrapper(
+                    "test",
+                    str(cli),
+                    pre_hook=str(hook) if phase == "pre" else "",
+                    post_hook=str(hook) if phase == "post" else "",
+                    template=template,
+                )
+            )
+            wrapper.chmod(0o700)
+            proc = subprocess.Popen(
+                [str(wrapper)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
+            try:
+                self.assertTrue(
+                    self._wait_for_file(hook_pid, proc), f"{phase}-hook did not start"
+                )
+                # Repeated wrapper signals must preserve the first signal status.
+                deadline = time.monotonic() + 0.02
+                proc.send_signal(signum)
+                while proc.poll() is None and time.monotonic() < deadline:
+                    proc.send_signal(signum)
+                    time.sleep(0.001)
+                _, stderr = proc.communicate(timeout=5)
+                time.sleep(0.7)
+                self.assertFalse(marker.exists(), "hook descendant survived")
+                self.assertEqual(proc.returncode, 128 + signum, stderr)
+            finally:
+                if proc.poll() is None:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                    proc.wait(timeout=3)
+                self._kill_hook_group_from_pid_file(hook_pid)
+
+    def test_bash_and_minimal_cancellation_cleans_pre_and_post_hooks(self):
+        for template in ("bash", "minimal"):
+            for phase in ("pre", "post"):
+                for signum in (signal.SIGINT, signal.SIGTERM):
+                    with self.subTest(template=template, phase=phase, signum=signum):
+                        self._assert_hook_cancellation(template, phase, signum)

@@ -8,10 +8,44 @@
 #     the CLI and post-hook do not run (timeout -> 124, missing hook -> 127).
 #   - pre-hook prints {{"decision": "deny"}} -> wrapper exits 1.
 #   - pre-hook prints output that is not a JSON object -> wrapper exits 1.
-#   - otherwise the CLI runs once; the post-hook is informational and the
-#     wrapper always exits with the CLI's own status.
+#   - otherwise the CLI runs once; the post-hook is informational unless the
+#     wrapper is cancelled while a hook is executing.
 
 set -euo pipefail
+HOOK_RUNNER_PID=""
+HOOK_OUTPUT_FILE=""
+HOOK_PID_FILE=""
+HOOK_SIGNAL=0
+# shellcheck disable=SC1054
+handle_hook_signal() {{
+local signum="$1"
+local hook_group=""
+if [[ "$HOOK_SIGNAL" -eq 0 ]]; then
+    HOOK_SIGNAL="$signum"
+fi
+signum="$HOOK_SIGNAL"
+trap '' INT TERM
+if [[ -z "$HOOK_RUNNER_PID" ]]; then
+    return
+fi
+if [[ -n "$HOOK_PID_FILE" && -s "$HOOK_PID_FILE" ]]; then
+    hook_group=$(< "$HOOK_PID_FILE")
+    if [[ "$hook_group" =~ ^[0-9]+$ ]]; then
+        : > "$HOOK_PID_FILE.owner" 2> /dev/null || true
+        kill -s "$signum" -- "-$hook_group" 2> /dev/null || true
+        kill -s KILL -- "-$hook_group" 2> /dev/null || true
+    fi
+fi
+kill -s "$signum" "$HOOK_RUNNER_PID" 2> /dev/null || true
+wait "$HOOK_RUNNER_PID" 2> /dev/null || true
+if [[ -n "$HOOK_OUTPUT_FILE" ]]; then
+    rm -f "$HOOK_OUTPUT_FILE" || true
+fi
+if [[ -n "$HOOK_PID_FILE" ]]; then
+    rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+fi
+exit $((128 + signum))
+}}
 
 ORIGINAL="{original_path}"
 PRE_HOOK="{pre_hook}"
@@ -30,19 +64,62 @@ if [[ -n "$PRE_HOOK" ]]; then
         '{{cli: $cli, args: $args, cwd: $cwd, phase: "pre"}}')
 
     PRE_STATUS=0
-    PRE_RESULT=$(python3 -c 'import json,os,signal,subprocess,sys
+    HOOK_SIGNAL=0
+    HOOK_RUNNER_PID=""
+    HOOK_OUTPUT_FILE=""
+    HOOK_PID_FILE=""
+    trap 'handle_hook_signal 2' INT
+    trap 'handle_hook_signal 15' TERM
+    HOOK_OUTPUT_FILE=$(mktemp)
+    HOOK_PID_FILE=$(mktemp)
+    if [[ "$HOOK_SIGNAL" -ne 0 ]]; then
+        handle_hook_signal "$HOOK_SIGNAL"
+    fi
+    python3 -c 'import json,os,signal,subprocess,sys
+class HookCancelled(Exception):
+    def __init__(self,signum): self.signum=signum
 process=None
+pending_signal=None
+previous_handlers={{}}
+def kill_group(signum):
+    if process is not None:
+        try: os.killpg(process.pid,signum)
+        except ProcessLookupError: pass
+def handle_signal(signum,frame):
+    global pending_signal
+    if pending_signal is None: pending_signal=signum
+for signum in (signal.SIGINT,signal.SIGTERM):
+    previous_handlers[signum]=signal.signal(signum,handle_signal)
 try:
+    if pending_signal is not None: raise HookCancelled(pending_signal)
     process=subprocess.Popen(sys.argv[2],shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+    with open(sys.argv[3],"w",encoding="ascii") as pid_file: pid_file.write(str(process.pid))
+    if pending_signal is not None: raise HookCancelled(pending_signal)
     stdout,stderr=process.communicate(sys.stdin.buffer.read(),timeout=float(sys.argv[1]))
+    if pending_signal is not None: raise HookCancelled(pending_signal)
 except subprocess.TimeoutExpired:
-    try: os.killpg(process.pid,signal.SIGKILL)
-    except ProcessLookupError: pass
+    for signum in previous_handlers: signal.signal(signum,signal.SIG_IGN)
+    kill_group(signal.SIGKILL)
     process.communicate()
     print("Error: pre-hook timed out",file=sys.stderr); sys.exit(124)
+except HookCancelled as cancelled:
+    for signum in previous_handlers: signal.signal(signum,signal.SIG_IGN)
+    if process is not None:
+        if not os.path.exists(sys.argv[3]+".owner"):
+            kill_group(cancelled.signum)
+            kill_group(signal.SIGKILL)
+        process.communicate()
+    sys.exit(128+cancelled.signum)
 except Exception:
+    for signum in previous_handlers: signal.signal(signum,signal.SIG_IGN)
+    if process is not None:
+        kill_group(signal.SIGKILL)
+        process.communicate()
+    if pending_signal is not None: sys.exit(128+pending_signal)
     print("Error: pre-hook could not run",file=sys.stderr); sys.exit(126)
-if process.returncode: sys.exit(process.returncode if process.returncode > 0 else 128 - process.returncode)
+finally:
+    for signum,previous in previous_handlers.items(): signal.signal(signum,previous)
+if process.returncode: sys.exit(process.returncode if process.returncode > 0 else 128-process.returncode)
 try:
     text=stdout.decode("utf-8")
     if not text.strip(" \t\r\n"): print("allow"); sys.exit(0)
@@ -51,7 +128,21 @@ try:
     if text[end:].strip(" \t\r\n") or not isinstance(result,dict): raise ValueError
     print("deny" if result.get("decision")=="deny" else "allow")
 except Exception:
-    print("Error: pre-hook returned malformed output",file=sys.stderr); sys.exit(1)' "$HOOK_TIMEOUT" "$PRE_HOOK" <<< "$PRE_INPUT") || PRE_STATUS=$?
+    print("Error: pre-hook returned malformed output",file=sys.stderr); sys.exit(1)' "$HOOK_TIMEOUT" "$PRE_HOOK" "$HOOK_PID_FILE" <<< "$PRE_INPUT" > "$HOOK_OUTPUT_FILE" &
+    HOOK_RUNNER_PID=$!
+    if [[ "$HOOK_SIGNAL" -ne 0 ]]; then
+        handle_hook_signal "$HOOK_SIGNAL"
+    fi
+    wait "$HOOK_RUNNER_PID" || PRE_STATUS=$?
+    PRE_RESULT=$(< "$HOOK_OUTPUT_FILE")
+    rm -f "$HOOK_OUTPUT_FILE" "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+    HOOK_OUTPUT_FILE=""
+    HOOK_PID_FILE=""
+    HOOK_RUNNER_PID=""
+    trap - INT TERM
+    if [[ "$HOOK_SIGNAL" -ne 0 ]]; then
+        exit $((128 + HOOK_SIGNAL))
+    fi
     if [[ "$PRE_STATUS" -ne 0 ]]; then
         echo "Error: pre-hook failed (exit $PRE_STATUS)" >&2
         exit "$PRE_STATUS"
@@ -78,19 +169,70 @@ if [[ -n "$POST_HOOK" ]]; then
         --arg cwd "$PWD" \
         --argjson exit_code "$EXIT_CODE" \
         '{{cli: $cli, args: $args, cwd: $cwd, exit_code: $exit_code, phase: "post"}}')
+    HOOK_SIGNAL=0
+    HOOK_RUNNER_PID=""
+    HOOK_OUTPUT_FILE=""
+    HOOK_PID_FILE=$(mktemp)
+    trap 'handle_hook_signal 2' INT
+    trap 'handle_hook_signal 15' TERM
     python3 -c 'import os,signal,subprocess,sys
+class HookCancelled(Exception):
+    def __init__(self,signum): self.signum=signum
 process=None
+pending_signal=None
+previous_handlers={{}}
+def kill_group(signum):
+    if process is not None:
+        try: os.killpg(process.pid,signum)
+        except ProcessLookupError: pass
+def handle_signal(signum,frame):
+    global pending_signal
+    if pending_signal is None: pending_signal=signum
+for signum in (signal.SIGINT,signal.SIGTERM):
+    previous_handlers[signum]=signal.signal(signum,handle_signal)
 try:
+    if pending_signal is not None: raise HookCancelled(pending_signal)
     process=subprocess.Popen(sys.argv[2],shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+    with open(sys.argv[3],"w",encoding="ascii") as pid_file: pid_file.write(str(process.pid))
+    if pending_signal is not None: raise HookCancelled(pending_signal)
     stdout,stderr=process.communicate(sys.stdin.buffer.read(),timeout=float(sys.argv[1]))
+    if pending_signal is not None: raise HookCancelled(pending_signal)
 except subprocess.TimeoutExpired:
-    try: os.killpg(process.pid,signal.SIGKILL)
-    except ProcessLookupError: pass
+    for signum in previous_handlers: signal.signal(signum,signal.SIG_IGN)
+    kill_group(signal.SIGKILL)
     process.communicate()
     print("Hook warning: post-hook timed out",file=sys.stderr); sys.exit(124)
+except HookCancelled as cancelled:
+    for signum in previous_handlers: signal.signal(signum,signal.SIG_IGN)
+    if process is not None:
+        if not os.path.exists(sys.argv[3]+".owner"):
+            kill_group(cancelled.signum)
+            kill_group(signal.SIGKILL)
+        process.communicate()
+    sys.exit(128+cancelled.signum)
 except Exception:
+    for signum in previous_handlers: signal.signal(signum,signal.SIG_IGN)
+    if process is not None:
+        kill_group(signal.SIGKILL)
+        process.communicate()
+    if pending_signal is not None: sys.exit(128+pending_signal)
     print("Hook warning: post-hook could not run",file=sys.stderr); sys.exit(126)
-sys.stdout.buffer.write(stdout); sys.exit(process.returncode)' "$HOOK_TIMEOUT" "$POST_HOOK" <<< "$POST_INPUT"
+finally:
+    for signum,previous in previous_handlers.items(): signal.signal(signum,previous)
+if process.returncode: sys.exit(process.returncode)
+sys.stdout.buffer.write(stdout)' "$HOOK_TIMEOUT" "$POST_HOOK" "$HOOK_PID_FILE" <<< "$POST_INPUT" &
+    HOOK_RUNNER_PID=$!
+    if [[ "$HOOK_SIGNAL" -ne 0 ]]; then
+        handle_hook_signal "$HOOK_SIGNAL"
+    fi
+    wait "$HOOK_RUNNER_PID" || true
+    rm -f "$HOOK_PID_FILE" "$HOOK_PID_FILE.owner" || true
+    HOOK_PID_FILE=""
+    HOOK_RUNNER_PID=""
+    trap - INT TERM
+    if [[ "$HOOK_SIGNAL" -ne 0 ]]; then
+        exit $((128 + HOOK_SIGNAL))
+    fi
     }} || true
 fi
 
