@@ -28,6 +28,33 @@ EXIT_DENY = 1
 EXIT_HOOK_ERROR = 126
 EXIT_NOT_FOUND = 127
 EXIT_TIMEOUT = 124
+MAX_HOOK_JSON_NESTING = 64
+
+
+def _pre_hook_json_too_deep(text):
+    """Reject deeply nested hook JSON (CPython 3.14+ may parse without RecursionError)."""
+    depth = 0
+    in_string = False
+    escape = False
+    for ch in text:
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch in "{{[":
+            depth += 1
+            if depth > MAX_HOOK_JSON_NESTING:
+                return True
+        elif ch in "}}]":
+            if depth > 0:
+                depth -= 1
+    return False
 
 
 class _HookCancelled(Exception):
@@ -151,6 +178,8 @@ def run_pre_hook(payload):
         fail("pre-hook returned malformed output", EXIT_DENY)
     if not raw_out.strip(" \t\r\n"):
         return
+    if _pre_hook_json_too_deep(raw_out):
+        fail("pre-hook returned malformed output", EXIT_DENY)
     try:
         decoder = json.JSONDecoder(parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
         start = len(raw_out) - len(raw_out.lstrip(" \t\r\n"))
