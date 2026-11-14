@@ -44,7 +44,11 @@ context (variable name, file path, service) so the record stays useful.
    as well as explaining the uncertainty in prose. Do not leave `unknown`
    implicit in narrative wording alone.
 4. Fill the complete payload in `references/summary-template.md`, redacted per
-   the section above before it is written to any file. Evidence must include
+   the section above before it is written to any file. Record the original
+   requested outcome separately from explicit user authorization; never turn
+   assistant assumptions into authorization. Capture targets, artifact
+   identifiers, verified facts with provenance/time, and outstanding operations
+   with owner, blockers, and next step when applicable. Evidence must include
    the exact verification command, outcome, and a durable checkpoint
    description; do not claim a check that was not run.
 5. Run `session_continuity.py checkpoint --input <payload.json>` only after
@@ -89,9 +93,12 @@ the threshold was reached.
 
 ## Continuation
 
-Before trusting checkpoint claims, re-read current Git state and live-operation
-ownership, then run `session_continuity.py verify` with those current snapshots.
-Treat a digest failure as corruption. If `trusted` is false, report every Git
-field or operation handle that changed and reconcile it before acting. Use the
+Before trusting checkpoint claims, re-read current Git state, explicit user
+authorization/access, and live-operation ownership, then run
+`session_continuity.py verify` with those current snapshots. Treat a digest
+failure as corruption. If `trusted` is false, reconcile every reported Git
+field, ownership/access change, and stale CI evidence before acting. CI evidence
+is valid only for its recorded commit SHA. Resume never expands checkpointed
+authorization; new authorization must come explicitly from the user. Use the
 checkpoint's `continuation_goal` as the copyable goal; its first action must be
 the revalidation step.

@@ -28,12 +28,13 @@ Apply at all times, in every session:
 
 ## Native Sub-Agent Dispatch
 
-Use the current host's supported native mechanism: OMP uses `task` and `hub`;
-Claude Code uses its discovered native Agent/background collection. Preserve
-OMP specialist selection and use only actually discovered Claude agent types.
-The parent validates evidence and aggregates results. The authoritative
-[shared dispatch contract](references/sub-agent-dispatch.md) defines child
-limits, the narrow delegate-runner exception, and `DEGRADED` behavior.
+Use the current host's supported native mechanism. OMP parents dispatch work
+with `task`, selecting the narrowest suitable agent; the parent validates
+evidence and aggregates results. Claude Code parents use discovered native
+Agents and background collection. Preserve platform boundaries and do not
+guess Claude aliases. Read the
+[shared dispatch contract](references/sub-agent-dispatch.md) for child limits,
+the narrow delegate-runner exception, and `DEGRADED` behavior.
 
 ## Reference Index
 
@@ -80,19 +81,20 @@ independent-unit counts are not escalation conditions.
 
 ## Skills
 
-Skills live in `~/.claude/skills/` (deployed from the repo's
-`.apm/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
-`description`) is the **authoritative registry** — Claude Code auto-loads every
-description at session start, so no table is duplicated here. Per-skill
-OMP dispatch policy (always/conditional/never) lives in
-`~/.claude/config/command_config.yml` under `tool_policies`.
+Canonical skills live under `plugins/<bundle>/skills/`; `.apm/skills/` is a
+generated mirror used for compatibility. Claude Code consumes Manifest skills
+through native plugin bundles, not a flat `~/.claude/skills/` installation.
+Each skill's `SKILL.md` frontmatter (`name`, `description`) is the
+authoritative registry. Per-skill OMP dispatch policy (always/conditional/never)
+lives in `~/.claude/config/command_config.yml` under `tool_policies`.
 
 Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 `/docs-all`, `/plan-manage`, `/env-check`, `/session-checkpoint`,
 `/version-pin`. `/help` searches the full catalog by task.
 
-**Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
-`claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
+**Skills are plugin bundles**: `/<bundle>:<name>`; refresh Claude bundles with
+`claude plugin update <bundle>@manifest`. See the
+[Layout Reference](references/layout.md) for other harness deployment paths.
 
 ### Security Review Skill
 

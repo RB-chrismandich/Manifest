@@ -102,41 +102,50 @@ def test_health_installer_refuses_to_clean_up_modified_retired_file_on_upgrade(
 
 
 @pytest.mark.parametrize(
-    "scheduler_name",
-    ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],
+    "runtime_name",
+    [
+        "env_check_native.py",
+        "health_install_scheduler.py",
+        "health_install_scheduler_systemd.py",
+    ],
 )
-def test_health_installer_upgrades_receipt_missing_split_scheduler_file(
-    repo_root: Path, tmp_path: Path, scheduler_name: str
+def test_health_installer_upgrades_receipt_missing_split_runtime_file(
+    repo_root: Path, tmp_path: Path, runtime_name: str
 ) -> None:
-    """Pre-split receipts omit either scheduler module; upgrade must pass."""
+    """Older receipts omit newly split runtime files; upgrade must pass."""
     source_root, env, runtime_root, receipt_path = _installed_health(
         repo_root, tmp_path
     )
 
-    (runtime_root / scheduler_name).unlink()
+    (runtime_root / runtime_name).unlink()
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    receipt["files"].pop(scheduler_name)
+    receipt["files"].pop(runtime_name)
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
 
     _install(source_root, env, tmp_path)
-    assert (runtime_root / scheduler_name).exists()
+    assert (runtime_root / runtime_name).exists()
 
 
 @pytest.mark.parametrize(
-    "scheduler_name",
-    ["health_install_scheduler.py", "health_install_scheduler_systemd.py"],
+    "runtime_name",
+    [
+        "env_check_native.py",
+        "health_install_scheduler.py",
+        "health_install_scheduler_systemd.py",
+    ],
 )
-def test_health_installer_uninstalls_receipt_missing_split_scheduler_file(
-    repo_root: Path, tmp_path: Path, scheduler_name: str
+def test_health_installer_uninstalls_receipt_missing_split_runtime_file(
+    repo_root: Path, tmp_path: Path, runtime_name: str
 ) -> None:
-    """Uninstall accepts the same pre-split receipt shape."""
-    source_root, env, runtime_root, receipt_path = _installed_health(
+    """Uninstall accepts receipts predating these runtime file splits."""
+    source_root, env, _runtime_root, receipt_path = _installed_health(
         repo_root, tmp_path
     )
 
-    (runtime_root / scheduler_name).unlink()
+    runtime_root = Path(env["XDG_DATA_HOME"]) / "manifest/health"
+    (runtime_root / runtime_name).unlink()
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    receipt["files"].pop(scheduler_name)
+    receipt["files"].pop(runtime_name)
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
 
     result = run_script(

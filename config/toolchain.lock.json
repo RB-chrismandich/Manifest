@@ -149,8 +149,13 @@
           "url": "file://config/toolchain/uv.lock",
           "sha256": "cdb6e09e558e6696b66746b84fdf1184d2a9b0fbe0e88a7b92129b872827ae03",
           "project_sha256": "2d5040a7c276229d129117fc4d934205f5b4b23c3283564730f04b2a141c07e6",
-          "exe_sha256": null,
-          "python_provider": null,
+          "exe_sha256": "227b080c4b2a79ec1b0ae3d83132aaf572b6f3fba52d8dcbd5d32276c2bfe5d4",
+          "python_provider": {
+            "implementation": "cpython",
+            "version": "3.12.13",
+            "build": "main:May 10 2026 19:20:41",
+            "exe_sha256": "a395f264e5612a2819662ed3e37fd30d39ed61179b98e5f86c3c783a008d8623"
+          },
           "path_in_archive": ".",
           "console_scripts": [
             "bin/python",

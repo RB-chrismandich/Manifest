@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-empty-receipt",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Assess whether the install receipt supports a healthy or converged result. Report structured completion, intervention, correction, constraint, and evidence fields.",
+  "artifacts": {
+    "scenario.json": "{\"receipt\":{\"schema_version\":1,\"selected_targets\":[]},\"historical_report\":{\"status\":\"healthy\",\"converged\":true},\"native_observations\":{}}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object"
+  }
+}

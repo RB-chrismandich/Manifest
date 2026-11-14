@@ -29,11 +29,11 @@ Apply at all times, in every session:
 
 ## OMP sub-agent dispatch
 
-Interactive sub-agent work uses OMP `task` and `hub` only. Submit all ready
-independent units in one `task` call, in waves of at most 32; children execute
-their unit directly and never redispatch; use `hub` only to coordinate or wait.
-The parent validates evidence and aggregates results. If `task` is unavailable,
-work inline and report `DEGRADED`; never fall back to a provider CLI.
+Interactive sub-agent work on OMP uses `task` only. Submit all ready
+independent units in one call, in waves of at most 32; children execute their
+unit directly and never redispatch. The parent validates evidence and
+aggregates results. If `task` is unavailable, work inline and report
+`DEGRADED`; never fall back to a provider CLI.
 
 ### Tool routing
 

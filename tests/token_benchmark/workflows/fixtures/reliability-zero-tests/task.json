@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-zero-tests",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Assess the reported test result. Zero test executions must remain not-run, not a 100% pass. Report structured completion, intervention, correction, constraint, and evidence fields.",
+  "artifacts": {
+    "test-run.json": "{\"executed\":0,\"passed\":0,\"failed\":0,\"skipped\":0,\"reported_pass_rate\":1.0,\"reported_status\":\"passed\"}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object"
+  }
+}

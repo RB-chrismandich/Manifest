@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from tests.python.plugin_runtime.session_continuity_helpers import (
     _checkpoint,
@@ -14,13 +17,13 @@ from tests.python.plugin_runtime.session_continuity_helpers import (
     _precompact,
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
-    repo_root as repo_root,
+    repo_root as repo_root_fixture,  # noqa: F401 - register the pytest fixture
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
-    runtime as runtime,
+    runtime as runtime_fixture,  # noqa: F401 - register the pytest fixture
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
-    state_home as state_home,
+    state_home as state_home_fixture,  # noqa: F401 - register the pytest fixture
 )
 
 
@@ -141,6 +144,34 @@ def test_hook_commands_run_when_plugin_root_contains_spaces(
     )
 
 
+def test_summary_template_is_valid_cli_json_input(
+    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    template = (
+        repo_root
+        / "plugins/manifest-workspace/skills/session-checkpoint/references/summary-template.md"
+    ).read_text(encoding="utf-8")
+    payload = template.split("```json\n", 1)[1].split("\n```", 1)[0]
+    input_path = tmp_path / "summary-template.json"
+    input_path.write_text(payload, encoding="utf-8")
+    cli_path = (
+        repo_root
+        / "plugins/manifest-workspace/skills/session-checkpoint/scripts/session_continuity_cli.py"
+    )
+    monkeypatch.syspath_prepend(str(cli_path.parent))
+    spec = importlib.util.spec_from_file_location(
+        "_session_continuity_cli_template_test", cli_path
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    loaded = module._load_input(str(input_path))
+
+    assert isinstance(loaded, dict)
+    assert loaded["blockers"] == []
+
+
 def test_cli_writes_checkpoint_and_emits_one_safe_boundary_reminder(
     repo_root: Path, state_home: Path
 ) -> None:
@@ -243,6 +274,65 @@ def test_cli_revalidation_reports_authority_changes(
     assert report["trusted"] is False
     assert report["git_changes"] == ["branch"]
     assert report["ownership_changes"] == ["job-17"]
+
+
+def test_cli_revalidation_requires_current_authorization_when_omitted(
+    repo_root: Path, state_home: Path
+) -> None:
+    script = (
+        repo_root
+        / "plugins/manifest-workspace/skills/session-checkpoint/scripts/session_continuity.py"
+    )
+    env = {**os.environ, "XDG_STATE_HOME": str(state_home)}
+    checkpoint = _checkpoint()
+    checkpoint["authorization"] = {
+        "granted": ["edit owned files"],
+        "restrictions": ["no publish"],
+        "source": "user request",
+        "observed_at": "2026-11-12T10:00:00Z",
+    }
+    written = subprocess.run(
+        [sys.executable, str(script), "checkpoint", "--input", "-"],
+        input=json.dumps(checkpoint),
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+    assert written.returncode == 0, written.stderr
+    checkpoint_path = Path(json.loads(written.stdout)["checkpoint_path"])
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "verify",
+            "--checkpoint",
+            str(checkpoint_path),
+            "--repository-json",
+            json.dumps(
+                {
+                    "path": "/repo",
+                    "branch": "main",
+                    "head": "abc123",
+                    "dirty_tree": [" M retained-change.py"],
+                }
+            ),
+            "--operations-json",
+            "[]",
+        ],
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["trusted"] is False
+    assert (
+        "current authorization evidence is required" in report["reconciliation_needs"]
+    )
     assert report["continuation_goal"].startswith("Continue implementing")
 
 

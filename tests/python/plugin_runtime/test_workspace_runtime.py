@@ -14,47 +14,13 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.contracts import load_contract
-
-
-@pytest.fixture
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
-
-
-@pytest.fixture
-def workspace_bundle(repo_root: Path) -> Path:
-    return repo_root / "plugins" / "manifest-workspace"
-
-
-def _isolated_env(tmp_path: Path) -> dict[str, str]:
-    home = tmp_path / "home"
-    state = tmp_path / "state"
-    data = tmp_path / "data"
-    config = tmp_path / "config"
-    for path in (home, state, data, config):
-        path.mkdir(parents=True)
-    return {
-        **os.environ,
-        "HOME": str(home),
-        "XDG_STATE_HOME": str(state),
-        "XDG_DATA_HOME": str(data),
-        "XDG_CONFIG_HOME": str(config),
-        "UV_NO_NETWORK": "1",
-        "PYTHONDONTWRITEBYTECODE": "1",
-    }
-
-
-def _run(
-    script: Path, *args: str, env: dict[str, str], cwd: Path
-) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, "-B", str(script), *args],
-        cwd=cwd,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+from tests.python.plugin_runtime.workspace_runtime_helpers import _isolated_env, _run
+from tests.python.plugin_runtime.workspace_runtime_helpers import (
+    repo_root as _repo_root,  # noqa: F401 - register the pytest fixture
+)
+from tests.python.plugin_runtime.workspace_runtime_helpers import (
+    workspace_bundle as _workspace_bundle_fixture,  # noqa: F401 - register the pytest fixture
+)
 
 
 def test_learning_capture_defaults_to_xdg_data(
@@ -179,47 +145,6 @@ def test_generated_catalog_covers_all_domain_skills(
         in ("manifest-workspace:parallel-agent", "manifest-workspace:metrics-report")
         for item in catalog["commands"]
     )
-
-
-def test_env_check_reads_only_xdg_receipt_and_native_inventories(
-    workspace_bundle: Path, tmp_path: Path
-) -> None:
-    env = _isolated_env(tmp_path)
-    receipt = Path(env["XDG_STATE_HOME"]) / "manifest/installation.json"
-    receipt.parent.mkdir(parents=True)
-    receipt.write_text(
-        json.dumps({"schema_version": 1, "harnesses": {"claude": {"ok": True}}}),
-        encoding="utf-8",
-    )
-    script = workspace_bundle / "skills/env-check/scripts/env_check.py"
-
-    result = _run(script, "--json", env=env, cwd=tmp_path)
-
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
-    assert report["receipt"]["path"] == str(receipt)
-    assert report["status"] in {"ok", "degraded"}
-
-
-def test_deploy_reconcile_is_read_only_and_reports_repair_required(
-    workspace_bundle: Path, tmp_path: Path
-) -> None:
-    env = _isolated_env(tmp_path)
-    receipt = Path(env["XDG_STATE_HOME"]) / "manifest/installation.json"
-    receipt.parent.mkdir(parents=True)
-    receipt.write_text(
-        json.dumps({"schema_version": 1, "harnesses": {"claude": {"plugins": []}}}),
-        encoding="utf-8",
-    )
-    script = workspace_bundle / "skills/deploy-reconcile/scripts/plugin_reconcile.py"
-
-    result = _run(script, "--json", env=env, cwd=tmp_path)
-
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
-    assert report["repair_required"] is True
-    assert report["drift"]
-    assert "apply" not in report
 
 
 def test_workspace_runtime_sources_have_no_legacy_runtime_dependencies(

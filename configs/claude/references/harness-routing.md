@@ -8,8 +8,8 @@ commands or model identifiers in portable skill guidance.
 
 The [shared dispatch contract](sub-agent-dispatch.md) is authoritative.
 
-- OMP parents batch ready independent units with `task` and coordinate with
-  `hub`; select its documented specialist roles.
+- OMP parents dispatch ready independent units with `task` and select
+  documented specialist roles.
 - Claude Code parents use only discovered native Agent types and native
   background-agent collection.
 - Portable skills link the shared contract instead of restating host branches.

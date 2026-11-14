@@ -9,12 +9,12 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture(name="repo_root")
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-@pytest.fixture
+@pytest.fixture(name="runtime")
 def runtime(repo_root: Path):
     path = (
         repo_root
@@ -23,12 +23,15 @@ def runtime(repo_root: Path):
     spec = importlib.util.spec_from_file_location("session_continuity", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    script_directory = str(path.parent)
+    if script_directory not in sys.path:
+        sys.path.insert(0, script_directory)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
-@pytest.fixture
+@pytest.fixture(name="state_home")
 def state_home(tmp_path: Path) -> Path:
     path = tmp_path / "state"
     path.mkdir()

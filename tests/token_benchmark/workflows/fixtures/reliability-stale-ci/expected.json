@@ -1,0 +1,26 @@
+{
+  "scenario_id": "reliability-stale-ci",
+  "required": {
+    "completion": {"state": "stale", "reason_code": "pipeline_sha_mismatch"},
+    "required_interventions": ["find_or_run_ci_for_current_sha"],
+    "factual_corrections": ["pipeline_status_is_bound_to_its_commit_sha"],
+    "retained_constraints": ["do_not_present_old_sha_as_current_verification"],
+    "evidence": {"current_commit_sha": "a1b2c3d4", "pipeline_commit_sha": "0f0e0d0c", "pipeline_status": "passed", "verification_status": "stale", "current_commit_verified": false}
+  },
+  "historical_bad_output": {
+    "scenario_id": "reliability-stale-ci",
+    "completion": {"state": "complete", "reason_code": "ci_passed"},
+    "required_interventions": [],
+    "factual_corrections": [],
+    "retained_constraints": [],
+    "evidence": {"current_commit_sha": "a1b2c3d4", "pipeline_commit_sha": "0f0e0d0c", "pipeline_status": "passed", "verification_status": "current", "current_commit_verified": true}
+  },
+  "corrected_output": {
+    "scenario_id": "reliability-stale-ci",
+    "completion": {"state": "stale", "reason_code": "pipeline_sha_mismatch"},
+    "required_interventions": ["find_or_run_ci_for_current_sha"],
+    "factual_corrections": ["pipeline_status_is_bound_to_its_commit_sha"],
+    "retained_constraints": ["do_not_present_old_sha_as_current_verification"],
+    "evidence": {"current_commit_sha": "a1b2c3d4", "pipeline_commit_sha": "0f0e0d0c", "pipeline_status": "passed", "verification_status": "stale", "current_commit_verified": false}
+  }
+}
