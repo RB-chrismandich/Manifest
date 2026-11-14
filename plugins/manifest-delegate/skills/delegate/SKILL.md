@@ -83,13 +83,18 @@ endpoint is available and a read-only probe is permitted, run that probe before
 claiming the integration is verified. If producer behavior or live evidence is
 unavailable, label it unknown/unverified rather than infer a contract.
 
-For native-inventory briefs, the producer contract is
-`src/manifest_agent/models.py:151-188` (component/package/inspection fields);
-OMP's producer is `src/manifest_agent/adapters/omp_inspection.py:96-154,187-234`.
+For native-inventory briefs, the producer contract is defined by
+[the `NativeComponentInspection`, `NativePluginInspection`, and
+`NativeInspection` models](https://github.com/RB-chrismandich/Manifest/blob/72705b34830677150333ae0767e334298ffab27e/src/manifest_agent/models.py#L151-L188).
+OMP's producer is
+[the native inspection adapter](https://github.com/RB-chrismandich/Manifest/blob/72705b34830677150333ae0767e334298ffab27e/src/manifest_agent/adapters/omp_inspection.py#L96-L154)
+and its component inspection path
+([lines 187–234](https://github.com/RB-chrismandich/Manifest/blob/72705b34830677150333ae0767e334298ffab27e/src/manifest_agent/adapters/omp_inspection.py#L187-L234),
+[lines 327–379](https://github.com/RB-chrismandich/Manifest/blob/72705b34830677150333ae0767e334298ffab27e/src/manifest_agent/adapters/omp_inspection.py#L327-L379)).
 Use serialized producer objects, as in
-`tests/python/plugin_runtime/test_reconcile_native_evidence.py`, rather than
-inventing matching JSON. This is offline wire evidence, not live activation
-qualification; a live OMP probe must still be recorded separately.
+[the fresh-process serialization regression](https://github.com/RB-chrismandich/Manifest/blob/72705b34830677150333ae0767e334298ffab27e/tests/python/plugin_runtime/test_reconcile_native_evidence.py).
+This is offline wire evidence, not live activation qualification; a live OMP
+probe must still be recorded separately.
 
 ## Second-opinion flow
 
