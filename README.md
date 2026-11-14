@@ -70,6 +70,11 @@ User → Supported coding harness → /skill or task
                     Parent validates evidence and aggregates results
 ```
 
+The 32-item batch maximum limits submitted work, not active concurrency:
+`task.maxConcurrency` controls the session's active task cap. Per-item structured
+result schemas require `task.structured`; missing, invalid, or unavailable
+reviews remain attributed and degraded.
+
 Noninteractive single-provider integrations (such as CDDL, delegation, and
 SkillClaw) resolve their provider CLI and model tier from `model_policy.yml`.
 

@@ -10,6 +10,25 @@ Never call a thread resolved because a comment says “Resolved”.
 
 ## Procedure
 
+0. **Check for an idle human block before spawning work.** For each managed PR,
+   run `<plugin root>/runtime/bin/pr_merge_loop.sh address-status N`. This makes
+   one read-only observation and compares it with the existing repository-scoped
+   `fp_<scope-hash>_<PR>.json` record (`observed_at` is the last handled check).
+   On `blocked on human: #N`, emit only that line for the PR and stop if all
+   PRs are blocked; do not spawn subagents, poll again, or resolve threads.
+   `actionable: #N` admits normal work; new/edited feedback changes the
+   fingerprint even if its timestamp predates the last check. Missing state is
+   actionable, never proof of idle; failed observation is unverified.
+   The actual `pr_merge_loop.sh run` driver stops immediately when all managed
+   PRs have the persisted `hand-human` disposition and emits
+   `loop idle: waiting on human` once. Reinvoke it to observe new feedback.
+   To establish a human-only disposition, first capture
+   `pr_merge_loop.sh address-status N --json`, then perform the final feedback
+   enumeration below. If only human work remains, pass that JSON's fingerprint
+   to `pr_merge_loop.sh record-human-blocked N FINGERPRINT`. A changed
+   observation refuses the write and requires re-enumeration; success persists
+   the per-PR check timestamp without resolving any thread. Never record a
+   failed/unavailable review as a human-only disposition.
 1. **Identify the provider and immutable target.** Use the configured override or
    the selected remote as documented in `runtime/references/git-platform.md`.
    Record the provider, PR/MR number, repository/project target, and host. Do

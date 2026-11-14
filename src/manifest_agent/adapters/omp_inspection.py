@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from manifest_agent.adapters.omp_identity import (
@@ -93,7 +94,57 @@ def _plugin_record(plugin_id, contract, row, root, cross, message):
     )
 
 
-def _inspect_packages(adapter, desired, snapshot, entries):
+def _additional_plugin_record(plugin_id, root, row, cross, message):
+    """Describe an installed package in the owned marketplace outside desired."""
+    name, separator, marketplace = plugin_id.partition("@")
+    if not separator or marketplace != OMP_MARKETPLACE:
+        return None
+    status = (
+        "verified"
+        if cross is not None and cross["enabled"]
+        else "disabled"
+        if cross is not None
+        else "inconsistent"
+        if message
+        else "missing"
+    )
+    source_uri = row.get("sourceUri") if isinstance(row, dict) else None
+    version = (
+        cross["version"]
+        if cross is not None
+        else (row.get("version") if isinstance(row, dict) else None)
+    )
+    scope = (
+        cross["scope"]
+        if cross is not None
+        else (row.get("scope") if isinstance(row, dict) else None)
+    )
+    enabled = (
+        cross["enabled"]
+        if cross is not None
+        else (row.get("enabled") if isinstance(row, dict) else None)
+    )
+    install_path = (
+        cross["install_path"]
+        if cross is not None
+        else (row.get("installPath") if isinstance(row, dict) else None)
+    )
+    return NativePluginInspection(
+        plugin_id,
+        name,
+        marketplace,
+        source_uri if isinstance(source_uri, str) else None,
+        "native-local-marketplace" if isinstance(row, dict) else None,
+        version if isinstance(version, str) else None,
+        scope if isinstance(scope, str) else None,
+        enabled if isinstance(enabled, bool) else None,
+        str(root),
+        install_path if isinstance(install_path, str) else None,
+        status,
+    )
+
+
+def _inspect_desired_packages(adapter, desired, snapshot, entries):
     root, markets, registry, runtime, cli = snapshot
     row = markets.get(OMP_MARKETPLACE)
     packages, paths, installed, errors = [], {}, [], []
@@ -152,6 +203,53 @@ def _inspect_packages(adapter, desired, snapshot, entries):
                 paths[contract.name] = Path(cross["install_path"])
         packages.append(_plugin_record(plugin_id, contract, row, root, cross, message))
     return packages, paths, installed, errors, blocked
+
+
+def _inspect_additional_packages(root, desired, registry, runtime, cli):
+    """Observe extra packages in the owned OMP marketplace."""
+    packages, errors = [], []
+    blocked = False
+    expected_ids = {
+        f"{contract.name}@{OMP_MARKETPLACE}" for contract in desired.all_contracts
+    }
+    for plugin_id in sorted((set(registry) | set(cli)) - expected_ids):
+        name, separator, marketplace = plugin_id.partition("@")
+        if not separator or marketplace != OMP_MARKETPLACE:
+            continue
+        rows = registry.get(plugin_id, [])
+        row = rows[0] if len(rows) == 1 else None
+        package_name = name
+        if row is not None:
+            with contextlib.suppress(OmpInventoryError, OSError):
+                package_name = runtime_name(plugin_path(root, plugin_id, row), name)
+        cross, message = cross_checked_plugin(
+            plugin_id=plugin_id,
+            marketplace=marketplace,
+            cli_entries=cli.get(plugin_id, []),
+            registry_rows=rows,
+            runtime_row=runtime["plugins"].get(package_name),
+            native_root=root,
+        )
+        if message is not None:
+            errors.append(message)
+            blocked = True
+        package = _additional_plugin_record(plugin_id, root, row, cross, message)
+        if package is not None:
+            packages.append(package)
+    return packages, errors, blocked
+
+
+def _inspect_packages(adapter, desired, snapshot, entries):
+    root, _markets, registry, runtime, cli = snapshot
+    packages, paths, installed, errors, blocked = _inspect_desired_packages(
+        adapter, desired, snapshot, entries
+    )
+    extras, extra_errors, extra_blocked = _inspect_additional_packages(
+        root, desired, registry, runtime, cli
+    )
+    packages.extend(extras)
+    errors.extend(extra_errors)
+    return packages, paths, installed, errors, blocked or extra_blocked
 
 
 def _resolve_skill(adapter, installed, skills_root, skill):
