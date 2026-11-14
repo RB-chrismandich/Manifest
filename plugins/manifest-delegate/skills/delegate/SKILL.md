@@ -83,13 +83,9 @@ endpoint is available and a read-only probe is permitted, run that probe before
 claiming the integration is verified. If producer behavior or live evidence is
 unavailable, label it unknown/unverified rather than infer a contract.
 
-For native-inventory briefs, the producer contract is
-`src/manifest_agent/models.py:151-188` (component/package/inspection fields);
-OMP's producer is `src/manifest_agent/adapters/omp_inspection.py:96-154,187-234`.
-Use serialized producer objects, as in
-`tests/python/plugin_runtime/test_reconcile_native_evidence.py`, rather than
-inventing matching JSON. This is offline wire evidence, not live activation
-qualification; a live OMP probe must still be recorded separately.
+For native-inventory briefs, follow
+`references/native-inventory-evidence.md` for producer fidelity, offline
+serialization patterns, and when a live OMP probe is required separately.
 
 ## Second-opinion flow
 
