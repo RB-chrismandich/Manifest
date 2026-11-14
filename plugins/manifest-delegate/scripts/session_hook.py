@@ -45,20 +45,17 @@ options:
 """
 
 #
-# `--help` must answer before importing `delegate`. The PATH-selected Python
-# running this hook may not share the plugin runtime's installed packages, so
-# expose the repository-deployed model-policy source beside ~/.claude/scripts.
-# This keeps the hook on the caller's interpreter while making its local import
-# graph available on the declared Python 3.9 floor.
+# The hook may run under a PATH-selected interpreter that does not share
+# ~/.claude/.venv. Add only the plugin script directory; delegate's package
+# bootstrap loads its byte-pinned policy when this interpreter lacks the
+# trusted policy distribution.
 if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help"):
     sys.stdout.write(_USAGE)
     sys.exit(0)
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_SHARED_SCRIPTS = os.path.join(os.path.expanduser("~"), ".claude", "scripts")
-for _path in (_SCRIPT_DIR, _SHARED_SCRIPTS):
-    if os.path.isdir(_path) and _path not in _sys.path:
-        _sys.path.insert(0, _path)
+if os.path.isdir(_SCRIPT_DIR) and _SCRIPT_DIR not in _sys.path:
+    _sys.path.insert(0, _SCRIPT_DIR)
 
 try:
     import delegate
