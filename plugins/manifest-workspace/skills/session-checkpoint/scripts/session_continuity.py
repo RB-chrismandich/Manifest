@@ -15,25 +15,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from checkpoint_revalidation import (
+    authorization_state as _authorization_state,
+)
+from checkpoint_revalidation import (
+    git_changes as _git_changes,
+)
+from checkpoint_revalidation import (
+    ownership_changes as _ownership_changes,
+)
+from checkpoint_revalidation import (
+    stale_ci_evidence as _stale_ci_evidence,
+)
+from checkpoint_schema import (
+    CHECKPOINT_SCHEMA_VERSION,
+    LEGACY_CHECKPOINT_SCHEMA_VERSION,
+    validate_checkpoint,
+)
+from checkpoint_schema import (
+    defaults_for_extended_fields as _defaults_for_extended_fields,
+)
+
 DEFAULT_REMINDER_THRESHOLD = 2
 THRESHOLD_ENV = "MANIFEST_COMPACTION_REMINDER_THRESHOLD"
-CHECKPOINT_SCHEMA_VERSION = 1
 STATE_SCHEMA_VERSION = 1
 _KNOWN_BOUNDARIES = frozenset({"safe", "active", "unknown"})
-_CHECKPOINT_FIELDS = {
-    "source_session_id": str,
-    "original_goal": str,
-    "constraints": list,
-    "decisions": list,
-    "repository": dict,
-    "completed_work": list,
-    "remaining_work": list,
-    "verification_evidence": list,
-    "unresolved_uncertainty": list,
-    "next_action": str,
-    "live_operations": list,
-    "continuation_goal": str,
-}
 
 
 class SessionContinuityError(RuntimeError):
@@ -83,6 +89,8 @@ class RevalidationReport:
     git_changes: tuple[str, ...]
     ownership_changes: tuple[str, ...]
     continuation_goal: str
+    reconciliation_needs: tuple[str, ...] = ()
+    stale_ci_evidence: tuple[str, ...] = ()
 
 
 def reminder_threshold(environ: Mapping[str, str] | None = None) -> int:
@@ -310,21 +318,6 @@ def _nonempty_str(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _repository_errors(repository: Mapping[str, object]) -> list[str]:
-    errors: list[str] = []
-    for field in ("path", "branch", "head"):
-        if not _nonempty_str(repository.get(field)):
-            errors.append(f"repository.{field} must be a non-empty string")
-    dirty_tree = repository.get("dirty_tree")
-    if not isinstance(dirty_tree, list):
-        errors.append("repository.dirty_tree is required")
-    elif any(not _nonempty_str(entry) for entry in dirty_tree):
-        # A non-string entry compares unequal to every `git status --short`
-        # line, so it would report as continuation drift forever.
-        errors.append("repository.dirty_tree entries must be non-empty strings")
-    return errors
-
-
 def _record_errors(records: object, label: str, fields: tuple[str, ...]) -> list[str]:
     if not isinstance(records, list):
         return []
@@ -359,33 +352,10 @@ def operation_owners(
     }
 
 
-def _validate_checkpoint(checkpoint: Mapping[str, object]) -> None:
-    errors: list[str] = []
-    for field, expected_type in _CHECKPOINT_FIELDS.items():
-        value = checkpoint.get(field)
-        if not isinstance(value, expected_type) or (
-            expected_type is str and not value.strip()
-        ):
-            errors.append(f"{field} must be a non-empty {expected_type.__name__}")
-
-    repository = checkpoint.get("repository")
-    if isinstance(repository, dict):
-        errors.extend(_repository_errors(repository))
-
-    errors.extend(
-        _record_errors(
-            checkpoint.get("verification_evidence"),
-            "verification_evidence",
-            ("command", "outcome", "evidence"),
-        )
-    )
-    errors.extend(
-        _record_errors(
-            checkpoint.get("live_operations"),
-            "live_operations",
-            ("owner", "handle", "status", "obligation"),
-        )
-    )
+def _validate_checkpoint(
+    checkpoint: Mapping[str, object], *, legacy: bool = False
+) -> None:
+    errors = validate_checkpoint(checkpoint, legacy=legacy)
     if errors:
         raise CheckpointValidationError("; ".join(errors))
 
@@ -395,8 +365,8 @@ def write_checkpoint(
 ) -> Path:
     """Atomically persist a private checkpoint with a content digest."""
 
-    _validate_checkpoint(checkpoint)
-    document = dict(checkpoint)
+    document = _defaults_for_extended_fields(checkpoint)
+    _validate_checkpoint(document)
     digest = hashlib.sha256(_canonical_json(document)).hexdigest()
     envelope = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
@@ -422,20 +392,29 @@ def read_checkpoint(path: Path) -> dict[str, Any]:
     integrity = envelope.get("integrity")
     if not isinstance(checkpoint, dict) or not isinstance(integrity, dict):
         raise IntegrityError("checkpoint integrity metadata is missing")
-    # The digest covers the checkpoint body only, so the envelope version is
-    # unauthenticated: an absent or future version must never be read with
-    # version-1 semantics.
+    # The body digest is verified before legacy migration; envelope metadata is
+    # not covered by that digest, so only the explicitly supported versions pass.
     version = envelope.get("schema_version")
-    if type(version) is not int or version != CHECKPOINT_SCHEMA_VERSION:
+    if type(version) is not int or version not in (
+        LEGACY_CHECKPOINT_SCHEMA_VERSION,
+        CHECKPOINT_SCHEMA_VERSION,
+    ):
         raise IntegrityError(
             f"checkpoint schema version {version!r} is unsupported; "
-            f"expected {CHECKPOINT_SCHEMA_VERSION}"
+            f"expected {LEGACY_CHECKPOINT_SCHEMA_VERSION} or {CHECKPOINT_SCHEMA_VERSION}"
         )
     expected = integrity.get("digest")
     actual = hashlib.sha256(_canonical_json(checkpoint)).hexdigest()
     if integrity.get("algorithm") != "sha256" or expected != actual:
         raise IntegrityError("checkpoint integrity verification failed")
-    _validate_checkpoint(checkpoint)
+    try:
+        _validate_checkpoint(
+            checkpoint, legacy=version == LEGACY_CHECKPOINT_SCHEMA_VERSION
+        )
+    except CheckpointValidationError as error:
+        raise IntegrityError(str(error)) from error
+    if version == LEGACY_CHECKPOINT_SCHEMA_VERSION:
+        return _defaults_for_extended_fields(checkpoint)
     return checkpoint
 
 
@@ -443,32 +422,50 @@ def revalidate_continuation(
     checkpoint_path: Path,
     current_repository: Mapping[str, object],
     current_live_operations: Sequence[Mapping[str, object]],
+    current_authorization: Mapping[str, object] | None = None,
 ) -> RevalidationReport:
-    """Report authority changes before checkpoint claims are trusted."""
+    """Report repository, ownership, access, and evidence changes before continuation."""
 
     checkpoint = read_checkpoint(checkpoint_path)
-    recorded_repository = checkpoint["repository"]
-    git_changes = tuple(
-        key
-        for key in ("path", "branch", "head", "dirty_tree")
-        if recorded_repository.get(key) != current_repository.get(key)
-    )
-    recorded_owners = operation_owners(
-        checkpoint["live_operations"], "checkpoint live_operations"
-    )
+
+    git_changes = _git_changes(checkpoint["repository"], current_repository)
     current_owners = operation_owners(current_live_operations, "live_operations")
-    ownership_changes = tuple(
-        sorted(
-            handle
-            for handle in recorded_owners.keys() | current_owners.keys()
-            if recorded_owners.get(handle) != current_owners.get(handle)
-        )
+    current_by_operation: dict[str, set[str]] = {}
+    for operation in current_live_operations:
+        link = operation.get("operation")
+        if link is not None:
+            if not _nonempty_str(link):
+                raise CheckpointValidationError(
+                    "live_operations.operation must be a non-empty string"
+                )
+            current_by_operation.setdefault(link.strip(), set()).add(
+                str(operation["owner"]).strip()
+            )
+    ownership_changes = _ownership_changes(
+        checkpoint, current_owners, current_by_operation
     )
+    authorization_missing, authorization_changed = _authorization_state(
+        checkpoint, current_authorization
+    )
+    stale_ci = _stale_ci_evidence(checkpoint, current_repository)
+    needs = []
+    if git_changes:
+        needs.append("repository state changed")
+    if ownership_changes:
+        needs.append("live-operation ownership changed")
+    if authorization_missing:
+        needs.append("current authorization evidence is required")
+    elif authorization_changed:
+        needs.append("authorization or access changed")
+    if stale_ci:
+        needs.append("CI evidence is stale for the current commit")
     return RevalidationReport(
-        not git_changes and not ownership_changes,
+        not needs,
         git_changes,
         ownership_changes,
         str(checkpoint["continuation_goal"]),
+        tuple(needs),
+        stale_ci,
     )
 
 

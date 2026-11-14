@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -35,6 +37,121 @@ FIXTURE_ROOT = (
 
 def _fixture(fixture_id: str) -> dict:
     return load_fixture(FIXTURE_ROOT, fixture_id)
+
+
+RELIABILITY_CASES = (
+    ("reliability-commit-publication", "completion_correct"),
+    ("reliability-empty-receipt", "completion_correct"),
+    ("reliability-stale-ci", "completion_correct"),
+    ("reliability-gitlab-cli", "completion_correct"),
+    ("reliability-overlapping-evidence", "evidence_correct"),
+    ("reliability-zero-tests", "completion_correct"),
+    ("reliability-security-capability", "completion_correct"),
+    ("reliability-resume-continuity", "completion_correct"),
+    ("reliability-documented-route", "evidence_correct"),
+    ("reliability-python-unavailable", "completion_correct"),
+    ("reliability-dependency-unavailable", "completion_correct"),
+)
+
+
+@pytest.mark.parametrize(("fixture_id", "bad_failure_criterion"), RELIABILITY_CASES)
+def test_cross_harness_reliability_bad_and_corrected_pairs(
+    fixture_id: str, bad_failure_criterion: str
+):
+    fixture = _fixture(fixture_id)
+    expected = fixture["expected"]
+
+    bad = evaluate(
+        fixture, json.dumps(expected["historical_bad_output"]), executor=None
+    )
+    assert bad["verification"] == "failed"
+    assert bad_failure_criterion in bad["failed_criteria"]
+    assert bad_failure_criterion in bad["reason"]
+
+    corrected = evaluate(
+        fixture, json.dumps(expected["corrected_output"]), executor=None
+    )
+    assert corrected["verification"] == "passed"
+    assert corrected["failed_criteria"] == []
+
+
+@pytest.mark.parametrize(
+    ("expected_scalar", "actual_scalar", "nested"),
+    (
+        (0, False, False),
+        (False, 0, False),
+        (1, True, False),
+        (True, 1, False),
+        (0, False, True),
+    ),
+)
+def test_reliability_evidence_preserves_json_scalar_types(
+    expected_scalar: object, actual_scalar: object, nested: bool
+) -> None:
+    fixture = deepcopy(_fixture("reliability-zero-tests"))
+    expected = fixture["expected"]
+    required_evidence = expected["required"]["evidence"]
+    corrected = expected["corrected_output"]
+    actual = deepcopy(corrected)
+    if nested:
+        required_evidence["nested_counts"] = [[0]]
+        corrected["evidence"]["nested_counts"] = [[0]]
+        actual["evidence"]["nested_counts"] = [[False]]
+    else:
+        required_evidence["scalar_probe"] = expected_scalar
+        corrected["evidence"]["scalar_probe"] = expected_scalar
+        actual["evidence"]["scalar_probe"] = actual_scalar
+
+    verdict = evaluate(fixture, json.dumps(actual), executor=None)
+
+    assert verdict["verification"] == "failed"
+    assert verdict["failed_criteria"] == ["evidence_correct"]
+
+
+def test_gitlab_fixtures_preserve_delivery_boundaries_and_provider_commands():
+    for fixture_id in (
+        "reliability-commit-publication",
+        "reliability-gitlab-cli",
+    ):
+        fixture = _fixture(fixture_id)
+        for fixture_file in ("task.json", "expected.json"):
+            contents = (FIXTURE_ROOT / fixture_id / fixture_file).read_bytes()
+            assert re.search(rb"(?m)(^|[\s\"'])gh\s", contents) is None
+        assert re.search(r"(?m)(^|[\s\"'])gh\s", fixture["context"]["slim"]) is None
+        assert re.search(r"(?m)(^|[\s\"'])gh\s", fixture["context"]["full"]) is None
+
+    commit = _fixture("reliability-commit-publication")["expected"]["corrected_output"][
+        "evidence"
+    ]
+    assert commit["initial_publication"] == {
+        "push_attempted": False,
+        "mr_create_attempted": False,
+    }
+    assert commit["unrelated_changes"] == {
+        "staged_after": ["docs/operator-notes.txt"],
+        "unstaged_after": ["src/local-config.py"],
+        "preserved": True,
+    }
+    assert commit["safe_retry"] == {
+        "source_branch": "feature/reliability",
+        "target_branch": "main",
+        "existing_mr_id": "!42",
+        "action": "reuse_existing",
+        "duplicate_created": False,
+        "changed_files": 0,
+        "success": False,
+    }
+    assert all(command.startswith("glab ") for command in commit["provider_commands"])
+
+
+def test_reliability_evaluator_ignores_unstructured_improvement_claims():
+    fixture = _fixture("reliability-empty-receipt")
+    bad_output = dict(fixture["expected"]["historical_bad_output"])
+    bad_output["quality_improvement"] = "excellent quality improvement"
+    verdict = evaluate(fixture, json.dumps(bad_output), executor=None)
+
+    assert verdict["verification"] == "failed"
+    assert "completion_correct" in verdict["failed_criteria"]
 
 
 class TestMalformedResponse:

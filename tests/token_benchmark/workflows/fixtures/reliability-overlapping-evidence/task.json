@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-overlapping-evidence",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Summarize the overlapping evidence windows without counting the same event twice. Report distinct events, unique entities, denominator, observed outcomes, unknowns, window bounds, and deduplicated event IDs as separate structured evidence fields.",
+  "artifacts": {
+    "windows.json": "{\"windows\":[{\"start\":\"2026-11-12T09:00:00Z\",\"end\":\"2026-11-12T10:00:00Z\",\"events\":[{\"id\":\"evt-101\",\"entity\":\"actor-1\",\"outcome\":\"accepted\"},{\"id\":\"evt-102\",\"entity\":\"actor-2\",\"outcome\":\"rejected\"},{\"id\":\"evt-103\",\"entity\":\"actor-1\",\"outcome\":\"accepted\"}]},{\"start\":\"2026-11-12T09:30:00Z\",\"end\":\"2026-11-12T10:30:00Z\",\"events\":[{\"id\":\"evt-102\",\"entity\":\"actor-2\",\"outcome\":\"rejected\"},{\"id\":\"evt-103\",\"entity\":\"actor-1\",\"outcome\":\"accepted\"},{\"id\":\"evt-104\",\"entity\":\"actor-3\",\"outcome\":\"unknown\"}]}],\"denominator\":10,\"unknowns\":[\"whether the events share a cause\"]}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object with distinct_event_count, unique_entity_count, denominator, observed_outcomes, unknowns, window_bounds, and deduplicated_event_ids"
+  }
+}

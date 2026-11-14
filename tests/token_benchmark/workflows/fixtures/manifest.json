@@ -104,6 +104,30 @@
     "implementation/full/runtime/references/sub-agent-dispatch.md": "318f8a265dc46b7e83ddb13e2900999fdf8e72562e0becfd366993b0aa401a2d",
     "implementation/slim.md": "276dbe0179d08b90dfba535fd0078e1947e74a0a1c5eb2bb972e2d05eed78254",
     "implementation/task.json": "2fa8be0fe7cae01319960b62335fe9ccb9f78590682cb93815d5af8ddda92087",
+    "cross-harness-reliability/full/SKILL.md": "cd38929346c50e084d8f8ec7490865abfce0daa6173bffba4d472d15ac2b493c",
+    "cross-harness-reliability/slim.md": "509f0f36ab9265fa4f85a11883300861fad738f858da349bd8047ae71da96e58",
+    "reliability-commit-publication/expected.json": "2affd0dd1d40977f323f67ce343f871e1c16b2bf65f2d901565886464a39dbad",
+    "reliability-commit-publication/task.json": "807f7b719fab5cc3c50b527f80aefc2fb7b477882aacc06ccc43810a794011f9",
+    "reliability-dependency-unavailable/expected.json": "c48cfd471bfda705658d2dd263f53539f3d9cdadf2029c69740e0583481f65b6",
+    "reliability-dependency-unavailable/task.json": "9c880340709a08ca965159de9ecedfc2845ce8fb5e9014063fc1004cf7d47741",
+    "reliability-documented-route/expected.json": "63da17d9d6125e6827fc3cada522e2732a18c49b08397291e699a233090a88d9",
+    "reliability-documented-route/task.json": "768e517a0787176b809865cc98975c1a061d1b59787d511d6d32a7dfabca2f43",
+    "reliability-empty-receipt/expected.json": "d707a38d3b59ac0aeac4c7c38f1918f2d783982e8b5fa2a091a18d676b850f61",
+    "reliability-empty-receipt/task.json": "274ddcb92c440caaa64caa949fe30c90e3c22b4b08ab2420d8805ad0ebcb6b19",
+    "reliability-gitlab-cli/expected.json": "e70f185d8e5a4575bfbe6a671f5ed844fe3111605615badc2c0653eb7846930f",
+    "reliability-gitlab-cli/task.json": "605976baa0f154f56a547ff8c91cb5f291419d889b76f50ac6d9f79d2cc2d816",
+    "reliability-overlapping-evidence/expected.json": "758b2d15b231968c4eebca78b0f80b144fd33bfa3597da27f60f8799fda29323",
+    "reliability-overlapping-evidence/task.json": "f4d81df3acb6e11a58246b0aecaa56dca317f4f5548b9137d8893af97b0de1c5",
+    "reliability-python-unavailable/expected.json": "9e5f1a67cf1e20f3126680e18697b8382e1960310fe52c0487b68b98116500b6",
+    "reliability-python-unavailable/task.json": "539b2bc507651e19049f8266cced51d8bcdb5d32788f115fd9dae869bec5f7ac",
+    "reliability-resume-continuity/expected.json": "052b632455742c1beb11ac4b87670b4cf6fc199a3efa60de4ee8845067ca8c95",
+    "reliability-resume-continuity/task.json": "363ba343aa98892b54d60215c0d4ff367322ace5f77a8b7e78e9d29b8a6f174b",
+    "reliability-security-capability/expected.json": "ff5bc660dbe48b4930227ad6112224b8ebdedfcbbeb97398a592ea18526131df",
+    "reliability-security-capability/task.json": "4da29445d0947a1c374a6a7eb75d3d3d8c289401ad58f17bfbe3e67e07776051",
+    "reliability-stale-ci/expected.json": "fbf2b81e21feb488640b43c13665874b287673195655e57723bffd672060fd01",
+    "reliability-stale-ci/task.json": "92650fbe697be0698417e0df6328c9c6a7462655bd888618dd864629a4e6618a",
+    "reliability-zero-tests/expected.json": "2c7c803c6d34d6953cf554a0438d15ac4c14bf3384c80b25564bb368ff1d28af",
+    "reliability-zero-tests/task.json": "939b2d02e4c24b2561b4fd78682a1c6adf568c3e178a66ac4f82c5e1678db2d4",
     "security-triage/expected.json": "fbbf9999c6f6e6dff17cbc7a53239e1e1693d65170605c882a16737c9542aa73",
     "security-triage/full/SKILL.md": "4af585b5597b9c035680f3b22ec92aab008a234f40f220a112ae9ed96b8652fa",
     "security-triage/slim.md": "6df635e94c02f42c973d6299bfe7706172be8aaf945a499a7d3f2c68366a5c13",
@@ -137,6 +161,83 @@
       "expected": "documentation/expected.json",
       "slim_context": "documentation/slim.md",
       "full_context": "documentation/full/skills/docs-improve-readme/SKILL.md"
+    },
+    "reliability-commit-publication": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-commit-publication/task.json",
+      "expected": "reliability-commit-publication/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-dependency-unavailable": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-dependency-unavailable/task.json",
+      "expected": "reliability-dependency-unavailable/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-documented-route": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-documented-route/task.json",
+      "expected": "reliability-documented-route/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-empty-receipt": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-empty-receipt/task.json",
+      "expected": "reliability-empty-receipt/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-gitlab-cli": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-gitlab-cli/task.json",
+      "expected": "reliability-gitlab-cli/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-overlapping-evidence": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-overlapping-evidence/task.json",
+      "expected": "reliability-overlapping-evidence/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-python-unavailable": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-python-unavailable/task.json",
+      "expected": "reliability-python-unavailable/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-resume-continuity": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-resume-continuity/task.json",
+      "expected": "reliability-resume-continuity/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-security-capability": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-security-capability/task.json",
+      "expected": "reliability-security-capability/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-stale-ci": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-stale-ci/task.json",
+      "expected": "reliability-stale-ci/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
+    },
+    "reliability-zero-tests": {
+      "kind": "cross_harness_reliability",
+      "task": "reliability-zero-tests/task.json",
+      "expected": "reliability-zero-tests/expected.json",
+      "slim_context": "cross-harness-reliability/slim.md",
+      "full_context": "cross-harness-reliability/full/SKILL.md"
     }
   }
 }

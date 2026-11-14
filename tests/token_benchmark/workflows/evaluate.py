@@ -1,4 +1,4 @@
-"""Structural evaluation for the four frozen workflow fixture kinds.
+"""Structural evaluation for frozen workflow fixture kinds.
 
 Grading is deterministic and structural — required findings/dispositions,
 survived/refuted indices with cited evidence terms, README/command-map
@@ -330,6 +330,62 @@ def _evaluate_implementation(expected: dict, payload: dict, executor) -> dict:
     return _verdict_from_results(results, reason_prefix="hidden criteria failed")
 
 
+def _matches_expected(actual, expected) -> bool:
+    """Match structured JSON values without coercing scalar types."""
+    if isinstance(expected, dict):
+        return isinstance(actual, dict) and all(
+            key in actual and _matches_expected(actual[key], value)
+            for key, value in expected.items()
+        )
+    if isinstance(expected, list):
+        return (
+            isinstance(actual, list)
+            and len(actual) == len(expected)
+            and all(
+                _matches_expected(actual_item, expected_item)
+                for actual_item, expected_item in zip(actual, expected, strict=True)
+            )
+        )
+    return type(actual) is type(expected) and actual == expected
+
+
+def _contains_required_items(actual, required) -> bool:
+    return (
+        isinstance(actual, list)
+        and all(isinstance(item, str) for item in actual)
+        and len(actual) == len(set(actual))
+        and isinstance(required, list)
+        and set(required).issubset(actual)
+    )
+
+
+def _evaluate_cross_harness_reliability(
+    expected: dict, payload: dict, _executor=None
+) -> dict:
+    required = expected["required"]
+    results = {
+        "scenario_id_correct": payload.get("scenario_id") == expected["scenario_id"],
+        "completion_correct": _matches_expected(
+            payload.get("completion"), required["completion"]
+        ),
+        "required_interventions_present": _contains_required_items(
+            payload.get("required_interventions"), required["required_interventions"]
+        ),
+        "factual_corrections_present": _contains_required_items(
+            payload.get("factual_corrections"), required["factual_corrections"]
+        ),
+        "retained_constraints_preserved": _contains_required_items(
+            payload.get("retained_constraints"), required["retained_constraints"]
+        ),
+        "evidence_correct": _matches_expected(
+            payload.get("evidence"), required["evidence"]
+        ),
+    }
+    return _verdict_from_results(
+        results, reason_prefix="structured reliability criteria failed"
+    )
+
+
 def _verdict_from_results(
     results: dict, *, reason_prefix: str = "structural evaluation failed"
 ) -> dict:
@@ -350,6 +406,7 @@ _EVALUATORS = {
         expected, payload
     ),
     "artifact_implementation": _evaluate_implementation,
+    "cross_harness_reliability": _evaluate_cross_harness_reliability,
 }
 
 

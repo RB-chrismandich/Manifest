@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-stale-ci",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Assess whether the reported CI evidence verifies the current commit. State the exact completion state and preserve SHA relevance in structured evidence.",
+  "artifacts": {
+    "scenario.json": "{\"current_commit_sha\":\"a1b2c3d4\",\"pipeline\":{\"status\":\"passed\",\"commit_sha\":\"0f0e0d0c\",\"target\":\"main\"},\"historical_report\":\"CI verified current change\"}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object"
+  }
+}

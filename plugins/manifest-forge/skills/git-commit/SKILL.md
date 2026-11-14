@@ -1,284 +1,98 @@
 ---
 name: git-commit
-description: "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline."
+description: "Run an authorized, scoped commit-and-publication workflow with safe failure handling. Use for full commit-and-push requests, not a bare local commit."
 ---
 
-# Project Commit Pipeline
-
-Orchestrate a full project commit cycle: regenerate documentation, sync with remote,
-run pre-commit checks, stage changes, commit, and push.
-
-## Arguments
-
-- `$ARGUMENTS` — Optional commit message. If not provided, auto-generate one from the staged diff.
-
----
-
-## Pipeline Phases
-
-Execute these phases **in order**. Each phase must succeed before proceeding to the next.
-If a phase fails, attempt to fix the issue up to **2 times** before stopping and
-reporting the failure to the user.
-
----
-
-### Phase 1: Documentation Generation
-
-Generate/update project documentation in this order.
-Do **not** invoke slash commands in this pipeline. Execute the equivalent workflows directly.
-
-1. **Generate architecture diagrams**
-   - Target: `docs/architecture/ARCHITECTURE_DIAGRAMS.md` (or closest existing architecture diagrams path)
-   - Analyze: main entry points, orchestration files, integration clients/services,
-     provider/adapter patterns, config files, and project context docs.
-   - Update Mermaid diagrams to match current code:
-     - Application architecture flowchart
-     - Integration sequence flow
-     - Component architecture (class/entity or equivalent)
-     - Deployment/output flow sequence
-     - Add state/decision/data/config diagrams when relevant
-   - Use traffic-light classes (`active`, `pending`, `error`, `external`) and keep Mermaid compatible:
-     no class assignment on subgraphs, avoid unstable diagram types, avoid syntax-breaking labels.
-   - If analyzing 5+ unique imports/modules, assign independent module review
-     units through the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md),
-     using `scout` on OMP. The parent aggregates attributed evidence directly.
-
-2. **Improve documentation**
-   - Audit docs using the Diataxis framework.
-   - Inventory: `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/**/*.md`.
-   - Validate required docs and create/update where needed:
-     `README.md`, `AGENTS.md`, `docs/README.md`, `docs/GETTING_STARTED.md`,
-     `docs/configuration/`, `docs/diagrams/`, `docs/troubleshooting/`,
-     `CONTRIBUTING.md`, `CHANGELOG.md`.
-   - Apply structure/content/format/link checks and fix issues:
-     headings, TOC for long docs, "Last Updated", related-doc references,
-     code block language tags, broken links, and stale placeholders.
-   - Changelog entry check (CONTRIBUTING.md convention): if the staged work is
-     notable — a new feature, breaking change, or deprecation — require a
-     `CHANGELOG.md` entry under `[Unreleased]` and add one when missing
-     before proceeding to commit.
-   - Compute/update a documentation health score summary.
-   - If total documentation lines exceed 500, assign independent document-section
-     review units through the [shared dispatch contract](../../runtime/references/sub-agent-dispatch.md),
-     using `scout` on OMP. The parent aggregates attributed evidence directly.
-
-3. **Improve README**
-   - Analyze `README.md`, `AGENTS.md`, `CLAUDE.md`, dependency files, and key source/test directories.
-   - Ensure README is accurate and includes:
-     title/description, key features, quick start, requirements, project structure,
-     configuration, usage/workflow, troubleshooting, and testing.
-   - Validate all links and code blocks (language-tagged), and align claims with actual codebase behavior.
-
-4. **Regenerate knowledge base docs**
-
-   ```bash
-   manifest-workspace:learning-capture sync-docs
-   ```
-
-   This regenerates `docs/KNOWLEDGE_BASE.md` from the XDG-owned JSONL source of
-   truth. Non-blocking — skip if the skill is not available or fails.
-
-After all four complete, run `git status` to confirm documentation files were modified.
-
----
-
-### Phase 2: Pull Latest & Resolve Conflicts
-
-1. **Fetch and pull latest from the current branch's upstream**:
-
-   ```bash
-   git fetch origin
-   git pull --rebase origin $(git branch --show-current)
-   ```
-
-2. **If rebase conflicts occur**:
-   - Run `git diff --name-only --diff-filter=U` to list conflicted files
-   - For each conflicted file:
-     a. Read the file to understand the conflict markers
-     b. Resolve the conflict by keeping both changes where possible, preferring the
-        incoming (remote) change for non-functional conflicts (formatting, docs)
-        and the local change for functional code
-     c. Stage the resolved file with `git add <file>`
-   - Continue the rebase: `git rebase --continue`
-   - If conflicts cannot be auto-resolved, **stop and ask the user** for guidance using AskUserQuestion
-
-3. **If pull fails for other reasons** (e.g., no upstream):
-   - Try `git pull --rebase origin main` as fallback
-   - If that also fails, report the error and continue (user may be on a new branch)
-
----
-
-### Phase 3: Pre-commit Checks
-
-1. **Stage all modified and new files** for pre-commit to analyze:
-
-   ```bash
-   git add -A
-   ```
-
-2. **Run pre-commit hooks**:
-
-   ```bash
-   pre-commit run --all-files
-   ```
-
-3. **If pre-commit fails**:
-   - Parse the output to identify which hooks failed and which files are affected
-   - **For each failure**, attempt a fix:
-     - **gitleaks** (secrets detected): **STOP immediately**. Do NOT commit.
-       Report the finding to the user with the file and line number.
-       Ask the user how to proceed.
-     - **bandit** (Python security): Read the flagged file, understand the
-       finding, and fix the security issue if it's a true positive.
-       If it's a false positive, add a `# nosec` comment with justification.
-     - **test-go / test-python / test-ts** (test failures): Read the test
-       output, identify the failing test, read the relevant source code, and
-       fix the issue. If the failure is pre-existing (check MEMORY.md for
-       known failures), note it and continue.
-     - **Formatting/linting**: Run the appropriate formatter (`ruff format`, `gofmt`, `prettier`) and re-stage.
-   - After fixes, **re-stage and re-run** pre-commit:
-
-     ```bash
-     git add -A
-     pre-commit run --all-files
-     ```
-
-   - Allow up to **2 retry cycles**. If pre-commit still fails after 2 retries,
-     stop and report the remaining failures to the user.
-
----
-
-### Phase 4: Stage & Commit
-
-1. **Stage all changes** (including any fixes from Phase 3):
-
-   ```bash
-   git add -A
-   ```
-
-2. **Verify there are changes to commit**:
-
-   ```bash
-   git status --porcelain
-   ```
-
-   - If empty, inform the user "Nothing to commit — working tree clean" and skip to end.
-
-3. **Generate or use commit message**:
-   - If `$ARGUMENTS` was provided, use it as the commit message
-   - If not provided:
-     a. Run `git diff --cached --stat` and `git diff --cached` to analyze staged changes
-     b. Run `git log --oneline -5` to match the repository's commit message style
-     c. Generate a concise commit message that summarizes the changes (1-2 sentences focusing on "why")
-     d. Present the message to the user via AskUserQuestion for approval before committing
-
-4. **Auto-detect issue references and append "Fixes #" keywords**:
-   - Scan the commit message for issue number references (#123, issue #123, etc.)
-   - Check git branch name for issue numbers (e.g., `fix/issue-296-backtest`)
-   - Search staged files for comments mentioning issues (e.g., "// Fix for #288", "# Resolves issue #296")
-   - For each detected issue number, detect the provider from the selected remote and
-     verify it is open using `gh issue view <number> --json state --jq '.state'`
-     (GitHub) or `glab issue view <number> --output json | jq -r '.state'`
-     (GitLab).
-   - If open issues are found, append to the commit message:
-
-     ```text
-
-     Fixes #296
-     Fixes #288
-     ```
-
-   - If multiple issues are detected, ask the user to confirm which ones should be closed by this commit
-   - If no issue references are found, skip this step
-
-5. **Create the commit**:
-
-   ```bash
-   git commit -m "$(cat <<'EOF'
-   <commit message here>
-   EOF
-   )"
-   ```
-
-6. **Verify the commit succeeded**:
-
-   ```bash
-   git log --oneline -1
-   ```
-
----
-
-### Phase 5: Push
-
-1. **Push to remote**:
-
-   ```bash
-   git push origin $(git branch --show-current)
-   ```
-
-2. **If push fails**:
-   - If rejected (non-fast-forward): pull with rebase and retry push once
-
-     ```bash
-     git pull --rebase origin $(git branch --show-current) && git push origin $(git branch --show-current)
-     ```
-
-   - If no upstream: push with `-u` flag
-
-     ```bash
-     git push -u origin $(git branch --show-current)
-     ```
-
-   - If push still fails, report the error to the user
-
-3. **Confirm success**: Show the user the final `git log --oneline -1` and the remote URL.
-
----
-
-## Error Recovery
-
-- **Network errors**: Retry once after 5 seconds
-- **Authentication errors**: Stop and inform the user to check their git credentials
-- **Merge conflicts that can't be auto-resolved**: Stop and present the conflicts to the user
-- **Secrets detected by gitleaks**: NEVER commit. Always stop and report.
-
-## Summary Output
-
-After the pipeline completes (or stops), provide a summary:
-
-```text
-## Project Commit Summary
-
-| Phase | Status |
-|-------|--------|
-| Documentation Generation | pass/fail/skipped |
-| Pull & Rebase | pass/fail/skipped |
-| Pre-commit Checks | pass/fail (N retries) |
-| Commit | pass/fail/nothing-to-commit |
-| Push | pass/fail |
-
-**Commit**: <hash> <message>
-**Branch**: <branch-name>
-**Files changed**: <count>
-```
-
----
-
-## Learning Capture (Optional)
-
-After the pipeline completes, if pre-commit checks failed and were fixed during Phase 3,
-capture the failure patterns for the knowledge base:
-
-1. For each pre-commit hook that failed:
-   - Record the hook name, failure reason, and fix applied
-   - Run:
-
-     ```bash
-     manifest-workspace:learning-capture add \
-       --category antipattern --language <detected> \
-       --title "Pre-commit: <hook> failure" \
-       --description "<what failed and how it was fixed>" \
-       --source git-commit --confidence medium
-     ```
-
-2. This step is **non-blocking** -- failures in learning capture should not affect the commit pipeline.
+# Scoped Commit and Publication
+
+Complete only the delivery stages authorized by the user. A request to commit does
+not by itself authorize a push, PR/MR, merge, deployment, or release. Never expand
+authorization. Do not require routine commit-message confirmation once commit
+delivery is authorized; protected-branch and repository authorization controls
+still apply.
+
+## 1. Preflight and scope
+
+1. Read the repository's committed instructions, supported checks, and CI contract
+   relevant to the changed files. Run `/manifest-code-quality:project-verify`
+   when verification is requested or required by the repo. Do not generate or
+   refresh documentation unless the user requested documentation work; run a
+   docs workflow only when requested.
+2. Establish repository identity (`git rev-parse --show-toplevel` and the
+   configured remote URL), source branch, intended target branch, and intended
+   remote. Detect GitHub/GitLab from the selected remote using the repository's
+   provider helper when available; use only that provider's CLI (`gh` or `glab`).
+   Never assume `origin`, `main`, or GitHub.
+3. Confirm local Git author identity with `git config --local user.name` and
+   `git config --local user.email`. If either is absent or wrong, stop and report
+   the needed repository-local setting; never change global identity.
+4. Identify the exact task-owned paths and hunks. Inspect both the index and work
+   tree (`git status --short`, `git diff --cached`, `git diff`). Stage only the
+   authorized paths/hunks. Preserve all unrelated staged and unstaged changes.
+   Use path-limited staging or interactive hunk staging; never use `git add -A`
+   or stage the whole tree. If unrelated index entries or mixed hunks cannot be
+   excluded safely without altering user state, stop with the exact paths and
+   blocker. Never reset, stash, or unstage user changes.
+5. The task-owned staged diff must be non-empty and match the requested change.
+   An empty or unintended diff is a blocker, not success.
+
+## 2. Commit
+
+Use the supplied commit message or derive a concise one from the task-owned diff.
+Do not ask for routine message approval in an already authorized delivery.
+Inspect issue references and add closing keywords only when their effect is
+intended and the issue is verified open with the selected provider.
+
+Run the repository-supported checks before committing. Every multi-command shell
+sequence must fail fast (`&&` between dependent commands or a guarded
+`set -euo pipefail` script); do not rely on a later command masking a failure.
+Commit only the task-owned paths/hunks. If safe index isolation is uncertain,
+stop rather than risk including or discarding unrelated changes.
+
+After commit, verify the new commit SHA, author, subject, and exact commit diff
+against the intended task-owned changes. A failed commit ends the workflow:
+do not push, look up, or create a PR/MR.
+
+## 3. Push and open the existing or new PR/MR
+
+Proceed only when separately authorized. Pin the verified commit SHA, intended
+remote, source branch, and target branch. Use fail-fast commands and verify each
+transition before proceeding:
+
+1. Push the source branch to the intended remote.
+2. Read the remote source-branch SHA and require it to equal the verified commit
+   SHA. A push command's exit status alone is not proof.
+3. Inspect the source-to-target diff using the provider and repository's supported
+   route. Require a non-empty diff whose changed paths/content are the intended
+   task only. Empty, stale, or unintended differences are non-success; stop.
+4. Look up an existing PR/MR for the exact source → target pair. Verify both
+   branches and repository/project identity. Reuse and report the existing item;
+   create one only when lookup establishes none exists.
+5. GitHub uses `gh pr view` / `gh pr create`; GitLab uses `glab mr view` /
+   `glab mr create`. Do not run GitHub-only commands for GitLab. Use explicit
+   source and target arguments supported by the selected CLI.
+
+If push succeeds but PR/MR lookup or creation fails, record that as partial
+success: include the verified remote SHA and the exact safe continuation (look
+up the existing source → target PR/MR, then create only if absent). Do not claim
+publication succeeded. Never retry a create blindly after an ambiguous result.
+
+## 4. Conflict and failure handling
+
+Resolve conflicts from actual task intent and project contracts. Do not use a
+blanket preference for local functional changes or remote documentation. Preserve
+both sides only when their semantics are compatible. If intent is ambiguous or
+the conflict changes behavior whose contract is not clear, stop and identify the
+conflicted paths and decision needed; do not choose a side automatically.
+
+Do not retry a failed command blindly. Diagnose the observed failure and retry
+only when a specific safe correction is known. Never treat a skipped check,
+empty diff, failed commit, stale remote SHA, or failed PR/MR operation as success.
+
+## 5. Report
+
+Report the repository, source/target branches, task-owned paths, checks and their
+actual outcomes, commit SHA, push/PR/MR status, evidence, verification limits,
+and unresolved blocker. Distinguish completed stages from stages not requested
+or not authorized. Never claim a push, PR/MR, merge, or deployment without
+read-back evidence.

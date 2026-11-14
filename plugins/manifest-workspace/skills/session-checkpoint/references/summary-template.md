@@ -155,10 +155,65 @@ summaries, never raw transcripts or secrets.
     "status": "Authoritatively observed current status",
     "obligation": "How continuation must monitor without restarting or duplicating"
   }],
-  "continuation_goal": "Copyable goal preserving objective, constraints, state checks, remaining work, verification duties, live-operation ownership, and the one next action"
+  "continuation_goal": "Copyable goal preserving objective, constraints, state checks, remaining work, verification duties, live-operation ownership, and the one next action",
+  "requested_endpoint": "Original requested outcome, without narrowing",
+  "authorization": {
+    "granted": ["Explicitly user-granted actions only"],
+    "restrictions": ["Explicit limits"],
+    "source": "User message or other authoritative source",
+    "observed_at": "ISO-8601 timestamp"
+  },
+  "targets": {
+    "repository": "repository identifier",
+    "branch": "branch identifier",
+    "mr": "merge-request identifier",
+    "pipeline": "pipeline identifier",
+    "job": "job identifier",
+    "environment": "environment identifier"
+  },
+  "artifacts": ["Redacted path or durable artifact identifier"],
+  "verified_facts": [{
+    "fact": "Observed fact",
+    "provenance": "Command, system, or artifact establishing it",
+    "observed_at": "ISO-8601 timestamp"
+  }],
+  "outstanding_operations": [{
+    "operation": "Action or monitored operation",
+    "owner": "Current responsible actor",
+    "blockers": ["Known blocker"],
+    "next_step": "Safe next step; do not duplicate"
+  }],
+  "completion": {
+    "stages": {
+      "implemented": true,
+      "committed": "not_required",
+      "pushed": "not_required",
+      "ci_verified": "not_required",
+      "merged": "not_required",
+      "deployed": "not_required",
+      "live_validated": "not_required"
+    },
+    "evidence_refs": [{
+      "stage": "ci_verified",
+      "reference": "Durable evidence identifier",
+      "commit_sha": "Exact commit SHA tested"
+    }]
+  },
+  "blockers": []
 }
 ```
 
+New checkpoints use schema version 2. Version-1 checkpoints remain readable and
+receive empty authorization, no assumed completion, and empty optional
+continuity evidence. Completion stages accept only booleans or `unknown` /
+`not_required`; CI evidence references include the exact tested commit SHA.
+Revalidation marks CI evidence from another SHA stale and reports repository,
+ownership, or authorization/access changes. It never changes the recorded
+authorization.
+Current live-operation records supplied during revalidation may include an
+optional `operation` string matching an `outstanding_operations.operation`;
+the link lets revalidation verify that monitored work still exists and remains
+with its recorded owner.
 Use empty arrays when a list has no entries. Required scalar values must not be
 empty. The runtime stores a SHA-256 digest in its envelope and rejects later
 reads whose content no longer matches it.

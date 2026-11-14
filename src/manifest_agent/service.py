@@ -445,6 +445,14 @@ class ManifestService:
             return report("reconcile", {}, errors=(diagnostic(exception),))
         return self._reconcile(receipt, apply=False)
 
+    @notes_retired_harnesses
+    def observe_prepared(
+        self, receipt: InstallationReceipt, desired: DesiredState
+    ) -> ServiceReport:
+        """Observe a locally prepared desired state without resolving a release."""
+        result = _reconcile_desired(self, receipt, desired, apply=False)
+        return _reconcile_runtime_diagnostics(self, desired, result, apply=False)
+
     def _reconcile(
         self, receipt: InstallationReceipt | None, *, apply: bool
     ) -> ServiceReport:
@@ -855,6 +863,8 @@ def _reconcile_desired(service, receipt, desired, *, apply):
         results[name] = current
     results = ordered(results, HARNESS_ORDER)
     results = _with_native_version(results, detections)
+    if not apply:
+        return report("reconcile", results, notes)
     persist_error = _persist_reconcile(
         service,
         receipt,

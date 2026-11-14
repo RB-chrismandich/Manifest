@@ -1,12 +1,12 @@
 ---
-description: "Use when the user wants a pass/fail quality check on a project — before merging, shipping, or as a PR gate. Detects Python, Go, Node.js, or Terraform and runs lint, test, and security scans, producing one report. Read-only; installs nothing."
+description: "Use for honest, read-only project quality verification before merge, shipping, or as a PR gate. Selects project-supported checks and reports pass, fail, unavailable, and not-run distinctly; installs nothing."
 globs: ".claude/skills/project-verify/**"
 alwaysApply: false
 ---
 
 # project-verify
 
-Use when the user wants a pass/fail quality check on a project — before merging, shipping, or as a PR gate. Detects Python, Go, Node.js, or Terraform and runs lint, test, and security scans, producing one report. Read-only; installs nothing.
+Use for honest, read-only project quality verification before merge, shipping, or as a PR gate. Selects project-supported checks and reports pass, fail, unavailable, and not-run distinctly; installs nothing.
 
 <!-- Auto-generated from .claude/skills/project-verify/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
