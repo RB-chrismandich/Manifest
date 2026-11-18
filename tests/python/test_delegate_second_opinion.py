@@ -237,6 +237,17 @@ class TestSecondOpinion:
         assert '"attempted"' in prompt
         assert '"follow_ups"' in prompt
         assert '"findings"' in prompt
+        for requirement in (
+            "every cross-process API or wire contract",
+            "authoritative producer source with file:line",
+            "Do not invent API fields",
+            "Fixtures must be producer-derived or captured from real responses",
+            "Matching self-authored fakes alone do not prove compatibility",
+            "live endpoint exists and a read-only probe is permitted",
+            "run the probe before claiming integration is verified",
+            "mark the behavior unknown/unverified",
+        ):
+            assert requirement in prompt
 
     def test_second_opinion_create_rejects_source_mutation_under_cas(
         self, tmp_path, monkeypatch, capsys

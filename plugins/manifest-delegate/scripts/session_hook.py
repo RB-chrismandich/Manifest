@@ -44,11 +44,8 @@ options:
   --stdin-json FILE  read hook payload from FILE instead of stdin (testing)
 """
 
-#
-# The hook may run under a PATH-selected interpreter that does not share
-# ~/.claude/.venv. Add only the plugin script directory; delegate's package
-# bootstrap loads its byte-pinned policy when this interpreter lacks the
-# trusted policy distribution.
+# The hook may run under PATH Python. Qualify/re-exec its runtime before
+# importing delegate, whose module import does not run the executable gate.
 if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help"):
     sys.stdout.write(_USAGE)
     sys.exit(0)
@@ -56,6 +53,18 @@ if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--he
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.path.isdir(_SCRIPT_DIR) and _SCRIPT_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPT_DIR)
+if __name__ == "__main__":
+    _PLUGIN_DIR = os.path.dirname(_SCRIPT_DIR)
+    if _PLUGIN_DIR not in _sys.path:
+        _sys.path.insert(0, _PLUGIN_DIR)
+    from manifest_delegate_policy import ensure_runtime_policy
+
+    try:
+        ensure_runtime_policy(__file__)
+    except (SystemExit, OSError):
+        # Policy rejection or failed runtime dispatch must skip hook work
+        # without blocking session startup. The CLI keeps its exit 2.
+        sys.exit(0)
 
 try:
     import delegate
