@@ -130,7 +130,8 @@ class NativeRunner:
         return [
             argv
             for argv in self.calls
-            if argv[1:3] != ("plugin", "list") and argv[1] not in {"--version", "read"}
+            if argv[1:3] not in {("plugin", "list"), ("skill", "list")}
+            and argv[1] not in {"--version", "read"}
         ]
 
     def run(self, argv, *, env=None, cwd=None):
@@ -161,26 +162,65 @@ class NativeRunner:
         lock = get_json(lock_path, {"plugins": {}, "settings": {}})
         marketplaces = get_json(marketplace_path, {"version": 1, "marketplaces": []})
         if command[1] == "read":
-            skill = command[2].removeprefix("skill://")
-            if self.skill_override is not None:
-                return f"[Skill file: {self.skill_override}]\n"
-            for rows in registry["plugins"].values():
-                path = Path(rows[0]["installPath"]) / "skills" / skill / "SKILL.md"
-                if path.is_file():
-                    return f"[Skill file: {path}]\n" + path.read_text()
-            return ""
-        action = command[2]
-        if action == "list":
-            rows = [
-                {"id": plugin_id, "scope": "user", "entries": entries}
-                for plugin_id, entries in registry["plugins"].items()
-                if entries
-            ]
-            return json.dumps({"marketplace": rows})
-        if action == "marketplace":
+            return self._dispatch_skill_read(command, registry)
+        if command[1:3] == ("skill", "list"):
+            return self._dispatch_skill_list(registry, lock)
+        if command[2] == "list":
+            return self._dispatch_plugin_list(registry)
+        if command[2] == "marketplace":
             return self._dispatch_marketplace(
                 command, root, marketplace_path, marketplaces
             )
+        return self._dispatch_plugin(command, root, registry, lock, marketplaces)
+
+    def _dispatch_skill_read(self, command, registry):
+        skill = command[2].removeprefix("skill://")
+        if self.skill_override is not None:
+            return f"[Skill file: {self.skill_override}]\n"
+        for rows in registry["plugins"].values():
+            path = Path(rows[0]["installPath"]) / "skills" / skill / "SKILL.md"
+            if path.is_file():
+                return f"[Skill file: {path}]\n" + path.read_text()
+        return ""
+
+    def _dispatch_skill_list(self, registry, lock):
+        # OMP 18.20.0 src/cli/skill-list.ts serializes {skills, warnings}.
+        skills = []
+        for entries in registry["plugins"].values():
+            if not entries:
+                continue
+            package = Path(entries[0]["installPath"])
+            identity = get_json(package / "package.json", {}).get(
+                "name",
+                package.name,
+            )
+            if not lock["plugins"].get(identity, {}).get("enabled", True):
+                continue
+            for path in sorted((package / "skills").glob("*/SKILL.md")):
+                skills.append(
+                    {
+                        "name": path.parent.name,
+                        "description": "fixture",
+                        "filePath": str(path),
+                        "baseDir": str(path.parent),
+                        "source": "claude-plugins:user",
+                        "hide": False,
+                    }
+                )
+        return json.dumps({"skills": skills, "warnings": []})
+
+    def _dispatch_plugin_list(self, registry):
+        rows = [
+            {"id": plugin_id, "scope": "user", "entries": entries}
+            for plugin_id, entries in registry["plugins"].items()
+            if entries
+        ]
+        return json.dumps({"marketplace": rows})
+
+    def _dispatch_plugin(self, command, root, registry, lock, marketplaces):
+        registry_path = root / "plugins/installed_plugins.json"
+        lock_path = root / "plugins/omp-plugins.lock.json"
+        action = command[2]
         plugin_id = command[3]
         name, _, _marketplace = plugin_id.partition("@")
         old = registry["plugins"].get(plugin_id)

@@ -26,7 +26,6 @@ from manifest_agent.adapters.omp_inventory import (
     read_object,
     read_runtime_document,
     runtime_name,
-    skill_file_path,
 )
 from manifest_agent.adapters.omp_source import owned_marketplace_matches
 from manifest_agent.models import (
@@ -37,6 +36,7 @@ from manifest_agent.models import (
     NativePluginInspection,
     ResultState,
 )
+from manifest_agent.omp_readonly.components import skill_components
 from manifest_agent.process import redact_text
 
 
@@ -252,41 +252,14 @@ def _inspect_packages(adapter, desired, snapshot, entries):
     return packages, paths, installed, errors, blocked or extra_blocked
 
 
-def _resolve_skill(adapter, installed, skills_root, skill):
-    command, error = adapter._execute(("omp", "read", f"skill://{skill}"))
-    identity_warning = (
-        f"OMP skill {skill} resolver identity is absent or outside its package"
-    )
-    if error is not None or command is None or command.returncode != 0:
-        reason = (
-            "; ".join(error.errors)
-            if error
-            else command.stderr
-            if command
-            else "no result"
-        )
-        return None, f"OMP skill {skill} resolver failed: {reason}"
-    candidate = skill_file_path(command.stdout)
-    if candidate is not None:
-        expected = installed / skills_root / skill / "SKILL.md"
-        try:
-            expected_path = expected.resolve(strict=True)
-            if Path(candidate).resolve(
-                strict=True
-            ) == expected_path and expected_path.is_relative_to(
-                installed.resolve(strict=True)
-            ):
-                return str(Path(candidate)), None
-        except OSError:
-            return None, identity_warning
-    return None, identity_warning
-
-
-def component_records(adapter, desired, paths):
-    records = []
+def component_records(desired, packages, stdout):
+    records, errors = skill_components(stdout, packages)
+    records = list(records)
+    observed = {record.resolved_path for record in records if record.kind == "skill"}
+    packages_by_name = {package.package_name: package for package in packages}
     warnings = ["OMP runtime/agent/MCP activation qualification is not observed"]
+    warnings.extend(errors)
     for contract in desired.all_contracts:
-        installed = paths.get(contract.name)
         skill_root = (
             desired.bundle_path(contract.name) / contract.components.skills_root
         )
@@ -294,23 +267,25 @@ def component_records(adapter, desired, paths):
             for path in sorted(skill_root.glob(pattern)):
                 if not path.is_file():
                     continue
-                skill = path.parent.name
-                resolved = None
-                if installed is not None:
-                    resolved, warning = _resolve_skill(
-                        adapter, installed, contract.components.skills_root, skill
+                package = packages_by_name.get(contract.name)
+                native_path = (
+                    str(
+                        Path(package.install_path)
+                        / path.relative_to(desired.bundle_path(contract.name))
                     )
-                    if warning is not None:
-                        warnings.append(warning)
-                records.append(
-                    NativeComponentInspection(
-                        "skill",
-                        skill,
-                        "resolved" if resolved else "unresolved",
-                        "native-resolver",
-                        resolved,
-                    )
+                    if package is not None and package.install_path
+                    else None
                 )
+                if native_path not in observed:
+                    records.append(
+                        NativeComponentInspection(
+                            "skill",
+                            path.parent.name,
+                            "unobserved" if errors else "unresolved",
+                            "omp-skill-list",
+                            native_path,
+                        )
+                    )
         for kind in ("agents", "hooks", "runtime", "guidance"):
             for component in getattr(contract.components, kind):
                 records.append(
@@ -329,7 +304,11 @@ def component_records(adapter, desired, paths):
                             kind, identifier, "unobserved", "not-observed"
                         )
                     )
-    return tuple(records), tuple(redact_text(warning) for warning in warnings)
+    return (
+        tuple(records),
+        tuple(redact_text(warning) for warning in warnings),
+        errors,
+    )
 
 
 def _blocked_inspection(name, root, error):
@@ -347,6 +326,14 @@ def _blocked_inspection(name, root, error):
             inventory_errors=(diagnostic,),
         ),
     )
+
+
+def _inspection_state(blocked: bool, errors: list[str]) -> ResultState:
+    if blocked:
+        return ResultState.BLOCKED
+    if errors:
+        return ResultState.DRIFTED
+    return ResultState.READY
 
 
 class OmpInspectionMixin:
@@ -422,6 +409,27 @@ class OmpInspectionMixin:
             )
         return root, markets, registry, runtime, cli
 
+    def _observe_components(self, desired, packages):
+        try:
+            command, error = self._execute(("omp", "skill", "list", "--json"))
+            if error is not None or command is None or command.returncode:
+                raise OmpInventoryError("OMP skill inventory is unavailable")
+            components, warnings, errors = component_records(
+                desired,
+                packages,
+                command.stdout,
+            )
+            return components, warnings, errors
+        except (OmpInventoryError, OSError) as error:
+            return (
+                (),
+                (
+                    "OMP runtime/agent/MCP activation qualification is not observed",
+                    redact_text(str(error)),
+                ),
+                [str(error)],
+            )
+
     def inspect(self, desired: DesiredState) -> HarnessResult:
         root = None
         try:
@@ -440,12 +448,19 @@ class OmpInspectionMixin:
                 markets.get(OMP_MARKETPLACE),
                 entries,
             )
-            packages, paths, installed, package_errors, package_blocked = (
+            packages, _paths, installed, package_errors, package_blocked = (
                 _inspect_packages(self, desired, snapshot, entries)
             )
             errors = [*marketplace_errors, *package_errors]
             blocked = blocked or package_blocked
-            components, warnings = component_records(self, desired, paths)
+            # Component discovery qualifies reconciliation evidence, not package
+            # lifecycle success. Keep its failures visible without invalidating
+            # independently verified package operations.
+            inventory_errors = list(errors)
+            components, warnings, component_errors = self._observe_components(
+                desired, packages
+            )
+            inventory_errors.extend(component_errors)
             errors = tuple(redact_text(error) for error in errors)
             native = NativeInspection(
                 self.name,
@@ -454,15 +469,9 @@ class OmpInspectionMixin:
                 tuple(packages),
                 components,
                 "not-observed",
-                errors,
+                tuple(redact_text(error) for error in inventory_errors),
             )
-            state = (
-                ResultState.BLOCKED
-                if blocked
-                else ResultState.DRIFTED
-                if errors
-                else ResultState.READY
-            )
+            state = _inspection_state(blocked, errors)
             return HarnessResult(
                 self.name,
                 state,

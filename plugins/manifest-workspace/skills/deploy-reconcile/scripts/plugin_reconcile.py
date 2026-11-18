@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Compare installation receipts with independently observed native inventories.
+"""Compare installation receipts with supplied native inventory evidence.
 
-Read-only. The receipt says what Manifest believes it installed; only a native
-inspection (the coordinator's typed `native_inspection` contract, emitted by
-`manifest-agent reconcile --json`) says what the harness actually has. Without
-readable native evidence for a harness the result is `degraded` (unverified),
-never `converged`.
+Read-only. A receipt describes what Manifest believes it installed; only
+independently obtained native evidence describes harness state. This portable
+consumer can acquire OMP evidence with --inspect-omp. Without readable evidence for a
+harness the result is `degraded` (unverified), never `converged`.
 """
 
 from __future__ import annotations
@@ -108,22 +107,26 @@ def _native_packages(record: object) -> tuple[dict[str, dict] | None, str | None
     return by_name, "; ".join(errors) if errors else None
 
 
+def _drift_reason(name: str, owned: set[str], package: dict | None) -> str | None:
+    status = package["status"] if package else "missing"
+    if name in owned and status == "missing":
+        return "missing: receipt owns it but native inventory lacks it"
+    if name in owned and status == "inconsistent":
+        return "stale: native rows are inconsistent or stale"
+    if status == "disabled" or (package and package.get("enabled") is False):
+        return "disabled: native package is installed but disabled"
+    if name not in owned:
+        return "extra: native package is not owned by the receipt"
+    return None
+
+
 def _compare(harness: str, owned: set[str], native: dict[str, dict]) -> list[dict]:
     drift = []
     for name in sorted(
         owned | {n for n, p in native.items() if p["status"] != "missing"}
     ):
-        package = native.get(name)
-        status = package["status"] if package else "missing"
-        if name in owned and status == "missing":
-            reason = "missing: receipt owns it but native inventory lacks it"
-        elif name in owned and status == "inconsistent":
-            reason = "stale: native rows are inconsistent or stale"
-        elif status == "disabled" or (package and package.get("enabled") is False):
-            reason = "disabled: native package is installed but disabled"
-        elif name not in owned:
-            reason = "extra: native package is not owned by the receipt"
-        else:
+        reason = _drift_reason(name, owned, native.get(name))
+        if reason is None:
             continue
         drift.append({"capability": name, "harness": harness, "reason": reason})
     return drift
@@ -178,7 +181,7 @@ def _native_component_drift(
     drift = []
     unverified = []
     components = inspection.get("components")
-    if not isinstance(components, list):
+    if not isinstance(components, list) or not components:
         return drift, [
             {"harness": harness, "reason": "native components absent or malformed"}
         ]
@@ -271,7 +274,9 @@ def _reconcile_harness(
 
 
 def reconcile(
-    inspection_source: str | None = None, harness_filter: tuple[str, ...] = ()
+    inspection_source: str | None = None,
+    harness_filter: tuple[str, ...] = (),
+    inspect_omp: bool = False,
 ) -> dict:
     path = receipt_path()
     receipt, drift = _read_receipt(path)
@@ -282,6 +287,10 @@ def reconcile(
         if inspection_source is not None
         else (None, "no native inspection supplied (--native-inspection)")
     )
+    if inspect_omp:
+        from _omp_readonly.inspection import inspection_report
+
+        native_report = inspection_report()["harnesses"]
     unverified = []
     for harness, record in sorted(harnesses.items()):
         harness_drift, harness_unverified = _reconcile_harness(
@@ -305,10 +314,16 @@ def reconcile(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
-    parser.add_argument(
+    evidence = parser.add_mutually_exclusive_group()
+    evidence.add_argument(
+        "--inspect-omp",
+        action="store_true",
+        help="collect read-only native OMP inventory locally",
+    )
+    evidence.add_argument(
         "--native-inspection",
         metavar="PATH",
-        help="coordinator `reconcile --json` report ('-' for stdin)",
+        help="externally obtained typed native inspection JSON ('-' for stdin)",
     )
     parser.add_argument(
         "--harness",
@@ -317,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
         help="limit comparison to this receipt harness; repeatable",
     )
     args = parser.parse_args(argv)
-    report = reconcile(args.native_inspection, tuple(args.harness))
+    report = reconcile(args.native_inspection, tuple(args.harness), args.inspect_omp)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

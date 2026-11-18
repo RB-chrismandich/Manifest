@@ -58,11 +58,11 @@ def package(name, status="verified"):
 @pytest.mark.parametrize(
     "component,status,diagnostic",
     [
-        ("resolved", "converged", False),
-        ("unresolved", "drift", False),
+        ("resolved", "degraded", False),
+        ("unresolved", "degraded", False),
         ("unobserved", "degraded", False),
         ("unsupported", "degraded", False),
-        ("resolved", "drift", True),
+        ("resolved", "degraded", True),
     ],
 )
 def test_fresh_cli_preserves_component_and_typed_package_evidence(
@@ -94,7 +94,7 @@ def test_fresh_cli_preserves_component_and_typed_package_evidence(
                 "/native/delegate/SKILL.md" if component == "resolved" else None,
             ),
         ),
-        "verified",
+        "not-observed",
         ("missing required plugin",) if diagnostic else (),
     )
     source = tmp_path / "inspection.json"
@@ -151,6 +151,33 @@ def test_observed_package_drift_keeps_its_type(state, expected):
     extra = reconciler._compare("omp", set(), {"manifest-delegate": row})
     if state != "missing":
         assert extra
+
+
+def test_standalone_without_native_evidence_is_degraded(tmp_path):
+    state = tmp_path / "state"
+    receipt = state / "manifest/installation.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(
+        json.dumps(
+            {"harnesses": {"omp": {"plugins": sorted(reconciler.EXPECTED_BUNDLES)}}}
+        )
+    )
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--json"],
+        env=dict(os.environ, XDG_STATE_HOME=str(state)),
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["status"] == "degraded"
+    assert report["verified"] is False
+    assert report["unverified"] == [
+        {
+            "harness": "omp",
+            "reason": "no native inspection supplied (--native-inspection)",
+        }
+    ]
 
 
 @pytest.mark.parametrize("contents", [None, "{malformed", '{"harnesses":{"omp":{}}}'])
@@ -210,7 +237,7 @@ def test_malformed_native_package_field_never_converges(tmp_path, field, value):
                 "/native/delegate/SKILL.md",
             ),
         ),
-        "verified",
+        "not-observed",
     )
     document = json.loads(
         json.dumps(
@@ -354,7 +381,7 @@ def test_malformed_component_path_never_converges(tmp_path):
                 "/native/delegate/SKILL.md",
             ),
         ),
-        "verified",
+        "not-observed",
     )
     document = json.loads(
         json.dumps(
@@ -401,3 +428,65 @@ def test_unverified_inventory_takes_status_precedence_over_receipt_drift(tmp_pat
     assert report["status"] == "degraded", report
     assert report["verified"] is False
     assert report["repair_required"] is True
+
+
+def test_real_adapter_component_producer_reaches_consumer(tmp_path):
+    desired = make_desired(tmp_path / "release")
+    adapter, runner = make_adapter(tmp_path)
+    service = make_service(tmp_path, adapter, desired)
+    assert service.install().state is ResultState.READY
+    observed = adapter.inspect(desired)
+    skills = [
+        row for row in observed.native_inspection.components if row.kind == "skill"
+    ]
+    assert skills and all(row.status == "resolved" for row in skills)
+    assert all(row.provenance == "omp-skill-list" for row in skills)
+    assert ("omp", "skill", "list", "--json") in runner.calls
+    component_drift, unverified = reconciler._native_component_drift(
+        "omp",
+        json.loads(json.dumps(asdict(observed.native_inspection))),
+    )
+    assert not component_drift
+    assert not any("skill:" in row["reason"] for row in unverified)
+    report = _run_native_reconcile(tmp_path, desired, observed)
+    assert report["status"] == "degraded"
+    assert any(
+        row["reason"] == "native activation not verified"
+        for row in report["unverified"]
+    )
+
+
+def test_missing_native_skill_is_reported_by_actual_adapter_and_consumer(tmp_path):
+    desired = make_desired(tmp_path / "release")
+    adapter, _runner = make_adapter(tmp_path)
+    assert make_service(tmp_path, adapter, desired).install().state is ResultState.READY
+    observed = adapter.inspect(desired)
+    skill = next(
+        row for row in observed.native_inspection.components if row.kind == "skill"
+    )
+    Path(skill.resolved_path).unlink()
+    observed = adapter.inspect(desired)
+    assert any(
+        row.status == "unresolved" and row.resolved_path == skill.resolved_path
+        for row in observed.native_inspection.components
+    )
+    report = _run_native_reconcile(tmp_path, desired, observed)
+    assert report["status"] != "converged"
+    assert any(
+        row["capability"] == "skill:" + skill.identifier
+        and row["reason"] == "unresolved"
+        for row in report["drift"]
+    )
+
+
+def test_failed_native_skill_cli_is_unverified_not_resolved(tmp_path):
+    desired = make_desired(tmp_path / "release")
+    adapter, runner = make_adapter(tmp_path)
+    assert make_service(tmp_path, adapter, desired).install().state is ResultState.READY
+    runner.fail(("omp", "skill", "list", "--json"))
+    observed = adapter.inspect(desired)
+    assert observed.native_inspection.components == ()
+    assert observed.native_inspection.inventory_errors
+    report = _run_native_reconcile(tmp_path, desired, observed)
+    assert report["status"] == "degraded"
+    assert report["verified"] is False

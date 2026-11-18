@@ -104,10 +104,13 @@ The seventh coordinator `HarnessAdapter` supports `manifest install --harness om
 and ADHD addon. OMP 18.6.1's native `plugin list --json`, marketplace/install
 registries, runtime lock, cache paths, and runtime links are cross-checked;
 malformed, missing, disabled, stale, or conflicting state never converges.
-Native `read skill://name` resolves skills inside their exact package, while
-runtime, agent, executable, and MCP qualification remains explicitly unobserved.
+Native `skill list --json` observes skill discovery inside each exact package,
+while runtime, agent, executable, and MCP activation remains explicitly unobserved.
 `ServiceReport.native_inspection` separates package lifecycle from activation:
-package READY never promotes OMP's optional/UNVERIFIED capability-matrix cell or
+the in-memory package lifecycle may remain READY, but serialized reports are
+DEGRADED with `converged=false` and `verified=false` when native inventory is
+absent, reports errors, or contains incomplete/unresolved component evidence.
+Package READY never promotes OMP's optional/UNVERIFIED capability-matrix cell or
 adds a seventh live-credential qualification harness.
 
 Native commands use an explicit user scope and bound working directory/HOME.
