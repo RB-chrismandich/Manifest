@@ -45,3 +45,48 @@ cmd_record_human_blocked() {
     persist_fingerprint_state "$pr" "$material" hand-human || return 13
     printf 'blocked on human: #%s\n' "$pr"
 }
+human_idle_turn() {
+    local managed="${1:?managed PRs required}" scope path
+    scope="$(gh_op fp-scope)" || return 13
+    path="$(printf '%s' "$scope" | python3 -c '
+import hashlib,json,os,sys
+s=json.load(sys.stdin)
+h=hashlib.sha256((s["host"].lower().rstrip(".")+"\0"+s["owner_repo"]).encode()).hexdigest()
+print(os.path.join(sys.argv[1],"human_idle_"+h+".json"))
+' "$STATE_DIR")" || return 13
+    python3 - "$path" "$STATE_DIR" "$(basename "$path" .json | sed 's/^human_idle_//')" "$managed" << 'PY'
+import json,os,sys,tempfile
+path,state_dir,scope_hash,raw=sys.argv[1:5]
+prs=raw.split()
+observed={}
+for pr in prs:
+    filename=os.path.join(state_dir,"fp_"+scope_hash+"_"+pr+".json")
+    try:
+        with open(filename,encoding="utf-8") as f: state=json.load(f)
+        if (state.get("action")!="hand-human"
+                or not isinstance(state.get("observed_at"),str) or not state["observed_at"]
+                or not isinstance(state.get("fingerprint"),str) or not state["fingerprint"]):
+            raise ValueError()
+        observed[pr]={"observed_at":state["observed_at"],"fingerprint":state["fingerprint"]}
+    except Exception:
+        raise SystemExit(13)
+try:
+    with open(path,encoding="utf-8") as f: previous=json.load(f)
+    count=previous["count"] if previous["observed"]==observed else 0
+except Exception:
+    count=0
+count+=1
+os.makedirs(state_dir,mode=0o700,exist_ok=True)
+fd,tmp=tempfile.mkstemp(dir=state_dir)
+try:
+    with os.fdopen(fd,"w",encoding="utf-8") as f:
+        json.dump({"observed":observed,"count":count},f,sort_keys=True)
+        f.write("\n")
+    os.chmod(tmp,0o600); os.replace(tmp,path)
+except Exception:
+    try: os.unlink(tmp)
+    except FileNotFoundError: pass
+    raise
+print(count)
+PY
+}

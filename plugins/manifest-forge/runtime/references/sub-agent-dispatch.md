@@ -17,13 +17,21 @@ available and a read-only probe is permitted, run it before claiming verified
 integration. If producer or live evidence is unavailable, state that the
 behavior is unknown/unverified rather than infer it.
 
-The inventory briefing example's authoritative wire producer is
-`src/manifest_agent/models.py:151-188`; its OMP population sites are
-`src/manifest_agent/adapters/omp_inspection.py:96-154,187-234,327-379`.
+The inventory briefing example's authoritative wire types are
+`src/manifest_agent/omp_readonly/models.py:8-47`; its OMP package/status
+producer is `src/manifest_agent/omp_readonly/inspection.py:106-199`.
+CLI JSON parsing and registry/runtime cross-checks are defined in
+`src/manifest_agent/omp_readonly/inventory.py:133-157,206-261`.
+The portable JSON entrypoint is
+`plugins/manifest-workspace/skills/deploy-reconcile/scripts/omp_native_inspection.py:1-10`.
+`src/manifest_agent/models.py:11-15` only re-exports the public models.
 The consumer regression
-`tests/python/plugin_runtime/test_reconcile_native_evidence.py` serializes those
-producer dataclasses in a fresh process. It does not establish live discovery
-or activation. For task-item fields and the session semaphore, read the active
+`tests/python/plugin_runtime/test_reconcile_native_evidence.py` constructs typed
+producer dataclasses for fresh-process serialization. This is offline
+model-derived evidence, not a captured live OMP response or activation proof.
+A live CLI shape probe alone does not verify the post-edit producer response;
+record that response separately before claiming live integration.
+For task-item fields and the session semaphore, read the active
 host's `omp://tools/task.md` (Inputs and Limits & Caps); its current settings,
 not documentation defaults, determine the active concurrency bound.
 

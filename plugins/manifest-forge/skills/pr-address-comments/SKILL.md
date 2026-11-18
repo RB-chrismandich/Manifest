@@ -20,8 +20,14 @@ Never call a thread resolved because a comment says “Resolved”.
    fingerprint even if its timestamp predates the last check. Missing state is
    actionable, never proof of idle; failed observation is unverified.
    The actual `pr_merge_loop.sh run` driver stops immediately when all managed
-   PRs have the persisted `hand-human` disposition and emits
-   `loop idle: waiting on human` once. Reinvoke it to observe new feedback.
+   PRs have the persisted `hand-human` disposition. Across invocations it
+   compares each PR's existing fingerprint-state `observed_at`; after three
+   identical complete no-progress turns it emits `loop idle: waiting on human`
+   once. Each later invocation still makes one observation per PR and prints
+   its blocked line, but does not repeat the idle announcement. Changed
+   feedback reopens normal work; incomplete observation never advances idle.
+   This outer three-turn threshold is independent of both the five-empty-pass
+   inner stop and the three-revision limit. Reinvoke it to observe new feedback.
    To establish a human-only disposition, first capture
    `pr_merge_loop.sh address-status N --json`, then perform the final feedback
    enumeration below. If only human work remains, pass that JSON's fingerprint

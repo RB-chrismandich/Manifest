@@ -25,17 +25,29 @@ assert state['action']=='hand-human'
 PY
 }
 
-@test "run consumes human-idle disposition without another polling pass" {
+@test "unchanged human idle observes once per PR and announces only at turn three" {
     export SEAM_GATE='{"tier1":{"passed":false},"tier2":{"concerns":[]},"verdict":"BLOCKED"}'
     export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
     run "$SCRIPT" tick 5
     [ "$status" -eq 0 ]
+    for turn in 1 2 3; do
+        : > "$SEAM_CALL_LOG"
+        run "$SCRIPT" run
+        [ "$status" -eq 0 ]
+        if [ "$turn" -eq 3 ]; then
+            [ "$output" = $'blocked on human: #5\nloop idle: waiting on human' ]
+        else
+            [ "$output" = "blocked on human: #5" ]
+        fi
+        [ "$(call_count list)" = "1" ]
+        [ "$(gate_count)" = "1" ]
+        [ "$(call_count resolve-thread)" = "0" ]
+    done
     : > "$SEAM_CALL_LOG"
     run "$SCRIPT" run
-    [ "$status" -eq 0 ]
-    [ "$output" = $'blocked on human: #5\nloop idle: waiting on human' ]
+    [ "$output" = "blocked on human: #5" ]
     [ "$(call_count list)" = "1" ]
-    [ "$(gate_count)" = "1" ]
+    [ "$(call_count resolve-thread)" = "0" ]
 }
 
 @test "new actionable feedback reenters after human idle without resolving threads" {

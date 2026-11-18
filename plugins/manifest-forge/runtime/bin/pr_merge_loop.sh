@@ -456,26 +456,21 @@ cmd_run() {
                     return 11
                     ;;
                 unchanged)
-                    # `unchanged` may be decided on cmd_tick's post-lease re-read:
-                    # a racing worker can persist state for NEW material while
-                    # this tick waits on the lock, leaving the caller's pre-lease
-                    # observation stale. Re-observe before reading the recorded
-                    # action — under the stale fingerprint the lookup is empty and
-                    # an in-flight PR (wait/revise/update-branch) looks settled,
-                    # letting the empty counter advance toward a premature stop.
-                    material="$(collect_fingerprint_material "$pr")" || return 13
-                    case "$(fingerprint_recorded_action "$pr" "$material")" in
-                        hand-human) printf 'blocked on human: #%s\n' "$pr" ;;
-                        wait | revise | update-branch)
-                            inflight=1
-                            all_human=0
-                            ;;
-                        "")
-                            inflight=1
-                            all_human=0
-                            ;;
-                        *) all_human=0 ;;
-                    esac
+                    # Only a verified human block gets the single-observation
+                    # shortcut. Other actions retain the post-lease re-read.
+                    if [[ "$(fingerprint_recorded_action "$pr" "$material")" == "hand-human" ]]; then
+                        printf 'blocked on human: #%s\n' "$pr"
+                    else
+                        material="$(collect_fingerprint_material "$pr")" || return 13
+                        case "$(fingerprint_recorded_action "$pr" "$material")" in
+                            hand-human) printf 'blocked on human: #%s\n' "$pr" ;;
+                            wait | revise | update-branch | "")
+                                inflight=1
+                                all_human=0
+                                ;;
+                            *) all_human=0 ;;
+                        esac
+                    fi
                     ;;
                 hand-human)
                     material="$(collect_fingerprint_material "$pr")" || return 13
@@ -498,7 +493,11 @@ cmd_run() {
         done
         ((complete == 1)) || break
         if ((all_human == 1)); then
-            printf 'loop idle: waiting on human\n'
+            n="$(human_idle_turn "$managed")" || {
+                err "human-idle observation state unavailable"
+                return 13
+            }
+            ((n == 3)) && printf 'loop idle: waiting on human\n'
             return 0
         fi
         now="$(_now)"
