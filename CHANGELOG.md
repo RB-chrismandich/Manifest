@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- Require verified `uv` before bootstrap deploys Python runtime hooks. Guidance
-  launchers provision PyYAML through that runtime, avoiding Homebrew Python
-  dependency drift; existing direct hook registrations migrate to the uv command.
+- Run Claude and Cursor guidance hooks with `~/.claude/.venv/bin/python3 -I`
+  using the locked runtime's PyYAML instead of resolving dependencies per hook.
+  Migrate owned direct, Python and historical `uv run --with pyyaml` Bash
+  registrations and grants to one canonical launcher; preserve unrelated hooks.
 
 - **Security (#1001):** generated CLI hook wrappers preserve pre-hook and CLI
   exit statuses, terminate timed-out hook process groups, and prevent post-hooks
