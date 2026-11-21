@@ -28,7 +28,10 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 # Python 3.9 compatibility: datetime.UTC was added in Python 3.11.
 UTC = timezone.utc  # noqa: UP017 -- datetime.UTC is unavailable on Python 3.9.
@@ -396,6 +399,8 @@ def _emit_for_moment(registry: dict, moment_id: str) -> int:
 def main(argv=None) -> int:
     # --help precedes any registry/config load (cli-audit-help).
     args = _build_parser().parse_args(argv)
+    if yaml is None:
+        return 0
     # Preference writes (opt-out/opt-in) report errors rather than failing open.
     write_rc = _handle_pref_write(args)
     if write_rc is not None:
