@@ -410,7 +410,9 @@ class TestConcurrencyAndRetention:
         assert _await_terminal_state(env, j2) == "completed"
         r1 = json.loads(_run(env, "result", j1, "--json").stdout)
         r2 = json.loads(_run(env, "result", j2, "--json").stdout)
-        assert r1["attempted"] == "t1" and r2["attempted"] == "t2"
+        # Stub echoes full stdin as attempted; delegate appends the output contract.
+        assert r1["attempted"].split("\n", 1)[0] == "t1"
+        assert r2["attempted"].split("\n", 1)[0] == "t2"
 
     def test_cancelling_one_overlapping_job_preserves_the_other(self, env_factory):
         """Concurrent external jobs retain independent lifecycle ownership."""
