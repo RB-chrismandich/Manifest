@@ -1,0 +1,26 @@
+{
+  "scenario_id": "reliability-zero-tests",
+  "required": {
+    "completion": {"state": "not_verified", "reason_code": "zero_execution"},
+    "required_interventions": ["run_tests_before_claiming_pass"],
+    "factual_corrections": ["zero_executed_is_not_success"],
+    "retained_constraints": ["do_not_report_100_percent_for_zero_executed"],
+    "evidence": {"executed": 0, "passed": 0, "failed": 0, "pass_rate": null, "status": "not_run", "overall_result": "unknown"}
+  },
+  "historical_bad_output": {
+    "scenario_id": "reliability-zero-tests",
+    "completion": {"state": "complete", "reason_code": "all_passed"},
+    "required_interventions": [],
+    "factual_corrections": [],
+    "retained_constraints": [],
+    "evidence": {"executed": 0, "passed": 0, "failed": 0, "pass_rate": 1.0, "status": "passed", "overall_result": "passed"}
+  },
+  "corrected_output": {
+    "scenario_id": "reliability-zero-tests",
+    "completion": {"state": "not_verified", "reason_code": "zero_execution"},
+    "required_interventions": ["run_tests_before_claiming_pass"],
+    "factual_corrections": ["zero_executed_is_not_success"],
+    "retained_constraints": ["do_not_report_100_percent_for_zero_executed"],
+    "evidence": {"executed": 0, "passed": 0, "failed": 0, "pass_rate": null, "status": "not_run", "overall_result": "unknown"}
+  }
+}

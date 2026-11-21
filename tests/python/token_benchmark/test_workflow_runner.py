@@ -16,7 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tests.token_benchmark.workflows.fixtures import load_fixture
 from tests.token_benchmark.workflows.records import validate_record
-from tests.token_benchmark.workflows.runner import rotation_for_trial, run_trial
+from tests.token_benchmark.workflows.runner import (
+    TrialContext,
+    rotation_for_trial,
+    run_trial,
+    run_workflow_suite,
+)
 
 FIXTURE_ROOT = (
     Path(__file__).resolve().parents[3]
@@ -214,3 +219,48 @@ class TestRotation:
 
     def test_custom_subset_keeps_given_order(self):
         assert rotation_for_trial(1, ("slim",)) == ("slim",)
+
+
+RELIABILITY_FIXTURE_IDS = (
+    "reliability-commit-publication",
+    "reliability-empty-receipt",
+    "reliability-stale-ci",
+    "reliability-gitlab-cli",
+    "reliability-overlapping-evidence",
+    "reliability-zero-tests",
+    "reliability-security-capability",
+    "reliability-resume-continuity",
+)
+
+
+class TestReliabilityWorkflowRunner:
+    @pytest.mark.asyncio
+    async def test_new_kind_runs_through_the_deterministic_offline_runner(self):
+        fixtures = [
+            load_fixture(FIXTURE_ROOT, fixture_id)
+            for fixture_id in RELIABILITY_FIXTURE_IDS
+        ]
+        fake = QueuedInvoke(
+            [
+                _completed(json.dumps(fixture["expected"]["corrected_output"]))
+                for fixture in fixtures
+            ]
+        )
+        records = await run_workflow_suite(
+            FIXTURE_ROOT,
+            RELIABILITY_FIXTURE_IDS,
+            ("full",),
+            1,
+            TrialContext(fake, None, "offline", "fixture", 5),
+        )
+
+        assert [record["verification"] for record in records] == ["passed"] * 8
+        assert [record["fixture_id"] for record in records] == list(
+            RELIABILITY_FIXTURE_IDS
+        )
+        assert [request["kind"] for request in fake.calls] == [
+            "cross_harness_reliability"
+        ] * 8
+        assert all(
+            "historical_bad_output" not in json.dumps(request) for request in fake.calls
+        )

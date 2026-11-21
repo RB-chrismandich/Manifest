@@ -1,0 +1,47 @@
+{
+  "scenario_id": "reliability-commit-publication",
+  "required": {
+    "completion": {"state": "blocked", "reason_code": "commit_failed"},
+    "required_interventions": ["stop_publication_after_commit_failure", "preserve_working_tree_and_index", "reuse_existing_mr_on_retry"],
+    "factual_corrections": ["failed_commit_does_not_authorize_push_or_mr_creation", "empty_diff_is_not_a_published_change", "retry_reuses_exact_source_target_mr"],
+    "retained_constraints": ["preserve_unrelated_staged_and_unstaged_changes", "no_push_after_commit_failure", "empty_diff_is_not_success", "reuse_existing_source_target_mr"],
+    "evidence": {
+      "provider": "gitlab",
+      "commit": {"status": "failed"},
+      "initial_publication": {"push_attempted": false, "mr_create_attempted": false},
+      "unrelated_changes": {"staged_after": ["docs/operator-notes.txt"], "unstaged_after": ["src/local-config.py"], "preserved": true},
+      "safe_retry": {"source_branch": "feature/reliability", "target_branch": "main", "existing_mr_id": "!42", "action": "reuse_existing", "duplicate_created": false, "changed_files": 0, "success": false},
+      "provider_commands": ["glab mr list --source-branch feature/reliability --target-branch main"]
+    }
+  },
+  "historical_bad_output": {
+    "scenario_id": "reliability-commit-publication",
+    "completion": {"state": "complete", "reason_code": "published"},
+    "required_interventions": [],
+    "factual_corrections": [],
+    "retained_constraints": [],
+    "evidence": {
+      "provider": "gitlab",
+      "commit": {"status": "failed"},
+      "initial_publication": {"push_attempted": true, "mr_create_attempted": true},
+      "unrelated_changes": {"staged_after": [], "unstaged_after": [], "preserved": false},
+      "safe_retry": {"source_branch": "feature/reliability", "target_branch": "main", "existing_mr_id": "!42", "action": "create_new", "duplicate_created": true, "changed_files": 0, "success": true},
+      "provider_commands": []
+    }
+  },
+  "corrected_output": {
+    "scenario_id": "reliability-commit-publication",
+    "completion": {"state": "blocked", "reason_code": "commit_failed"},
+    "required_interventions": ["stop_publication_after_commit_failure", "preserve_working_tree_and_index", "reuse_existing_mr_on_retry"],
+    "factual_corrections": ["failed_commit_does_not_authorize_push_or_mr_creation", "empty_diff_is_not_a_published_change", "retry_reuses_exact_source_target_mr"],
+    "retained_constraints": ["preserve_unrelated_staged_and_unstaged_changes", "no_push_after_commit_failure", "empty_diff_is_not_success", "reuse_existing_source_target_mr"],
+    "evidence": {
+      "provider": "gitlab",
+      "commit": {"status": "failed"},
+      "initial_publication": {"push_attempted": false, "mr_create_attempted": false},
+      "unrelated_changes": {"staged_after": ["docs/operator-notes.txt"], "unstaged_after": ["src/local-config.py"], "preserved": true},
+      "safe_retry": {"source_branch": "feature/reliability", "target_branch": "main", "existing_mr_id": "!42", "action": "reuse_existing", "duplicate_created": false, "changed_files": 0, "success": false},
+      "provider_commands": ["glab mr list --source-branch feature/reliability --target-branch main"]
+    }
+  }
+}

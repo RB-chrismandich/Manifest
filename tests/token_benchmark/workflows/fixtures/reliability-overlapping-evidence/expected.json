@@ -1,0 +1,26 @@
+{
+  "scenario_id": "reliability-overlapping-evidence",
+  "required": {
+    "completion": {"state": "complete", "reason_code": "deduplicated_summary"},
+    "required_interventions": ["deduplicate_by_event_id", "report_unknowns_separately"],
+    "factual_corrections": ["overlapping_windows_do_not_create_distinct_events"],
+    "retained_constraints": ["preserve_window_bounds", "keep_denominator_explicit"],
+    "evidence": {"distinct_event_count": 4, "unique_entity_count": 3, "denominator": 10, "observed_outcomes": ["accepted:2", "rejected:1", "unknown:1"], "unknowns": ["whether the events share a cause"], "window_bounds": [{"start": "2026-11-12T09:00:00Z", "end": "2026-11-12T10:00:00Z"}, {"start": "2026-11-12T09:30:00Z", "end": "2026-11-12T10:30:00Z"}], "deduplicated_event_ids": ["evt-102", "evt-103"]}
+  },
+  "historical_bad_output": {
+    "scenario_id": "reliability-overlapping-evidence",
+    "completion": {"state": "complete", "reason_code": "raw_window_sum"},
+    "required_interventions": [],
+    "factual_corrections": [],
+    "retained_constraints": [],
+    "evidence": {"distinct_event_count": 6, "unique_entity_count": 4, "denominator": 12, "observed_outcomes": ["accepted:3", "rejected:2", "unknown:1"], "unknowns": [], "window_bounds": [{"start": "2026-11-12T09:00:00Z", "end": "2026-11-12T10:00:00Z"}, {"start": "2026-11-12T09:30:00Z", "end": "2026-11-12T10:30:00Z"}], "deduplicated_event_ids": []}
+  },
+  "corrected_output": {
+    "scenario_id": "reliability-overlapping-evidence",
+    "completion": {"state": "complete", "reason_code": "deduplicated_summary"},
+    "required_interventions": ["deduplicate_by_event_id", "report_unknowns_separately"],
+    "factual_corrections": ["overlapping_windows_do_not_create_distinct_events"],
+    "retained_constraints": ["preserve_window_bounds", "keep_denominator_explicit"],
+    "evidence": {"distinct_event_count": 4, "unique_entity_count": 3, "denominator": 10, "observed_outcomes": ["accepted:2", "rejected:1", "unknown:1"], "unknowns": ["whether the events share a cause"], "window_bounds": [{"start": "2026-11-12T09:00:00Z", "end": "2026-11-12T10:00:00Z"}, {"start": "2026-11-12T09:30:00Z", "end": "2026-11-12T10:30:00Z"}], "deduplicated_event_ids": ["evt-102", "evt-103"]}
+  }
+}

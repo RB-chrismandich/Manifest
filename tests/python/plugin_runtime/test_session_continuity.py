@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -17,13 +18,13 @@ from tests.python.plugin_runtime.session_continuity_helpers import (
     _precompact,
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
-    repo_root as repo_root,
+    repo_root as repo_root_fixture,  # noqa: F401 - register the pytest fixture
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
-    runtime as runtime,
+    runtime as runtime_fixture,  # noqa: F401 - register the pytest fixture
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
-    state_home as state_home,
+    state_home as state_home_fixture,  # noqa: F401 - register the pytest fixture
 )
 
 
@@ -337,20 +338,69 @@ def test_revalidation_refuses_unverifiable_live_operations(
     assert "live_operations[0] requires owner and handle" in str(error.value)
 
 
-@pytest.mark.parametrize("version", (None, "1", 2, True))
-def test_checkpoint_envelope_version_is_verified_before_the_body(
-    runtime, state_home: Path, version: object
-) -> None:
-    """The digest covers the body only, so the version is attacker-writable."""
-    path = runtime.write_checkpoint(_checkpoint(), state_home)
-    envelope = json.loads(path.read_text(encoding="utf-8"))
-    if version is None:
-        envelope.pop("schema_version")
-    else:
-        envelope["schema_version"] = version
+def test_v1_checkpoint_migrates_with_safe_defaults(runtime, state_home: Path) -> None:
+    checkpoint = _checkpoint()
+    envelope = {
+        "schema_version": 1,
+        "integrity": {
+            "algorithm": "sha256",
+            "digest": hashlib.sha256(runtime._canonical_json(checkpoint)).hexdigest(),
+        },
+        "checkpoint": checkpoint,
+    }
+    path = state_home / "legacy.json"
     path.write_text(json.dumps(envelope), encoding="utf-8")
 
-    with pytest.raises(runtime.IntegrityError) as error:
-        runtime.read_checkpoint(path)
+    restored = runtime.read_checkpoint(path)
 
-    assert "schema version" in str(error.value)
+    assert restored["authorization"] == {
+        "granted": [],
+        "restrictions": [],
+        "source": "",
+        "observed_at": "",
+    }
+    assert set(restored["completion"]["stages"].values()) == {"not_required"}
+    assert True not in restored["completion"]["stages"].values()
+
+
+def test_checkpoint_rejects_invalid_completion_stage(runtime, state_home: Path) -> None:
+    checkpoint = _checkpoint()
+    checkpoint = runtime._defaults_for_extended_fields(checkpoint)
+    checkpoint["completion"]["stages"]["pushed"] = "yes"
+    with pytest.raises(
+        runtime.CheckpointValidationError, match="completion stage values"
+    ):
+        runtime.write_checkpoint(checkpoint, state_home)
+
+
+def test_changed_sha_stales_ci_without_expanding_authority(
+    runtime, state_home: Path
+) -> None:
+    checkpoint = runtime._defaults_for_extended_fields(_checkpoint())
+    checkpoint["targets"] = {"repository": "repo", "environment": "staging"}
+    checkpoint["authorization"] = {
+        "granted": ["edit owned files"],
+        "restrictions": ["no publish"],
+        "source": "user request",
+        "observed_at": "2026-11-12T10:00:00Z",
+    }
+    checkpoint["completion"]["evidence_refs"] = [
+        {
+            "stage": "ci_verified",
+            "reference": "pipeline/17",
+            "commit_sha": "abc123",
+            "target": "repo",
+            "environment": "staging",
+        }
+    ]
+    path = runtime.write_checkpoint(checkpoint, state_home)
+    report = runtime.revalidate_continuation(
+        path,
+        {**checkpoint["repository"], "head": "def456"},
+        checkpoint["live_operations"],
+        checkpoint["authorization"],
+    )
+
+    assert report.trusted is False
+    assert report.stale_ci_evidence == ("pipeline/17",)
+    assert "CI evidence is stale for the current commit" in report.reconciliation_needs

@@ -72,122 +72,33 @@ prompts, and retained single-provider scripts.
 ## Repository Structure
 
 ```text
-configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
-├── claude/                          # → ~/.claude/ (primary configuration)
-│   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # → ../../.apm/skills (symlink; source of truth)
-│   ├── prompts/                     # Agent orchestration prompt templates
-│   ├── config/                      # YAML configuration files
-│   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
-│   ├── .plans/                      # Plan management (template, archive, abandoned)
-│   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/manifest_cli/        # Manifest CLI router (manifest smoke, skill-run, …)
-├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
-│   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
-│   ├── mcp.json                     # Cursor MCP server defaults
-│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
-│   ├── config -> ../claude/config   # Symlink to shared configs
-│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   └── .plans -> ../claude/.plans   # Symlink to shared plans
-├── codex/                           # → ~/.codex/ (Codex CLI configuration)
-│   ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
-│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
-│   ├── config -> ../claude/config   # Symlink to shared configs
-│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   └── .plans -> ../claude/.plans   # Symlink to shared plans
-└── antigravity/                     # → ~/.antigravity/ (Antigravity IDE + agy CLI)
-    ├── GEMINI.md                    # agy guide → ~/.gemini/GEMINI.md (agy reads ~/.gemini)
-    └── (symlinks to ../claude/)     # config, skills, .plans (shared configuration and skills)
-
-.claude/                             # Repo-specific config (minimal — does NOT override sessions)
-├── CLAUDE.md                        # Developer guide for working in this repo
-└── settings.local.json              # Repo-relevant permissions only
-
-templates/                           # Project scaffolding templates
-├── scaffold/
-│   ├── python/                      # pyproject.toml, .pre-commit-config.yaml
-│   ├── go/                          # go.mod, Makefile, .golangci.yml
-│   ├── node/                        # package.json, tsconfig.json, eslint.config.js
-│   └── terraform/                   # main.tf, versions.tf, .tflint.hcl
-
-bootstrap.sh                         # macOS/Linux bootstrap script
-bootstrap/                           # Modular bootstrap libraries + hookable modules
-├── lib/                             # Shared bootstrap logic split by concern
-│   ├── common.sh                    # Shared output/prompts/symlink helpers
-│   ├── modules.sh                   # Hook registry + module loader
-│   ├── platform.sh                  # Platform detection + timeout/browser helpers
-│   ├── config.sh                    # Argument parsing + services config helpers
-│   ├── install.sh                   # CLI install routines
-│   ├── auth.sh                      # Authentication + state setup routines
-│   ├── deploy.sh                    # Deploy/verify/summary routines
-│   └── mcp.sh                       # MCP configuration/install routines
-└── modules/README.md                # How to add custom bootstrap extensions
-AGENTS.md                            # This file (AI agent instructions)
-CLAUDE.md                            # Claude Code-specific project instructions
+.
+├── configs/                         # Deployment source configuration
+│   ├── claude/                      # Shared configuration and Claude guide
+│   ├── cursor/                      # Cursor rules and configuration
+│   ├── codex/                       # Codex guide
+│   └── antigravity/                 # Antigravity guide
+├── bootstrap.sh                     # macOS/Linux bootstrap entry point
+├── bootstrap/                       # Deployment implementation
+├── AGENTS.md                        # Shared agent instructions
+└── CLAUDE.md                        # Claude Code-specific instructions
 ```
 
-## Bootstrap (macOS / Linux)
+The per-harness deployed paths and links are documented in
+`~/.claude/references/layout.md`; do not infer them from this source tree.
 
-The `bootstrap.sh` script automates installation, deployment, and authentication.
+## Bootstrap
 
-**Supported platforms:**
-
-- macOS (Intel and Apple Silicon)
-- Linux (Debian/Ubuntu, RHEL/Fedora, Arch, openSUSE)
-
-### Quick Start
-
-```bash
-# Full setup with all services
-./bootstrap.sh
-
-# Setup with specific services disabled
-./bootstrap.sh --disable-cursor
-./bootstrap.sh --disable-codex --disable-cursor
-
-# Skip interactive prompts
-./bootstrap.sh --skip-auth --force
-
-# Configure MCP servers (interactive per-server selection)
-./bootstrap.sh --install-mcp
-```
-
-### Service Toggles
-
-```bash
---enable-claude / --disable-claude   # Claude CLI (default: enabled)
---enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
---enable-codex / --disable-codex     # Codex CLI (default: enabled)
---enable-antigravity / --disable-antigravity  # Antigravity IDE (default: enabled)
---enable-devin / --disable-devin              # Devin CLI (default: DISABLED; needs devin auth login)
---enable-skillclaw / --disable-skillclaw  # SkillClaw session capture (default: disabled)
---enable-browser-use / --disable-browser-use  # browser-use deps for smoke agent steps (default: disabled)
---enable-smoke / --disable-smoke     # smoke-test deps: Playwright+Chromium (default: disabled)
---enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
---enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
---install-mcp                        # Configure MCP servers (interactive per-server selection)
-```
+Bootstrap handles installation, deployment, and authentication. Use
+`./bootstrap.sh` for standard setup; read the on-demand
+`~/.claude/references/layout.md` for supported platforms, options, and
+harness-specific deployment details.
 
 ## Manual Deployment
 
-If not using bootstrap.sh, copy the configuration directories manually:
-
-```bash
-# Deploy Claude Code configuration
-cp -r configs/claude/* ~/.claude/
-cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
-chmod +x ~/.claude/scripts/*.sh
-
-# Other platforms (Cursor/Codex/Antigravity): copy the platform guide +
-# settings, then symlink scripts/config/prompts/.plans/skills from ~/.claude/.
-# See CLAUDE.md "Manual Deployment" for the full per-platform commands.
-```
-
-Required CLI tools (install those you want to use):
-
-- `claude` - `npm install -g @anthropic-ai/claude-code`
-- `cursor-agent` - `curl https://cursor.com/install -fsS | bash`
-- `codex` - `npm install -g @openai/codex`
+Bootstrap is the supported installation path. For configuration layout,
+platform-specific links, and manual-deployment caveats, read
+`~/.claude/references/layout.md`.
 
 ## Key Files
 
@@ -203,8 +114,9 @@ Required CLI tools (install those you want to use):
 
 ## Available Skills
 
-All agents share the same skill library from `.apm/skills/` (70+ skills;
-exposed via the `configs/claude/skills/` symlink).
+Skills are maintained in plugin bundles; harnesses consume them through their
+native plugin or generated-rule mechanisms. Read `~/.claude/references/layout.md`
+for current source and deployment paths.
 Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 
 ### Skill Reference
@@ -244,8 +156,9 @@ Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 | `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
 | `/project-verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
-**Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
-`claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
+**Skills are plugin bundles**: `/<bundle>:<name>`; refresh Claude bundles with
+`claude plugin update <bundle>@manifest`. Other harnesses use their native
+plugin, generated-rule, or shared-catalog mechanisms; see the Layout Reference.
 
 ### Cursor Rules
 
@@ -258,25 +171,18 @@ The full rule set (one `.mdc` per skill, plus `orchestration` and
 
 ### Platform-Specific Notes
 
-Skills are shared across all platforms via symlinks from `configs/claude/skills/`:
-
-- **Claude Code**: Skills loaded from `~/.claude/skills/`
-- **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/` (`.mdc` files)
-- **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
-- **Antigravity**: Skills loaded from `~/.antigravity/skills/` (symlink to `~/.claude/skills/`)
-- **Devin**: Skills are NOT copied or symlinked. The `devin` CLI reads
-  `~/.claude/skills/` (and `~/.claude/CLAUDE.md`) directly, gated by
-  `read_config_from.claude` in `~/.config/devin/config.json`, which bootstrap pins.
-  A second copy under its home would register every skill twice
-  (`/devin:<name>` beside `/claude:<name>`), so there deliberately is none.
+Read `~/.claude/references/layout.md` for each harness's native plugin,
+generated-rule, or shared-catalog mechanism. Do not assume that every harness
+loads skills through a symlink to `~/.claude/`.
 
 ## Native Sub-Agent Dispatch
 
-Use the current host's supported native mechanism: OMP parents use `task` and
-`hub`; Claude Code parents use discovered native Agents and background
-collection. Preserve OMP specialist selection and do not guess Claude aliases.
-The parent validates evidence and aggregates results. The authoritative shared
-contract is [`configs/claude/references/sub-agent-dispatch.md`](configs/claude/references/sub-agent-dispatch.md);
+Use the current host's supported native mechanism. OMP parents dispatch work
+with `task`, selecting the narrowest suitable agent; the parent validates
+evidence and aggregates results. Claude Code parents use discovered native
+Agents and background collection. Preserve platform boundaries and do not
+guess aliases. The authoritative shared contract is
+`~/.claude/references/sub-agent-dispatch.md`;
 it defines child limits, the narrow delegate-runner exception, and `DEGRADED`
 behavior.
 
@@ -352,10 +258,10 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 
 ### Adding a Claude Code Skill
 
-1. Create a `SKILL.md` file in `.apm/skills/my-skill/` (the source of
-   truth; `configs/claude/skills/` is a compat symlink to it)
-2. Add tool policies to `configs/claude/config/command_config.yml`
-3. Skills are automatically available in Claude Code after deploying via bootstrap
+1. Add the skill under `plugins/<bundle>/skills/<skill-name>/SKILL.md`
+   (canonical source); generated mirrors are not edited directly.
+2. Add its tool policy to `configs/claude/config/command_config.yml` when
+   needed, then refresh the relevant native plugin deployment.
 
 ### Adding a Cursor Rule
 
@@ -375,14 +281,12 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 - [docs/diagrams/README.md](docs/diagrams/README.md) - Visual system documentation
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 
-## Workflow Reminders (Codex / Antigravity standing-line fallback)
+## Workflow Reminders
 
-Codex and Antigravity have no event-hook substrate, so the per-moment hints that
-Claude Code / Cursor deliver automatically are surfaced here as a single
-standing line instead (spec 362, FR-011 documented gap): **before a commit run
-`/project-verify`** (or `/git-commit` for the full pipeline); **after opening a PR run
-`/pr-monitor`**; **when context is high run `/session-checkpoint`**. Run
-`/help` for anything else.
+Use these reminders as guidance, not as a claim about a host's event-hook
+capabilities: before a commit run `/project-verify` (or `/git-commit` for the
+full pipeline); after opening a PR run `/pr-monitor`; when context is high run
+`/session-checkpoint`. Run `/help` for anything else.
 
 ## Command Index
 

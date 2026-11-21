@@ -135,6 +135,7 @@ def _parser() -> argparse.ArgumentParser:
     verify.add_argument("--checkpoint", type=Path, required=True)
     verify.add_argument("--repository-json", required=True)
     verify.add_argument("--operations-json", required=True)
+    verify.add_argument("--authorization-json")
     return parser
 
 
@@ -178,11 +179,20 @@ def _verify(
         raise CheckpointValidationError(
             "repository must be an object and operations must be a list"
         )
-    report = revalidate_continuation(args.checkpoint, repository, operations)
+    authorization = (
+        json.loads(args.authorization_json) if args.authorization_json else None
+    )
+    if authorization is not None and not isinstance(authorization, dict):
+        raise CheckpointValidationError("authorization must be an object")
+    report = revalidate_continuation(
+        args.checkpoint, repository, operations, authorization
+    )
     return {
         "trusted": report.trusted,
         "git_changes": list(report.git_changes),
         "ownership_changes": list(report.ownership_changes),
+        "reconciliation_needs": list(report.reconciliation_needs),
+        "stale_ci_evidence": list(report.stale_ci_evidence),
         "continuation_goal": report.continuation_goal,
     }
 

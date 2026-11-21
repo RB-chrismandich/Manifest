@@ -16,9 +16,8 @@ Claude Code, Cursor, Codex CLI, Antigravity, and opt-in Devin.
 
 Interactive sub-agent work uses OMP-native `task` batches: submit all ready,
 independent units in one call (at most 32 per wave), assign each child one unit,
-and have the parent validate and aggregate evidence. Use `hub` only to
-coordinate or wait. If OMP is unavailable, work inline and report `DEGRADED`;
-do not fall back to provider CLI fan-out.
+and have the parent validate and aggregate evidence. If OMP is unavailable,
+work inline and report `DEGRADED`; do not fall back to provider CLI fan-out.
 
 Retained noninteractive tools such as CDDL, delegation, and SkillClaw use
 `model_policy.yml` to resolve a single provider CLI, model tier, and bounded

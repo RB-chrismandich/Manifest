@@ -1,12 +1,12 @@
 ---
-description: "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline."
+description: "Run an authorized, scoped commit-and-publication workflow with safe failure handling. Use for full commit-and-push requests, not a bare local commit."
 globs: ".claude/skills/git-commit/**"
 alwaysApply: false
 ---
 
 # git-commit
 
-Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline.
+Run an authorized, scoped commit-and-publication workflow with safe failure handling. Use for full commit-and-push requests, not a bare local commit.
 
 <!-- Auto-generated from .claude/skills/git-commit/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

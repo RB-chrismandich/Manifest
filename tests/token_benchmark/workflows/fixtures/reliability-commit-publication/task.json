@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-commit-publication",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Assess the failed commit and safe GitLab retry. Report the exact completion state, interventions, factual corrections, retained constraints, and evidence in the output contract. The initial commit failed; unrelated staged and unstaged changes exist. A later retry has an existing source-to-target merge request and an empty diff.",
+  "artifacts": {
+    "scenario.json": "{\"provider\":\"gitlab\",\"commit\":{\"status\":\"failed\",\"sha\":\"cafe0001\"},\"initial_publication\":{\"push_attempted\":false,\"mr_create_attempted\":false},\"unrelated_changes\":{\"staged\":[\"docs/operator-notes.txt\"],\"unstaged\":[\"src/local-config.py\"]},\"safe_retry\":{\"source_branch\":\"feature/reliability\",\"target_branch\":\"main\",\"existing_mr_id\":\"!42\",\"changed_files\":0}}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object"
+  }
+}

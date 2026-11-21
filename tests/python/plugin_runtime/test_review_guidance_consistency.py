@@ -126,6 +126,29 @@ def test_shared_dispatch_scopes_risk_gate_to_review(
         assert skill_name in source
 
 
+@pytest.mark.parametrize(
+    "bundle",
+    ("manifest-workspace", "manifest-forge", "manifest-code-quality"),
+)
+def test_shipped_dispatch_references_use_supported_native_boundaries(
+    repo_root: Path, bundle: str
+) -> None:
+    source = " ".join(
+        (repo_root / "plugins" / bundle / "runtime/references/sub-agent-dispatch.md")
+        .read_text(encoding="utf-8")
+        .split()
+    )
+
+    assert "OMP parents submit all ready independent units in one `task` call" in source
+    assert "supervise results, validate evidence, and aggregate findings" in source
+    assert "bounded unit, acceptance criteria, and read/write scope" in source
+    assert (
+        "Claude Code parents use only native Agent types actually discovered" in source
+    )
+    assert "do not infer aliases, model overrides, or OMP role mappings" in source
+    assert "hub" not in source.lower()
+
+
 def test_refactor_dispatches_every_detected_ecosystem_sequentially(
     repo_root: Path,
 ) -> None:

@@ -1,0 +1,26 @@
+{
+  "scenario_id": "reliability-empty-receipt",
+  "required": {
+    "completion": {"state": "blocked", "reason_code": "empty_selected_target_set"},
+    "required_interventions": ["mark_receipt_non_success", "resolve_nonempty_selected_targets"],
+    "factual_corrections": ["empty_receipt_is_not_evidence_of_convergence"],
+    "retained_constraints": ["require_nonempty_selected_targets", "separate_receipt_claims_from_native_observations"],
+    "evidence": {"receipt_target_count": 0, "reported_status": "unavailable", "converged": false, "authentication": "not_tested"}
+  },
+  "historical_bad_output": {
+    "scenario_id": "reliability-empty-receipt",
+    "completion": {"state": "complete", "reason_code": "healthy"},
+    "required_interventions": [],
+    "factual_corrections": [],
+    "retained_constraints": [],
+    "evidence": {"receipt_target_count": 0, "reported_status": "healthy", "converged": true, "authentication": "verified"}
+  },
+  "corrected_output": {
+    "scenario_id": "reliability-empty-receipt",
+    "completion": {"state": "blocked", "reason_code": "empty_selected_target_set"},
+    "required_interventions": ["mark_receipt_non_success", "resolve_nonempty_selected_targets"],
+    "factual_corrections": ["empty_receipt_is_not_evidence_of_convergence"],
+    "retained_constraints": ["require_nonempty_selected_targets", "separate_receipt_claims_from_native_observations"],
+    "evidence": {"receipt_target_count": 0, "reported_status": "unavailable", "converged": false, "authentication": "not_tested"}
+  }
+}

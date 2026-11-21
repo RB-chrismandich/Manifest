@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-documented-route",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "The required verification route is the documented full project profile shown in profile-result.json. Report the exact command and profile from the evidence; a focused pytest command is not an equivalent substitute. Use the structured output contract.",
+  "artifacts": {
+    "profile-result.json": "{\"profile\":\"full\",\"command\":\"manifest check full --project-config config/project-checks.json --base HEAD --json\",\"status\":\"PASS\",\"required_ids\":[\"lint.python\",\"test.python\",\"security.gitleaks\"],\"results\":{\"lint.python\":\"PASS\",\"test.python\":\"PASS\",\"security.gitleaks\":\"PASS\"}}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object"
+  }
+}

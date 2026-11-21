@@ -138,6 +138,24 @@ def reconcile(context: click.Context, apply: bool, **options: Any) -> None:
     _emit(context, service.reconcile(apply=apply), options["as_json"])
 
 
+@cli.command("observe-native")
+@click.option(
+    "--source-root",
+    type=click.Path(path_type=Path, exists=True, file_okay=False),
+    help="Use local contracts from a repository checkout.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit stable JSON.")
+def observe_native(source_root: Path | None, as_json: bool) -> None:
+    """Inspect installed native state without release acquisition or repair."""
+    from manifest_agent.native_observation import observe_native_state
+
+    result = observe_native_state(source_root=source_root)
+    if as_json:
+        click.echo(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        click.echo(f"native observation: {result.get('state', 'BLOCKED')}")
+
+
 @cli.command()
 @_lifecycle_options
 @click.pass_context

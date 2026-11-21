@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
+import runpy
 from pathlib import Path
 
 EXPECTED_BUNDLES = {
@@ -20,67 +20,66 @@ EXPECTED_BUNDLES = {
 }
 
 
-def receipt_path() -> Path:
-    state_home = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
-    return state_home / "manifest/installation.json"
+def shared_env_check():
+    """Load the bundle-local receipt and native evidence contract."""
+    env_script = (
+        Path(__file__).resolve().parents[2] / "env-check" / "scripts" / "env_check.py"
+    )
+    return runpy.run_path(str(env_script))
 
 
-def reconcile() -> dict:
-    path = receipt_path()
-    drift: list[dict[str, str]] = []
-    try:
-        receipt = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        receipt = None
-        drift.append(
-            {
-                "capability": "installation-receipt",
-                "harness": "all",
-                "reason": "missing",
-            }
-        )
-    except (OSError, json.JSONDecodeError) as error:
-        receipt = None
-        drift.append(
-            {
-                "capability": "installation-receipt",
-                "harness": "all",
-                "reason": str(error),
-            }
-        )
-    harnesses = receipt.get("harnesses", {}) if isinstance(receipt, dict) else {}
-    if isinstance(harnesses, dict):
-        for harness, record in sorted(harnesses.items()):
-            plugins = (
-                record.get("plugins", record.get("plugin_ids", []))
-                if isinstance(record, dict)
-                else []
+def reconcile(native_evidence: str | None = None) -> dict:
+    env_check = shared_env_check()
+    assessment = env_check["assess"](native_evidence)
+    receipt = assessment["receipt"]
+    drift: list[dict[str, str]] = [
+        {"capability": "installation-receipt", "harness": "all", "reason": problem}
+        for problem in assessment["problems"]
+    ]
+    comparison = assessment["comparison"]
+    drift.extend(
+        {
+            "capability": "native-installation",
+            "harness": item["harness"],
+            "reason": item["reason"],
+        }
+        for item in comparison["drift"]
+    )
+    for harness, record in receipt["claims"].items():
+        installed = {item.split("@", 1)[0] for item in record["plugin_ids"]}
+        missing = sorted(EXPECTED_BUNDLES - installed)
+        if missing:
+            drift.append(
+                {
+                    "capability": ",".join(missing),
+                    "harness": harness,
+                    "reason": "domain plugins absent from receipt inventory",
+                }
             )
-            installed = {
-                str(item).split("@", 1)[0] for item in plugins if isinstance(item, str)
-            }
-            missing = sorted(EXPECTED_BUNDLES - installed)
-            if missing:
-                drift.append(
-                    {
-                        "capability": ",".join(missing),
-                        "harness": str(harness),
-                        "reason": "domain plugins absent from receipt inventory",
-                    }
-                )
+    status = assessment["status"]
+    if status not in {"unverified", "degraded"}:
+        status = "drift" if drift else "converged"
     return {
         "drift": drift,
-        "receipt": str(path),
+        "harnesses": comparison["harnesses"],
+        "native_observed": comparison["native_observed"],
+        "receipt": receipt["path"],
         "repair_required": bool(drift),
-        "status": "drift" if drift else "converged",
+        "status": status,
+        "authentication": "not_tested",
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--native-evidence",
+        metavar="PATH",
+        help="saved manifest reconcile --json output, or - for stdin",
+    )
     args = parser.parse_args(argv)
-    report = reconcile()
+    report = reconcile(args.native_evidence)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

@@ -94,7 +94,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Use when the user wants a pass/fail quality check on a project \u2014 before merging, shipping, or as a PR gate. Detects Python, Go, Node.js, or Terraform and runs lint, test, and security scans, producing one report. Read-only; installs nothing.",
+      "description": "Use for honest, read-only project quality verification before merge, shipping, or as a PR gate. Selects project-supported checks and reports pass, fail, unavailable, and not-run distinctly; installs nothing.",
       "name": "project-verify",
       "qualified_name": "manifest-code-quality:project-verify"
     },
@@ -710,7 +710,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline.",
+      "description": "Run an authorized, scoped commit-and-publication workflow with safe failure handling. Use for full commit-and-push requests, not a bare local commit.",
       "name": "git-commit",
       "qualified_name": "manifest-forge:git-commit"
     },
