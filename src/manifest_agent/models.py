@@ -8,6 +8,14 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from manifest_agent.omp_readonly.models import (
+    NativeComponentInspection as NativeComponentInspection,
+)
+from manifest_agent.omp_readonly.models import NativeInspection as NativeInspection
+from manifest_agent.omp_readonly.models import (
+    NativePluginInspection as NativePluginInspection,
+)
+
 
 class ResultState(StrEnum):
     """The explicit outcome of a harness or coordinator operation."""
@@ -145,47 +153,6 @@ class HarnessReceipt:
     capabilities: dict[str, str]
     verified: bool
     errors: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class NativeComponentInspection:
-    """Component discovery observed through a harness-native interface."""
-
-    kind: str
-    identifier: str
-    status: str
-    provenance: str
-    resolved_path: str | None = None
-
-
-@dataclass(frozen=True)
-class NativePluginInspection:
-    """One package identity observed in a native plugin manager."""
-
-    package_id: str
-    package_name: str
-    marketplace: str | None
-    source_uri: str | None
-    source_provenance: str | None
-    version: str | None
-    scope: str | None
-    enabled: bool | None
-    native_root: str | None
-    install_path: str | None
-    status: str
-
-
-@dataclass(frozen=True)
-class NativeInspection:
-    """Typed, secret-free native inventory for downstream coordinator consumers."""
-
-    harness: str
-    profile: str | None
-    native_root: str | None
-    packages: tuple[NativePluginInspection, ...] = ()
-    components: tuple[NativeComponentInspection, ...] = ()
-    activation: str = "not-observed"
-    inventory_errors: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

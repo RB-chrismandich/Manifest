@@ -25,7 +25,7 @@ gh_op() {
     local platform="${PR_MERGE_LOOP_PLATFORM:-$(bash "${SCRIPT_DIR}/git_platform.sh" 2> /dev/null || echo github)}"
     if [[ "$platform" == "gitlab" ]]; then
         case "$op" in
-            fp-scope | fp-view | fp-checks | fp-threads)
+            fp-scope | fp-view | fp-checks | fp-threads | fp-feedback)
                 err "state fingerprinting is unsupported for provider gitlab"
                 return 13
                 ;;
@@ -58,6 +58,13 @@ gh_op() {
             ;;
         fp-checks) _github_fp_checks "$pr" ;;
         fp-threads) gh_threads_raw "$pr" ;;
+        fp-feedback)
+            local nwo
+            nwo="$(_owner_repo_from_remote)" || return 1
+            _net gh api --paginate --slurp "repos/${nwo}/issues/${pr}/comments" || return $?
+            _net gh api --paginate --slurp "repos/${nwo}/pulls/${pr}/reviews" || return $?
+            _net gh api --paginate --slurp "repos/${nwo}/pulls/${pr}/comments"
+            ;;
         list) gh pr list --json number,author 2> /dev/null ;;
         checks) _github_fp_checks "$pr" | python3 -c 'import json,sys;print("\n".join(str(item["bucket"]) for item in json.load(sys.stdin)))' ;;
         reviewdecision) gh pr view "$pr" --json reviewDecision -q '.reviewDecision' 2> /dev/null ;;
@@ -176,8 +183,8 @@ gh_threads_raw() {
               pageInfo{ hasNextPage endCursor }
               nodes{
                 id isResolved isOutdated
-                comments(first:50){ pageInfo{ hasNextPage } nodes{ id createdAt author{ login } } }
-                latestComments:comments(last:1){ nodes{ id createdAt } }
+                comments(first:50){ pageInfo{ hasNextPage } nodes{ id createdAt updatedAt body author{ login } } }
+                latestComments:comments(last:1){ nodes{ id createdAt updatedAt body } }
               }}}}}'
     while :; do
         page=$((page + 1))

@@ -76,65 +76,113 @@ class ServiceReport:
     def to_dict(self) -> dict[str, object]:
         """Return a deterministic JSON-compatible report."""
         harnesses = {}
+        state = self.state
         for name, result in self.harnesses.items():
-            item = {
-                "state": result.state.value,
-                "installed_plugin_ids": list(result.installed_plugin_ids),
-                "capabilities": dict(sorted(result.capabilities.items())),
-                "components": _grouped_components(result.capabilities),
-                "converged": result.state is ResultState.READY
-                or (
-                    result.state is ResultState.DEGRADED
-                    and not has_undeclared_degradation(result)
-                ),
-                "verified": result.state in {ResultState.READY, ResultState.DEGRADED},
-                "version": result.native_version,
-                "errors": list(result.errors),
-                "warnings": list(result.warnings),
-            }
-            if result.native_inspection is not None:
-                native = result.native_inspection
-                item["native_inspection"] = {
-                    "harness": native.harness,
-                    "profile": native.profile,
-                    "native_root": native.native_root,
-                    "activation": native.activation,
-                    "inventory_errors": list(native.inventory_errors),
-                    "packages": [
-                        {
-                            "package_id": package.package_id,
-                            "package_name": package.package_name,
-                            "marketplace": package.marketplace,
-                            "source_uri": package.source_uri,
-                            "source_provenance": package.source_provenance,
-                            "version": package.version,
-                            "scope": package.scope,
-                            "enabled": package.enabled,
-                            "native_root": package.native_root,
-                            "install_path": package.install_path,
-                            "status": package.status,
-                        }
-                        for package in native.packages
-                    ],
-                    "components": [
-                        {
-                            "kind": component.kind,
-                            "identifier": component.identifier,
-                            "status": component.status,
-                            "provenance": component.provenance,
-                            "resolved_path": component.resolved_path,
-                        }
-                        for component in native.components
-                    ],
-                }
+            item, harness_state = _serialize_harness(name, result)
+            state = max((state, harness_state), key=STATE_PRIORITY.__getitem__)
             harnesses[name] = item
         return {
             "operation": self.operation,
-            "state": self.state.value,
+            "state": state.value,
             "harnesses": harnesses,
             "notes": list(self.notes),
             "errors": list(self.errors),
         }
+
+
+def _serialize_harness(
+    name: str, result: HarnessResult
+) -> tuple[dict[str, object], ResultState]:
+    """Serialize one harness, qualifying OMP only from native inspection."""
+    native_unverified = name == "omp" and _omp_native_unverified(result)
+    harness_state = result.state
+    if native_unverified:
+        harness_state = max(
+            (harness_state, ResultState.DEGRADED),
+            key=STATE_PRIORITY.__getitem__,
+        )
+    item: dict[str, object] = {
+        "state": harness_state.value,
+        "installed_plugin_ids": list(result.installed_plugin_ids),
+        "capabilities": dict(sorted(result.capabilities.items())),
+        "components": _grouped_components(result.capabilities),
+        "converged": not native_unverified
+        and (
+            harness_state is ResultState.READY
+            or (
+                harness_state is ResultState.DEGRADED
+                and not has_undeclared_degradation(result)
+            )
+        ),
+        "verified": not native_unverified
+        and harness_state in {ResultState.READY, ResultState.DEGRADED},
+        "version": result.native_version,
+        "errors": list(result.errors),
+        "warnings": list(result.warnings),
+    }
+    if result.native_inspection is not None:
+        item["native_inspection"] = _serialize_native_inspection(
+            result.native_inspection
+        )
+    return item, harness_state
+
+
+def _serialize_native_inspection(native) -> dict[str, object]:
+    """Serialize the adapter's native inspection without inferring activation."""
+    return {
+        "harness": native.harness,
+        "profile": native.profile,
+        "native_root": native.native_root,
+        "activation": native.activation,
+        "inventory_errors": list(native.inventory_errors),
+        "packages": [
+            {
+                "package_id": package.package_id,
+                "package_name": package.package_name,
+                "marketplace": package.marketplace,
+                "source_uri": package.source_uri,
+                "source_provenance": package.source_provenance,
+                "version": package.version,
+                "scope": package.scope,
+                "enabled": package.enabled,
+                "native_root": package.native_root,
+                "install_path": package.install_path,
+                "status": package.status,
+            }
+            for package in native.packages
+        ],
+        "components": [
+            {
+                "kind": component.kind,
+                "identifier": component.identifier,
+                "status": component.status,
+                "provenance": component.provenance,
+                "resolved_path": component.resolved_path,
+            }
+            for component in native.components
+        ],
+    }
+
+
+def _omp_native_unverified(result: HarnessResult) -> bool:
+    """Package lifecycle success alone cannot qualify native reconciliation."""
+    native = result.native_inspection
+    return (
+        native is None
+        or bool(native.inventory_errors)
+        or not native.packages
+        or any(
+            package.status != "verified" or package.enabled is not True
+            for package in native.packages
+        )
+        or not native.components
+        or any(
+            component.status != "resolved"
+            or component.provenance == "not-observed"
+            or not component.resolved_path
+            for component in native.components
+        )
+    )
 
 
 _COMPONENT_KINDS = frozenset({"skill", "agent", "hook", "runtime", "guidance"})
