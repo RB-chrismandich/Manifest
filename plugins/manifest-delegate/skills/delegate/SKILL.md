@@ -86,22 +86,16 @@ endpoint is available and a read-only probe is permitted, run that probe before
 claiming the integration is verified. If producer behavior or live evidence is
 unavailable, label it unknown/unverified rather than infer a contract.
 
-For native-inventory briefs, the `NativeComponentInspection`,
-`NativePluginInspection`, and `NativeInspection` wire types are defined in
-`src/manifest_agent/omp_readonly/models.py:8-47`.
-OMP package/status production is defined in
-`src/manifest_agent/omp_readonly/inspection.py:106-199`; CLI JSON parsing and
-registry/runtime cross-checks are in
-`src/manifest_agent/omp_readonly/inventory.py:133-157,206-261`.
-The portable JSON entrypoint is
-`plugins/manifest-workspace/skills/deploy-reconcile/scripts/omp_native_inspection.py:1-10`.
-`src/manifest_agent/models.py:11-15` only re-exports the public models.
-Use serialized producer objects, as in
-`tests/python/plugin_runtime/test_reconcile_native_evidence.py`, which constructs
-typed dataclass input. This is offline model-derived evidence, not a captured
-live OMP response or activation proof. A live CLI shape probe alone does not
-verify the post-edit producer response; record that response separately before
-claiming live integration.
+For native-inventory briefs, use the authoritative producer and cite its exact
+`file:line` location in the task. The implementation sources belong to other
+bundles and are not shipped with this skill; if the source repository or
+producer cannot be inspected, label the contract unknown/unverified rather
+than infer it.
+
+Typed dataclass fixtures are offline model-derived evidence, not captured live
+responses or activation proof. A live CLI shape probe alone does not verify the
+post-edit producer response; record that response separately before claiming
+live integration.
 
 ## Second-opinion flow
 

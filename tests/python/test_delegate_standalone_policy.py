@@ -54,7 +54,7 @@ def _assert_tampered_policy_rejected(python, unpacked, env, cwd):
     assert "digest mismatch" in result.stderr
 
 
-def test_clean_standalone_artifact_setup_and_imports(tmp_path):
+def _install_standalone_runtime(tmp_path):
     artifact = tmp_path / "artifact"
     shutil.copytree(PLUGIN, artifact)
     wheels = _build_wheels(tmp_path, (artifact,), "wheels")
@@ -63,7 +63,6 @@ def test_clean_standalone_artifact_setup_and_imports(tmp_path):
         ["uv", "venv", "--no-project", "--python", sys.executable, str(venv)],
         check=True,
     )
-    python = venv / "bin/python"
     subprocess.run(
         [
             "uv",
@@ -72,11 +71,17 @@ def test_clean_standalone_artifact_setup_and_imports(tmp_path):
             "--offline",
             "--no-deps",
             "--python",
-            str(python),
+            str(venv / "bin/python"),
             str(next(wheels.glob("*.whl"))),
         ],
         check=True,
     )
+    return venv
+
+
+def test_clean_standalone_artifact_setup_and_imports(tmp_path):
+    venv = _install_standalone_runtime(tmp_path)
+    python = venv / "bin/python"
     env = dict(
         os.environ,
         HOME=str(tmp_path / "home"),
@@ -86,7 +91,7 @@ def test_clean_standalone_artifact_setup_and_imports(tmp_path):
     env.pop("MANIFEST_RUNTIME_PYTHON", None)
     env.pop("MANIFEST_DELEGATE_RUNTIME_REEXEC", None)
     # Delete the build input: the installed artifact must not use the checkout.
-    shutil.rmtree(artifact)
+    shutil.rmtree(tmp_path / "artifact")
     for args in (("setup",), ("task", "--help"), ("status", "--all")):
         result = subprocess.run(
             [str(venv / "bin/manifest-delegate"), *args],
@@ -108,3 +113,35 @@ def test_clean_standalone_artifact_setup_and_imports(tmp_path):
     assert result.returncode == 0, (result.stdout, result.stderr)
     assert not (tmp_path / "home/.claude/.venv").exists()
     _assert_tampered_policy_rejected(python, unpacked, env, tmp_path)
+
+
+def test_console_help_uses_bundled_policy_beside_bootstrap_source(tmp_path):
+    venv = _install_standalone_runtime(tmp_path)
+    home = tmp_path / "home"
+    policy_source = home / ".claude/scripts/manifest_model_policy"
+    policy_source.parent.mkdir(parents=True)
+    shutil.copytree(
+        ROOT / "configs/claude/scripts/manifest_model_policy", policy_source
+    )
+    trusted_runtime = home / ".claude/.venv/bin/python"
+    trusted_runtime.parent.mkdir(parents=True)
+    trusted_runtime.symlink_to(sys.executable)
+    env = dict(
+        os.environ,
+        HOME=str(home),
+        PYTHONPATH=str(policy_source.parent),
+        XDG_STATE_HOME=str(tmp_path / "state"),
+    )
+    env.pop("MANIFEST_RUNTIME_PYTHON", None)
+    env.pop("MANIFEST_DELEGATE_RUNTIME_REEXEC", None)
+
+    result = subprocess.run(
+        [str(venv / "bin/manifest-delegate"), "--help"],
+        env=env,
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("usage:")

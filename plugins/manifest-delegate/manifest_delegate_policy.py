@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from types import ModuleType
 
 POLICY_ARCHIVE = Path(__file__).resolve().parent / "vendor/model-policy.zip"
 POLICY_SHA256 = "d8fba2a689783826809843f4897fca069d626596f11fab541fb2ff19a9b27730"
@@ -174,12 +175,53 @@ def load_bundled_policy():
     return importlib.import_module("manifest_model_policy")
 
 
-def ensure_policy():
-    """Apply the same trust gate for console, module, and script entry points."""
+def _load_bundled_policy_with_home_source_hidden() -> ModuleType:
+    """Use the pinned bundle when bootstrap source shadows a standalone CLI."""
+    source_policy = _trusted_editable_policy_roots()[1]
+    source_init = source_policy / "__init__.py"
+    spec = importlib.util.find_spec("manifest_model_policy")
+    trusted_runtime = Path(os.path.expanduser("~/.claude/.venv/bin/python"))
+    if (
+        spec is None
+        or not spec.origin
+        or Path(spec.origin).resolve() != source_init
+        or not trusted_runtime.is_file()
+        or not os.access(trusted_runtime, os.X_OK)
+        or "manifest_model_policy" in sys.modules
+    ):
+        return load_bundled_policy()
+
+    source_directory = source_policy.parent.resolve()
+    source_paths: list[tuple[int, str]] = []
+    for index, entry in enumerate(sys.path):
+        try:
+            matches_source = Path(entry or os.curdir).resolve() == source_directory
+        except (OSError, RuntimeError, TypeError):
+            matches_source = False
+        if matches_source:
+            source_paths.append((index, entry))
+    if not source_paths:
+        return load_bundled_policy()
+
+    for index, _entry in reversed(source_paths):
+        del sys.path[index]
+    importlib.invalidate_caches()
+    try:
+        return load_bundled_policy()
+    finally:
+        for index, entry in source_paths:
+            sys.path.insert(index, entry)
+        importlib.invalidate_caches()
+
+
+def ensure_policy() -> ModuleType:
+    """Apply the source trust gate, then fall back to the pinned archive."""
     policy, invalid = _trusted_model_policy_distribution()
     if invalid:
         raise ImportError("invalid manifest-model-policy distribution")
-    return policy if policy is not None else load_bundled_policy()
+    return (
+        policy if policy is not None else _load_bundled_policy_with_home_source_hidden()
+    )
 
 
 def ensure_runtime_policy(entry_point):

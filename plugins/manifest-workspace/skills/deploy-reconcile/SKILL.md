@@ -24,8 +24,9 @@ Project/profile overrides, npm packages, and other marketplaces are unsupported.
 To export the same typed report, run `python3 scripts/omp_native_inspection.py`.
 Its stdout feeds `--native-inspection PATH` (or `-` for stdin). Neither command
 writes receipts or changes OMP state. The producer is an exact checked mirror of
-`src/manifest_agent/omp_readonly`; maintain it with
-`python3 tools/generate_omp_inventory.py` and verify with `--check` in the repo.
+`src/manifest_agent/omp_readonly`; from a repository checkout, maintain the
+mirror with the repository-level inventory generator and verify it in check
+mode.
 
 OMP 18.20 exposes no supported CLI component resolver. The report therefore
 marks package components unobserved and always uses `activation=not-observed`.
