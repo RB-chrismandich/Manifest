@@ -7,8 +7,22 @@ from . import backend
 
 _PROMPT_SUMMARY_MAX_CHARS = 2000
 
+# Evidence-only requirements are shared by local tasks, reviews, and remote briefs.
+_EVIDENCE_REQUIREMENTS = (
+    "\n\nEvidence requirements: For every cross-process API or wire contract "
+    "in the task brief, quote or cite the authoritative producer source with file:line. "
+    "Do not invent API fields or reconstruct contracts from memory. "
+    "Fixtures must be producer-derived or captured from real responses. "
+    "Matching self-authored fakes alone do not prove compatibility. "
+    "When a live endpoint exists and a read-only probe is permitted, "
+    "run the probe before claiming integration is verified. "
+    "If producer or live evidence is unavailable, mark the behavior unknown/unverified. "
+    "Offline model-derived evidence does not establish live integration or activation."
+)
+
 _TASK_OUTPUT_CONTRACT = (
-    "\n\nEnd your final message with exactly one fenced JSON block "
+    _EVIDENCE_REQUIREMENTS
+    + "\n\nEnd your final message with exactly one fenced JSON block "
     "(```json ... ```), and nothing after it, matching this shape:\n"
     "```json\n"
     "{\n"

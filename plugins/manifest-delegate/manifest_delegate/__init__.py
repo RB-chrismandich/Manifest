@@ -16,7 +16,11 @@ what `transfer._captured_sessions_for_cwd` reads. Patch the owning module:
 `delegate.transfer.SESSIONS_CAPTURE_FILE`.
 """
 
-from . import (  # noqa: F401  (submodules are the patch targets)
+from manifest_delegate_policy import ensure_policy
+
+ensure_policy()
+
+from . import (  # noqa: F401, E402  (submodules are the patch targets)
     backend,
     config,
     constants,
@@ -34,7 +38,7 @@ from . import (  # noqa: F401  (submodules are the patch targets)
     transfer,
     worker,
 )
-from .backend import (  # noqa: F401  (flat re-export)
+from .backend import (  # noqa: F401, E402  (flat re-export)
     DEFAULT_BUDGET_SECONDS,
     REGISTRY_PATH_ENV,
     _executable_missing,
@@ -49,7 +53,7 @@ from .backend import (  # noqa: F401  (flat re-export)
     resolve_budget,
     resolve_model_tier,
 )
-from .cli import (  # noqa: F401  (flat re-export)
+from .cli import (  # noqa: F401, E402  (flat re-export)
     _IMPLEMENTED_SUBCOMMANDS,
     _SUBCOMMAND_HELP,
     _add_review_args,
@@ -60,7 +64,7 @@ from .cli import (  # noqa: F401  (flat re-export)
     build_parser,
     main,
 )
-from .config import (  # noqa: F401  (flat re-export)
+from .config import (  # noqa: F401, E402  (flat re-export)
     FACTORY_DEFAULTS,
     GATE_BUDGET_CAP_SECONDS,
     _config_search_dirs,
@@ -79,7 +83,7 @@ from .config import (  # noqa: F401  (flat re-export)
     load_user_config,
     write_review_gate_config,
 )
-from .constants import (  # noqa: F401  (flat re-export)
+from .constants import (  # noqa: F401, E402  (flat re-export)
     CONFIG_DIR_ENV,
     DANGEROUS_TOKEN_RE,
     DEFAULT_REGISTRY_PATH,
@@ -94,7 +98,7 @@ from .constants import (  # noqa: F401  (flat re-export)
     XDG_CONFIG_DIR,
     err,
 )
-from .envelope import (  # noqa: F401  (flat re-export)
+from .envelope import (  # noqa: F401, E402  (flat re-export)
     ENVELOPE_ARRAY_FIELDS,
     ENVELOPE_OUTCOMES,
     FENCE_RE,
@@ -104,7 +108,7 @@ from .envelope import (  # noqa: F401  (flat re-export)
     _failure_envelope,
     normalize_envelope,
 )
-from .gate import (  # noqa: F401  (flat re-export)
+from .gate import (  # noqa: F401, E402  (flat re-export)
     _GATE_PROMPT_INSTRUCTIONS,
     _finishing_turn_has_edits,
     _gate_allow,
@@ -115,14 +119,14 @@ from .gate import (  # noqa: F401  (flat re-export)
     _gate_validate_findings,
     cmd_gate,
 )
-from .jobs_cli import (  # noqa: F401  (flat re-export)
+from .jobs_cli import (  # noqa: F401, E402  (flat re-export)
     _reap_raced_pgid,
     _terminate_job_processes,
     cmd_cancel,
     cmd_result,
     cmd_status,
 )
-from .jobstore import (  # noqa: F401  (flat re-export)
+from .jobstore import (  # noqa: F401, E402  (flat re-export)
     FALLBACK_PENDING_EXPIRES_AFTER_SECONDS,
     FALLBACK_PENDING_RESOLUTION_ACTIONS,
     NON_TERMINAL_STATES,
@@ -136,7 +140,7 @@ from .jobstore import (  # noqa: F401  (flat re-export)
     delegations_root,
     workspace_slug,
 )
-from .process import (  # noqa: F401  (flat re-export)
+from .process import (  # noqa: F401, E402  (flat re-export)
     _WORKER_LOCK_FDS,
     BACKEND_LOCK_FILENAME,
     BACKEND_PGID_FILENAME,
@@ -163,7 +167,7 @@ from .process import (  # noqa: F401  (flat re-export)
     _spawn_backend,
     _worker_alive,
 )
-from .readiness import (  # noqa: F401  (flat re-export)
+from .readiness import (  # noqa: F401, E402  (flat re-export)
     _AUTH_ERROR_PATTERN,
     _cmd_setup_gate_toggle,
     _init_readiness_row,
@@ -174,7 +178,7 @@ from .readiness import (  # noqa: F401  (flat re-export)
     _run_readiness_probe,
     probe_backend_readiness,
 )
-from .registry import (  # noqa: F401  (flat re-export)
+from .registry import (  # noqa: F401, E402  (flat re-export)
     RegistryError,
     _load_registry_raw,
     _validate_argv_template,
@@ -187,7 +191,7 @@ from .registry import (  # noqa: F401  (flat re-export)
     load_registry_or_exit,
     resolve_backend,
 )
-from .review import (  # noqa: F401  (flat re-export)
+from .review import (  # noqa: F401, E402  (flat re-export)
     _SEVERITY_RANK,
     ReviewDiffError,
     _build_review_prompt,
@@ -198,10 +202,10 @@ from .review import (  # noqa: F401  (flat re-export)
     assemble_review_diff,
     cmd_review,
 )
-from .setup import (  # noqa: F401  (flat re-export)
+from .setup import (  # noqa: F401, E402  (flat re-export)
     cmd_setup,
 )
-from .task import (  # noqa: F401  (flat re-export)
+from .task import (  # noqa: F401, E402  (flat re-export)
     _PROMPT_SUMMARY_MAX_CHARS,
     _build_task_extra,
     _build_task_prompt,
@@ -216,7 +220,7 @@ from .task import (  # noqa: F401  (flat re-export)
     _warn_if_second_opinion_same_backend,
     cmd_task,
 )
-from .transfer import (  # noqa: F401  (flat re-export)
+from .transfer import (  # noqa: F401, E402  (flat re-export)
     SESSIONS_CAPTURE_FILE,
     TRANSCRIPT_PATH_ENV,
     TRANSCRIPT_ROOTS,
@@ -232,7 +236,7 @@ from .transfer import (  # noqa: F401  (flat re-export)
     cmd_resume_candidate,
     cmd_transfer,
 )
-from .worker import (  # noqa: F401  (flat re-export)
+from .worker import (  # noqa: F401, E402  (flat re-export)
     _run_backend_and_finish,
     _run_backend_foreground,
     _spawn_worker,

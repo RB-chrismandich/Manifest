@@ -11,6 +11,7 @@ Run with: uv run --project configs/claude pytest tests/python/test_delegate_revi
 
 import json
 
+import pytest
 from _delegate_inproc import _valid_backend, delegate
 
 # ---------------------------------------------------------------------------
@@ -78,19 +79,20 @@ class TestReviewDiffAssembly:
         assert "payload" in diff
 
 
-class TestReviewCommand:
-    def _setup(self, tmp_path, monkeypatch):
-        monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-        monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
-        monkeypatch.setattr(
-            delegate.review,
-            "assemble_review_diff",
-            lambda scope, base, cwd=None: "diff --git a b\n",
-        )
+def _setup_review_command(tmp_path, monkeypatch):
+    monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
+    monkeypatch.setattr(
+        delegate.review,
+        "assemble_review_diff",
+        lambda scope, base, cwd=None: "diff --git a b\n",
+    )
 
+
+class TestReviewCommandInvocation:
     def test_review_forces_read_only_args(self, tmp_path, monkeypatch):
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
         captured = {}
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -123,7 +125,7 @@ class TestReviewCommand:
         `review --adversarial --background` against this repository's own
         working tree, 2026-08-16.
         """
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
         monkeypatch.setattr(
             delegate.review,
             "assemble_review_diff",
@@ -147,10 +149,13 @@ class TestReviewCommand:
         records = list(delegations.rglob("record.json")) if delegations.exists() else []
         assert records == [], f"oversize review left orphan job records: {records}"
 
+
+class TestReviewResultContract:
+    @pytest.mark.parametrize("adversarial", [None, [], ["wire contracts"]])
     def test_review_prompt_requires_parseable_result_envelope(
-        self, tmp_path, monkeypatch
+        self, tmp_path, monkeypatch, adversarial
     ):
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
         captured = {}
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -163,6 +168,7 @@ class TestReviewCommand:
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _ReviewArgs()
         args.backend = "antigravity"
+        args.adversarial = adversarial
 
         assert (
             delegate.cmd_review(args, [_valid_backend("antigravity")], {}, set()) == 0
@@ -176,6 +182,17 @@ class TestReviewCommand:
             in captured["prompt"]
         )
         assert '"findings"' in captured["prompt"]
+        for requirement in (
+            "every cross-process API or wire contract",
+            "authoritative producer source with file:line",
+            "Do not invent API fields",
+            "Fixtures must be producer-derived or captured from real responses",
+            "Matching self-authored fakes alone do not prove compatibility",
+            "live endpoint exists and a read-only probe is permitted",
+            "run the probe before claiming integration is verified",
+            "mark the behavior unknown/unverified",
+        ):
+            assert requirement in captured["prompt"]
 
     def test_review_omitting_findings_is_a_failure_not_a_clean_pass(
         self, tmp_path, monkeypatch, capsys
@@ -183,7 +200,7 @@ class TestReviewCommand:
         """Codex HIGH: a non-failure review envelope that OMITS findings is an
         incomplete result — `review` must not exit 0 reporting no issues. Mirror
         the Stop gate: convert it to a failure (exit 1)."""
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {"state": "completed", "envelope": {"outcome": "success"}}
@@ -197,7 +214,7 @@ class TestReviewCommand:
     def test_review_with_explicit_empty_findings_passes(self, tmp_path, monkeypatch):
         """The one legitimate pass: findings PRESENT and empty (reviewer looked,
         found nothing)."""
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {
@@ -215,7 +232,7 @@ class TestReviewCommand:
         """Codex HIGH (round 8): outcome=partial means the reviewer could not
         inspect the whole diff — even with empty findings it is NOT a clean
         review, so `review` must exit nonzero rather than report success."""
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {
@@ -234,7 +251,7 @@ class TestReviewCommand:
     ):
         """A reviewer that returns outcome=failure alongside valid findings did
         review the diff; the worker must not discard its output as malformed."""
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
         raw_output = (
             "```json\n"
             + json.dumps(
@@ -270,7 +287,7 @@ class TestReviewCommand:
         assert 'Never use "failure" to report defects' in contract
 
     def test_adversarial_switches_prompt_with_focus(self, tmp_path, monkeypatch):
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
         captured = {}
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -292,7 +309,7 @@ class TestReviewCommand:
     def test_findings_presented_severity_first_in_envelope(
         self, tmp_path, monkeypatch, capsys
     ):
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {
@@ -316,7 +333,7 @@ class TestReviewCommand:
         assert severities.index("high") < severities.index("low")
 
     def test_background_reuses_job_records(self, tmp_path, monkeypatch, capsys):
-        self._setup(tmp_path, monkeypatch)
+        _setup_review_command(tmp_path, monkeypatch)
         args = _ReviewArgs()
         args.backend = "codex"
         args.background = True

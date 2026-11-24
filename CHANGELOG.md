@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Delegate reliability (#1000, #983, #1032, #962, #960):** reconcile OMP
+  native inventories against receipts and degrade when inspection is unavailable;
+  package trusted delegate policy for standalone installs; bind Forge reviewer
+  schemas per task and honor host concurrency; cite producer contracts in briefs;
+  and stop idle review loops without suppressing later actionable feedback.
+
+- Require verified `uv` before bootstrap deploys Python runtime hooks. Guidance
+  launchers provision PyYAML through that runtime, avoiding Homebrew Python
+  dependency drift; existing direct hook registrations migrate to the uv command.
+
 - Run Claude and Cursor guidance hooks with `~/.claude/.venv/bin/python3 -I`
   using the locked runtime's PyYAML instead of resolving dependencies per hook.
   Migrate owned direct, Python and historical `uv run --with pyyaml` Bash

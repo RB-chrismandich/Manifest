@@ -12,6 +12,13 @@ Dispatches work to a backend registered in
 plugin directory resolved from this skill's location. This skill is
 the human-facing entry point; it never talks to a backend CLI directly.
 
+The release ships `vendor/model-policy.zip`, a SHA-256-pinned copy of the exact
+private policy distribution and locked pure-Python YAML dependency. A clean
+runtime does not need bootstrap, a checkout, or an index lookup. Regenerate
+from repository-owned sources with `vendor/build_policy.py`; update the loader's
+digest only after reviewing the producer diff. `--check` verifies byte-for-byte
+provenance without writing.
+
 ## Verbs
 
 - **Delegate a task** — `delegate.py task <prompt>` (or `--task-file FILE`,
@@ -63,8 +70,32 @@ backend (`prompting-codex.md`, `prompting-claude.md`,
 `prompting-agy.md`, `prompting-cursor.md`, `prompting-devin.md`, `prompting-jules.md`) — each
 covers that backend's cold-start assumptions,
 sandbox framing, and tier conventions. Do this before writing the prompt
-text; `delegate.py` itself only injects the envelope contract (FR-007,
-research.md D10), not backend-specific prompting guidance.
+text; `delegate.py` injects shared evidence requirements into local task,
+review (standard and adversarial), and remote task briefs. Local tasks and
+reviews also receive their existing result-envelope contract; remote submissions
+retain their separate pending-session contract. Backend-specific prompting
+guidance is not injected.
+
+## Evidence requirements for delegated briefs
+
+Any cross-process API or wire contract in a task brief MUST be quoted or
+precisely cited to its authoritative producer source using `file:line`.
+Fixtures MUST be derived from producer code or captured real responses;
+self-authored matching fakes alone do not establish compatibility. When a live
+endpoint is available and a read-only probe is permitted, run that probe before
+claiming the integration is verified. If producer behavior or live evidence is
+unavailable, label it unknown/unverified rather than infer a contract.
+
+For native-inventory briefs, use the authoritative producer and cite its exact
+`file:line` location in the task. The implementation sources belong to other
+bundles and are not shipped with this skill; if the source repository or
+producer cannot be inspected, label the contract unknown/unverified rather
+than infer it.
+
+Typed dataclass fixtures are offline model-derived evidence, not captured live
+responses or activation proof. A live CLI shape probe alone does not verify the
+post-edit producer response; record that response separately before claiming
+live integration.
 
 ## Second-opinion flow
 

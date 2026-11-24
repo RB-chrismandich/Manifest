@@ -76,11 +76,11 @@ def _simulate_process_behavior(control):
         time.sleep(sleep_s)
 
     if control.get("drain_stdin", True) and not sys.stdin.isatty():
-        # The dispatcher appends its fenced result contract to each task. A stub
-        # echoing the entire prompt would nest that fence inside its own envelope;
-        # retain only the submitted task for per-job attribution.
+        # The dispatcher appends evidence requirements before its fenced result
+        # contract. Strip that whole suffix so the envelope's attempted value
+        # contains only the submitted task for per-job attribution.
         with contextlib.suppress(Exception):
-            return sys.stdin.read().split("\n\nEnd your final message", 1)[0]
+            return sys.stdin.read().split("\n\nEvidence requirements:", 1)[0]
     return ""
 
 
