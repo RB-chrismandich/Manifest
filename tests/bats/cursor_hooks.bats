@@ -10,7 +10,15 @@ load '../test_helper/bats-assert/load'
 
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 HOOKS_JSON="$REPO_ROOT/configs/cursor/hooks.json"
-UV="$(command -v uv)"
+LOCKED_HOME="$REPO_ROOT/configs/claude"
+RUNTIME_PYTHON="$LOCKED_HOME/.venv/bin/python3"
+
+setup() {
+    [[ -x "$RUNTIME_PYTHON" ]] || fail "locked candidate runtime unavailable: $RUNTIME_PYTHON"
+    run env UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never uv sync --locked --check --offline --project "$LOCKED_HOME"
+    [[ "$status" -eq 0 ]] || fail "candidate runtime does not match its offline lock: $output"
+    export PATH="$LOCKED_HOME/.venv/bin:$PATH"
+}
 
 teardown() {
     if [[ -n "${SANDBOX:-}" && -d "$SANDBOX" ]]; then
@@ -60,7 +68,7 @@ for event, entries in d.get('hooks', {}).items():
     for e in entries:
         words = shlex.split(e['command'])
         script = words[0] if words and words[0].endswith(('.sh', '.py')) else None
-        if script is None and words and words[0].endswith('/uv'):
+        if script is None and words and words[0].endswith(('/uv', '/python3')):
             script = next((word for word in words[1:] if word.endswith('.py')), None)
         if script is None:
             continue
@@ -161,7 +169,7 @@ print('ok')
     printf '{"command":"git commit -m wip","cwd":"/tmp","sandbox":{}}' > "$payload_file"
 
     export HOME="$SANDBOX"
-    run "$UV" run --quiet --no-project --with pyyaml --python 3.11 "$REPO_ROOT/configs/claude/scripts/guidance_hint.py" < "$payload_file"
+    run "$RUNTIME_PYTHON" -I "$REPO_ROOT/configs/claude/scripts/guidance_hint.py" < "$payload_file"
     assert_success
     assert_output --partial "/project-verify"
 }
@@ -173,7 +181,7 @@ print('ok')
     printf '{"command":"ls -la","cwd":"/tmp","sandbox":{}}' > "$payload_file"
 
     export HOME="$SANDBOX"
-    run "$UV" run --quiet --no-project --with pyyaml --python 3.11 "$REPO_ROOT/configs/claude/scripts/guidance_hint.py" < "$payload_file"
+    run "$RUNTIME_PYTHON" -I "$REPO_ROOT/configs/claude/scripts/guidance_hint.py" < "$payload_file"
     assert_success
     assert_output ""
 }
