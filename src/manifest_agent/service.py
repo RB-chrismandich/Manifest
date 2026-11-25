@@ -10,7 +10,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from shlex import quote
-from typing import Any
+from typing import Any, Protocol
 
 from manifest_agent import __version__
 from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
@@ -74,6 +74,16 @@ _RETIRED_EXECUTABLE = "graphify"
 _GRAPHIFY_TOOL_HEADER = re.compile(r"^graphifyy\s+v[^\s]+\s+\([^)]+\)$")
 
 
+class ReleaseResolver(Protocol):
+    def __call__(
+        self,
+        selector: str | Path,
+        *,
+        source_commit: str | None = None,
+        source_checkout: Path | None = None,
+    ) -> ResolvedRelease: ...
+
+
 class ManifestService:
     """Coordinate native adapters around one immutable desired state."""
 
@@ -88,7 +98,7 @@ class ManifestService:
         adapters: Mapping[str, HarnessAdapter] | None = None,
         receipt_path: Path | None = None,
         snapshot_root: Path | None = None,
-        release_resolver: Callable[[str | Path], ResolvedRelease] = resolve_release,
+        release_resolver: ReleaseResolver = resolve_release,
         contract_loader: Callable[[Path], tuple[Any, ...]] = load_domain_contracts,
         addon_contract_loader: Callable[[Path], tuple[Any, ...]] = load_addon_contracts,
         capability_planner: Callable[[Sequence[Any], Sequence[str]], Any] = (
@@ -507,7 +517,12 @@ class ManifestService:
         return report("uninstall", ordered(results, HARNESS_ORDER), notes)
 
     def _desired_state(
-        self, receipt_release: str | None = None, *, exact_release: bool = False
+        self,
+        receipt_release: str | None = None,
+        *,
+        exact_release: bool = False,
+        source_commit: str | None = None,
+        source_checkout: Path | None = None,
     ) -> tuple[DesiredState | None, str | None]:
         selector: str | Path = (
             receipt_release
@@ -515,7 +530,14 @@ class ManifestService:
             else self.source or self.release or receipt_release or __version__
         )
         try:
-            resolved = self.release_resolver(selector)
+            if source_commit is None and source_checkout is None:
+                resolved = self.release_resolver(selector)
+            else:
+                resolved = self.release_resolver(
+                    selector,
+                    source_commit=source_commit,
+                    source_checkout=source_checkout,
+                )
             contracts = self.contract_loader(resolved.release_root / "plugins")
             addon_contracts = self.addon_contract_loader(
                 resolved.release_root / "plugins"

@@ -15,6 +15,7 @@ from manifest_agent.models import (
     HarnessReceipt,
     HarnessResult,
     InstallationReceipt,
+    NativeInspection,
     OwnedEntry,
     ResultState,
 )
@@ -23,7 +24,7 @@ from manifest_agent.ownership import (
     advance_owned_file_entry,
     ownership_key_path,
 )
-from manifest_agent.process import redact_text
+from manifest_agent.process import CommandRunner, redact_text
 from manifest_agent.service_redaction import _safe_result
 from manifest_agent.state import write_receipt_atomic
 
@@ -94,39 +95,7 @@ class ServiceReport:
             }
             if result.native_inspection is not None:
                 native = result.native_inspection
-                item["native_inspection"] = {
-                    "harness": native.harness,
-                    "profile": native.profile,
-                    "native_root": native.native_root,
-                    "activation": native.activation,
-                    "inventory_errors": list(native.inventory_errors),
-                    "packages": [
-                        {
-                            "package_id": package.package_id,
-                            "package_name": package.package_name,
-                            "marketplace": package.marketplace,
-                            "source_uri": package.source_uri,
-                            "source_provenance": package.source_provenance,
-                            "version": package.version,
-                            "scope": package.scope,
-                            "enabled": package.enabled,
-                            "native_root": package.native_root,
-                            "install_path": package.install_path,
-                            "status": package.status,
-                        }
-                        for package in native.packages
-                    ],
-                    "components": [
-                        {
-                            "kind": component.kind,
-                            "identifier": component.identifier,
-                            "status": component.status,
-                            "provenance": component.provenance,
-                            "resolved_path": component.resolved_path,
-                        }
-                        for component in native.components
-                    ],
-                }
+                item["native_inspection"] = _native_inspection_dict(native)
             harnesses[name] = item
         return {
             "operation": self.operation,
@@ -135,6 +104,42 @@ class ServiceReport:
             "notes": list(self.notes),
             "errors": list(self.errors),
         }
+
+
+def _native_inspection_dict(native: NativeInspection) -> dict[str, object]:
+    return {
+        "harness": native.harness,
+        "profile": native.profile,
+        "native_root": native.native_root,
+        "activation": native.activation,
+        "inventory_errors": list(native.inventory_errors),
+        "packages": [
+            {
+                "package_id": package.package_id,
+                "package_name": package.package_name,
+                "marketplace": package.marketplace,
+                "source_uri": package.source_uri,
+                "source_provenance": package.source_provenance,
+                "version": package.version,
+                "scope": package.scope,
+                "enabled": package.enabled,
+                "native_root": package.native_root,
+                "install_path": package.install_path,
+                "status": package.status,
+            }
+            for package in native.packages
+        ],
+        "components": [
+            {
+                "kind": component.kind,
+                "identifier": component.identifier,
+                "status": component.status,
+                "provenance": component.provenance,
+                "resolved_path": component.resolved_path,
+            }
+            for component in native.components
+        ],
+    }
 
 
 _COMPONENT_KINDS = frozenset({"skill", "agent", "hook", "runtime", "guidance"})
@@ -257,24 +262,102 @@ def with_source_fingerprints(desired: DesiredState) -> DesiredState:
     )
 
 
-def _tree_checksum(root: Path) -> str:
+def _bundle_relative_paths(root: Path, repository: Path | None) -> list[str]:
+    if repository is None:
+        return sorted(
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if not _is_python_cache_path(path.relative_to(root).as_posix())
+        )
+    result = CommandRunner().run(
+        (
+            "git",
+            "-C",
+            str(root),
+            "ls-files",
+            "-z",
+            "--cached",
+            "--full-name",
+        )
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"unable to inventory tracked bundle files: {result.stderr.strip()}"
+        )
+    prefix = root.relative_to(repository).as_posix()
+    if prefix == ".":
+        prefix = ""
+    entries: set[str] = set()
+    for tracked in result.stdout.split("\0"):
+        if not tracked:
+            continue
+        if prefix:
+            if not tracked.startswith(prefix + "/"):
+                continue
+            relative = tracked[len(prefix) + 1 :]
+        else:
+            relative = tracked
+        if not relative or _is_python_cache_path(relative):
+            continue
+        entries.add(relative)
+        parts = relative.split("/")
+        for index in range(1, len(parts)):
+            parent = "/".join(parts[:index])
+            if not _is_python_cache_path(parent):
+                entries.add(parent)
+    return sorted(entries)
+
+
+def _digest_bundle_paths(root: Path, relative_paths: list[str]) -> str:
     digest = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root).as_posix().encode()
-        digest.update(len(relative).to_bytes(8, "big"))
-        digest.update(relative)
+    for relative in relative_paths:
+        path = root / relative
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise RuntimeError(f"unable to inspect bundle path {relative!r}") from error
+        encoded = relative.encode("utf-8", errors="surrogateescape")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
         if path.is_symlink():
-            target = path.readlink().as_posix().encode()
+            target = (
+                path.readlink().as_posix().encode("utf-8", errors="surrogateescape")
+            )
             digest.update(b"l" + len(target).to_bytes(8, "big") + target)
             continue
-        if path.is_dir():
+        if metadata.st_mode & 0o170000 == 0o040000:
             digest.update(b"d")
             continue
         digest.update(b"f")
-        with path.open("rb") as stream:
-            while chunk := stream.read(1024 * 1024):
-                digest.update(chunk)
+        try:
+            with path.open("rb") as stream:
+                while chunk := stream.read(1024 * 1024):
+                    digest.update(chunk)
+        except OSError as error:
+            raise RuntimeError(f"unable to read bundle file {relative!r}") from error
     return digest.hexdigest()
+
+
+def _tree_checksum(root: Path) -> str:
+    root = root.expanduser().resolve()
+    repository = _git_checkout_root(root)
+    return _digest_bundle_paths(root, _bundle_relative_paths(root, repository))
+
+
+def _git_checkout_root(path: Path) -> Path | None:
+    candidate = path
+    while True:
+        if (candidate / ".git").exists():
+            return candidate
+        if candidate.parent == candidate:
+            return None
+        candidate = candidate.parent
+
+
+def _is_python_cache_path(relative: str) -> bool:
+    return "__pycache__" in relative.split("/") or relative.endswith((".pyc", ".pyo"))
 
 
 def build_receipt(

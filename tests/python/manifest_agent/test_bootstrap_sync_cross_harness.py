@@ -1,6 +1,5 @@
 """Multi-harness transactions: prepare-all, resume, and compensation."""
 
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -13,15 +12,17 @@ from manifest_agent.bootstrap_sync import (
     _serialize_handle,
     _write_journal,
 )
-from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import ResultState
-from manifest_agent.release import resolve_release
+from manifest_agent.release import ReleaseError
 from manifest_agent.state import read_receipt, receipt_digest
 from tests.python.manifest_agent._bootstrap_sync_helpers import (
     ReleasePin,
     bump_release,
     legacy_skill_home,
     three_harness_service,
+)
+from tests.python.manifest_agent._bootstrap_sync_local_helpers import (
+    _installed_local_service,
 )
 from tests.python.manifest_agent.test_service_install import (
     FakeAdapter,
@@ -321,44 +322,6 @@ def test_changed_target_rebinds_empty_preparation_journal(
     assert not journal.exists()
 
 
-def _local_git_checkout(tmp_path: Path) -> Path:
-    repo = tmp_path / "checkout"
-    (repo / "tools").mkdir(parents=True)
-    for name in DOMAIN_BUNDLES:
-        bundle = repo / "plugins" / name
-        bundle.mkdir(parents=True)
-        (bundle / "payload.txt").write_text(f"{name}\n", encoding="utf-8")
-    (repo / "tools" / "generate_plugin_views.py").write_text(
-        "import sys\nraise SystemExit(0 if '--check' in sys.argv else 2)\n",
-        encoding="utf-8",
-    )
-    for cmd in (
-        ("init",),
-        ("config", "user.email", "manifest@example.invalid"),
-        ("config", "user.name", "Manifest Test"),
-        ("add", "."),
-        ("commit", "-m", "initial"),
-    ):
-        subprocess.run(("git", "-C", str(repo), *cmd), check=True, capture_output=True)
-    return repo
-
-
-def _installed_local_service(
-    service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg-state"))
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
-    repo = _local_git_checkout(tmp_path)
-    claude = FakeAdapter("claude", harness_result("claude"))
-    codex = FakeAdapter("codex", harness_result("codex"))
-    service = service_factory({"claude": claude, "codex": codex})
-    service.source = repo
-    service.release_resolver = resolve_release
-    assert service.install().state is ResultState.READY
-    return service, repo, claude, codex
-
-
 def test_local_directory_checkout_mutation_runs_forward_only_bootstrap_sync(
     service_factory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -435,13 +398,19 @@ def test_unresolvable_prior_release_remains_fail_closed_after_recorded_mutation(
     codex.calls.clear()
     service.harnesses = ("codex",)
     legacy_skill_home(tmp_path, monkeypatch)
+    original_resolver = service.release_resolver
+
+    def fail_pinned_release(selector, *, source_commit=None, source_checkout=None):
+        if source_commit is not None:
+            raise ReleaseError("fixture pinned release unavailable")
+        return original_resolver(selector)
+
+    service.release_resolver = fail_pinned_release
 
     result = service.bootstrap_sync()
 
-    assert result.state is ResultState.BLOCKED
-    assert (
-        "prior release is unavailable for cross-harness compensation"
-        in result.harnesses["codex"].errors[0]
-    )
+    error = result.harnesses["codex"].errors[0]
+    assert "prior release is unavailable for cross-harness compensation:" in error
+    assert "ReleaseError: fixture pinned release unavailable" in error
     assert journal.read_text(encoding="utf-8") == journal_before
     assert read_receipt(service.receipt_path) == previous

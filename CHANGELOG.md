@@ -2,9 +2,16 @@
 
 ## Unreleased
 
+- Exclude source `.venv`, Python cache directories, and bytecode from Claude
+  config deployment while preserving an existing destination runtime during
+  backup-and-replace; dot-prefixed config such as `.plans` remains deployed.
 - Require verified `uv` before bootstrap deploys Python runtime hooks. Guidance
   launchers provision PyYAML through that runtime, avoiding Homebrew Python
   dependency drift; existing direct hook registrations migrate to the uv command.
+
+- Deploy Antigravity's shared `~/.gemini/config` link before Codex native plugin
+  sync in both merge and full deployment paths, repairing dangling links before
+  the native adapter inspects them.
 
 - **Security (#1001):** generated CLI hook wrappers preserve pre-hook and CLI
   exit statuses, terminate timed-out hook process groups, and prevent post-hooks
