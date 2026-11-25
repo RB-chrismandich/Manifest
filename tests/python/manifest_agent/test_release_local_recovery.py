@@ -146,6 +146,9 @@ def test_receipt_pinned_local_release_rejects_invalid_existing_worktree_cache(
     cached = resolve_release(
         f"local-{commit[:12]}", source_commit=commit, source_checkout=repo
     ).release_root
+    # The cache is a fresh clone: it carries no committer identity of its own.
+    _git(cached, "config", "user.email", "manifest@example.invalid")
+    _git(cached, "config", "user.name", "Manifest Test")
 
     if corruption == "wrong_head":
         (cached / "plugins" / "bundle.txt").write_text(
