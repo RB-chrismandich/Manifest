@@ -74,6 +74,21 @@ def test_gitlink_digest_is_stable_across_submodule_initialization(tmp_path):
     assert _git(repo, "write-tree") == index_tree
 
 
+def test_plain_clone_without_submodule_objects_still_resolves(tmp_path):
+    """A clone made without --recurse-submodules holds no submodule objects."""
+    repo = _local_checkout_with_submodule(tmp_path)
+    clone = tmp_path / "plain-clone"
+    _git(tmp_path, "clone", "--no-local", str(repo), str(clone))
+    assert not (clone / "vendor" / "dependency" / ".git").exists()
+    assert not (clone / ".git" / "modules").exists()
+
+    release = resolve_release(clone)
+
+    assert release.source_commit == _git(repo, "rev-parse", "HEAD")
+    assert release.source_dirty is False
+    assert release.archive_sha256 == deterministic_tree_sha256(clone)
+
+
 def test_local_release_cache_identity_matches_initialized_and_uninitialized_source(
     monkeypatch, tmp_path
 ):

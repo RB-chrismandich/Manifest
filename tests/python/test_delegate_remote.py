@@ -198,6 +198,58 @@ def test_accepted_submission_is_pending_not_completed(
     assert "envelope" not in record
 
 
+def test_remote_task_brief_requires_evidence_without_local_result_contract(
+    remote, cli_adapter, isolated, monkeypatch, capsys
+):
+    """Exercise the remote bypass through the command, not the local builder."""
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        if argv == ["jules", "remote", "list", "--repo"]:
+            return cli_adapter.CommandResult(0, "example/repo\n", "")
+        return cli_adapter.CommandResult(
+            0, "Created https://jules.google.com/session/123", ""
+        )
+
+    monkeypatch.setattr(remote.jules_cli, "run", run)
+    args = delegate.cli.build_parser().parse_args(
+        [
+            "task",
+            "--backend",
+            "jules",
+            "--remote-write",
+            "--repo",
+            "example/repo",
+            "--remote-base",
+            "provider-selected",
+            "--json",
+            "implement the requested task",
+        ]
+    )
+    assert delegate.task.cmd_task(args, delegate.load_registry(), {}, set()) == 0
+    assert len(calls) == 2
+    assert calls[1][0] == ["jules", "remote", "new", "--repo", "example/repo"]
+    prompt = calls[1][1]["payload"].decode("utf-8")
+    assert prompt.startswith("implement the requested task\n\n")
+    for requirement in (
+        "every cross-process API or wire contract",
+        "authoritative producer source with file:line",
+        "Do not invent API fields",
+        "Fixtures must be producer-derived or captured from real responses",
+        "Matching self-authored fakes alone do not prove compatibility",
+        "live endpoint exists and a read-only probe is permitted",
+        "run the probe before claiming integration is verified",
+        "mark the behavior unknown/unverified",
+        "does not establish live integration or activation",
+    ):
+        assert requirement in prompt
+    assert "End your final message with exactly one fenced JSON block" not in prompt
+    record = json.loads(capsys.readouterr().out)
+    assert record["state"] == "remote_pending"
+    assert "envelope" not in record
+
+
 @pytest.mark.parametrize(
     "extra",
     [

@@ -9,6 +9,7 @@ import sys
 
 from . import backend, config, jules_cli
 from .jobstore_files import _atomic_write_0600, _fsync_directory
+from .task_prompt import _EVIDENCE_REQUIREMENTS
 
 
 def is_remote(entry: dict) -> bool:
@@ -123,7 +124,7 @@ def cmd_task(
             file=sys.stderr,
         )
         return 2
-    payload = prompt.encode("utf-8")
+    payload = (prompt.rstrip() + _EVIDENCE_REQUIREMENTS).encode("utf-8")
     error = backend.check_payload_limits(entry, payload)
     if error:
         print(f"delegate: {error}", file=sys.stderr)

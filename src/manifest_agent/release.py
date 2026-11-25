@@ -125,11 +125,9 @@ def _digest_checkout_entry(
     if gitlink_commit is not None:
         digest.update(b"g")
         digest.update(gitlink_commit.encode("ascii"))
-        digest.update(
-            bytes.fromhex(
-                _gitlink_tree_sha256(root, relative, gitlink_commit, runner, root)
-            )
-        )
+        tree = _gitlink_tree_sha256(root, relative, gitlink_commit, runner, root)
+        if tree is not None:
+            digest.update(bytes.fromhex(tree))
         return
     try:
         metadata = path.lstat()
@@ -156,7 +154,13 @@ def _gitlink_tree_sha256(
     runner: CommandRunner,
     worktree: Path | None,
     parent_commit: str | None = None,
-) -> str:
+) -> str | None:
+    """Digest a recorded submodule tree, or None when no local objects hold it.
+
+    A plain clone made without --recurse-submodules has neither a submodule
+    checkout nor its objects. The gitlink commit already pins that content, so
+    such a checkout stays digestible with the commit-only encoding.
+    """
     path = worktree / relative if worktree is not None else None
     if path is not None and _is_git_checkout(path, runner):
         if _checkout_is_clean_at_commit(path, commit, runner):
@@ -167,9 +171,7 @@ def _gitlink_tree_sha256(
         repository, parent_commit, commit, relative, runner
     )
     if object_repository is None:
-        raise ReleaseError(
-            f"unable to read recorded submodule tree {relative!r} at {commit}"
-        )
+        return None
     return _git_commit_tree_sha256(object_repository, commit, runner, None)
 
 
@@ -230,13 +232,11 @@ def _git_commit_tree_sha256(
         if mode == "160000":
             digest.update(b"g")
             digest.update(object_id.encode("ascii"))
-            digest.update(
-                bytes.fromhex(
-                    _gitlink_tree_sha256(
-                        repository, relative, object_id, runner, worktree, commit
-                    )
-                )
+            tree = _gitlink_tree_sha256(
+                repository, relative, object_id, runner, worktree, commit
             )
+            if tree is not None:
+                digest.update(bytes.fromhex(tree))
         else:
             payload = blobs[object_id]
             if mode == "120000":
@@ -278,44 +278,6 @@ def _verify_generated_views(root: Path, runner: CommandRunner) -> None:
     )
     if generated.returncode != 0:
         raise ReleaseError("local source generated views are not clean")
-
-
-def _resolve_local(candidate: Path) -> ResolvedRelease:
-    root = candidate.expanduser().resolve()
-    if not root.is_dir() or not (root / ".git").exists():
-        raise ReleaseError(f"local source is not a git checkout: {root}")
-    runner = CommandRunner()
-    head = runner.run(("git", "-C", str(root), "rev-parse", "HEAD"))
-    if head.returncode != 0 or not _COMMIT.fullmatch(head.stdout.strip()):
-        raise ReleaseError("unable to resolve immutable local checkout HEAD")
-    commit = head.stdout.strip().lower()
-    _verify_generated_views(root, runner)
-
-    status_result = runner.run(
-        (
-            "git",
-            "-C",
-            str(root),
-            "status",
-            "--porcelain",
-            "--untracked-files=all",
-            "--ignore-submodules=none",
-        )
-    )
-    if status_result.returncode != 0:
-        raise ReleaseError("unable to inspect local checkout status")
-    return ResolvedRelease(
-        version=f"local-{commit[:12]}",
-        source_commit=commit,
-        source=str(root),
-        marketplace_source=MarketplaceSource(
-            MarketplaceSourceKind.LOCAL, str(root), None
-        ),
-        release_root=root,
-        repository_url=REPOSITORY_URL,
-        source_dirty=bool(status_result.stdout),
-        archive_sha256=deterministic_tree_sha256(root),
-    )
 
 
 def _read_git_blobs(repository: Path, object_ids: list[str]) -> dict[str, bytes]:
