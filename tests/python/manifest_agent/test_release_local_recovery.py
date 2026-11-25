@@ -147,10 +147,15 @@ def test_receipt_pinned_local_release_rejects_invalid_existing_worktree_cache(
         f"local-{commit[:12]}", source_commit=commit, source_checkout=repo
     ).release_root
 
+    def _configure_cached_identity() -> None:
+        _git(cached, "config", "user.email", "manifest@example.invalid")
+        _git(cached, "config", "user.name", "Manifest Test")
+
     if corruption == "wrong_head":
         (cached / "plugins" / "bundle.txt").write_text(
             "wrong cached head\n", encoding="utf-8"
         )
+        _configure_cached_identity()
         _git(cached, "add", "plugins/bundle.txt")
         _git(cached, "commit", "-m", "wrong cached head")
     elif corruption == "dirty_content":
@@ -161,6 +166,7 @@ def test_receipt_pinned_local_release_rejects_invalid_existing_worktree_cache(
         (cached / "tools" / "generate_plugin_views.py").write_text(
             "raise SystemExit(1)\n", encoding="utf-8"
         )
+        _configure_cached_identity()
         _git(cached, "add", "tools/generate_plugin_views.py")
         _git(cached, "commit", "-m", "invalid generated view validator")
 
