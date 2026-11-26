@@ -5,6 +5,7 @@ priority ordering, and one-shot emission. US3 (T022) extends this file with
 preference-gating and rate-limit tests. Written before the implementation.
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -436,3 +437,29 @@ def test_load_last_fired_coerces_naive_timestamp_to_utc(tmp_path, monkeypatch):
     # and it now participates in the window math without raising
     suppressed = gh.apply_gating([REMINDER_RULE], all_on(), "high-context", loaded, NOW)
     assert suppressed == []  # 10m ago < 30m window
+
+
+def test_missing_yaml_dependency_exits_silently_before_hook_processing():
+    script = Path(gh.__file__).resolve()
+    blocker = (
+        "import importlib.abc, runpy, sys\n"
+        "class BlockYaml(importlib.abc.MetaPathFinder):\n"
+        "    def find_spec(self, fullname, path=None, target=None):\n"
+        "        if fullname == 'yaml':\n"
+        "            raise ModuleNotFoundError('blocked yaml', name='yaml')\n"
+        "sys.meta_path.insert(0, BlockYaml())\n"
+        "script = sys.argv[1]\n"
+        "sys.argv = [script]\n"
+        "runpy.run_path(script, run_name='__main__')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", blocker, str(script)],
+        input='{"tool_name":"Bash","tool_input":{"command":"git commit"}}',
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert result.stderr == ""

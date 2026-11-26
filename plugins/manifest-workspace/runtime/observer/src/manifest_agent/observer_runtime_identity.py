@@ -8,6 +8,7 @@ import json
 import os
 import platform as host_platform
 import stat
+import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -66,24 +67,105 @@ def read_regular(path: Path) -> bytes:
         return stream.read()
 
 
-def bundle_tree_sha256(root: Path) -> str:
+def _bundle_relative_paths(root: Path, repository: Path | None) -> list[str]:
+    if repository is None:
+        return sorted(
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if not _is_python_cache_path(path.relative_to(root).as_posix())
+        )
+    result = subprocess.run(
+        (
+            "git",
+            "-C",
+            str(root),
+            "ls-files",
+            "-z",
+            "--cached",
+            "--full-name",
+        ),
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"unable to inventory tracked bundle files: {os.fsdecode(result.stderr).strip()}"
+        )
+    prefix = root.relative_to(repository).as_posix()
+    if prefix == ".":
+        prefix = ""
+    entries: set[str] = set()
+    for tracked in os.fsdecode(result.stdout).split("\0"):
+        if not tracked:
+            continue
+        if prefix:
+            if not tracked.startswith(prefix + "/"):
+                continue
+            relative = tracked[len(prefix) + 1 :]
+        else:
+            relative = tracked
+        if not relative or _is_python_cache_path(relative):
+            continue
+        entries.add(relative)
+        parts = relative.split("/")
+        for index in range(1, len(parts)):
+            parent = "/".join(parts[:index])
+            if not _is_python_cache_path(parent):
+                entries.add(parent)
+    return sorted(entries)
+
+
+def _digest_bundle_paths(root: Path, relative_paths: list[str]) -> str:
     digest = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root).as_posix().encode()
-        digest.update(len(relative).to_bytes(8, "big"))
-        digest.update(relative)
+    for relative in relative_paths:
+        path = root / relative
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise RuntimeError(f"unable to inspect bundle path {relative!r}") from error
+        encoded = relative.encode("utf-8", errors="surrogateescape")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
         if path.is_symlink():
-            target = path.readlink().as_posix().encode()
+            target = (
+                path.readlink().as_posix().encode("utf-8", errors="surrogateescape")
+            )
             digest.update(b"l" + len(target).to_bytes(8, "big") + target)
             continue
-        if path.is_dir():
+        if metadata.st_mode & 0o170000 == 0o040000:
             digest.update(b"d")
             continue
         digest.update(b"f")
-        with path.open("rb") as stream:
-            while chunk := stream.read(1024 * 1024):
-                digest.update(chunk)
+        try:
+            with path.open("rb") as stream:
+                while chunk := stream.read(1024 * 1024):
+                    digest.update(chunk)
+        except OSError as error:
+            raise RuntimeError(f"unable to read bundle file {relative!r}") from error
     return digest.hexdigest()
+
+
+def bundle_tree_sha256(root: Path, *, portable: bool = False) -> str:
+    """Hash tracked checkout files or a portable bundle without Python caches."""
+    root = root.expanduser().resolve()
+    repository = None if portable else _git_checkout_root(root)
+    return _digest_bundle_paths(root, _bundle_relative_paths(root, repository))
+
+
+def _git_checkout_root(path: Path) -> Path | None:
+    candidate = path
+    while True:
+        if (candidate / ".git").exists():
+            return candidate
+        if candidate.parent == candidate:
+            return None
+        candidate = candidate.parent
+
+
+def _is_python_cache_path(relative: str) -> bool:
+    return "__pycache__" in relative.split("/") or relative.endswith((".pyc", ".pyo"))
 
 
 def platform_id() -> str:
@@ -247,7 +329,7 @@ def validate_record(record: dict, binding: ObserverBinding, root: Path) -> None:
 def resolve_observer_runtime(bundle_root: Path, *, receipt_path: Path, environ) -> Path:
     """Resolve an installed interpreter only from an authoritative receipt."""
     receipt = json.loads(read_regular(receipt_path))
-    checksum = bundle_tree_sha256(bundle_root)
+    checksum = bundle_tree_sha256(bundle_root, portable=True)
     if receipt.get("bundle_checksums", {}).get("manifest-workspace") != checksum:
         raise ValueError("installed observer bundle self-hash does not match receipt")
     project = bundle_root / "runtime/observer"

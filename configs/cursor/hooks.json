@@ -3,7 +3,7 @@
   "hooks": {
     "beforeShellExecution": [
       {
-        "command": "~/.cursor/scripts/guidance_hint.py",
+        "command": "~/.claude/.venv/bin/python3 -I ~/.cursor/scripts/guidance_hint.py",
         "type": "command"
       }
     ],

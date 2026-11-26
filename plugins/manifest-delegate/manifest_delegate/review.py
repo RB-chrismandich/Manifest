@@ -8,13 +8,15 @@ import time
 from . import backend, jobstore, registry, review_git, task, worker
 from . import envelope as envelope_mod
 from .review_git import ReviewDiffError
+from .task_prompt import _EVIDENCE_REQUIREMENTS
 
 MAX_UNTRACKED_FILES = 128
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 _REVIEW_OUTPUT_CONTRACT = (
-    "\n\nDo not create artifacts, plans, files, or ask for approval. This is a "
+    _EVIDENCE_REQUIREMENTS
+    + "\n\nDo not create artifacts, plans, files, or ask for approval. This is a "
     "single-turn read-only review; inspect the diff and return the final verdict now. "
     "End your final message with exactly one fenced JSON block "
     "(```json ... ```), and nothing after it, matching this shape:\n"

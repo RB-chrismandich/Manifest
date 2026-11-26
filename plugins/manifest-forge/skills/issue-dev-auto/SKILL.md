@@ -149,8 +149,14 @@ deterministic primitives so the (currently gated) irreversible step is never a j
    flight; monitoring interleaves — FR-014, though the cross-host mutual-exclusion property
    this is meant to provide is not actually enforced in production — see step 2's DEGRADED
    case), resets the empty-run counter on work / increments on idle passes,
-   and **stops after 5 consecutive empty runs** (FR-018/018a). Every PR that clears to
-   `merge` surfaces for a human rather than being merged. `/loop /issue-dev-auto`
+   and **stops after 5 consecutive empty runs** (FR-018/018a). If every managed PR is
+   `hand-human`, a separate outer counter compares per-PR fingerprint-state
+   `observed_at` values across invocations and announces `loop idle: waiting on human`
+   once on the third identical no-progress turn. Each invocation still performs
+   one read-only observation per PR; changed feedback reopens work, and failed
+   observation does not count as idle. This 3-turn limit is separate from the
+   3 revision cycles above and the 5-empty-run inner stop. Every PR that clears
+   to `merge` surfaces for a human rather than being merged. `/loop /issue-dev-auto`
    remains the outer re-invoker that gives each pass fresh context.
 
 Every action appends a redacted `../../runtime/bin/audit_log.sh` record (FR-021/022).

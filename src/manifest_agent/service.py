@@ -10,7 +10,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from shlex import quote
-from typing import Any
+from typing import Any, Protocol
 
 from manifest_agent import __version__
 from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
@@ -79,6 +79,16 @@ _RETIRED_EXECUTABLE = "graphify"
 _GRAPHIFY_TOOL_HEADER = re.compile(r"^graphifyy\s+v[^\s]+\s+\([^)]+\)$")
 
 
+class ReleaseResolver(Protocol):
+    def __call__(
+        self,
+        selector: str | Path,
+        *,
+        source_commit: str | None = None,
+        source_checkout: Path | None = None,
+    ) -> ResolvedRelease: ...
+
+
 class ManifestService:
     """Coordinate native adapters around one immutable desired state."""
 
@@ -93,7 +103,7 @@ class ManifestService:
         adapters: Mapping[str, HarnessAdapter] | None = None,
         receipt_path: Path | None = None,
         snapshot_root: Path | None = None,
-        release_resolver: Callable[[str | Path], ResolvedRelease] = resolve_release,
+        release_resolver: ReleaseResolver = resolve_release,
         contract_loader: Callable[[Path], tuple[Any, ...]] = load_domain_contracts,
         addon_contract_loader: Callable[[Path], tuple[Any, ...]] = load_addon_contracts,
         capability_planner: Callable[[Sequence[Any], Sequence[str]], Any] = (
@@ -532,9 +542,20 @@ class ManifestService:
         return report("uninstall", ordered(results, HARNESS_ORDER), notes)
 
     def _desired_state(
-        self, receipt_release: str | None = None, *, exact_release: bool = False
+        self,
+        receipt_release: str | None = None,
+        *,
+        exact_release: bool = False,
+        source_commit: str | None = None,
+        source_checkout: Path | None = None,
     ) -> tuple[DesiredState | None, str | None]:
-        return _build_desired_state(self, receipt_release, exact_release=exact_release)
+        return _build_desired_state(
+            self,
+            receipt_release,
+            exact_release=exact_release,
+            source_commit=source_commit,
+            source_checkout=source_checkout,
+        )
 
     def _detect_requested(self):
         explicit = bool(self.harnesses)
@@ -878,6 +899,82 @@ def _reconcile_desired(service, receipt, desired, *, apply):
         results,
         notes,
     )
+
+
+def _desired_catalog(resolved, authoritative_contracts):
+    marketplace_path = resolved.release_root / ".claude-plugin" / "marketplace.json"
+    catalog = (
+        load_catalog(marketplace_path)
+        if marketplace_path.exists()
+        else tuple(
+            CatalogPlugin(
+                contract.name,
+                contract.version,
+                f"./plugins/{contract.name}",
+            )
+            for contract in authoritative_contracts
+        )
+    )
+    catalog_versions = {plugin.name: plugin.version for plugin in catalog}
+    for contract in authoritative_contracts:
+        if catalog_versions.get(contract.name) != contract.version:
+            raise ValueError(
+                f"catalog identity for {contract.name} disagrees with its portable contract"
+            )
+    return catalog
+
+
+def _build_desired_state(
+    service,
+    receipt_release,
+    *,
+    exact_release,
+    source_commit=None,
+    source_checkout=None,
+):
+    selector: str | Path = (
+        receipt_release
+        if exact_release and receipt_release is not None
+        else service.source or service.release or receipt_release or __version__
+    )
+    try:
+        if source_commit is None and source_checkout is None:
+            resolved = service.release_resolver(selector)
+        else:
+            resolved = service.release_resolver(
+                selector,
+                source_commit=source_commit,
+                source_checkout=source_checkout,
+            )
+        contracts = service.contract_loader(resolved.release_root / "plugins")
+        addon_contracts = service.addon_contract_loader(
+            resolved.release_root / "plugins"
+        )
+        authoritative_contracts = (*contracts, *addon_contracts)
+        service.capability_planner(authoritative_contracts, service.selected_optional)
+        catalog = _desired_catalog(resolved, authoritative_contracts)
+        return (
+            with_source_fingerprints(
+                DesiredState(
+                    resolved.version,
+                    resolved.source_commit,
+                    resolved.source,
+                    resolved.marketplace_source,
+                    resolved.release_root,
+                    resolved.repository_url,
+                    resolved.source_dirty,
+                    resolved.archive_sha256,
+                    tuple(contracts),
+                    frozenset(service.selected_optional),
+                    service.harnesses,
+                    catalog,
+                    tuple(addon_contracts),
+                )
+            ),
+            None,
+        )
+    except Exception as exception:
+        return None, diagnostic(exception)
 
 
 def _inspect_reconcile_targets(

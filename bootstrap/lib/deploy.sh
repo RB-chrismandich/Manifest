@@ -79,7 +79,7 @@ restore_runtime_state() {
         # exclude there is a delete, not a deferral — foreign_state_rules emits
         # the finer rules for both (and still excludes what the deploy owns).
         case "$base" in
-            skills | agents | scripts) continue ;;
+            skills | agents | scripts | .venv) continue ;;
         esac
         excludes+=("--exclude=/$base")
     done
@@ -180,6 +180,9 @@ deploy_configs() {
     print_header "Deploying Configuration Files"
 
     local source_dir="$SCRIPT_DIR/configs/claude"
+    # The deployed runtime is provisioned in place; source artifacts must never
+    # overwrite it or add caches/bytecode to the destination.
+    local source_runtime_excludes=(--exclude='/.venv/' --exclude='__pycache__/' --exclude='*.pyc')
     # Set by the "Backup and replace" path so the main copy path can restore
     # user/runtime state (plugins, sessions, settings.json, …) from the backup.
     local restore_from=""
@@ -325,7 +328,7 @@ deploy_configs() {
                     # health installer (install_health_reporting.py) owns that
                     # path and its settings.json hook — bootstrap copying it
                     # would create an unowned file the installer must adopt.
-                    rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' --exclude '/scripts/mcp_health_check.sh' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
+                    rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" "${source_runtime_excludes[@]}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' --exclude '/scripts/mcp_health_check.sh' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
@@ -365,8 +368,8 @@ deploy_configs() {
                     # Keep secondary agent configs synced in merge mode
                     deploy_cursor_configs
                     retire_gemini_cli_deployment
-                    deploy_codex_configs
                     deploy_antigravity_configs
+                    deploy_codex_configs
                     deploy_sync_skills
                     cp "$SCRIPT_DIR/configs/claude/pyproject.toml" "$TARGET_DIR/pyproject.toml"
                     cp "$SCRIPT_DIR/configs/claude/uv.lock" "$TARGET_DIR/uv.lock"
@@ -405,9 +408,7 @@ deploy_configs() {
     # CLAUDE.md is excluded too when Claude is disabled (see claude_md_exclude above).
     # scripts/mcp_health_check.sh is excluded for the same reason as above:
     # install_health_reporting.py owns that file and its SessionStart hook.
-    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' --exclude '/scripts/mcp_health_check.sh' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
-    # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
-    cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
+    rsync -a "${source_runtime_excludes[@]}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' --exclude '/scripts/mcp_health_check.sh' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
 
     # uv project root must live at $TARGET_DIR/ (not only via rsync) for uv sync --project
     cp "$SCRIPT_DIR/configs/claude/pyproject.toml" "$TARGET_DIR/pyproject.toml"
@@ -463,14 +464,14 @@ deploy_configs() {
     # Deploy Cursor configuration
     deploy_cursor_configs
 
-    # Remove what earlier bootstraps deployed for the retired Gemini CLI
     retire_gemini_cli_deployment
 
-    # Deploy Codex configuration
-    deploy_codex_configs
-
-    # Deploy Antigravity configuration
+    # Antigravity repairs the shared ~/.gemini/config link before Codex native
+    # sync can inspect or install plugins into it.
     deploy_antigravity_configs
+
+    # Deploy Codex configuration and sync its native plugins.
+    deploy_codex_configs
 
     # Deploy Devin CLI configuration (opt-in; inheritance pin only)
     deploy_devin_config

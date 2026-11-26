@@ -186,7 +186,10 @@ run_reconfigure() {
 
         # Install/update Python runtime (uv sync at deployed home)
         print_header "Updating Python Dependencies"
-        check_uv || print_warning "uv not available — home runtime sync may be skipped"
+        check_uv || {
+            print_error "uv is required for guidance hooks and the home Python runtime"
+            exit 1
+        }
         uv_sync_home_runtime
         # Fail-closed by design (T054/FR-029): apm writes hooks and MCP entries
         # into five home trees, so a failed integrity check must leave it
@@ -290,7 +293,10 @@ main() {
     fi
 
     # Ensure uv is present before deploy for the home runtime sync.
-    check_uv || print_warning "uv not available — home runtime sync may be skipped"
+    check_uv || {
+        print_error "uv is required for guidance hooks and the home Python runtime"
+        exit 1
+    }
 
     # Deploy configurations
     if [[ "$UPDATE_CONFIG" == true ]]; then

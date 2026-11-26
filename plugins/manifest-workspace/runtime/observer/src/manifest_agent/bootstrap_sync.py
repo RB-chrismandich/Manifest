@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from collections.abc import Mapping
 from contextlib import ExitStack
 from dataclasses import asdict, dataclass, replace
@@ -39,8 +40,10 @@ from manifest_agent.models import (
     AdapterMarketplaceState,
     AdapterMutationHandle,
     AdapterPluginState,
+    DesiredState,
     HarnessReceipt,
     HarnessResult,
+    InstallationReceipt,
     OwnedEntry,
     ResultState,
 )
@@ -593,9 +596,45 @@ def _target_identity(desired) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _resolve_prior_desired(service, release_version: str):
+def _resolve_prior_desired(
+    service,
+    previous: InstallationReceipt,
+    *,
+    source_commit: str,
+    source_checkout: Path | None,
+) -> tuple[DesiredState | None, str | None]:
     try:
-        return service._desired_state(release_version, exact_release=True)
+        prior_desired, error = service._desired_state(
+            previous.release_version,
+            exact_release=True,
+            source_commit=source_commit,
+            source_checkout=source_checkout,
+        )
+        if error is not None:
+            return None, error
+        if prior_desired is None:
+            return None, "release resolver returned no desired state"
+
+        errors = identity_errors(
+            previous, prior_desired, bundle_checksums(prior_desired)
+        )
+        clean_local_provenance = (
+            re.fullmatch(r"local-[0-9a-f]{12}", previous.release_version) is not None
+            and previous.release_version == prior_desired.release_version
+            and previous.source_commit == prior_desired.source_commit
+            and previous.source_dirty is False
+            and prior_desired.source_dirty is False
+            and previous.archive_sha256 == prior_desired.archive_sha256
+        )
+        if errors and clean_local_provenance:
+            # Legacy bundle hashes included runtime bytecode; keep every other
+            # receipt identity check intact while rebuilding this exact source.
+            errors = identity_errors(previous, prior_desired, previous.bundle_checksums)
+        if previous.source_dirty != prior_desired.source_dirty:
+            errors += ("source dirty state differs from the receipt",)
+        if errors:
+            return None, "; ".join(errors)
+        return prior_desired, None
     # constitution: exempt C-ERR -- release resolution is a service boundary.
     except Exception as error:
         return None, diagnostic(error)
@@ -965,13 +1004,16 @@ class BootstrapSyncService:
                     if not retiring_completed:
                         _validate_recoverable_phase(saga)
                         if identity_changed and saga.harness_mutations:
-                            assert previous is not None
                             prior_desired, prior_error = _resolve_prior_desired(
-                                self.service, previous.release_version
+                                self.service,
+                                previous,
+                                source_commit=previous.source_commit,
+                                source_checkout=self.service.source,
                             )
                             if prior_error is not None or prior_desired is None:
                                 raise RuntimeError(
-                                    "prior release is unavailable for cross-harness compensation"
+                                    "prior release is unavailable for cross-harness "
+                                    f"compensation: {prior_error}"
                                 )
                             prior_desired = with_prior_harness_receipts(
                                 prior_desired, previous
@@ -1054,19 +1096,29 @@ class BootstrapSyncService:
                 if identity_changed:
                     assert previous is not None
                     if not prior_resolved:
-                        prior_desired, prior_error = _resolve_prior_desired(
-                            self.service, previous.release_version
-                        )
-                        if prior_error is not None or prior_desired is None:
-                            if not _is_empty_prepared_saga(saga):
-                                rollback_allowed = False
-                                raise RuntimeError(
-                                    "prior release is unavailable for cross-harness compensation"
-                                )
-                            journal.unlink(missing_ok=True)
-                            saga = None
+                        if re.fullmatch(
+                            r"local-[0-9a-f]{12}", previous.release_version
+                        ) and _is_empty_prepared_saga(saga):
                             prior_desired = desired
                             forward_only = True
+                        else:
+                            prior_desired, prior_error = _resolve_prior_desired(
+                                self.service,
+                                previous,
+                                source_commit=previous.source_commit,
+                                source_checkout=self.service.source,
+                            )
+                            if prior_error is not None or prior_desired is None:
+                                if not _is_empty_prepared_saga(saga):
+                                    rollback_allowed = False
+                                    raise RuntimeError(
+                                        "prior release is unavailable for cross-harness "
+                                        f"compensation: {prior_error}"
+                                    )
+                                journal.unlink(missing_ok=True)
+                                saga = None
+                                prior_desired = desired
+                                forward_only = True
                 else:
                     prior_desired = desired
                 if identity_changed and not forward_only:
