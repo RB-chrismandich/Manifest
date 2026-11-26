@@ -16,6 +16,7 @@ import ast
 import json
 import re
 import sys
+import tomllib
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -198,7 +199,62 @@ _NODE_IMPORT = re.compile(
 )
 _COMPONENT_DEGRADATION_IMPORTS = {
     ("manifest-ops", "ops-bin"): frozenset({"yaml"}),
+    # Observer ships ``manifest_agent._model_policy`` in-tree; the fallback import
+    # below is for editable coordinator installs only and never runs from the bundle.
+    ("manifest-workspace", "native-observer-runtime"): frozenset(
+        {"manifest_model_policy"}
+    ),
 }
+
+# Coordinator-parity observer runtime: migration and inventory modules embed legacy
+# path literals as *detectors* over user-owned trees, not as bundle install deps.
+# That component is uv-lock provisioned and location-guarded separately.
+_FORBIDDEN_PATH_EXEMPT_COMPONENTS = frozenset(
+    {("manifest-workspace", "native-observer-runtime")}
+)
+
+_PYTHON_LOCK_ALIASES = {"yaml": "pyyaml"}
+
+_UV_LOCK_CACHE: dict[Path, frozenset[str]] = {}
+
+
+def _uv_lock_packages(path: Path) -> frozenset[str]:
+    """Return normalized package names from the nearest ``uv.lock`` upward of ``path``."""
+    lockfile = next(
+        (
+            parent / "uv.lock"
+            for parent in (path, *path.parents)
+            if (parent / "uv.lock").is_file()
+        ),
+        None,
+    )
+    if lockfile is None:
+        return frozenset()
+    cached = _UV_LOCK_CACHE.get(lockfile)
+    if cached is not None:
+        return cached
+    try:
+        with lockfile.open("rb") as handle:
+            document = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        packages: frozenset[str] = frozenset()
+    else:
+        packages = frozenset(
+            str(entry.get("name", "")).lower()
+            for entry in document.get("package", ())
+            if isinstance(entry, dict) and entry.get("name")
+        )
+    _UV_LOCK_CACHE[lockfile] = packages
+    return packages
+
+
+def _uv_lock_allows_import(module: str, path: Path) -> bool:
+    locked = _uv_lock_packages(path)
+    if not locked:
+        return False
+    module_key = module.lower()
+    candidates = (module_key, _PYTHON_LOCK_ALIASES.get(module_key, ""))
+    return any(candidate and candidate in locked for candidate in candidates)
 
 _COMPONENT_NODE_DEPENDENCIES = {
     # This is a generated-project template, not a dependency of Manifest's
@@ -427,6 +483,7 @@ def _python_import_violations(
                 module
                 and module not in stdlib
                 and not local_package
+                and not _uv_lock_allows_import(module, path)
                 and capability_package not in declared
                 and not explicit_degradation
             ):
@@ -719,7 +776,8 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                     Violation(path, 1, "unreadable-runtime", "", str(error))
                 )
                 continue
-            violations.extend(_path_violations(bundle, kind, path, text))
+            if (bundle, component_id) not in _FORBIDDEN_PATH_EXEMPT_COMPONENTS:
+                violations.extend(_path_violations(bundle, kind, path, text))
             # Undeclared files are swept only for forbidden runtime paths. The
             # dependency checks below are contract-conformance checks and are
             # meaningful only for what the contract actually declares; running
