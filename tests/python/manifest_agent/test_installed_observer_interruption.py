@@ -331,7 +331,7 @@ def _exercise_partial_generation_retirement(
     payload = surviving.read_bytes()
     remove = runtime._remove_tree_at
 
-    def interrupted(parent, name, *, expected_inode=None):
+    def interrupted(parent, name, *, expected_inode=None, files):
         removed.unlink()
         raise OSError("interrupted generation deletion")
 
@@ -428,3 +428,42 @@ def test_ambiguous_receipt_publication_preserves_all_generations(
     receipt_path.unlink()
     runtime.remove_observer(receipt_path)
     assert fixture["record"].exists() and fixture["environment"].exists()
+
+
+def test_generation_retirement_preserves_unknown_entries_at_deletion(
+    installed_observer, tmp_path, monkeypatch
+):
+    from manifest_agent.service_state import persist_remaining
+
+    fixture = installed_observer
+    desired = replace(
+        fixture["desired"], archive_sha256=digest(b"late-unknown-retirement")
+    )
+    receipt = tmp_path / "owner/receipt.json"
+    binding = runtime.prepare_observer_runtime(desired, receipt_path=receipt)
+    provider = runtime._provider(
+        desired.release_root / runtime.PROJECT, binding.platform
+    )
+    root, record = generation_paths(binding, provider, fixture["env"])
+    selected = replace(select(fixture, "claude"), archive_sha256=desired.archive_sha256)
+    write_receipt_atomic(receipt, selected)
+    runtime.queue_observer_cleanup(receipt)
+    persist_remaining(receipt, selected, {}, HARNESSES)
+    remove = runtime._remove_tree_at
+
+    def late_contents(parent, name, *, expected_inode, files):
+        (root / "unknown").mkdir()
+        (root / "unknown/sentinel").write_bytes(b"must survive")
+        return remove(parent, name, expected_inode=expected_inode, files=files)
+
+    monkeypatch.setattr(runtime, "_remove_tree_at", late_contents)
+    with pytest.raises(ValueError, match="unowned contents"):
+        runtime.remove_observer(receipt)
+    assert (root / "unknown/sentinel").read_bytes() == b"must survive"
+    assert record.exists()
+    state = runtime_roots(fixture["env"])[1]
+    assert tuple((state / "retirements").glob("*.json"))
+    monkeypatch.setattr(runtime, "_remove_tree_at", remove)
+    with pytest.raises(ValueError, match="surviving files changed"):
+        runtime.remove_observer(receipt)
+    assert (root / "unknown/sentinel").read_bytes() == b"must survive"

@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import os
 import sys
+import uuid
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
 from manifest_agent import observer_runtime_transactions as _transactions
+from manifest_agent._observer_cleanup import _remove_tree_at
 from manifest_agent._observer_store import (
     STORE_DOMAIN as STORE_DOMAIN,
 )
@@ -32,7 +34,6 @@ from manifest_agent.checks.toolchain_materialize import (
     relocate_python_launchers,
 )
 from manifest_agent.checks.toolchain_provision import provision
-from manifest_agent.checks.toolchain_provision_store import _remove_tree_at
 from manifest_agent.observer_runtime_identity import (
     ObserverBinding,
     ObserverRuntimeError,
@@ -243,6 +244,27 @@ def _prepare_observer_runtime(desired, *, receipt_path: Path) -> ObserverBinding
     return binding
 
 
+def _discard_stage(parent: int, path: Path, inode: list[int]) -> None:
+    """Remove the stage only while empty and still bound to its creation inode.
+
+    Never recurse: late contents are preserved with an explicit diagnostic.
+    """
+    import errno
+
+    if not (path.exists() or path.is_symlink()):
+        return
+    if path.is_symlink() or not path.is_dir() or _inode(path) != inode:
+        raise ValueError("observer pending stage was replaced; foreign bytes preserved")
+    try:
+        os.rmdir(path.name, dir_fd=parent)
+    except OSError as error:
+        if error.errno in (errno.ENOTEMPTY, errno.EEXIST):
+            raise ValueError(
+                "observer stage gained unowned contents; preserved without deletion"
+            ) from error
+        raise
+
+
 @contextmanager
 def _observer_stage(path: Path):
     """Clean only the transaction directory this operation actually created."""
@@ -267,13 +289,13 @@ def _observer_stage(path: Path):
             inode = [info.st_dev, info.st_ino]
             try:
                 yield path, inode
-            finally:
-                if path.exists() or path.is_symlink():
-                    if path.is_symlink() or not path.is_dir() or _inode(path) != inode:
-                        raise ValueError(
-                            "observer pending stage was replaced; foreign bytes preserved"
-                        )
-                    _remove_tree_at(parent, path.name, expected_inode=inode)
+            except BaseException as error:
+                try:
+                    _discard_stage(parent, path, inode)
+                except ValueError as retained:
+                    error.add_note(str(retained))
+                raise
+            _discard_stage(parent, path, inode)
         finally:
             os.close(descriptor)
     finally:
@@ -289,7 +311,11 @@ def _stage_observer(desired, binding, provider, receipt_path):
     owner = f"{binding.id}/{digest(canonical(provider))}"
     stage_path = root.parent / f".{root.name}.{os.getpid()}.staging"
     if stage_path.exists() or stage_path.is_symlink():
-        raise ValueError("unowned observer stage; refusing replacement")
+        # A retained incomplete attempt must not reserve the next attempt's
+        # name. Keep it in place, including any unsigned descendants.
+        stage_path = root.parent / (
+            f".{root.name}.{os.getpid()}.{uuid.uuid4().hex}.staging"
+        )
     try:
         with _observer_stage(stage_path) as (stage, stage_inode):
             pending = {

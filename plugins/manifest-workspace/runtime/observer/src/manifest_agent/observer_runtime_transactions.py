@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import re
+import warnings
 from pathlib import Path
 
+from manifest_agent._observer_cleanup import _remove_tree_at
 from manifest_agent._observer_store import (
     _cleanup_stores,
     _inode,
+    _recover_store_retirement,
     _recover_store_stage,
     _release_store,
     _safe_parents,
     _store_owner,
     _write_signed,
 )
-from manifest_agent.checks.toolchain_provision_store import _remove_tree_at
 from manifest_agent.observer_runtime_identity import (
     ObserverBinding,
     canonical,
@@ -74,6 +77,59 @@ def _referenced(binding: ObserverBinding, excluding: Path, key: Path) -> bool:
     return False
 
 
+def _retain_pending_stage(pending: dict, key: Path) -> None:
+    """Keep unresolved staging evidence independently of the next transaction."""
+    evidence = (
+        runtime_roots(os.environ)[1]
+        / "retained"
+        / (digest(canonical(pending)) + ".json")
+    )
+    _safe_parents(evidence.parent)
+    _write_signed(
+        evidence,
+        {
+            "status": "retained-unresolved",
+            "pending": pending,
+            "reason": "stage contents have no independently authenticated inventory",
+        },
+        key,
+        PENDING_DOMAIN + "-retained",
+    )
+    warnings.warn(
+        f"observer incomplete stage preserved: {pending['stage']}; unresolved evidence: {evidence}",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+
+def _recover_pending_stage(root: Path, pending: dict, key: Path) -> None:
+    stage = root.parent / pending["stage"]
+    if (
+        re.fullmatch(
+            re.escape(f".{root.name}.{pending['pid']}")
+            + r"(?:\.[0-9a-f]{32})?\.staging",
+            stage.name,
+        )
+        is None
+    ):
+        raise ValueError("observer pending stage identity mismatch")
+    if stage.exists() or stage.is_symlink():
+        if stage.is_symlink() or _inode(stage) != pending["inode"]:
+            raise ValueError("observer pending stage was replaced")
+        parent = os.open(stage.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            # A signed creation inode is not authority over descendants.
+            # rmdir is deliberately nonrecursive, including after a crash.
+            try:
+                os.rmdir(stage.name, dir_fd=parent)
+            except OSError as error:
+                if error.errno not in (errno.ENOTEMPTY, errno.EEXIST):
+                    raise
+                _retain_pending_stage(pending, key)
+        finally:
+            os.close(parent)
+
+
 def _recover(receipt: Path, key: Path) -> None:
     pending_file = _pending_path(receipt)
     if not pending_file.exists() and not pending_file.is_symlink():
@@ -91,17 +147,8 @@ def _recover(receipt: Path, key: Path) -> None:
     data, _ = runtime_roots(os.environ)
     store = data / "toolchains" / pending["store_lock_sha256"] / binding.platform
     _recover_store_stage(store, pending["owner"], key)
-    stage = root.parent / pending["stage"]
-    if stage.name != f".{root.name}.{pending['pid']}.staging":
-        raise ValueError("observer pending stage identity mismatch")
-    if stage.exists() or stage.is_symlink():
-        if stage.is_symlink() or _inode(stage) != pending["inode"]:
-            raise ValueError("observer pending stage was replaced")
-        parent = os.open(stage.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        try:
-            _remove_tree_at(parent, stage.name, expected_inode=pending["inode"])
-        finally:
-            os.close(parent)
+    _recover_store_retirement(store, key)
+    _recover_pending_stage(root, pending, key)
     if (root.exists() or root.is_symlink()) and not record_path.exists():
         if store.exists():
             marker = _store_owner(store, key)
@@ -202,7 +249,12 @@ def _recover_retirements(key: Path) -> None:
                 raise ValueError("observer retirement surviving files changed")
             parent = os.open(root.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             try:
-                _remove_tree_at(parent, root.name, expected_inode=pending["inode"])
+                _remove_tree_at(
+                    parent,
+                    root.name,
+                    expected_inode=pending["inode"],
+                    files=record["files"],
+                )
                 os.fsync(parent)
             finally:
                 os.close(parent)

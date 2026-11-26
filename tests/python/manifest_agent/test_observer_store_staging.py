@@ -275,11 +275,7 @@ def _assert_unowned_stage_survives(observer_stage_case, foreign_inode, replaceme
     assert not record.exists()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="sentinel preservation assertion fails: cleanup deletes the sentinel added to a same-owner mkdir-to-open replacement after its empty listdir",
-)
+# Stage removal is non-recursive after an emptiness check; late contents survive.
 def test_observer_stage_swap_after_emptiness_check_preserves_sentinel(
     observer_stage_case, monkeypatch
 ):
@@ -330,3 +326,34 @@ def test_observer_stage_swap_after_emptiness_check_preserves_sentinel(
         raise RuntimeError("race fixture did not reach every checkpoint") from error
     sentinel = stage / "sentinel"
     assert sentinel.exists() and sentinel.read_bytes() == b"must survive"
+
+
+def test_incomplete_stage_survives_recovery_without_blocking_later_attempt(
+    observer_stage_case, monkeypatch
+):
+    runtime, desired, _, receipt, key, stage, *_ = observer_stage_case
+    attempts = []
+
+    def fail_materialization(desired, environment, *args):
+        attempts.append(environment.parent)
+        (environment.parent / "sentinel").write_bytes(b"must survive")
+        raise ValueError("injected incomplete materialization")
+
+    monkeypatch.setattr(runtime, "_materialize_observer", fail_materialization)
+    for _ in range(2):
+        with (
+            pytest.warns(RuntimeWarning, match="incomplete stage preserved"),
+            pytest.raises(ValueError, match="injected incomplete materialization"),
+        ):
+            runtime.prepare_observer_runtime(desired, receipt_path=receipt)
+        runtime._recover(receipt, key)
+        assert not runtime._pending_path(receipt).exists()
+        assert (stage / "sentinel").read_bytes() == b"must survive"
+    assert len(attempts) == 2 and attempts[0] != attempts[1]
+    state = runtime.runtime_roots(os.environ)[1]
+    evidence = tuple((state / "retained").glob("*.json"))
+    assert len(evidence) == 2
+    for path in evidence:
+        document = read_signed(path, key, domain=runtime.PENDING_DOMAIN + "-retained")
+        assert document["status"] == "retained-unresolved"
+        assert document["pending"]["stage"] in {attempt.name for attempt in attempts}

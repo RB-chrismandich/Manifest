@@ -175,25 +175,16 @@ def test_real_materialization_hard_exit_recovers_only_interrupted_generation(
     )
     root, record = generation_paths(binding, provider, env)
     prior = inventory(fixture["environment"])
-    code = _hard_exit_generation_code()
-    process = subprocess.run(
-        [
-            sys.executable,
-            "-B",
-            "-c",
-            code,
-            str(receipt),
-            str(desired.release_root),
-            str(fixture["uv_archive"]),
-            desired.archive_sha256,
-        ],
-        env={**env, "PYTHONPATH": os.pathsep.join((str(ROOT / "src"), str(ROOT)))},
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert process.returncode == 73, process.stderr
+    _interrupt_generation(desired, receipt, env, fixture["uv_archive"])
     assert runtime._pending_path(receipt).exists()
+    key = observer_key_path(env)
+    pending = runtime.read_signed(
+        runtime._pending_path(receipt), key, domain=runtime.PENDING_DOMAIN
+    )
+    (stage,) = root.parent.glob(f".{root.name}.*.staging")
+    assert pending["stage"] == stage.name
+    staged = inventory(stage)
+    assert "environment/pyvenv.cfg" in staged
     with installation_lock(receipt.parent / "install.lock"):
         recovered = runtime.prepare_observer_runtime(
             fixture["desired"], receipt_path=receipt
@@ -202,14 +193,48 @@ def test_real_materialization_hard_exit_recovers_only_interrupted_generation(
     assert not root.exists()
     assert not record.exists()
     assert not runtime._pending_path(receipt).exists()
-    assert not list(root.parent.glob(f".{root.name}.*.staging"))
+    assert inventory(stage) == staged
+    (evidence,) = (runtime_roots(env)[1] / "retained").glob("*.json")
+    retained = runtime.read_signed(
+        evidence, key, domain=runtime.PENDING_DOMAIN + "-retained"
+    )
+    assert retained["status"] == "retained-unresolved"
+    assert retained["pending"] == pending
     store = runtime._store_path(
         desired.release_root / runtime.PROJECT, binding.platform
     )
-    marker = runtime._store_owner(store, observer_key_path(env))
+    marker = runtime._store_owner(store, key)
     assert f"{binding.id}/{digest(canonical(provider))}" not in marker["owners"]
     assert marker["phase"] == "ready"
     assert inventory(fixture["environment"]) == prior
+
+    with installation_lock(receipt.parent / "install.lock"):
+        retried = runtime.prepare_observer_runtime(desired, receipt_path=receipt)
+    assert retried == binding
+    assert root.is_dir() and record.is_file()
+    assert not runtime._pending_path(receipt).exists()
+    assert inventory(stage) == staged
+    assert inventory(fixture["environment"]) == prior
+
+
+def _interrupt_generation(desired, receipt, env, uv_archive):
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            "-c",
+            _hard_exit_generation_code(),
+            str(receipt),
+            str(desired.release_root),
+            str(uv_archive),
+            desired.archive_sha256,
+        ],
+        env={**env, "PYTHONPATH": os.pathsep.join((str(ROOT / "src"), str(ROOT)))},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 73, process.stderr
 
 
 def _hard_exit_generation_code():

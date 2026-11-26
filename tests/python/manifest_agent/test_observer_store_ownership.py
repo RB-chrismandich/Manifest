@@ -403,7 +403,7 @@ def test_partial_store_retirement_resumes_only_unchanged_survivors(
     _finish_store(store, FIRST, authority)
     remove = stores._remove_tree_at
 
-    def interrupted(parent, name, *, expected_inode=None):
+    def interrupted(parent, name, *, expected_inode=None, files):
         (store / "first").unlink()
         raise RuntimeError("interrupted deletion")
 
@@ -418,3 +418,83 @@ def test_partial_store_retirement_resumes_only_unchanged_survivors(
     _release_store(store, FIRST, authority)
     assert not store.exists()
     assert not store.with_name(".toolchain.retiring.json").exists()
+
+
+def test_materializing_store_preserves_unsigned_contents_and_allows_new_claim(
+    tmp_path, authority
+):
+    store = tmp_path / "toolchain"
+    _claim_store(store, FIRST, authority)
+    (store / "foreign").write_bytes(b"must survive")
+    with pytest.warns(RuntimeWarning, match="incomplete store preserved"):
+        _release_store(store, FIRST, authority)
+    assert not store.exists()
+    retained = next(tmp_path.glob(".toolchain.*.retained"))
+    assert (retained / "foreign").read_bytes() == b"must survive"
+    evidence = read_signed(
+        retained.with_suffix(".retained.json"),
+        authority,
+        domain=STORE_DOMAIN + "-retained",
+    )
+    assert evidence["status"] == "retained-unresolved"
+    assert evidence["marker"]["phase"] == "materializing"
+    assert "files" not in evidence
+    _claim_store(store, FIRST, authority)
+    _finish_store(store, FIRST, authority)
+    _release_store(store, FIRST, authority)
+    assert not store.exists()
+    assert (retained / "foreign").read_bytes() == b"must survive"
+
+
+def test_ready_store_rechecks_inventory_at_deletion_not_just_before(
+    tmp_path, authority, monkeypatch
+):
+    import manifest_agent._observer_store as stores
+
+    store = tmp_path / "toolchain"
+    _claim_store(store, FIRST, authority)
+    (store / "artifact").write_bytes(b"verified")
+    _finish_store(store, FIRST, authority)
+    remove = stores._remove_tree_at
+
+    def late_contents(parent, name, *, expected_inode, files):
+        (store / "unknown").mkdir()
+        (store / "unknown/sentinel").write_bytes(b"must survive")
+        return remove(parent, name, expected_inode=expected_inode, files=files)
+
+    monkeypatch.setattr(stores, "_remove_tree_at", late_contents)
+    with pytest.raises(ValueError, match="unowned contents"):
+        _release_store(store, FIRST, authority)
+    assert (store / "unknown/sentinel").read_bytes() == b"must survive"
+    assert store.with_name(".toolchain.retiring.json").exists()
+
+
+def test_empty_store_cleanup_recovery_retains_late_unsigned_survivors(
+    tmp_path, authority, monkeypatch
+):
+    import manifest_agent._observer_store as stores
+
+    store = tmp_path / "toolchain"
+    _claim_store(store, FIRST, authority)
+    remove = stores._remove_tree_at
+
+    def interrupted(parent, name, *, expected_inode, files):
+        (store / ".observer-owner.json").unlink()
+        (store / "sentinel").write_bytes(b"must survive")
+        raise RuntimeError("interrupted empty-store cleanup")
+
+    monkeypatch.setattr(stores, "_remove_tree_at", interrupted)
+    with pytest.raises(RuntimeError, match="interrupted empty-store"):
+        _release_store(store, FIRST, authority)
+    assert store.with_name(".toolchain.retiring.json").exists()
+    monkeypatch.setattr(stores, "_remove_tree_at", remove)
+    with pytest.warns(RuntimeWarning, match="incomplete store preserved"):
+        _release_store(store, FIRST, authority)
+    retained = next(tmp_path.glob(".toolchain.*.retained"))
+    assert (retained / "sentinel").read_bytes() == b"must survive"
+    assert not store.exists()
+    assert not store.with_name(".toolchain.retiring.json").exists()
+    _claim_store(store, FIRST, authority)
+    _finish_store(store, FIRST, authority)
+    _release_store(store, FIRST, authority)
+    assert (retained / "sentinel").read_bytes() == b"must survive"

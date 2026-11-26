@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
 import tempfile
+import uuid
+import warnings
 from pathlib import Path
 
-from manifest_agent.checks.toolchain_provision_store import _remove_tree_at
+from manifest_agent._observer_cleanup import _remove_tree_at
 from manifest_agent.observer_runtime_identity import (
     ObserverRuntimeError,
     canonical,
@@ -112,22 +115,73 @@ def _store_stage(store: Path, owner: str) -> Path:
     return store.with_name(f".{store.name}.{digest(owner.encode())}.pending")
 
 
+def _retain_store(store: Path, marker: dict, key: Path) -> None:
+    """Segregate incomplete bytes without treating a fresh scan as authority."""
+    retained = store.with_name(f".{store.name}.{uuid.uuid4().hex}.retained")
+    evidence = retained.with_suffix(".retained.json")
+    _write_signed(
+        evidence,
+        {
+            "status": "retained-unresolved",
+            "original": str(store),
+            "retained": str(retained),
+            "marker": marker,
+            "reason": "unfinished store has no authenticated content inventory",
+        },
+        key,
+        STORE_DOMAIN + "-retained",
+    )
+    parent = os.open(store.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        if store.is_symlink() or _inode(store) != marker["inode"]:
+            raise ValueError("observer unfinished store was replaced; preserved")
+        os.rename(store.name, retained.name, src_dir_fd=parent, dst_dir_fd=parent)
+        os.fsync(parent)
+    finally:
+        os.close(parent)
+    warnings.warn(
+        f"observer incomplete store preserved at {retained}; unresolved evidence: {evidence}",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+
+def _discard_store_stage(stage: Path, marker: dict, key: Path) -> None:
+    # The marker authorizes only itself. No partial provisioner's output is
+    # independently attested, even when the containing inode is authenticated.
+    entries = list(stage.iterdir())
+    if any(path.name != ".observer-owner.json" for path in entries):
+        _retain_store(stage, marker, key)
+        return
+    payload = read_regular(stage / ".observer-owner.json")
+    if read_signed(stage / ".observer-owner.json", key, domain=STORE_DOMAIN) != marker:
+        raise ValueError("observer store marker changed; preserved")
+    _write_signed(
+        stage.with_name(f".{stage.name}.retiring.json"),
+        {
+            "path": str(stage),
+            "inode": marker["inode"],
+            "files": {},
+            "marker": payload.hex(),
+        },
+        key,
+        STORE_DOMAIN + "-retirement",
+    )
+    _recover_store_retirement(stage, key)
+
+
 def _recover_store_stage(store: Path, owner: str, key: Path) -> None:
-    # Random unpublished directories cannot block future provisioning. Only a
-    # directory carrying a verified inode-bound marker is eligible for cleanup.
+    # Unpublished bytes without an independent inventory are retained, not
+    # recursively deleted under the authority of a root inode.
     for stage in store.parent.glob(_store_stage(store, owner).name + "*"):
+        if _recover_store_retirement(stage, key):
+            continue
         if not (stage / ".observer-owner.json").exists():
             continue
         marker = _store_owner(stage, key, logical_path=store)
         if marker["owners"] != [owner] or marker.get("active_owner") != owner:
             raise ValueError("observer store stage belongs to another generation")
-        parent = os.open(stage.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        try:
-            if _inode(stage) != marker["inode"]:
-                raise ValueError("observer store stage changed before cleanup")
-            _remove_tree_at(parent, stage.name, expected_inode=marker["inode"])
-        finally:
-            os.close(parent)
+        _discard_store_stage(stage, marker, key)
 
 
 def _claim_store(store: Path, owner: str, key: Path) -> bool:
@@ -162,12 +216,12 @@ def _claim_store(store: Path, owner: str, key: Path) -> bool:
             raise ValueError("observer store appeared during publication")
         stage.rename(store)
     except BaseException:
-        parent = os.open(stage.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        try:
-            if stage.exists() and _inode(stage) == marker["inode"]:
-                _remove_tree_at(parent, stage.name, expected_inode=marker["inode"])
-        finally:
-            os.close(parent)
+        if (
+            stage.exists()
+            and _inode(stage) == marker["inode"]
+            and (stage / ".observer-owner.json").exists()
+        ):
+            _discard_store_stage(stage, marker, key)
         raise
     return True
 
@@ -191,10 +245,21 @@ def _recover_store_retirement(store: Path, key: Path) -> bool:
     pending = read_signed(intent, key, domain=STORE_DOMAIN + "-retirement")
     if pending["path"] != str(store):
         raise ValueError("observer store retirement path changed")
+    original = json.loads(bytes.fromhex(pending["marker"]))
+    if sign(original, key, domain=STORE_DOMAIN) != original:
+        raise ValueError("observer store retirement marker proof changed")
+    materializing = original.get("phase") == "materializing"
+    if not materializing and (
+        original.get("phase") != "ready"
+        or digest(canonical(pending["files"])) != original.get("attestation")
+    ):
+        raise ValueError(
+            "observer store retirement lacks an independently attested inventory"
+        )
     if store.exists() or store.is_symlink():
         if store.is_symlink() or _inode(store) != pending["inode"]:
             raise ValueError("observer store retirement root changed")
-        if any(
+        if not materializing and any(
             pending["files"].get(name) != row
             for name, row in _store_inventory(store).items()
         ):
@@ -204,7 +269,25 @@ def _recover_store_retirement(store: Path, key: Path) -> bool:
             raise ValueError("observer store retirement marker changed")
         parent = os.open(store.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         try:
-            _remove_tree_at(parent, store.name, expected_inode=pending["inode"])
+            # Earlier incomplete cleanup intents may contain a fresh scan.
+            # Such rows have no independent provenance and authorize nothing.
+            files = {} if materializing else dict(pending["files"])
+            # mkdtemp created this inode privately; a changed root mode is not
+            # covered by authority over its original children.
+            files["."] = {"kind": "directory", "mode": 0o700}
+            files[".observer-owner.json"] = {
+                "kind": "file",
+                "mode": 0o600,
+                "sha256": digest(bytes.fromhex(pending["marker"])),
+            }
+            try:
+                _remove_tree_at(
+                    parent, store.name, expected_inode=pending["inode"], files=files
+                )
+            except ValueError:
+                if not materializing:
+                    raise
+                _retain_store(store, original, key)
             os.fsync(parent)
         finally:
             os.close(parent)
@@ -225,8 +308,13 @@ def _release_store(store: Path, owner: str, key: Path) -> None:
     marker = _store_owner(store, key)
     if owner not in marker["owners"]:
         raise ValueError("observer toolchain marker belongs to another generation")
-    if marker["phase"] == "materializing" and marker["active_owner"] != owner:
+    if marker["phase"] == "materializing" and (
+        marker["active_owner"] != owner or marker["owners"] != [owner]
+    ):
         raise ValueError("observer cleanup cannot retire another provider generation")
+    if marker["phase"] == "materializing":
+        _discard_store_stage(store, marker, key)
+        return
     marker["owners"].remove(owner)
     if marker["owners"]:
         # _store_owner already checked the original ready attestation. A shared
@@ -237,12 +325,17 @@ def _release_store(store: Path, owner: str, key: Path) -> None:
         _write_signed(store / ".observer-owner.json", marker, key, STORE_DOMAIN)
         return
     intent = store.with_name(f".{store.name}.retiring.json")
+    # The digest signed at successful provisioning, not this cleanup-time
+    # enumeration, is the authority for the exact retirement inventory.
+    files = _store_inventory(store)
+    if digest(canonical(files)) != marker["attestation"]:
+        raise ValueError("observer toolchain store attestation changed")
     _write_signed(
         intent,
         {
             "path": str(store),
             "inode": marker["inode"],
-            "files": _store_inventory(store),
+            "files": files,
             "marker": read_regular(store / ".observer-owner.json").hex(),
         },
         key,
@@ -262,6 +355,10 @@ def _cleanup_stores(key: Path) -> None:
         store = intent.with_name(intent.name[1 : -len(".retiring.json")])
         _recover_store_retirement(store, key)
     for marker_path in sorted((data / "toolchains").glob("*/*/.observer-owner.json")):
+        # Hidden staging/retention names are unresolved evidence, not published
+        # platform stores. Never adopt them through the broad directory glob.
+        if marker_path.parent.name.startswith("."):
+            continue
         marker = _store_owner(marker_path.parent, key)
         for owner in tuple(marker["owners"]):
             binding_id, provider_id = owner.split("/")
