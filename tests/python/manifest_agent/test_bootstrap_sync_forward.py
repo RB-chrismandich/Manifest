@@ -23,13 +23,13 @@ from manifest_agent.models import (
     HarnessResult,
     ResultState,
 )
-from manifest_agent.release import resolve_release
+from manifest_agent.release import ReleaseError, resolve_release
 from manifest_agent.state import read_receipt, receipt_digest
 from tests.python.manifest_agent._bootstrap_sync_helpers import (
     bump_release,
     legacy_skill_home,
 )
-from tests.python.manifest_agent.test_bootstrap_sync_cross_harness import (
+from tests.python.manifest_agent._bootstrap_sync_local_helpers import (
     _installed_local_service,
     _local_git_checkout,
 )
@@ -152,14 +152,20 @@ def test_forward_only_restart_with_recorded_harness_mutation_still_refuses(
     journal_before = journal.read_text(encoding="utf-8")
     service.harnesses = ("codex",)
     legacy_skill_home(tmp_path, monkeypatch)
+    original_resolver = service.release_resolver
+
+    def fail_pinned_release(selector, *, source_commit=None, source_checkout=None):
+        if source_commit is not None:
+            raise ReleaseError("fixture pinned release unavailable")
+        return original_resolver(selector)
+
+    service.release_resolver = fail_pinned_release
 
     result = service.bootstrap_sync()
 
-    assert result.state is ResultState.BLOCKED
-    assert (
-        "prior release is unavailable for cross-harness compensation"
-        in result.harnesses["codex"].errors[0]
-    )
+    error = result.harnesses["codex"].errors[0]
+    assert "prior release is unavailable for cross-harness compensation:" in error
+    assert "ReleaseError: fixture pinned release unavailable" in error
     assert journal.read_text(encoding="utf-8") == journal_before
     assert read_receipt(service.receipt_path) == previous
 

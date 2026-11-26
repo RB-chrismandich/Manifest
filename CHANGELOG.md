@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Exclude source `.venv`, Python cache directories, and bytecode from Claude
+  config deployment while preserving an existing destination runtime during
+  backup-and-replace; dot-prefixed config such as `.plans` remains deployed.
+
+- Recover pending bootstrap-sync journals for local-checkout installs after the
+  checkout's HEAD moves: the prior release is rebuilt from the receipt's pinned
+  commit, and submodule digests no longer depend on whether submodules are
+  initialized while their objects are available locally. Plain clones without
+  submodule objects keep resolving with the commit-only encoding, so their
+  digest still changes once the submodules are fetched.
+
 - **Delegate reliability (#1000, #983, #1032, #962, #960):** reconcile OMP
   native inventories against receipts and degrade when inspection is unavailable;
   package trusted delegate policy for standalone installs; bind Forge reviewer
@@ -11,6 +22,10 @@
 - Require verified `uv` before bootstrap deploys Python runtime hooks. Guidance
   launchers provision PyYAML through that runtime, avoiding Homebrew Python
   dependency drift; existing direct hook registrations migrate to the uv command.
+
+- Deploy Antigravity's shared `~/.gemini/config` link before Codex native plugin
+  sync in both merge and full deployment paths, repairing dangling links before
+  the native adapter inspects them.
 
 - Run Claude and Cursor guidance hooks with `~/.claude/.venv/bin/python3 -I`
   using the locked runtime's PyYAML instead of resolving dependencies per hook.

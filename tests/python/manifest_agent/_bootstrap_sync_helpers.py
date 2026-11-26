@@ -103,7 +103,10 @@ def _retirement_service(service_factory, tmp_path: Path):
     )
     write_receipt_atomic(service.receipt_path, _codex_receipt(prior, adapter))
 
-    def desired_state(selector=None, *, exact_release=False):
+    def desired_state(
+        selector=None, *, exact_release=False, source_commit=None, source_checkout=None
+    ):
+        del source_commit, source_checkout
         if exact_release:
             assert selector == prior.release_version
             return prior, None
@@ -140,7 +143,7 @@ def bump_release(service, version="2.0.0", commit="c" * 40, archive="d" * 64):
     was the block C-DUPE kept flagging.
     """
     old_release = service.release_resolver(service.source)
-    service.release_resolver = lambda selector: type(old_release)(
+    target = type(old_release)(
         version,
         commit,
         "v2",
@@ -150,6 +153,11 @@ def bump_release(service, version="2.0.0", commit="c" * 40, archive="d" * 64):
         False,
         archive,
     )
+
+    def resolve(selector, **_kwargs):
+        return old_release if selector == old_release.version else target
+
+    service.release_resolver = resolve
     return old_release
 
 
@@ -325,7 +333,7 @@ class ReleasePin:
             digest,
         )
 
-    def _resolve(self, selector):
+    def _resolve(self, selector, **_kwargs):
         if selector == self._previous_version:
             return self.old_release
         return self.target
@@ -428,7 +436,10 @@ def owned_file_saga_service(
     authoritative_prior = read_receipt(service.receipt_path)
     assert authoritative_prior is not None
 
-    def desired_state(selector=None, *, exact_release=False):
+    def desired_state(
+        selector=None, *, exact_release=False, source_commit=None, source_checkout=None
+    ):
+        del source_commit, source_checkout
         if exact_release:
             assert selector == prior_desired.release_version
             return prior_desired, None

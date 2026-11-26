@@ -35,14 +35,17 @@ setup() {
     export CODEX_TARGET_DIR="$HOME/.codex"
     export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
     export MANIFEST_OUTPUT_DIR="$HOME/.manifest/outputs"
+    export ENABLE_ANTIGRAVITY=true
+    CODEX_SYNC_MARKER="$SANDBOX/codex-sync-invoked"
 
     # Isolate heavy/secondary routines (network, profiles, other agents).
-    write_services_config()      { :; }
-    deploy_cursor_configs()      { :; }
+    write_services_config()       { :; }
+    deploy_cursor_configs()       { :; }
     retire_gemini_cli_deployment() { :; }
-    deploy_codex_configs()       { :; }
-    deploy_antigravity_configs() { :; }
-    deploy_sync_skills()         { :; }
+    deploy_codex_configs()        { :; }
+    deploy_sync_skills()          { :; }
+    sync_all_native_harnesses()   { :; }
+    deploy_devin_config()         { :; }
 
     # Pre-populate a realistic live ~/.claude: runtime state + a stale/extra
     # repo-owned file that a clean replace SHOULD drop.
@@ -107,6 +110,26 @@ assert_config_deployed() {
     [ -d "$TARGET_DIR/scripts" ]
     [ -d "$TARGET_DIR/skills/code-audit" ]   # real skills, not the symlink
     [ ! -L "$TARGET_DIR/skills" ]
+}
+
+@test "fresh deploy repairs a dangling agy config link before Codex sync" {
+    rm -rf "$TARGET_DIR"
+    mkdir -p "$AGY_GEMINI_HOME"
+    ln -s "$SANDBOX/missing-config" "$AGY_GEMINI_HOME/config"
+    deploy_codex_configs() {
+        [[ -L "$AGY_GEMINI_HOME/config" &&
+           -d "$AGY_GEMINI_HOME/config" &&
+           "$(readlink "$AGY_GEMINI_HOME/config")" == "$TARGET_DIR/config" ]] || return 1
+        : > "$CODEX_SYNC_MARKER"
+    }
+    export FORCE=false
+
+    deploy_configs
+
+    [ -f "$CODEX_SYNC_MARKER" ]
+
+    [ -L "$AGY_GEMINI_HOME/config" ]
+    [ -d "$AGY_GEMINI_HOME/config" ]
 }
 
 @test "e2e Backup-and-replace: plugins/sessions/settings survive, stale config dropped, backup made" {
@@ -182,4 +205,72 @@ assert s.get('my-private', {}).get('url') == 'https://mcp.internal.example/mcp',
 # lives in deploy_runtime_settings.bats, which uses a real JSON target.
 print('mcp-intact-defaults-merged')"
     assert_output --partial "mcp-intact-defaults-merged"
+}
+
+prepare_runtime_artifact_fixture() {
+    local fixture="$SANDBOX/fixture" source="$SANDBOX/fixture/configs/claude"
+    mkdir -p "$source/.venv/bin" "$source/config/nested/__pycache__" \
+             "$source/.plans" "$fixture/.apm/skills"
+    printf 'new-config\n' > "$source/config/owned.yml"
+    printf 'plan\n' > "$source/.plans/plan.md"
+    printf 'source-venv\n' > "$source/.venv/bin/python"
+    printf 'source-only\n' > "$source/.venv/bin/source-only-marker"
+    printf 'cache\n' > "$source/config/nested/__pycache__/module.pyc"
+    printf 'bytecode\n' > "$source/config/module.pyc"
+    printf '[project]\n' > "$source/pyproject.toml"
+    printf 'lock\n' > "$source/uv.lock"
+    export SCRIPT_DIR="$fixture"
+    deploy_home_skills() { :; }
+}
+
+run_runtime_artifact_deploy() {
+    local mode="$1"
+    rm -rf "$TARGET_DIR" "$HOME"/.claude.backup.*
+    if [[ "$mode" != fresh ]]; then
+        mkdir -p "$TARGET_DIR/.venv/bin"
+        printf 'destination-runtime\n' > "$TARGET_DIR/.venv/bin/python"
+    fi
+    export FORCE=false UPDATE_CONFIG=false
+    case "$mode" in
+        add-only) deploy_configs <<< "2" ;;
+        update) deploy_configs <<< "4" ;;
+        force) export FORCE=true; deploy_configs ;;
+        fresh) deploy_configs ;;
+        backup-replace) deploy_configs <<< "1" ;;
+    esac
+    [ ! -e "$TARGET_DIR/.venv/bin/source-only-marker" ]
+    [ ! -e "$TARGET_DIR/config/nested/__pycache__" ]
+    [ ! -e "$TARGET_DIR/config/module.pyc" ]
+    assert_equal "$(cat "$TARGET_DIR/config/owned.yml")" "new-config"
+    assert_equal "$(cat "$TARGET_DIR/.plans/plan.md")" "plan"
+    if [[ "$mode" == fresh ]]; then
+        [ ! -e "$TARGET_DIR/.venv" ]
+    else
+        assert_equal "$(cat "$TARGET_DIR/.venv/bin/python")" "destination-runtime"
+    fi
+}
+
+@test "add-only deploy excludes source runtime artifacts" {
+    prepare_runtime_artifact_fixture
+    run_runtime_artifact_deploy add-only
+}
+
+@test "update deploy excludes source runtime artifacts" {
+    prepare_runtime_artifact_fixture
+    run_runtime_artifact_deploy update
+}
+
+@test "force deploy excludes source runtime artifacts" {
+    prepare_runtime_artifact_fixture
+    run_runtime_artifact_deploy force
+}
+
+@test "fresh deploy excludes source runtime artifacts" {
+    prepare_runtime_artifact_fixture
+    run_runtime_artifact_deploy fresh
+}
+
+@test "backup-and-replace restores destination runtime without source artifacts" {
+    prepare_runtime_artifact_fixture
+    run_runtime_artifact_deploy backup-replace
 }
