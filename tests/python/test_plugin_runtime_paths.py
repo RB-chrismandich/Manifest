@@ -344,3 +344,35 @@ def test_addon_bundle_files_are_scanned_not_merely_exempted(tmp_path) -> None:
     assert [v for v in report.violations if v.kind == "forbidden-runtime-path"], (
         "addon bundle was exempted from the ungoverned flag but never scanned"
     )
+
+
+def test_runtime_path_gate_accepts_uv_lock_declared_python_import(
+    tmp_path: Path,
+) -> None:
+    checker = _checker_module()
+    bundle = tmp_path / "plugins/manifest-workspace"
+    runtime_root = bundle / "runtime/observer"
+    (runtime_root / "src").mkdir(parents=True)
+    (runtime_root / "src/runner.py").write_text("import yaml\nimport click\n")
+    (runtime_root / "uv.lock").write_text(
+        'version = 1\n\n[[package]]\nname = "pyyaml"\nversion = "6.0.3"\n\n'
+        '[[package]]\nname = "click"\nversion = "8.4.2"\n',
+        encoding="utf-8",
+    )
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\nbundle: {name: manifest-workspace, version: 0.1.0, description: x, category: x}\n"
+        "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], "
+        "runtime: [{id: native-observer-runtime, path: runtime/observer/src}], guidance: []}\n"
+        "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [], default: [], optional: []}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
+        encoding="utf-8",
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert not [
+        violation
+        for violation in report.violations
+        if violation.kind == "undeclared-python-dependency"
+    ]
