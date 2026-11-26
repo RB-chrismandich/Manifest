@@ -131,13 +131,21 @@ def execute_check(
     registry: dict[str, Any] | None = None,
 ) -> CheckResult:
     try:
-        argv, execution_env = _resolved_execution(check, candidate, env, registry)
-        completed = run_argv(
-            argv,
-            candidate.root / check.cwd,
-            execution_env,
-            _execution_timeout(check.timeout_seconds, execution_env),
-        )
+        # Resolve before redirecting XDG caches: the gate store is an input,
+        # never a per-run scratch directory. Explicit store selection wins.
+        store = toolchain.store_root(env, candidate.root)
+        with toolchain.run_cache_directory() as run_tmp:
+            isolated = toolchain.cache_environment(env, run_tmp)
+            isolated[toolchain.STORE_ENV_VAR] = str(store)
+            argv, execution_env = _resolved_execution(
+                check, candidate, isolated, registry
+            )
+            completed = run_argv(
+                argv,
+                candidate.root / check.cwd,
+                execution_env,
+                _execution_timeout(check.timeout_seconds, execution_env),
+            )
         blocked = _blocked_execution(check, completed)
         if blocked is not None:
             return blocked

@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from manifest_agent.observer_runtime_identity import forbidden_root
+
 from . import (
     toolchain_cache,
     toolchain_env,
@@ -103,12 +105,10 @@ def store_root(env: Mapping[str, str], *forbidden_roots: Path) -> Path:
             home = env.get("HOME", "") or os.path.expanduser("~")
             resolved = Path(home) / DEFAULT_CACHE_RELATIVE
     absolute = Path(resolved).expanduser().resolve(strict=False)
-    for forbidden in (Path.cwd(), *forbidden_roots):
-        forbidden = Path(forbidden).expanduser().resolve(strict=False)
-        if absolute == forbidden or absolute.is_relative_to(forbidden):
-            raise UnsafeStoreLocationError(
-                f"toolchain store must not resolve inside {forbidden}"
-            )
+    if forbidden := forbidden_root(absolute, Path.cwd(), *forbidden_roots):
+        raise UnsafeStoreLocationError(
+            f"toolchain store must not resolve inside {forbidden}"
+        )
     return absolute
 
 

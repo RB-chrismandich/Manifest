@@ -180,6 +180,9 @@ class ReceiptCapabilityMixin:
             which=self._which,
             env=self._env,
             native_mcp_inventory=self._native_mcp_inventory_for_apply(),
+            ownership_key_path=(
+                self._ownership_key_path if self.name == "cursor" else None
+            ),
         )
 
     def _native_mcp_inventory_for_apply(self) -> NativeMcpInventory | None:
@@ -191,7 +194,13 @@ class ReceiptCapabilityMixin:
         from manifest_agent.capability_runtime import remove_owned_capabilities
 
         return remove_owned_capabilities(
-            self.name, receipt, runner=self.runner, env=self._env
+            self.name,
+            receipt,
+            runner=self.runner,
+            env=self._env,
+            ownership_key_path=(
+                self._ownership_key_path if self.name == "cursor" else None
+            ),
         )
 
     def validate_uninstall_receipt(
@@ -235,6 +244,7 @@ class ReceiptCapabilityMixin:
             capability_ownership_errors(
                 receipt,
                 env=self._env,
+                key_path=(self._ownership_key_path if self.name == "cursor" else None),
                 expected_cursor_path=(
                     cursor_mcp_path(self._env) if self.name == "cursor" else None
                 ),

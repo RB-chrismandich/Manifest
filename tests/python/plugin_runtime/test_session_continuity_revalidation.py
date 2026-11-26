@@ -8,6 +8,9 @@ import pytest
 
 from tests.python.plugin_runtime.session_continuity_helpers import _checkpoint
 from tests.python.plugin_runtime.session_continuity_helpers import (
+    repo_root as repo_root_fixture,  # noqa: F401 - register the pytest fixture
+)
+from tests.python.plugin_runtime.session_continuity_helpers import (
     runtime as runtime_fixture,  # noqa: F401 - register the pytest fixture
 )
 from tests.python.plugin_runtime.session_continuity_helpers import (
@@ -273,3 +276,45 @@ def test_outstanding_operation_detects_changed_current_owner(
     assert report.trusted is False
     assert "monitor pipeline" in report.ownership_changes
     assert "live-operation ownership changed" in report.reconciliation_needs
+
+
+@pytest.mark.parametrize("mismatch", [None, "target", "branch", "environment"])
+def test_summary_template_evidence_uses_declared_targets(runtime, state_home, mismatch):
+    import json
+
+    template = (
+        Path(__file__).resolve().parents[3]
+        / "plugins/manifest-workspace/skills/session-checkpoint/references/summary-template.md"
+    )
+    example = json.loads(
+        template.read_text().split("```json\n", 1)[1].split("```", 1)[0]
+    )
+    reference = example["completion"]["evidence_refs"][0]
+    assert {"target", "branch", "environment", "commit_sha"} <= reference.keys()
+    checkpoint = runtime._defaults_for_extended_fields(_checkpoint())
+    checkpoint["targets"] = {
+        "repository": "repo",
+        "branch": "main",
+        "environment": "staging",
+    }
+    reference.update(
+        reference="template/pipeline",
+        commit_sha=checkpoint["repository"]["head"],
+        target="repo",
+        branch="main",
+        environment="staging",
+    )
+    if mismatch:
+        reference[mismatch] = "different"
+    checkpoint["completion"]["evidence_refs"] = [reference]
+    path = runtime.write_checkpoint(checkpoint, state_home)
+    result = runtime.revalidate_continuation(
+        path,
+        checkpoint["repository"],
+        checkpoint["live_operations"],
+        {"granted": [], "restrictions": [], "source": "", "observed_at": ""},
+    )
+    assert result.trusted is (mismatch is None)
+    assert result.stale_ci_evidence == (
+        () if mismatch is None else ("template/pipeline",)
+    )

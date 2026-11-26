@@ -111,6 +111,7 @@ class DesiredState:
     prior_harness_receipts: tuple[HarnessReceipt, ...] = ()
     source_bundle_checksums: tuple[tuple[str, str], ...] = ()
     source_catalog_sha256: str | None = None
+    source_workspace_sha256: str | None = None
 
     def bundle_path(self, name: str) -> Path:
         """Return a bundle path inside the resolved immutable release."""

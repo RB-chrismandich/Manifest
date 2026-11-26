@@ -143,18 +143,42 @@ def write_file(store: Path, relative: str, content: bytes, mode: int) -> None:
         destination.close()
 
 
-def _remove_tree_at(parent_fd: int, name: str) -> None:
-    """Delete an old store tree only through already-open no-follow FDs."""
+def _remove_tree_at(
+    parent_fd: int, name: str, *, expected_inode: list[int] | None = None
+) -> None:
+    """Delete through a no-follow FD, authenticating it before touching contents."""
     fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
     try:
+        opened = os.fstat(fd)
+        if (
+            expected_inode is not None
+            and [opened.st_dev, opened.st_ino] != expected_inode
+        ):
+            raise ValueError(
+                "cleanup directory identity changed; foreign bytes preserved"
+            )
         for entry in os.listdir(fd):
-            mode = os.stat(entry, dir_fd=fd, follow_symlinks=False).st_mode
-            if stat.S_ISDIR(mode):
-                _remove_tree_at(fd, entry)
+            info = os.stat(entry, dir_fd=fd, follow_symlinks=False)
+            if stat.S_ISDIR(info.st_mode):
+                _remove_tree_at(
+                    fd,
+                    entry,
+                    expected_inode=(
+                        [info.st_dev, info.st_ino]
+                        if expected_inode is not None
+                        else None
+                    ),
+                )
             else:
                 os.unlink(entry, dir_fd=fd)
     finally:
         os.close(fd)
+    if expected_inode is not None:
+        current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if [current.st_dev, current.st_ino] != expected_inode:
+            raise ValueError(
+                "cleanup directory identity changed; foreign bytes preserved"
+            )
     os.rmdir(name, dir_fd=parent_fd)
 
 

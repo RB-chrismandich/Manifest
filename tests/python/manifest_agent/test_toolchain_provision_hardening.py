@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 import tarfile
 from pathlib import Path
 
@@ -10,7 +11,6 @@ import pytest
 from manifest_agent.checks import (
     toolchain,
     toolchain_env,
-    toolchain_env_digest,
     toolchain_materialize,
 )
 from manifest_agent.checks import (
@@ -308,6 +308,36 @@ def test_environment_stage_rejects_a_swapped_destination(tmp_path: Path):
     assert not (outside / "payload").exists()
 
 
+def test_authenticated_tree_removal_rejects_swap_at_open(tmp_path: Path, monkeypatch):
+    parent = tmp_path / "parent"
+    original = parent / "stage"
+    parent.mkdir()
+    original.mkdir()
+    (original / "owned").write_text("authenticated")
+    info = os.stat(original)
+    expected = [info.st_dev, info.st_ino]
+    moved = parent / "original"
+    foreign = original / "foreign"
+    parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    open_directory = store_mutations.os.open
+
+    def swap_then_open(path, flags, *args, **kwargs):
+        if path == "stage" and kwargs.get("dir_fd") == parent_fd:
+            original.rename(moved)
+            original.mkdir()
+            foreign.write_text("must survive")
+        return open_directory(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(store_mutations.os, "open", swap_then_open)
+    try:
+        with pytest.raises(ValueError, match="identity changed"):
+            store_mutations._remove_tree_at(parent_fd, "stage", expected_inode=expected)
+    finally:
+        os.close(parent_fd)
+    assert foreign.read_text() == "must survive"
+    assert (moved / "owned").read_text() == "authenticated"
+
+
 def test_cache_stage_rejects_a_preseeded_symlink_ancestor(tmp_path: Path):
     """The npm-cache replacement boundary has the same no-follow contract."""
     store = tmp_path / "store"
@@ -400,93 +430,3 @@ def test_node_materialization_never_executes_a_preseeded_store_npm_helper(
     assert calls[0][1] != str(preseeded)
     assert Path(calls[0][1]).parent.parent.parent == env_root
     assert not Path(calls[0][1]).exists()
-
-
-def test_uncommitted_stage_is_discarded_instead_of_published(tmp_path: Path):
-    store = tmp_path / "store"
-    relative = "tools/demo/digest"
-
-    with store_mutations.staged_directory(store, relative) as transaction:
-        (transaction.path / "payload").write_text("unverified")
-
-    assert not (store / relative).exists()
-
-
-@pytest.mark.parametrize(
-    ("materialize", "expected_flag"),
-    [
-        (toolchain_materialize.materialize_python_env, "--locked"),
-        (toolchain_materialize.materialize_project_env, "--frozen"),
-    ],
-)
-def test_python_materializers_install_local_dependencies_non_editably(
-    tmp_path: Path, monkeypatch, materialize, expected_flag: str
-):
-    """Both uv sync paths must materialize path dependencies, never link them."""
-    repo_root = tmp_path / "repo"
-    (repo_root / "config/toolchain").mkdir(parents=True)
-    calls: list[list[str]] = []
-    environments: list[dict[str, str]] = []
-    virtualenv_pth = tmp_path / "env/lib/python3/site-packages/_virtualenv.pth"
-
-    def record_sync(argv, **kwargs):
-        calls.append(argv)
-        environments.append(kwargs["env"])
-        virtualenv_pth.parent.mkdir(parents=True)
-        virtualenv_pth.write_text("import _virtualenv\n")
-
-    monkeypatch.setattr(
-        toolchain_materialize, "_resolved_uv", lambda _ctx: tmp_path / "uv"
-    )
-    monkeypatch.setattr(toolchain_materialize, "_run", record_sync)
-
-    materialize(
-        toolchain_materialize.MaterializeContext(
-            {},
-            tmp_path / "store",
-            "linux-x64",
-            repo_root,
-            {},
-            toolchain_env_digest.trusted_python_provider().lock_record(),
-        ),
-        tmp_path / "env",
-    )
-
-    assert expected_flag in calls[0]
-    assert "--no-config" in calls[0]
-    assert "--no-editable" in calls[0]
-    assert environments[0]["UV_LINK_MODE"] == "copy"
-    assert not virtualenv_pth.exists()
-
-
-def test_python_materializer_rejects_modified_virtualenv_bootstrap(
-    tmp_path: Path, monkeypatch
-) -> None:
-    repo_root = tmp_path / "repo"
-    (repo_root / "config/toolchain").mkdir(parents=True)
-    virtualenv_pth = tmp_path / "env/lib/python3/site-packages/_virtualenv.pth"
-
-    def write_modified_bootstrap(_argv, **_kwargs):
-        virtualenv_pth.parent.mkdir(parents=True)
-        virtualenv_pth.write_text("import attacker_controlled\n")
-
-    monkeypatch.setattr(
-        toolchain_materialize, "_resolved_uv", lambda _ctx: tmp_path / "uv"
-    )
-    monkeypatch.setattr(toolchain_materialize, "_run", write_modified_bootstrap)
-
-    with pytest.raises(
-        toolchain_materialize.MaterializationError,
-        match="unexpected virtualenv bootstrap",
-    ):
-        toolchain_materialize.materialize_python_env(
-            toolchain_materialize.MaterializeContext(
-                {},
-                tmp_path / "store",
-                "linux-x64",
-                repo_root,
-                {},
-                toolchain_env_digest.trusted_python_provider().lock_record(),
-            ),
-            tmp_path / "env",
-        )

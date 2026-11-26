@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -151,30 +150,21 @@ def _repository_root() -> Path | None:
     return None
 
 
-def observe_native() -> tuple[dict | None, str | None]:
-    executable = shutil.which("manifest")
-    if executable is None:
-        return None, "native observation CLI `manifest` is unavailable"
-    command = [executable, "observe-native", "--json"]
+def observe_native(receipt: Path | None = None) -> tuple[dict | None, str | None]:
+    """Use the bundle's validated interpreter, without PATH or acquisition."""
+    launcher = Path(__file__).resolve().parents[3] / "runtime/observer/observe.py"
+    command = [sys.executable, "-B", str(launcher), "--json"]
+    if receipt is not None:
+        command.extend(("--receipt", str(receipt.absolute())))
     repository = _repository_root()
     if repository is not None:
         command.extend(("--source-root", str(repository)))
     try:
         completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=30,
+            command, check=False, capture_output=True, text=True, timeout=30
         )
-        if completed.returncode != 0:
-            detail = completed.stderr.strip() or f"exit status {completed.returncode}"
-            return None, f"native observation CLI failed: {detail}"
+        if completed.returncode:
+            return None, f"native observation CLI failed: {completed.stderr.strip()}"
         return _validate_native_envelope(json.loads(completed.stdout))
-    except (
-        OSError,
-        subprocess.SubprocessError,
-        UnicodeError,
-        json.JSONDecodeError,
-    ) as error:
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
         return None, f"native state observation failed: {type(error).__name__}: {error}"

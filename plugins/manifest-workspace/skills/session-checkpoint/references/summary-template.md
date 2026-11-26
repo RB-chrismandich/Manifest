@@ -196,7 +196,10 @@ summaries, never raw transcripts or secrets.
     "evidence_refs": [{
       "stage": "ci_verified",
       "reference": "Durable evidence identifier",
-      "commit_sha": "Exact commit SHA tested"
+      "commit_sha": "Exact commit SHA tested",
+      "target": "Same repository identifier declared in targets.repository",
+      "branch": "Same branch identifier declared in targets.branch",
+      "environment": "Same environment identifier declared in targets.environment"
     }]
   },
   "blockers": []
@@ -206,7 +209,9 @@ summaries, never raw transcripts or secrets.
 New checkpoints use schema version 2. Version-1 checkpoints remain readable and
 receive empty authorization, no assumed completion, and empty optional
 continuity evidence. Completion stages accept only booleans or `unknown` /
-`not_required`; CI evidence references include the exact tested commit SHA.
+`not_required`; CI evidence references include the exact tested commit SHA, target repository,
+branch, and environment. Each must match the declared target; missing fields
+are unverified evidence, never a positive control.
 Revalidation marks CI evidence from another SHA stale and reports repository,
 ownership, or authorization/access changes. It never changes the recorded
 authorization.

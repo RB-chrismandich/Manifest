@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
@@ -63,6 +64,7 @@ from manifest_agent.models import (
     HarnessResult,
     ResultState,
 )
+from manifest_agent.ownership import ownership_key_path
 from manifest_agent.process import CommandRunner, redact_text
 
 _MARKETPLACE = MARKETPLACE
@@ -105,6 +107,11 @@ class CodexAdapter(
         )
         self._last_marketplace_identity: AdapterMarketplaceState | None = None
         self._marketplace_observed = False
+        self._ownership_key_path = ownership_key_path(env)
+
+    def bind_ownership_authority(self, key_path: Path) -> None:
+        """Use the selected receipt authority for catalog signing and validation."""
+        self._ownership_key_path = Path(key_path)
 
     def _native_mcp_inventory_for_apply(self) -> NativeMcpInventory | None:
         """Prefer live Codex state unless a caller explicitly injected inventory."""

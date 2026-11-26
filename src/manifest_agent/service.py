@@ -32,6 +32,11 @@ from manifest_agent.models import (
     InstallationReceipt,
     ResultState,
 )
+from manifest_agent.observer_runtime import (
+    ObserverTransaction,
+    queue_observer_cleanup,
+    remove_observer,
+)
 from manifest_agent.ownership import (
     graphify_retirement_transaction_errors,
     graphify_retirement_transaction_proof,
@@ -129,18 +134,24 @@ class ManifestService:
     @notes_retired_harnesses
     def install(self) -> ServiceReport:
         """Install and verify requested harnesses while preserving partial success."""
-        desired, error = self._desired_state()
-        if error is not None:
-            return report("install", {}, errors=(error,))
-        assert desired is not None
-        selected, detections, missing, notes = self._detect_requested()
-        results = dict(missing)
+        results, detections, notes = {}, {}, ()
         try:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
                 journal_error = pending_bootstrap_journal_error(self.receipt_path)
                 if journal_error is not None:
                     return report("install", {}, errors=(journal_error,))
                 previous = read_receipt(self.receipt_path)
+                desired, error = self._desired_state()
+                if error is not None:
+                    return report("install", {}, errors=(error,))
+                assert desired is not None
+                selected, detections, missing, notes = self._detect_requested()
+                results = dict(missing)
+                preflight = snapshot_declared(
+                    selected, desired, self.adapters, self.snapshot_root, preflight=True
+                )
+                if preflight:
+                    return report("install", {**results, **preflight}, notes)
                 if previous is not None:
                     previous, upgrade_error = self._upgrade_retired_graphify_receipt(
                         previous, desired
@@ -174,33 +185,34 @@ class ManifestService:
                             "receipt",
                         ),
                     )
-                desired = with_prior_harness_receipts(desired, previous)
-                failures = snapshot_declared(
-                    selected, desired, self.adapters, self.snapshot_root
-                )
-                for name in selected:
-                    if name in failures:
-                        results[name] = failures[name]
-                        continue
-                    adapter = self.adapters[name]
-                    installed = _adapter_call(name, adapter.install, desired)
-                    inspected = _adapter_call(
-                        name,
-                        adapter.inspect,
-                        operation_desired_state(desired, adapter, installed),
+                with ObserverTransaction(desired, self.receipt_path) as runtime:
+                    desired = with_prior_harness_receipts(desired, previous)
+                    failures = snapshot_declared(
+                        selected, desired, self.adapters, self.snapshot_root
                     )
-                    results[name] = combine_results(installed, inspected)
-                results = ordered(results, HARNESS_ORDER)
-                results = _with_native_version(results, detections)
-                receipt = build_receipt(
-                    desired,
-                    results,
-                    detections,
-                    self.adapters,
-                    HARNESS_ORDER,
-                    previous=previous,
-                )
-                write_receipt_atomic(self.receipt_path, receipt)
+                    for name in selected:
+                        if name in failures:
+                            results[name] = failures[name]
+                            continue
+                        adapter = self.adapters[name]
+                        installed = _adapter_call(name, adapter.install, desired)
+                        inspected = _adapter_call(
+                            name,
+                            adapter.inspect,
+                            operation_desired_state(desired, adapter, installed),
+                        )
+                        results[name] = combine_results(installed, inspected)
+                    results = ordered(results, HARNESS_ORDER)
+                    results = _with_native_version(results, detections)
+                    receipt = build_receipt(
+                        desired,
+                        results,
+                        detections,
+                        self.adapters,
+                        HARNESS_ORDER,
+                        previous=previous,
+                    )
+                    runtime.persist(receipt)
         # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
         except Exception as exception:
             return report(
@@ -480,6 +492,7 @@ class ManifestService:
                     return report("uninstall", {}, errors=(journal_error,))
                 receipt = read_receipt(self.receipt_path)
                 if receipt is None:
+                    remove_observer(self.receipt_path)
                     return report("uninstall", {}, notes=("nothing is installed",))
                 remaining = dict(receipt.harnesses)
                 for name in reversed(_uninstall_selection(self, receipt)):
@@ -502,9 +515,13 @@ class ManifestService:
                     results[name] = result
                     if result.state is ResultState.READY:
                         remaining.pop(name, None)
+                        if not remaining:
+                            queue_observer_cleanup(self.receipt_path)
                         _persist_progress(
                             self.receipt_path, receipt, remaining, HARNESS_ORDER
                         )
+                        if not remaining:
+                            remove_observer(self.receipt_path)
         # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
         except Exception as exception:
             return report(
@@ -517,66 +534,7 @@ class ManifestService:
     def _desired_state(
         self, receipt_release: str | None = None, *, exact_release: bool = False
     ) -> tuple[DesiredState | None, str | None]:
-        selector: str | Path = (
-            receipt_release
-            if exact_release and receipt_release is not None
-            else self.source or self.release or receipt_release or __version__
-        )
-        try:
-            resolved = self.release_resolver(selector)
-            contracts = self.contract_loader(resolved.release_root / "plugins")
-            addon_contracts = self.addon_contract_loader(
-                resolved.release_root / "plugins"
-            )
-            authoritative_contracts = (*contracts, *addon_contracts)
-            self.capability_planner(authoritative_contracts, self.selected_optional)
-            marketplace_path = (
-                resolved.release_root / ".claude-plugin" / "marketplace.json"
-            )
-            catalog = (
-                load_catalog(marketplace_path)
-                if marketplace_path.exists()
-                else tuple(
-                    CatalogPlugin(
-                        contract.name,
-                        contract.version,
-                        f"./plugins/{contract.name}",
-                    )
-                    # Addons must be included: the loop below validates every
-                    # authoritative contract against this catalog, so omitting
-                    # them makes a marketplace-less release root fail always.
-                    for contract in authoritative_contracts
-                )
-            )
-            catalog_versions = {plugin.name: plugin.version for plugin in catalog}
-            for contract in authoritative_contracts:
-                if catalog_versions.get(contract.name) != contract.version:
-                    raise ValueError(
-                        f"catalog identity for {contract.name} disagrees with its portable contract"
-                    )
-            return (
-                with_source_fingerprints(
-                    DesiredState(
-                        resolved.version,
-                        resolved.source_commit,
-                        resolved.source,
-                        resolved.marketplace_source,
-                        resolved.release_root,
-                        resolved.repository_url,
-                        resolved.source_dirty,
-                        resolved.archive_sha256,
-                        tuple(contracts),
-                        frozenset(self.selected_optional),
-                        self.harnesses,
-                        catalog,
-                        tuple(addon_contracts),
-                    )
-                ),
-                None,
-            )
-        # constitution: exempt C-ERR -- release/contracts are a trust boundary.
-        except Exception as exception:
-            return None, diagnostic(exception)
+        return _build_desired_state(self, receipt_release, exact_release=exact_release)
 
     def _detect_requested(self):
         explicit = bool(self.harnesses)
@@ -821,6 +779,63 @@ def _with_native_version(
     return annotated
 
 
+def _build_desired_state(service, receipt_release, *, exact_release):
+    selector: str | Path = (
+        receipt_release
+        if exact_release and receipt_release is not None
+        else service.source or service.release or receipt_release or __version__
+    )
+    try:
+        resolved = service.release_resolver(selector)
+        contracts = service.contract_loader(resolved.release_root / "plugins")
+        addon_contracts = service.addon_contract_loader(
+            resolved.release_root / "plugins"
+        )
+        authoritative_contracts = (*contracts, *addon_contracts)
+        service.capability_planner(authoritative_contracts, service.selected_optional)
+        marketplace_path = resolved.release_root / ".claude-plugin" / "marketplace.json"
+        catalog = (
+            load_catalog(marketplace_path)
+            if marketplace_path.exists()
+            else tuple(
+                CatalogPlugin(
+                    contract.name,
+                    contract.version,
+                    f"./plugins/{contract.name}",
+                )
+                for contract in authoritative_contracts
+            )
+        )
+        catalog_versions = {plugin.name: plugin.version for plugin in catalog}
+        for contract in authoritative_contracts:
+            if catalog_versions.get(contract.name) != contract.version:
+                raise ValueError(
+                    f"catalog identity for {contract.name} disagrees with its portable contract"
+                )
+        return (
+            with_source_fingerprints(
+                DesiredState(
+                    resolved.version,
+                    resolved.source_commit,
+                    resolved.source,
+                    resolved.marketplace_source,
+                    resolved.release_root,
+                    resolved.repository_url,
+                    resolved.source_dirty,
+                    resolved.archive_sha256,
+                    tuple(contracts),
+                    frozenset(service.selected_optional),
+                    service.harnesses,
+                    catalog,
+                    tuple(addon_contracts),
+                )
+            ),
+            None,
+        )
+    except Exception as exception:
+        return None, diagnostic(exception)
+
+
 def _reconcile_desired(service, receipt, desired, *, apply):
     selected, detections, missing, notes = _detect_reconcile(service, receipt)
     results = dict(missing)
@@ -831,13 +846,44 @@ def _reconcile_desired(service, receipt, desired, *, apply):
         apply, release_errors, scoped_owned, owned_harnesses, service.source
     )
     if scope_error is not None:
+        return report("reconcile", results, notes, (scope_error,))
+    repairable = _inspect_reconcile_targets(
+        service, receipt, desired, selected, release_errors, results, apply
+    )
+    if not apply:
+        return report(
+            "reconcile",
+            _with_native_version(ordered(results, HARNESS_ORDER), detections),
+            notes,
+        )
+    if any(
+        _is_foreign_conflict_error(error)
+        for result in results.values()
+        for error in result.errors
+    ):
         return report(
             "reconcile",
             results,
             notes,
-            (scope_error,),
+            ("native preflight rejected foreign ownership",),
         )
-    mutated_owned = set()
+    return _apply_reconcile(
+        service,
+        receipt,
+        desired,
+        detections,
+        release_errors,
+        owned_harnesses,
+        repairable,
+        results,
+        notes,
+    )
+
+
+def _inspect_reconcile_targets(
+    service, receipt, desired, selected, release_errors, results, apply
+):
+    repairable = []
     for name in selected:
         adapter = service.adapters[name]
         inspected = _adapter_call(name, adapter.inspect, desired)
@@ -852,6 +898,26 @@ def _reconcile_desired(service, receipt, desired, *, apply):
             and name in receipt.harnesses
             and _is_repairable_result(current, inspected, drift_errors)
         ):
+            repairable.append(name)
+        results[name] = current
+    return repairable
+
+
+def _apply_reconcile(
+    service,
+    receipt,
+    desired,
+    detections,
+    release_errors,
+    owned_harnesses,
+    repairable,
+    results,
+    notes,
+):
+    mutated_owned = set()
+    with ObserverTransaction(desired, service.receipt_path) as runtime:
+        for name in repairable:
+            adapter = service.adapters[name]
             installed = _adapter_call(name, adapter.install, desired)
             mutated_owned.add(name)
             verified = _adapter_call(
@@ -859,26 +925,21 @@ def _reconcile_desired(service, receipt, desired, *, apply):
                 adapter.inspect,
                 operation_desired_state(desired, adapter, installed),
             )
-            current = combine_results(installed, verified)
-        results[name] = current
-    results = ordered(results, HARNESS_ORDER)
-    results = _with_native_version(results, detections)
-    if not apply:
-        return report("reconcile", results, notes)
-    persist_error = _persist_reconcile(
-        service,
-        receipt,
-        desired,
-        _ReconcileOutcome(
-            results,
-            detections,
-            release_errors,
-            owned_harnesses,
-            mutated_owned,
-        ),
-    )
-    if persist_error is not None:
-        return report("reconcile", results, notes, (persist_error,))
+            results[name] = combine_results(installed, verified)
+        results = _with_native_version(ordered(results, HARNESS_ORDER), detections)
+        persist_error = _persist_reconcile(
+            service,
+            receipt,
+            desired,
+            _ReconcileOutcome(
+                results, detections, release_errors, owned_harnesses, mutated_owned
+            ),
+            runtime=runtime,
+        )
+        if persist_error is not None:
+            return report("reconcile", results, notes, (persist_error,))
+        if not mutated_owned:
+            runtime.persist(receipt)
     return report("reconcile", results, notes)
 
 
@@ -963,7 +1024,7 @@ class _ReconcileOutcome:
     mutated_owned: set[str]
 
 
-def _persist_reconcile(service, receipt, desired, outcome):
+def _persist_reconcile(service, receipt, desired, outcome, *, runtime):
     results = outcome.results
     release_errors = outcome.release_errors
     owned_harnesses = outcome.owned_harnesses
@@ -1015,7 +1076,7 @@ def _persist_reconcile(service, receipt, desired, outcome):
         HARNESS_ORDER,
         previous=receipt,
     )
-    write_receipt_atomic(service.receipt_path, updated)
+    runtime.persist(updated)
     return None
 
 

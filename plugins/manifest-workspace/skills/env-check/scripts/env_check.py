@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.dont_write_bytecode = True
+
 # runpy.run_path does not add the script directory to sys.path.
 try:
     from env_check_native import (
@@ -48,6 +50,7 @@ HARNESSES = {
     "devin": "devin",
     "omp": "omp",
 }
+RETIRED_HARNESSES = frozenset({"gemini"})
 NOT_TESTED = "not_tested"
 
 
@@ -148,8 +151,8 @@ def _valid_owned_entries(entries: object, entry_keys: set[str]) -> bool:
     return True
 
 
-def _valid_harnesses(document: dict) -> bool:
-    harness_names = {"claude", "codex", "cursor", "antigravity", "devin", "omp"}
+def _valid_harness_structure(record: object) -> bool:
+    """Decode every record before applying active-only semantic invariants."""
     harness_keys = {
         "harness",
         "adapter_version",
@@ -167,34 +170,66 @@ def _valid_harnesses(document: dict) -> bool:
         "target_path",
         "previous_checksum",
     }
-    harnesses = document["harnesses"]
-    if not isinstance(harnesses, dict) or set(harnesses) - harness_names:
+    if not isinstance(record, dict) or set(record) != harness_keys:
         return False
-    for name, record in harnesses.items():
-        if (
-            not isinstance(name, str)
-            or not isinstance(record, dict)
-            or set(record) != harness_keys
-        ):
-            return False
-        if (
-            record["harness"] != name
-            or not all(
-                isinstance(record[key], str)
-                for key in ("adapter_version", "native_version")
+    return not (
+        not isinstance(record["harness"], str)
+        or not all(
+            isinstance(record[key], str)
+            for key in ("adapter_version", "native_version")
+        )
+        or not isinstance(record["verified"], bool)
+        or not isinstance(record["plugin_ids"], list)
+        or not all(isinstance(item, str) for item in record["plugin_ids"])
+        or not isinstance(record["errors"], list)
+        or not all(isinstance(item, str) for item in record["errors"])
+        or not isinstance(record["capabilities"], dict)
+        or not all(
+            isinstance(key, str) and isinstance(value, str)
+            for key, value in record["capabilities"].items()
+        )
+        or not _valid_owned_entries(record["owned_entries"], entry_keys)
+    )
+
+
+def _valid_harnesses(document: dict) -> bool:
+    harnesses = document["harnesses"]
+    if not isinstance(harnesses, dict) or set(harnesses) - (
+        set(HARNESSES) | RETIRED_HARNESSES
+    ):
+        return False
+    if not all(
+        isinstance(name, str) and _valid_harness_structure(record)
+        for name, record in harnesses.items()
+    ):
+        return False
+    active = {
+        name: record
+        for name, record in harnesses.items()
+        if name not in RETIRED_HARNESSES
+    }
+    for name, record in active.items():
+        if record["harness"] != name or (
+            not record["verified"]
+            and (
+                not record["errors"]
+                or any(
+                    value.strip().lower()
+                    not in {
+                        "blocked",
+                        "degraded",
+                        "drifted",
+                        "failed",
+                        "not-installed",
+                        "not_installed",
+                        "skipped",
+                        "unavailable",
+                        "unsupported",
+                        "installed-by-manifest",
+                    }
+                    for value in record["capabilities"].values()
+                )
             )
-            or not isinstance(record["verified"], bool)
-            or not isinstance(record["plugin_ids"], list)
-            or not all(isinstance(item, str) for item in record["plugin_ids"])
-            or not isinstance(record["errors"], list)
-            or not all(isinstance(item, str) for item in record["errors"])
-            or not isinstance(record["capabilities"], dict)
-            or not all(
-                isinstance(key, str) and isinstance(value, str)
-                for key, value in record["capabilities"].items()
-            )
-            or (not record["verified"] and not record["errors"])
-            or not _valid_owned_entries(record["owned_entries"], entry_keys)
         ):
             return False
     return True
@@ -225,7 +260,11 @@ def evaluate_receipt(path: Path) -> dict[str, Any]:
         )
         return summary
     assert document is not None
-    harnesses = document["harnesses"]
+    harnesses = {
+        name: value
+        for name, value in document["harnesses"].items()
+        if name not in RETIRED_HARNESSES
+    }
     if not harnesses:
         summary["problems"].append("installation receipt selects no harness")
         return summary
@@ -302,13 +341,16 @@ def compare(receipt: dict[str, Any], native: dict | None) -> dict[str, Any]:
     }
 
 
-def assess(native_source: str | None = None) -> dict[str, Any]:
+def assess(
+    native_source: str | None = None, receipt: Path | None = None
+) -> dict[str, Any]:
     """Shared receipt+native assessment used by env-check and deploy-reconcile."""
-    receipt = evaluate_receipt(receipt_path())
+    target = receipt if receipt is not None else receipt_path()
+    receipt = evaluate_receipt(target)
     if native_source:
         native, native_error = load_native_evidence(native_source)
     elif receipt["valid"]:
-        native, native_error = observe_native()
+        native, native_error = observe_native(target)
     else:
         native, native_error = None, None
     comparison = compare(receipt, native)
@@ -329,8 +371,8 @@ def assess(native_source: str | None = None) -> dict[str, Any]:
     }
 
 
-def inspect(native_source: str | None = None) -> dict:
-    assessment = assess(native_source)
+def inspect(native_source: str | None = None, receipt: Path | None = None) -> dict:
+    assessment = assess(native_source, receipt)
     receipt = assessment["receipt"]
     comparison = assessment["comparison"]
     selected = set(receipt["selected"])
@@ -385,8 +427,11 @@ def main(argv: list[str] | None = None) -> int:
         metavar="PATH",
         help=f"saved `{NATIVE_COMMAND}` output, or - for stdin",
     )
+    parser.add_argument(
+        "--receipt", type=Path, help="Exact installation receipt to observe"
+    )
     args = parser.parse_args(argv)
-    report = inspect(args.native_evidence)
+    report = inspect(args.native_evidence, args.receipt)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

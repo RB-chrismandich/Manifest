@@ -32,6 +32,8 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import capability_ownership_errors
+from manifest_agent.state import read_receipt, write_receipt_atomic
 
 
 class RecordingRunner:
@@ -292,6 +294,42 @@ def test_cursor_atomic_merge_and_receipt_owned_removal_preserve_unrelated_values
     assert json.dumps(after_remove["mcpServers"]["foreign"]) == json.dumps(unrelated)
     assert after_remove["other"] == [3, 2, 1]
     assert not list(path.parent.glob("*.tmp"))
+
+
+def test_cursor_custom_receipt_authority_round_trips_and_rejects_other_key(tmp_path):
+    from manifest_agent.models import InstallationReceipt
+
+    receipt_path = tmp_path / "custom-receipt" / "selected.json"
+    key_path = receipt_path.parent / "ownership.key"
+    adapter = CursorAdapter(
+        runner=RecordingRunner(), which=lambda name: name, env={"HOME": str(tmp_path)}
+    )
+    adapter.bind_ownership_authority(key_path)
+    installed = adapter.apply_capabilities(_plan())
+    harness = HarnessReceipt(
+        "cursor", "1", "1", (), installed.owned_entries, installed.capabilities, True
+    )
+    receipt = InstallationReceipt(
+        1, "1", "1", "a" * 40, False, "b" * 64, {}, (), {"cursor": harness}, None
+    )
+    write_receipt_atomic(receipt_path, receipt)
+    assert read_receipt(receipt_path).harnesses["cursor"] == harness
+    assert not capability_ownership_errors(
+        harness,
+        key_path=key_path,
+        expected_cursor_path=tmp_path / ".cursor/mcp.json",
+    )
+
+    other_key = tmp_path / "other-authority" / "ownership.key"
+    other_key.parent.mkdir()
+    other_key.write_bytes(b"x" * 32)
+    other_key.chmod(0o600)
+    errors = capability_ownership_errors(
+        harness,
+        key_path=other_key,
+        expected_cursor_path=tmp_path / ".cursor/mcp.json",
+    )
+    assert any("proof does not match" in error for error in errors)
 
 
 def test_cursor_preserves_matching_preexisting_manifest_entry(tmp_path: Path) -> None:

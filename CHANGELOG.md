@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Observer runtimes use one private XDG-state authority across receipt parents.
+  Uninstall authenticates cleanup intent and durably retires the receipt before
+  resumable, inventory-checked deletion; shared toolchains retain their original
+  attestation across failed generations. Installed acceptance uses explicit
+  pinned UV/wheel fixtures and offline, checkout-denied public skill processes.
+
 - **Security (#1001):** generated CLI hook wrappers preserve pre-hook and CLI
   exit statuses, terminate timed-out hook process groups, and prevent post-hooks
   from overriding CLI results. Audit records are redacted and appended as

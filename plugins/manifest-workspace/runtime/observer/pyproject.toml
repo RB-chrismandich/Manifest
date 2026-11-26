@@ -1,0 +1,35 @@
+[project]
+name = "manifest-workspace-observer"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["click==8.4.2", "jsonschema==4.26.0", "pyyaml==6.0.3", "hatchling==1.32.0"]
+
+[project.scripts]
+manifest-native-observe = "manifest_agent.cli:observe_native"
+
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/manifest_agent"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"assets/manifest_agent/data/manifest-capabilities.schema.json" = "manifest_agent/data/manifest-capabilities.schema.json"
+"assets/manifest_agent/data/project-checks.schema.json" = "manifest_agent/data/project-checks.schema.json"
+"assets/manifest_agent/data/model_policy.yml" = "manifest_agent/data/model_policy.yml"
+"assets/manifest_agent/_model_policy/__init__.py" = "manifest_agent/_model_policy/__init__.py"
+"assets/manifest_agent/_model_policy/controller.py" = "manifest_agent/_model_policy/controller.py"
+"assets/manifest_agent/_model_policy/failures.py" = "manifest_agent/_model_policy/failures.py"
+"assets/manifest_agent/_model_policy/frontmatter.py" = "manifest_agent/_model_policy/frontmatter.py"
+"assets/manifest_agent/_model_policy/headless.py" = "manifest_agent/_model_policy/headless.py"
+"assets/manifest_agent/_model_policy/policy_config.py" = "manifest_agent/_model_policy/policy_config.py"
+"assets/manifest_agent/_model_policy/resolver.py" = "manifest_agent/_model_policy/resolver.py"
+"assets/manifest_agent/_model_policy/skill_command.py" = "manifest_agent/_model_policy/skill_command.py"
+"assets/manifest_agent/_model_policy/skill_execution.py" = "manifest_agent/_model_policy/skill_execution.py"
+"assets/manifest_agent/_model_policy/skill_process.py" = "manifest_agent/_model_policy/skill_process.py"
+"assets/manifest_agent/_model_policy/skill_recovery.py" = "manifest_agent/_model_policy/skill_recovery.py"
+"assets/manifest_agent/_model_policy/skill_run.py" = "manifest_agent/_model_policy/skill_run.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "assets", "observe.py", "observer_runtime_identity.py", "uv.lock", "uv-toolchain.lock.json"]

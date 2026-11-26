@@ -377,7 +377,11 @@ def test_changed_sha_stales_ci_without_expanding_authority(
     runtime, state_home: Path
 ) -> None:
     checkpoint = runtime._defaults_for_extended_fields(_checkpoint())
-    checkpoint["targets"] = {"repository": "repo", "environment": "staging"}
+    checkpoint["targets"] = {
+        "repository": "repo",
+        "branch": "main",
+        "environment": "staging",
+    }
     checkpoint["authorization"] = {
         "granted": ["edit owned files"],
         "restrictions": ["no publish"],
@@ -390,6 +394,7 @@ def test_changed_sha_stales_ci_without_expanding_authority(
             "reference": "pipeline/17",
             "commit_sha": "abc123",
             "target": "repo",
+            "branch": "main",
             "environment": "staging",
         }
     ]

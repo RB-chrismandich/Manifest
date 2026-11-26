@@ -54,7 +54,8 @@
         "tests/python/manifest_agent/test_toolchain_npm_cache.py",
         "tests/python/manifest_agent/test_toolchain_path_prepend.py",
         "tests/python/manifest_agent/test_toolchain_provision.py",
-        "tests/python/manifest_agent/test_toolchain_provision_hardening.py"
+        "tests/python/manifest_agent/test_toolchain_provision_hardening.py",
+        "tests/python/manifest_agent/test_toolchain_materialize_hardening.py"
       ],
       "cwd": ".",
       "inputs": ["src", "tests/python", "plugins"],

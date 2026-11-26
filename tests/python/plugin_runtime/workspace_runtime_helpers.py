@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import shlex
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -101,49 +100,6 @@ def _with_omp_fixture(
     executable.write_text(body, encoding="utf-8")
     executable.chmod(0o755)
     return {**env, "PATH": str(bin_dir) + os.pathsep + env.get("PATH", "")}
-
-
-def _with_manifest_cli(
-    env: dict[str, str], tmp_path: Path, repo_root: Path
-) -> dict[str, str]:
-    """Expose a copied packaged runtime through its supported CLI command."""
-    bin_dir = tmp_path / "manifest-bin"
-    bin_dir.mkdir()
-    runtime_root = tmp_path / "manifest-runtime"
-    shutil.copytree(
-        repo_root / "src" / "manifest_agent",
-        runtime_root / "manifest_agent",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
-    data_root = runtime_root / "manifest_agent" / "data"
-    data_root.mkdir(parents=True, exist_ok=True)
-    for source, destination in (
-        (
-            repo_root / "schemas/manifest-capabilities.schema.json",
-            "manifest-capabilities.schema.json",
-        ),
-        (
-            repo_root / "schemas/project-checks.schema.json",
-            "project-checks.schema.json",
-        ),
-        (repo_root / "configs/claude/config/model_policy.yml", "model_policy.yml"),
-    ):
-        shutil.copy2(source, data_root / destination)
-    executable = bin_dir / "manifest"
-    executable.write_text(
-        f"#!{sys.executable}\n"
-        "import sys\n"
-        f"sys.path.insert(0, {str(runtime_root)!r})\n"
-        "from manifest_agent.cli import main\n"
-        "main()\n",
-        encoding="utf-8",
-    )
-    executable.chmod(0o755)
-    existing_path = env.get("PATH", "")
-    path = (
-        str(bin_dir) if not existing_path else str(bin_dir) + os.pathsep + existing_path
-    )
-    return {**env, "PATH": path}
 
 
 def _harness_receipt(name: str, plugins: list[str] | None = None) -> dict:

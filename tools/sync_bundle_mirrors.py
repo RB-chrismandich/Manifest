@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import stat
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +17,16 @@ ROOT = Path(__file__).resolve().parents[1]
 # (source_dir, mirror_dir, excluded) — excluded maps each relative path that is
 # intentionally NOT byte-identical to the reason the divergence is maintained.
 MIRRORS = (
+    (
+        "src/manifest_agent",
+        "plugins/manifest-workspace/runtime/observer/src/manifest_agent",
+        {},
+    ),
+    (
+        "src/manifest_agent/observer_runtime_identity.py",
+        "plugins/manifest-workspace/runtime/observer/observer_runtime_identity.py",
+        {},
+    ),
     (
         "configs/claude/scripts/constitution",
         "plugins/manifest-code-quality/skills/code-audit-constitution/scripts/constitution",
@@ -56,7 +68,7 @@ def _git_files(prefix: Path) -> list[Path]:
         for line in out.splitlines()
         if line.strip() and "__pycache__" not in Path(line).parts
     )
-    return files
+    return sorted(files)
 
 
 def _pairs(source_dir: Path, mirror_dir: Path) -> dict[Path, Path]:
@@ -80,9 +92,30 @@ def _describe(path: Path) -> str:
         return str(path)
 
 
+def observer_assets() -> dict[Path, bytes]:
+    """Generate overlays and lock projections from their canonical sources."""
+    project = ROOT / "plugins/manifest-workspace/runtime/observer"
+    metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    overlays = metadata["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    files = {
+        project / "assets" / target: (ROOT / source).read_bytes()
+        for source, target in overlays.items()
+    }
+    lock = json.loads((ROOT / "config/toolchain.lock.json").read_bytes())
+    projection = {"schema_version": 1, "tools": {"uv": lock["tools"]["uv"]}}
+    files[project / "uv-toolchain.lock.json"] = (
+        json.dumps(projection, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    return files
+
+
 def check() -> int:
     """Verify every mirror; print DRIFT/MISSING/EXTRA per mismatch."""
     problems = 0
+    for path, data in observer_assets().items():
+        if not path.is_file() or path.read_bytes() != data:
+            print(f"DRIFT {_describe(path)}")
+            problems += 1
     for source_dir, mirror_dir, excluded in MIRRORS:
         source_dir, mirror_dir = ROOT / source_dir, ROOT / mirror_dir
         pairs = _pairs(source_dir, mirror_dir)
@@ -120,6 +153,10 @@ def check() -> int:
 
 def sync() -> int:
     """Copy every non-excluded source file byte-for-byte over its mirror."""
+    for path, data in observer_assets().items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists() or path.read_bytes() != data:
+            path.write_bytes(data)
     for source_dir, mirror_dir, excluded in MIRRORS:
         source_dir, mirror_dir = ROOT / source_dir, ROOT / mirror_dir
         pairs = _pairs(source_dir, mirror_dir)

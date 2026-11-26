@@ -84,8 +84,11 @@ def _retirement_service(service_factory, tmp_path: Path):
             "XDG_STATE_HOME": str(tmp_path / "state"),
         },
     )
-    service = service_factory({"codex": adapter}, harnesses=("codex",))
-    service.receipt_path = tmp_path / "state/manifest/installation.json"
+    service = service_factory(
+        {"codex": adapter},
+        harnesses=("codex",),
+        receipt_path=tmp_path / "state/manifest/installation.json",
+    )
     base, error = service._desired_state()
     assert error is None and base is not None
     prior = replace(
@@ -117,10 +120,11 @@ def _retirement_service(service_factory, tmp_path: Path):
 
 
 def _addon_desired(service):
+    release = service.release_resolver(service.source)
+    addon_path = release.release_root / "plugins/manifest-i-have-adhd"
+    addon_path.mkdir(parents=True, exist_ok=True)
     desired, error = service._desired_state()
     assert error is None and desired is not None
-    addon_path = desired.release_root / "plugins/manifest-i-have-adhd"
-    addon_path.mkdir(parents=True, exist_ok=True)
     return replace(
         desired,
         catalog_plugins=(
@@ -404,9 +408,10 @@ def owned_file_saga_service(
     """
     codex = FakeAdapter("codex", harness_result("codex"))
     service = service_factory(
-        {"claude": claude, "codex": codex}, harnesses=("claude", "codex")
+        {"claude": claude, "codex": codex},
+        harnesses=("claude", "codex"),
+        receipt_path=state_home / "manifest/installation.json",
     )
-    service.receipt_path = state_home / "manifest/installation.json"
     prior_desired, error = service._desired_state()
     assert error is None and prior_desired is not None
     desired = replace(

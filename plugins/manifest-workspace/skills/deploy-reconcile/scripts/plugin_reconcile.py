@@ -6,7 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import runpy
+import sys
 from pathlib import Path
+
+sys.dont_write_bytecode = True
 
 EXPECTED_BUNDLES = {
     "manifest-code-quality",
@@ -28,9 +31,9 @@ def shared_env_check():
     return runpy.run_path(str(env_script))
 
 
-def reconcile(native_evidence: str | None = None) -> dict:
+def reconcile(native_evidence: str | None = None, receipt: Path | None = None) -> dict:
     env_check = shared_env_check()
-    assessment = env_check["assess"](native_evidence)
+    assessment = env_check["assess"](native_evidence, receipt)
     receipt = assessment["receipt"]
     drift: list[dict[str, str]] = [
         {"capability": "installation-receipt", "harness": "all", "reason": problem}
@@ -78,8 +81,11 @@ def main(argv: list[str] | None = None) -> int:
         metavar="PATH",
         help="saved manifest reconcile --json output, or - for stdin",
     )
+    parser.add_argument(
+        "--receipt", type=Path, help="Exact installation receipt to observe"
+    )
     args = parser.parse_args(argv)
-    report = reconcile(args.native_evidence)
+    report = reconcile(args.native_evidence, args.receipt)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

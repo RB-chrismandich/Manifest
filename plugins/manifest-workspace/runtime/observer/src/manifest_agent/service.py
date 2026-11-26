@@ -1,0 +1,1172 @@
+"""Convergent install, reconciliation, and receipt-owned removal services."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import AbstractContextManager
+from dataclasses import dataclass, replace
+from pathlib import Path
+from shlex import quote
+from typing import Any
+
+from manifest_agent import __version__
+from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
+from manifest_agent.adapters.registry import AdapterRegistry
+from manifest_agent.bootstrap_sync import pending_bootstrap_journal_error
+from manifest_agent.capabilities import resolve_capabilities
+from manifest_agent.catalog import load_catalog
+from manifest_agent.contracts import (
+    DOMAIN_BUNDLES,
+    load_addon_contracts,
+    load_domain_contracts,
+)
+from manifest_agent.migration import MigrationService
+from manifest_agent.models import (
+    CatalogPlugin,
+    DesiredState,
+    HarnessReceipt,
+    HarnessResult,
+    InstallationReceipt,
+    ResultState,
+)
+from manifest_agent.observer_runtime import (
+    ObserverTransaction,
+    queue_observer_cleanup,
+    remove_observer,
+)
+from manifest_agent.ownership import (
+    graphify_retirement_transaction_errors,
+    graphify_retirement_transaction_proof,
+)
+from manifest_agent.paths import xdg_paths
+from manifest_agent.process import CommandRunner, redact_text
+from manifest_agent.release import ResolvedRelease, resolve_release
+from manifest_agent.retired_harnesses import notes_retired_harnesses
+from manifest_agent.service_state import (
+    ServiceReport,
+    bind_adapter_authorities,
+    build_receipt,
+    bundle_checksums,
+    diagnostic,
+    identity_errors,
+    operation_desired_state,
+    ordered,
+    persist_remaining,
+    report,
+    snapshot_declared,
+    with_prior_harness_receipts,
+    with_source_fingerprints,
+)
+from manifest_agent.state import (
+    RetiredGraphifyTransaction,
+    clear_retired_graphify_transaction,
+    installation_lock,
+    read_receipt,
+    read_retired_graphify_transaction,
+    receipt_digest,
+    retired_graphify_transaction_path,
+    without_retired_transaction_harnesses,
+    write_receipt_atomic,
+    write_retired_graphify_transaction_atomic,
+)
+
+HARNESS_ORDER = ("claude", "codex", "cursor", "antigravity", "devin", "omp")
+_RETIRED_BUNDLE = "manifest-graphify"
+_RETIRED_EXECUTABLE = "graphify"
+_GRAPHIFY_TOOL_HEADER = re.compile(r"^graphifyy\s+v[^\s]+\s+\([^)]+\)$")
+
+
+class ManifestService:
+    """Coordinate native adapters around one immutable desired state."""
+
+    def __init__(
+        self,
+        *,
+        source: Path | None = None,
+        release: str | None = None,
+        harnesses: Sequence[str] = (),
+        selected_optional: Sequence[str] = (),
+        non_interactive: bool = False,
+        adapters: Mapping[str, HarnessAdapter] | None = None,
+        receipt_path: Path | None = None,
+        snapshot_root: Path | None = None,
+        release_resolver: Callable[[str | Path], ResolvedRelease] = resolve_release,
+        contract_loader: Callable[[Path], tuple[Any, ...]] = load_domain_contracts,
+        addon_contract_loader: Callable[[Path], tuple[Any, ...]] = load_addon_contracts,
+        capability_planner: Callable[[Sequence[Any], Sequence[str]], Any] = (
+            resolve_capabilities
+        ),
+        lock_factory: Callable[[Path | None], AbstractContextManager[Any]] = (
+            installation_lock
+        ),
+        runner: CommandRunner | None = None,
+    ) -> None:
+        if source is not None and release is not None:
+            raise ValueError("source and release are mutually exclusive")
+        self.source = Path(source) if source is not None else None
+        self.release = release
+        self.harnesses = _normalize_harnesses(harnesses)
+        self.selected_optional = tuple(dict.fromkeys(selected_optional))
+        self.non_interactive = non_interactive
+        self.receipt_path = receipt_path or xdg_paths().state / "installation.json"
+        self.snapshot_root = snapshot_root or self.receipt_path.parent / "snapshots"
+        self.release_resolver = release_resolver
+        self.contract_loader = contract_loader
+        self.addon_contract_loader = addon_contract_loader
+        self.capability_planner = capability_planner
+        self.lock_factory = lock_factory
+        self.runner = runner or CommandRunner()
+        self.adapters = (
+            dict(adapters)
+            if adapters is not None
+            else {name: AdapterRegistry.create(name) for name in HARNESS_ORDER}
+        )
+        bind_adapter_authorities(self.adapters, self.receipt_path)
+        unsupported = set(self.adapters) - set(HARNESS_ORDER)
+        if unsupported:
+            raise ValueError(
+                f"unsupported adapter names: {', '.join(sorted(unsupported))}"
+            )
+
+    @notes_retired_harnesses
+    def install(self) -> ServiceReport:
+        """Install and verify requested harnesses while preserving partial success."""
+        results, detections, notes = {}, {}, ()
+        try:
+            with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                journal_error = pending_bootstrap_journal_error(self.receipt_path)
+                if journal_error is not None:
+                    return report("install", {}, errors=(journal_error,))
+                previous = read_receipt(self.receipt_path)
+                desired, error = self._desired_state()
+                if error is not None:
+                    return report("install", {}, errors=(error,))
+                assert desired is not None
+                selected, detections, missing, notes = self._detect_requested()
+                results = dict(missing)
+                preflight = snapshot_declared(
+                    selected, desired, self.adapters, self.snapshot_root, preflight=True
+                )
+                if preflight:
+                    return report("install", {**results, **preflight}, notes)
+                if previous is not None:
+                    previous, upgrade_error = self._upgrade_retired_graphify_receipt(
+                        previous, desired
+                    )
+                    if upgrade_error is not None:
+                        return report("install", {}, errors=(upgrade_error,))
+                    assert previous is not None
+                    conflicts = identity_errors(
+                        previous, desired, bundle_checksums(desired)
+                    )
+                    if conflicts:
+                        return report(
+                            "install",
+                            {},
+                            errors=(
+                                "existing receipt has incompatible release identity; "
+                                f"use {_update_source_hint(self.source)}: "
+                                + "; ".join(conflicts),
+                            ),
+                        )
+                elif retired_graphify_transaction_path(self.receipt_path).exists():
+                    # A journal without its bound receipt cannot prove safe recovery.
+                    read_retired_graphify_transaction(
+                        retired_graphify_transaction_path(self.receipt_path)
+                    )
+                    return report(
+                        "install",
+                        {},
+                        errors=(
+                            "retired Graphify transaction has no matching installation "
+                            "receipt",
+                        ),
+                    )
+                with ObserverTransaction(desired, self.receipt_path) as runtime:
+                    desired = with_prior_harness_receipts(desired, previous)
+                    failures = snapshot_declared(
+                        selected, desired, self.adapters, self.snapshot_root
+                    )
+                    for name in selected:
+                        if name in failures:
+                            results[name] = failures[name]
+                            continue
+                        adapter = self.adapters[name]
+                        installed = _adapter_call(name, adapter.install, desired)
+                        inspected = _adapter_call(
+                            name,
+                            adapter.inspect,
+                            operation_desired_state(desired, adapter, installed),
+                        )
+                        results[name] = combine_results(installed, inspected)
+                    results = ordered(results, HARNESS_ORDER)
+                    results = _with_native_version(results, detections)
+                    receipt = build_receipt(
+                        desired,
+                        results,
+                        detections,
+                        self.adapters,
+                        HARNESS_ORDER,
+                        previous=previous,
+                    )
+                    runtime.persist(receipt)
+        # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
+        except Exception as exception:
+            return report(
+                "install",
+                _with_native_version(ordered(results, HARNESS_ORDER), detections),
+                notes,
+                (diagnostic(exception),),
+            )
+        return report("install", results, notes)
+
+    @notes_retired_harnesses
+    def bootstrap_sync(self) -> ServiceReport:
+        """Converge native plugins and perform receipt-backed final cutovers."""
+        from manifest_agent.bootstrap_sync import BootstrapSyncService
+
+        return BootstrapSyncService(self).run()
+
+    def _upgrade_retired_graphify_receipt(
+        self, receipt: InstallationReceipt, desired: DesiredState
+    ) -> tuple[InstallationReceipt | None, str | None]:
+        """Durably replace a validated nine-bundle receipt with the current inventory."""
+        checksums = bundle_checksums(desired)
+        transaction_path = retired_graphify_transaction_path(self.receipt_path)
+        transaction = read_retired_graphify_transaction(transaction_path)
+        recovering = transaction is not None
+
+        if transaction is not None:
+            authorization_errors = graphify_retirement_transaction_errors(
+                transaction.phase,
+                transaction.legacy_receipt_digest,
+                transaction.legacy_receipt,
+                transaction.target_receipt,
+                transaction.ownership_proof,
+                key_path=self.receipt_path.parent / "ownership.key",
+            )
+            if authorization_errors:
+                return None, (
+                    "retired Graphify transaction is not authorized: "
+                    + "; ".join(authorization_errors)
+                )
+            if (
+                receipt_digest(transaction.legacy_receipt)
+                != transaction.legacy_receipt_digest
+            ):
+                return None, (
+                    "retired Graphify transaction does not match its recorded legacy "
+                    "receipt"
+                )
+            # Verified as written; compared and upgraded as read_receipt sees it.
+            transaction = without_retired_transaction_harnesses(transaction)
+            if not _is_graphify_retirement_receipt(
+                transaction.legacy_receipt, desired, checksums
+            ):
+                return None, (
+                    "retired Graphify transaction legacy receipt is incompatible with "
+                    "the current release"
+                )
+            expected = _retired_graphify_target(
+                transaction.legacy_receipt, desired, checksums
+            )
+            if transaction.target_receipt != expected:
+                return None, (
+                    "retired Graphify transaction target does not match the required "
+                    "legacy receipt upgrade"
+                )
+            if receipt == transaction.target_receipt:
+                try:
+                    clear_retired_graphify_transaction(transaction_path)
+                # constitution: exempt C-ERR -- journal cleanup is a state boundary.
+                except Exception as exception:
+                    return None, diagnostic(exception)
+                return receipt, None
+            if receipt != transaction.legacy_receipt:
+                return None, (
+                    "retired Graphify transaction does not match the current legacy "
+                    "receipt"
+                )
+            upgraded = transaction.target_receipt
+        else:
+            if not _is_graphify_retirement_receipt(receipt, desired, checksums):
+                return receipt, None
+            upgraded = _retired_graphify_target(receipt, desired, checksums)
+            if identity_errors(upgraded, desired, checksums):
+                return (
+                    None,
+                    "retired receipt cannot be reconciled with the current release",
+                )
+            try:
+                ownership_proof = graphify_retirement_transaction_proof(
+                    "prepared",
+                    receipt_digest(receipt),
+                    receipt,
+                    upgraded,
+                    key_path=self.receipt_path.parent / "ownership.key",
+                )
+            # constitution: exempt C-ERR -- ownership authority is a trust boundary.
+            except Exception as exception:
+                return None, diagnostic(exception)
+            transaction = RetiredGraphifyTransaction(
+                phase="prepared",
+                legacy_receipt_digest=receipt_digest(receipt),
+                legacy_receipt=receipt,
+                target_receipt=upgraded,
+                ownership_proof=ownership_proof,
+            )
+            try:
+                write_retired_graphify_transaction_atomic(transaction_path, transaction)
+            # constitution: exempt C-ERR -- durable intent is a state boundary.
+            except Exception as exception:
+                return None, diagnostic(exception)
+
+        if transaction.phase == "prepared" and _receipt_owns_retired_graphify(receipt):
+            if recovering:
+                installed, observation_error = self._graphify_tool_installed()
+                if observation_error is not None:
+                    return None, observation_error
+                if installed:
+                    return None, (
+                        "legacy Graphify installation remains after an interrupted "
+                        "cleanup; it may have been reinstalled, so remove it manually "
+                        "before retrying"
+                    )
+            else:
+                # read_receipt validated every ownership HMAC before the journal was created.
+                try:
+                    command = self.runner.run(("uv", "tool", "uninstall", "graphifyy"))
+                # constitution: exempt C-ERR -- native cleanup must block the upgrade.
+                except Exception as exception:
+                    return None, diagnostic(exception)
+                if command.returncode != 0:
+                    return None, redact_text(
+                        "legacy Graphify cleanup failed: "
+                        f"exit {command.returncode}: {command.stderr or command.stdout}"
+                    )
+
+        if transaction.phase == "prepared":
+            try:
+                ownership_proof = graphify_retirement_transaction_proof(
+                    "cleanup-complete",
+                    transaction.legacy_receipt_digest,
+                    transaction.legacy_receipt,
+                    transaction.target_receipt,
+                    key_path=self.receipt_path.parent / "ownership.key",
+                )
+            # constitution: exempt C-ERR -- ownership authority is a trust boundary.
+            except Exception as exception:
+                return None, diagnostic(exception)
+            try:
+                write_retired_graphify_transaction_atomic(
+                    transaction_path,
+                    replace(
+                        transaction,
+                        phase="cleanup-complete",
+                        ownership_proof=ownership_proof,
+                    ),
+                )
+            # constitution: exempt C-ERR -- cleanup completion must be durable.
+            except Exception as exception:
+                return None, diagnostic(exception)
+        try:
+            write_receipt_atomic(self.receipt_path, upgraded)
+        # constitution: exempt C-ERR -- atomic state persistence is a service boundary.
+        except Exception as exception:
+            return None, diagnostic(exception)
+        try:
+            clear_retired_graphify_transaction(transaction_path)
+        # constitution: exempt C-ERR -- journal cleanup is a state boundary.
+        except Exception as exception:
+            return None, diagnostic(exception)
+        return upgraded, None
+
+    def _graphify_tool_installed(self) -> tuple[bool, str | None]:
+        """Observe the exact retired uv tool entry before retrying a prepared cleanup."""
+        try:
+            command = self.runner.run(("uv", "tool", "list", "--show-paths"))
+        # constitution: exempt C-ERR -- native observation must block unsafe retry.
+        except Exception as exception:
+            return False, diagnostic(exception)
+        if command.returncode != 0:
+            return False, redact_text(
+                "unable to inspect legacy Graphify installation: "
+                f"exit {command.returncode}: {command.stderr or command.stdout}"
+            )
+        graphify_lines = [
+            line for line in command.stdout.splitlines() if line.startswith("graphifyy")
+        ]
+        if any(not _GRAPHIFY_TOOL_HEADER.fullmatch(line) for line in graphify_lines):
+            return (
+                False,
+                "legacy Graphify installation inspection returned invalid output",
+            )
+        if len(graphify_lines) > 1:
+            return False, "legacy Graphify installation inspection is ambiguous"
+        return bool(graphify_lines), None
+
+    @notes_retired_harnesses
+    def migrate(self) -> ServiceReport:
+        """Atomically hand bootstrap-owned writers to verified native plugins."""
+        desired, error = self._desired_state()
+        if error is not None:
+            return report("migrate", {}, errors=(error,))
+        assert desired is not None
+        migration = MigrationService.from_manifest_service(self, paths=xdg_paths())
+        result = migration.migrate(desired)
+        if result.state is ResultState.BLOCKED:
+            harnesses = " ".join(
+                f"--harness {name}" for name in (self.harnesses or ("all",))
+            )
+            source = (
+                f"--source {quote(str(self.source))}"
+                if self.source is not None
+                else f"--release {self.release or desired.release_version}"
+            )
+            optional = " ".join(
+                f"--with {quote(capability)}" for capability in self.selected_optional
+            )
+            command = (
+                "uvx --from manifest-agent manifest migrate "
+                f"{source} {harnesses} {optional} --non-interactive"
+            )
+            return replace(result, notes=(*result.notes, f"resume with: {command}"))
+        return result
+
+    @notes_retired_harnesses
+    def reconcile(self, apply: bool = False) -> ServiceReport:
+        """Inspect desired state and optionally repair owned harnesses."""
+        if apply:
+            try:
+                with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                    journal_error = pending_bootstrap_journal_error(self.receipt_path)
+                    if journal_error is not None:
+                        return report("reconcile", {}, errors=(journal_error,))
+                    receipt = read_receipt(self.receipt_path)
+                    return self._reconcile(receipt, apply=True)
+            # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
+            except Exception as exception:
+                return report("reconcile", {}, errors=(diagnostic(exception),))
+        try:
+            receipt = read_receipt(self.receipt_path)
+        # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
+        except Exception as exception:
+            return report("reconcile", {}, errors=(diagnostic(exception),))
+        return self._reconcile(receipt, apply=False)
+
+    @notes_retired_harnesses
+    def observe_prepared(
+        self, receipt: InstallationReceipt, desired: DesiredState
+    ) -> ServiceReport:
+        """Observe a locally prepared desired state without resolving a release."""
+        result = _reconcile_desired(self, receipt, desired, apply=False)
+        return _reconcile_runtime_diagnostics(self, desired, result, apply=False)
+
+    def _reconcile(
+        self, receipt: InstallationReceipt | None, *, apply: bool
+    ) -> ServiceReport:
+        if receipt is None:
+            return report(
+                "reconcile", {}, errors=("no installation receipt is available",)
+            )
+        desired, error = self._desired_state(receipt.release_version)
+        if error is not None:
+            return report("reconcile", {}, errors=(error,))
+        assert desired is not None
+        desired = with_prior_harness_receipts(desired, receipt)
+        result = _reconcile_desired(self, receipt, desired, apply=apply)
+        return _reconcile_runtime_diagnostics(self, desired, result, apply=apply)
+
+    @notes_retired_harnesses
+    def uninstall(self) -> ServiceReport:
+        """Remove only receipt-recorded ownership in reverse harness order."""
+        results = {}
+        notes = []
+        try:
+            with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                journal_error = pending_bootstrap_journal_error(self.receipt_path)
+                if journal_error is not None:
+                    return report("uninstall", {}, errors=(journal_error,))
+                receipt = read_receipt(self.receipt_path)
+                if receipt is None:
+                    remove_observer(self.receipt_path)
+                    return report("uninstall", {}, notes=("nothing is installed",))
+                remaining = dict(receipt.harnesses)
+                for name in reversed(_uninstall_selection(self, receipt)):
+                    adapter = self.adapters.get(name)
+                    owned = receipt.harnesses.get(name)
+                    if adapter is None:
+                        results[name] = _missing_result(
+                            name,
+                            Detection(False, None, None, "harness adapter unavailable"),
+                        )
+                        continue
+                    detection = _detect(name, adapter)
+                    if not detection.present:
+                        results[name] = _missing_result(name, detection)
+                        continue
+                    if owned is None:
+                        notes.append(f"{name}: no recorded Manifest ownership")
+                        continue
+                    result = _adapter_call(name, adapter.uninstall, owned)
+                    results[name] = result
+                    if result.state is ResultState.READY:
+                        remaining.pop(name, None)
+                        if not remaining:
+                            queue_observer_cleanup(self.receipt_path)
+                        _persist_progress(
+                            self.receipt_path, receipt, remaining, HARNESS_ORDER
+                        )
+                        if not remaining:
+                            remove_observer(self.receipt_path)
+        # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
+        except Exception as exception:
+            return report(
+                "uninstall",
+                ordered(results, HARNESS_ORDER),
+                errors=(diagnostic(exception),),
+            )
+        return report("uninstall", ordered(results, HARNESS_ORDER), notes)
+
+    def _desired_state(
+        self, receipt_release: str | None = None, *, exact_release: bool = False
+    ) -> tuple[DesiredState | None, str | None]:
+        return _build_desired_state(self, receipt_release, exact_release=exact_release)
+
+    def _detect_requested(self):
+        explicit = bool(self.harnesses)
+        candidates = (
+            tuple(self.adapters)
+            if not explicit or self.harnesses == ("all",)
+            else self.harnesses
+        )
+        candidates = tuple(name for name in HARNESS_ORDER if name in candidates)
+        selected, detections, missing, notes = [], {}, {}, []
+        for name in candidates:
+            detection = _detect(name, self.adapters[name])
+            detections[name] = detection
+            if detection.present:
+                selected.append(name)
+            elif explicit:
+                missing[name] = _missing_result(name, detection)
+            else:
+                notes.append(f"{name}: {detection.reason or 'CLI not present'}")
+        return tuple(selected), detections, missing, tuple(notes)
+
+
+def _is_graphify_retirement_receipt(receipt, desired, checksums) -> bool:
+    """Accept only a signed receipt whose sole bundle delta is retired Graphify."""
+    legacy_bundles = set(DOMAIN_BUNDLES) | {_RETIRED_BUNDLE}
+    if set(receipt.bundle_checksums) != legacy_bundles:
+        return False
+    if any(
+        receipt.bundle_checksums[name] != checksums[name] for name in DOMAIN_BUNDLES
+    ):
+        return False
+    return receipt.selected_optional == tuple(sorted(desired.selected_optional))
+
+
+def _retired_graphify_target(receipt, desired, checksums) -> InstallationReceipt:
+    """Derive the sole permitted current receipt from a signed legacy receipt."""
+    return replace(
+        receipt,
+        release_version=desired.release_version,
+        source_commit=desired.source_commit,
+        source_dirty=desired.source_dirty,
+        archive_sha256=desired.archive_sha256,
+        bundle_checksums=checksums,
+        harnesses={
+            name: _without_retired_graphify(harness)
+            for name, harness in receipt.harnesses.items()
+        },
+    )
+
+
+def _without_retired_graphify(receipt: HarnessReceipt) -> HarnessReceipt:
+    """Drop only retired bundle and capability facts after native cleanup succeeds."""
+    retired_plugin_ids = {_RETIRED_BUNDLE, f"{_RETIRED_BUNDLE}@manifest"}
+    retired_capabilities = {
+        f"executable:{_RETIRED_EXECUTABLE}",
+        f"{_RETIRED_BUNDLE}:executable:{_RETIRED_EXECUTABLE}",
+    }
+    return replace(
+        receipt,
+        plugin_ids=tuple(
+            plugin_id
+            for plugin_id in receipt.plugin_ids
+            if plugin_id not in retired_plugin_ids
+        ),
+        owned_entries=tuple(
+            entry
+            for entry in receipt.owned_entries
+            if not (
+                entry.kind == "executable" and entry.identifier == _RETIRED_EXECUTABLE
+            )
+        ),
+        capabilities={
+            identity: state
+            for identity, state in receipt.capabilities.items()
+            if identity not in retired_capabilities
+        },
+    )
+
+
+def _receipt_owns_retired_graphify(receipt: InstallationReceipt) -> bool:
+    """Require receipt-proven executable ownership before native cleanup."""
+    return any(
+        entry.kind == "executable" and entry.identifier == _RETIRED_EXECUTABLE
+        for harness in receipt.harnesses.values()
+        for entry in harness.owned_entries
+    )
+
+
+def _detect(name: str, adapter: HarnessAdapter) -> Detection:
+    try:
+        return adapter.detect()
+    # constitution: exempt C-ERR -- adapters are a native process boundary.
+    except Exception as exception:
+        return Detection(False, None, None, diagnostic(exception))
+
+
+_ADHD_DIAGNOSTIC = "manifest-i-have-adhd.json"
+_ADHD_REASONS = frozenset(
+    {
+        "invalid-event",
+        "invalid-json",
+        "invalid-payload",
+        "missing-guidance",
+        "runtime-error",
+    }
+)
+_ADHD_HARNESSES = frozenset({"native", "claude", "codex"})
+
+
+def _load_adhd_diagnostics(root: Path, version: str) -> tuple[str, ...]:
+    """Decode only trusted, bounded addon diagnostics into stable reason codes."""
+    path = root / _ADHD_DIAGNOSTIC
+    if path.is_symlink() or not path.is_file():
+        return ()
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as stream:
+            raw = stream.read(4097)
+        if len(raw) > 4096:
+            return ()
+        rows = json.loads(raw)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return ()
+    if not isinstance(rows, list) or len(rows) > 100:
+        return ()
+    reasons: list[str] = []
+    allowed = {"plugin", "version", "harness", "reason"}
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != allowed:
+            continue
+        if not all(
+            isinstance(row[key], str) and len(row[key].encode("utf-8")) <= 512
+            for key in allowed
+        ):
+            continue
+        if (
+            row["plugin"] != "manifest-i-have-adhd"
+            or row["version"] != version
+            or row["harness"] not in _ADHD_HARNESSES
+            or row["reason"] not in _ADHD_REASONS
+        ):
+            continue
+        reasons.append(row["reason"])
+    return tuple(dict.fromkeys(reasons))
+
+
+def _clear_adhd_diagnostic(root: Path) -> None:
+    path = root / _ADHD_DIAGNOSTIC
+    if path.is_symlink():
+        raise RuntimeError("owned ADHD diagnostic path became a symlink")
+    path.unlink(missing_ok=True)
+
+
+def _reconcile_runtime_diagnostics(service, desired, result, *, apply: bool):
+    addon = next(
+        (i for i in desired.catalog_plugins if i.name == "manifest-i-have-adhd"),
+        None,
+    )
+    if addon is None:
+        return result
+    root = xdg_paths().state / "diagnostics"
+    reasons = _load_adhd_diagnostics(root, addon.version)
+    if not reasons:
+        return result
+    codex = result.harnesses.get("codex")
+    if codex is None:
+        return replace(
+            result,
+            notes=(*result.notes, "ADHD runtime diagnostic awaits an owned harness"),
+        )
+    adapter = service.adapters.get("codex")
+    if apply and adapter is not None and hasattr(adapter, "probe_adhd_hook"):
+        probe = adapter.probe_adhd_hook(desired)
+        if probe.state is ResultState.READY:
+            _clear_adhd_diagnostic(root)
+            repaired = replace(
+                codex,
+                capabilities={**codex.capabilities, **probe.capabilities},
+                warnings=tuple(
+                    warning
+                    for warning in codex.warnings
+                    if not warning.startswith("ADHD runtime diagnostic:")
+                ),
+            )
+            harnesses = dict(result.harnesses)
+            harnesses["codex"] = repaired
+            return report(
+                "reconcile",
+                harnesses,
+                (*result.notes, "repaired owned ADHD SessionStart diagnostic"),
+                result.errors,
+            )
+        harnesses = dict(result.harnesses)
+        harnesses["codex"] = combine_results(codex, probe)
+        return report("reconcile", harnesses, result.notes, result.errors)
+    degraded = replace(
+        codex,
+        state=(
+            codex.state
+            if codex.state in {ResultState.BLOCKED, ResultState.DRIFTED}
+            else ResultState.DEGRADED
+        ),
+        warnings=(
+            *codex.warnings,
+            *(f"ADHD runtime diagnostic: {reason}" for reason in reasons),
+        ),
+    )
+    harnesses = dict(result.harnesses)
+    harnesses["codex"] = degraded
+    return report("reconcile", harnesses, result.notes, result.errors)
+
+
+def _adapter_call(name: str, operation: Callable[..., Any], arg: Any) -> HarnessResult:
+    try:
+        result = operation(arg)
+        if not isinstance(result, HarnessResult) or result.harness != name:
+            raise TypeError("adapter returned an invalid harness result")
+        return result
+    # constitution: exempt C-ERR -- adapters are a native process boundary.
+    except Exception as exception:
+        return HarnessResult(
+            name, ResultState.BLOCKED, (), {}, errors=(diagnostic(exception),)
+        )
+
+
+def _with_native_version(
+    results: dict[str, HarnessResult], detections: Mapping[str, Detection]
+) -> dict[str, HarnessResult]:
+    """Attach the exact native CLI version each adapter's own `detect()` probed.
+
+    `reconcile --json` is inspection evidence: a harness that genuinely ran and
+    converged must report the real probed version, never a placeholder, and a
+    harness whose CLI went missing must leave it unset rather than invent one.
+    """
+    annotated = {}
+    for name, result in results.items():
+        detection = detections.get(name)
+        version = detection.version if detection is not None else None
+        annotated[name] = (
+            result if version is None else replace(result, native_version=version)
+        )
+    return annotated
+
+
+def _build_desired_state(service, receipt_release, *, exact_release):
+    selector: str | Path = (
+        receipt_release
+        if exact_release and receipt_release is not None
+        else service.source or service.release or receipt_release or __version__
+    )
+    try:
+        resolved = service.release_resolver(selector)
+        contracts = service.contract_loader(resolved.release_root / "plugins")
+        addon_contracts = service.addon_contract_loader(
+            resolved.release_root / "plugins"
+        )
+        authoritative_contracts = (*contracts, *addon_contracts)
+        service.capability_planner(authoritative_contracts, service.selected_optional)
+        marketplace_path = resolved.release_root / ".claude-plugin" / "marketplace.json"
+        catalog = (
+            load_catalog(marketplace_path)
+            if marketplace_path.exists()
+            else tuple(
+                CatalogPlugin(
+                    contract.name,
+                    contract.version,
+                    f"./plugins/{contract.name}",
+                )
+                for contract in authoritative_contracts
+            )
+        )
+        catalog_versions = {plugin.name: plugin.version for plugin in catalog}
+        for contract in authoritative_contracts:
+            if catalog_versions.get(contract.name) != contract.version:
+                raise ValueError(
+                    f"catalog identity for {contract.name} disagrees with its portable contract"
+                )
+        return (
+            with_source_fingerprints(
+                DesiredState(
+                    resolved.version,
+                    resolved.source_commit,
+                    resolved.source,
+                    resolved.marketplace_source,
+                    resolved.release_root,
+                    resolved.repository_url,
+                    resolved.source_dirty,
+                    resolved.archive_sha256,
+                    tuple(contracts),
+                    frozenset(service.selected_optional),
+                    service.harnesses,
+                    catalog,
+                    tuple(addon_contracts),
+                )
+            ),
+            None,
+        )
+    except Exception as exception:
+        return None, diagnostic(exception)
+
+
+def _reconcile_desired(service, receipt, desired, *, apply):
+    selected, detections, missing, notes = _detect_reconcile(service, receipt)
+    results = dict(missing)
+    release_errors = identity_errors(receipt, desired, bundle_checksums(desired))
+    owned_harnesses = set(receipt.harnesses)
+    scoped_owned = (set(selected) | set(missing)) & owned_harnesses
+    scope_error = _identity_scope_error(
+        apply, release_errors, scoped_owned, owned_harnesses, service.source
+    )
+    if scope_error is not None:
+        return report("reconcile", results, notes, (scope_error,))
+    repairable = _inspect_reconcile_targets(
+        service, receipt, desired, selected, release_errors, results, apply
+    )
+    if not apply:
+        return report(
+            "reconcile",
+            _with_native_version(ordered(results, HARNESS_ORDER), detections),
+            notes,
+        )
+    if any(
+        _is_foreign_conflict_error(error)
+        for result in results.values()
+        for error in result.errors
+    ):
+        return report(
+            "reconcile",
+            results,
+            notes,
+            ("native preflight rejected foreign ownership",),
+        )
+    return _apply_reconcile(
+        service,
+        receipt,
+        desired,
+        detections,
+        release_errors,
+        owned_harnesses,
+        repairable,
+        results,
+        notes,
+    )
+
+
+def _inspect_reconcile_targets(
+    service, receipt, desired, selected, release_errors, results, apply
+):
+    repairable = []
+    for name in selected:
+        adapter = service.adapters[name]
+        inspected = _adapter_call(name, adapter.inspect, desired)
+        drift_errors = _harness_drift_errors(receipt, name, adapter, release_errors)
+        current = (
+            combine_results(_drift_result(name, drift_errors), inspected)
+            if drift_errors
+            else inspected
+        )
+        if (
+            apply
+            and name in receipt.harnesses
+            and _is_repairable_result(current, inspected, drift_errors)
+        ):
+            repairable.append(name)
+        results[name] = current
+    return repairable
+
+
+def _apply_reconcile(
+    service,
+    receipt,
+    desired,
+    detections,
+    release_errors,
+    owned_harnesses,
+    repairable,
+    results,
+    notes,
+):
+    mutated_owned = set()
+    with ObserverTransaction(desired, service.receipt_path) as runtime:
+        for name in repairable:
+            adapter = service.adapters[name]
+            installed = _adapter_call(name, adapter.install, desired)
+            mutated_owned.add(name)
+            verified = _adapter_call(
+                name,
+                adapter.inspect,
+                operation_desired_state(desired, adapter, installed),
+            )
+            results[name] = combine_results(installed, verified)
+        results = _with_native_version(ordered(results, HARNESS_ORDER), detections)
+        persist_error = _persist_reconcile(
+            service,
+            receipt,
+            desired,
+            _ReconcileOutcome(
+                results, detections, release_errors, owned_harnesses, mutated_owned
+            ),
+            runtime=runtime,
+        )
+        if persist_error is not None:
+            return report("reconcile", results, notes, (persist_error,))
+        if not mutated_owned:
+            runtime.persist(receipt)
+    return report("reconcile", results, notes)
+
+
+_REPAIRABLE_STATES = frozenset(
+    {ResultState.DRIFTED, ResultState.DEGRADED, ResultState.BLOCKED}
+)
+_FOREIGN_CONFLICT_MARKERS = (
+    "expected source antigravity, found ",
+    "plugin inventory is ambiguous for ",
+    "manifest marketplace is not a native directory source",
+    "Cursor Manifest marketplace is not indexed at user scope",
+    "codex plugin list contains an unsafe installed-plugin identity",
+    "plugin info identity mismatch for ",
+    "contains unowned user content",
+    "conflicting Cursor MCP entry ",
+    "Codex reported undeclared MCP server ",
+)
+
+
+def _update_source_hint(source: Path | None) -> str:
+    target = quote(str(source)) if source is not None else "<path>"
+    return f"manifest update --source {target}"
+
+
+def _is_foreign_conflict_error(error: str) -> bool:
+    lowered = error.lower()
+    if "foreign" in lowered or "unowned" in lowered:
+        return True
+    return any(marker in error for marker in _FOREIGN_CONFLICT_MARKERS)
+
+
+def _is_repairable_result(
+    current: HarnessResult,
+    inspected: HarnessResult,
+    drift_errors: Sequence[str],
+) -> bool:
+    if current.state not in _REPAIRABLE_STATES:
+        return False
+    if inspected.state is not ResultState.BLOCKED:
+        return True
+    if any(_is_foreign_conflict_error(error) for error in inspected.errors):
+        return False
+    if drift_errors or not inspected.capabilities:
+        return True
+    conflicting = sum(
+        1 for status in inspected.capabilities.values() if status == "conflicting"
+    )
+    return not (
+        conflicting > 0
+        and len(inspected.errors) == conflicting
+        and all(
+            status in {"conflicting", "verified"}
+            for status in inspected.capabilities.values()
+        )
+    )
+
+
+def _identity_scope_error(
+    apply,
+    release_errors,
+    scoped_owned,
+    owned_harnesses,
+    source: Path | None = None,
+):
+    if apply and release_errors and scoped_owned and scoped_owned != owned_harnesses:
+        return (
+            "release identity change requires a full update "
+            f"({_update_source_hint(source)}); "
+            "partial apply would create mixed receipt identity"
+        )
+    return None
+
+
+@dataclass(frozen=True)
+class _ReconcileOutcome:
+    """What one reconcile pass observed, as the receipt writer needs it."""
+
+    results: dict[str, HarnessResult]
+    detections: Mapping[str, Detection]
+    release_errors: tuple[str, ...]
+    owned_harnesses: set[str]
+    mutated_owned: set[str]
+
+
+def _persist_reconcile(service, receipt, desired, outcome, *, runtime):
+    results = outcome.results
+    release_errors = outcome.release_errors
+    owned_harnesses = outcome.owned_harnesses
+    mutated_owned = outcome.mutated_owned
+    if not mutated_owned:
+        return None
+    if release_errors and not all(
+        name in results
+        and results[name].state in {ResultState.READY, ResultState.DEGRADED}
+        for name in owned_harnesses
+    ):
+        if any(
+            getattr(service.adapters.get(name), "preserves_partial_ownership", False)
+            and results[name].owned_entries
+            for name in mutated_owned
+            if name in results
+        ):
+            partial = build_receipt(
+                desired,
+                {
+                    name: result
+                    for name, result in results.items()
+                    if name in receipt.harnesses
+                },
+                outcome.detections,
+                service.adapters,
+                HARNESS_ORDER,
+                previous=receipt,
+            )
+            partial = replace(
+                partial,
+                release_version=receipt.release_version,
+                source_commit=receipt.source_commit,
+                source_dirty=receipt.source_dirty,
+                archive_sha256=receipt.archive_sha256,
+                bundle_checksums=receipt.bundle_checksums,
+                selected_optional=receipt.selected_optional,
+            )
+            write_receipt_atomic(service.receipt_path, partial)
+        return "release identity remains unchanged until every owned harness converges"
+    owned_results = {
+        name: result for name, result in results.items() if name in receipt.harnesses
+    }
+    updated = build_receipt(
+        desired,
+        owned_results,
+        outcome.detections,
+        service.adapters,
+        HARNESS_ORDER,
+        previous=receipt,
+    )
+    runtime.persist(updated)
+    return None
+
+
+def _detect_reconcile(service, receipt):
+    if not service.harnesses:
+        candidates = tuple(receipt.harnesses)
+    elif service.harnesses == ("all",):
+        candidates = tuple(service.adapters)
+    else:
+        candidates = service.harnesses
+    candidates = tuple(name for name in HARNESS_ORDER if name in candidates)
+    selected, detections, missing = [], {}, {}
+    for name in candidates:
+        adapter = service.adapters.get(name)
+        detection = (
+            Detection(False, None, None, "harness adapter unavailable")
+            if adapter is None
+            else _detect(name, adapter)
+        )
+        detections[name] = detection
+        if detection.present:
+            selected.append(name)
+        else:
+            missing[name] = _missing_result(name, detection)
+    return tuple(selected), detections, missing, ()
+
+
+def _missing_result(name: str, detection: Detection) -> HarnessResult:
+    return HarnessResult(
+        name,
+        ResultState.BLOCKED,
+        (),
+        {"harness.cli": "unavailable"},
+        errors=(redact_text(detection.reason or f"{name} CLI not present"),),
+    )
+
+
+def _drift_result(name: str, errors: Sequence[str]) -> HarnessResult:
+    return HarnessResult(
+        name,
+        ResultState.DRIFTED,
+        (),
+        {"installation.identity": "drifted"},
+        errors=tuple(errors),
+    )
+
+
+def _harness_drift_errors(receipt, name, adapter, release_errors):
+    errors = list(release_errors)
+    prior = receipt.harnesses.get(name)
+    if prior is None:
+        errors.append("harness is absent from the installation receipt")
+    elif prior.adapter_version != getattr(adapter, "adapter_version", "unknown"):
+        errors.append("adapter version differs from the receipt")
+    elif not prior.verified:
+        errors.append("receipt records an unverified harness")
+    return errors
+
+
+def _uninstall_selection(service, receipt) -> tuple[str, ...]:
+    if not service.harnesses:
+        names = receipt.harnesses
+    elif service.harnesses == ("all",):
+        names = service.adapters
+    else:
+        names = service.harnesses
+    return tuple(name for name in HARNESS_ORDER if name in names)
+
+
+def _persist_progress(receipt_path, receipt, remaining, harness_order) -> None:
+    error = None
+    for _attempt in range(2):
+        try:
+            persist_remaining(receipt_path, receipt, remaining, harness_order)
+            return
+        # constitution: exempt C-ERR -- retry one transient durable-state failure.
+        except Exception as exception:
+            error = exception
+    assert error is not None
+    raise error
+
+
+def _normalize_harnesses(values: Sequence[str]) -> tuple[str, ...]:
+    normalized = tuple(dict.fromkeys(value.lower() for value in values))
+    if "all" in normalized and normalized != ("all",):
+        raise ValueError("harness 'all' cannot be combined with named harnesses")
+    unknown = set(normalized) - set(HARNESS_ORDER) - {"all"}
+    if unknown:
+        raise ValueError(f"unsupported harnesses: {', '.join(sorted(unknown))}")
+    return tuple(name for name in HARNESS_ORDER if name in normalized) or normalized
+
+
+__all__ = ["HARNESS_ORDER", "ManifestService", "ServiceReport"]

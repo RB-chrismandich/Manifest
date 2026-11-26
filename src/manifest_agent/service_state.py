@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -18,6 +19,7 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
+from manifest_agent.observer_runtime_identity import bundle_tree_sha256
 from manifest_agent.ownership import (
     OWNED_STATUS,
     advance_owned_file_entry,
@@ -238,7 +240,7 @@ def identity_errors(receipt, desired, checksums) -> tuple[str, ...]:
 def bundle_checksums(desired: DesiredState) -> dict[str, str]:
     """Digest each complete portable bundle using stable relative identities."""
     return {
-        contract.name: _tree_checksum(desired.bundle_path(contract.name))
+        contract.name: bundle_tree_sha256(desired.bundle_path(contract.name))
         for contract in desired.all_contracts
     }
 
@@ -246,6 +248,13 @@ def bundle_checksums(desired: DesiredState) -> dict[str, str]:
 def with_source_fingerprints(desired: DesiredState) -> DesiredState:
     """Freeze the source bytes validated by the service, before native mutation."""
     catalog = desired.release_root / ".claude-plugin/marketplace.json"
+    from manifest_agent.release import deterministic_tree_sha256
+
+    workspace = (
+        deterministic_tree_sha256(desired.release_root)
+        if (desired.release_root / ".git").exists()
+        else bundle_tree_sha256(desired.release_root)
+    )
     return replace(
         desired,
         source_bundle_checksums=tuple(sorted(bundle_checksums(desired).items())),
@@ -254,27 +263,8 @@ def with_source_fingerprints(desired: DesiredState) -> DesiredState:
             if catalog.is_file()
             else None
         ),
+        source_workspace_sha256=workspace,
     )
-
-
-def _tree_checksum(root: Path) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root).as_posix().encode()
-        digest.update(len(relative).to_bytes(8, "big"))
-        digest.update(relative)
-        if path.is_symlink():
-            target = path.readlink().as_posix().encode()
-            digest.update(b"l" + len(target).to_bytes(8, "big") + target)
-            continue
-        if path.is_dir():
-            digest.update(b"d")
-            continue
-        digest.update(b"f")
-        with path.open("rb") as stream:
-            while chunk := stream.read(1024 * 1024):
-                digest.update(chunk)
-    return digest.hexdigest()
 
 
 def build_receipt(
@@ -385,7 +375,7 @@ def _harness_receipt(
     )
 
 
-def snapshot_declared(selected, desired, adapters, snapshot_root):
+def snapshot_declared(selected, desired, adapters, snapshot_root, *, preflight=False):
     """Copy only existing files explicitly declared by selected adapters."""
     failures = {}
     for name in selected:
@@ -399,6 +389,9 @@ def snapshot_declared(selected, desired, adapters, snapshot_root):
                     continue
                 if not source.is_file():
                     raise ValueError("declared snapshot path must be a file")
+                if preflight:
+                    source.read_bytes()
+                    continue
                 digest = hashlib.sha256(str(source).encode()).hexdigest()[:16]
                 destination = snapshot_root / name / f"{digest}-{source.name}.bak"
                 destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -424,6 +417,13 @@ def persist_remaining(receipt_path, receipt, remaining, harness_order) -> None:
         )
         return
     receipt_path.unlink(missing_ok=True)
+    descriptor = os.open(
+        receipt_path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    )
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 __all__ = [

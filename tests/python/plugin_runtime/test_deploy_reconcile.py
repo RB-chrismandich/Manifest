@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -15,15 +13,17 @@ from manifest_agent.models import (
     MarketplaceSourceKind,
     ResultState,
 )
-from manifest_agent.release import ResolvedRelease, deterministic_tree_sha256
+from manifest_agent.release import ResolvedRelease
 from manifest_agent.service import ManifestService
+from tests.python.manifest_agent._installed_observer_fixtures import (
+    installed_observer as installed_observer,
+)
 from tests.python.manifest_agent._omp_native_fixture import make_adapter
 from tests.python.plugin_runtime.workspace_runtime_helpers import (
     _harness_receipt,
     _isolated_env,
     _run,
     _valid_receipt,
-    _with_manifest_cli,
     _with_omp_fixture,
 )
 from tests.python.plugin_runtime.workspace_runtime_helpers import (
@@ -43,34 +43,6 @@ _BUNDLES = (
     "manifest-workspace",
     "stitch-design",
 )
-
-
-def _copy_installed_workspace_scripts(workspace_bundle: Path, tmp_path: Path) -> Path:
-    installed = tmp_path / "installed" / "manifest-workspace"
-    for skill in ("env-check", "deploy-reconcile"):
-        shutil.copytree(
-            workspace_bundle / "skills" / skill,
-            installed / "skills" / skill,
-        )
-    return installed
-
-
-def _cache_release_for_installed_bundle(
-    repo_root: Path, env: dict[str, str], receipt: dict[str, Any]
-) -> None:
-    version = "1.0.0"
-    archive = b"read-only native observation fixture"
-    checksum = hashlib.sha256(archive).hexdigest()
-    receipt["release_version"] = version
-    receipt["archive_sha256"] = checksum
-    release_name = f"{version}-{checksum[:16]}"
-    release_root = Path(env["XDG_CACHE_HOME"]) / "manifest" / "releases" / release_name
-    release_root.mkdir(parents=True)
-    (release_root.parent / f"{release_name}.tar.gz").write_bytes(archive)
-    shutil.copytree(repo_root / "plugins", release_root / "plugins")
-    marketplace = repo_root / ".claude-plugin"
-    if marketplace.is_dir():
-        shutil.copytree(marketplace, release_root / ".claude-plugin")
 
 
 def _tree_snapshot(root: Path) -> dict[str, bytes | None]:
@@ -377,77 +349,75 @@ def test_rejects_malformed_native_envelope_errors(
         )
 
 
-def _observer_service(
-    repo_root: Path,
-    env: dict[str, str],
-    state_root: Path,
-    adapter: Any,
-    runtime_context: str,
-) -> ManifestService:
-    if runtime_context == "repository":
-        resolved = ResolvedRelease(
-            f"local-{repo_root.name}",
-            "a" * 40,
-            str(repo_root),
-            MarketplaceSource(MarketplaceSourceKind.LOCAL, str(repo_root), None),
-            repo_root,
-            "https://github.com/RB-chrismandich/Manifest",
-            True,
-            deterministic_tree_sha256(repo_root),
-        )
-    else:
-        release_identity = {"release_version": "1.0.0"}
-        _cache_release_for_installed_bundle(repo_root, env, release_identity)
-        release_root = (
-            Path(env["XDG_CACHE_HOME"])
-            / "manifest"
-            / "releases"
-            / f"{release_identity['release_version']}-{release_identity['archive_sha256'][:16]}"
-        )
-        resolved = ResolvedRelease(
-            "1.0.0",
-            "a" * 40,
-            "cached test release",
-            MarketplaceSource(
-                MarketplaceSourceKind.GIT,
-                "https://example.invalid/Manifest.git",
-                "a" * 40,
-            ),
-            release_root,
-            "https://example.invalid/Manifest",
-            False,
-            release_identity["archive_sha256"],
-        )
-    return ManifestService(
-        source=repo_root,
+def _prepare_observer_fixture(tmp_path, runtime_context, fixture, monkeypatch):
+    desired = fixture["desired"]
+    env = _with_omp_fixture(
+        {**fixture["env"], "HOME": str(tmp_path / "home")},
+        tmp_path,
+        version="omp 18.6.1",
+    )
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    adapter, runner = make_adapter(tmp_path)
+    state_root = fixture["receipt"].parent
+    root, _source, resolved = _observer_release_context(
+        desired, runtime_context, fixture
+    )
+    service = ManifestService(
+        source=root,
         harnesses=("omp",),
         adapters={"omp": adapter},
-        receipt_path=state_root / "installation.json",
+        receipt_path=state_root
+        / f"{tmp_path.name}-{runtime_context}-installation.json",
         release_resolver=lambda _selector: resolved,
     )
-
-
-def _prepare_observer_fixture(
-    workspace_bundle: Path,
-    repo_root: Path,
-    tmp_path: Path,
-    runtime_context: str,
-) -> tuple[dict[str, str], Path, Path, Path, Any]:
-    env = _with_omp_fixture(_isolated_env(tmp_path), tmp_path, version="omp 18.6.1")
-    env["XDG_DATA_HOME"] = ""
-    state_root = Path(env["XDG_STATE_HOME"]) / "manifest"
-    state_root.mkdir(parents=True)
-    adapter, runner = make_adapter(tmp_path)
-    service = _observer_service(repo_root, env, state_root, adapter, runtime_context)
-    assert service.install().state is ResultState.READY
-    receipt = json.loads((state_root / "installation.json").read_text(encoding="utf-8"))
+    result = service.install()
+    assert result.state is ResultState.READY, result
+    receipt = json.loads(service.receipt_path.read_text())
     assert receipt["harnesses"]["omp"]["owned_entries"]
-    bundle = (
-        _copy_installed_workspace_scripts(workspace_bundle, tmp_path)
-        if runtime_context == "installed"
-        else workspace_bundle
+    # The installed case launches from OMP's actual owned package cache.
+    if runtime_context == "installed":
+        bundle = Path(
+            next(
+                entry["target_path"]
+                for entry in receipt["harnesses"]["omp"]["owned_entries"]
+                if entry["identifier"] == "manifest-workspace@manifest"
+            )
+        )
+    else:
+        bundle = root / "plugins/manifest-workspace"
+    return (
+        env,
+        state_root,
+        Path(env["XDG_CACHE_HOME"]),
+        bundle,
+        runner,
+        service.receipt_path,
     )
-    return env, state_root, Path(env["XDG_CACHE_HOME"]), bundle, runner
+
+
+def _observer_release_context(desired, runtime_context, fixture):
+    root = (
+        fixture["base"] / "unavailable-source"
+        if runtime_context == "repository"
+        else desired.release_root
+    )
+    source = (
+        MarketplaceSource(MarketplaceSourceKind.LOCAL, str(root), None)
+        if runtime_context == "repository"
+        else desired.marketplace_source
+    )
+    resolved = ResolvedRelease(
+        desired.release_version,
+        desired.source_commit,
+        str(root),
+        source,
+        root,
+        desired.repository_url,
+        False,
+        desired.archive_sha256,
+    )
+    return root, source, resolved
 
 
 @pytest.mark.parametrize("entrypoint", ("env-check", "deploy-reconcile"))
@@ -458,17 +428,22 @@ def test_entrypoints_observe_native_state_through_packaged_cli(
     tmp_path: Path,
     entrypoint: str,
     runtime_context: str,
+    installed_observer,
+    monkeypatch,
 ) -> None:
-    env, state_root, cache_root, bundle, runner = _prepare_observer_fixture(
-        workspace_bundle, repo_root, tmp_path, runtime_context
+    env, state_root, cache_root, bundle, runner, receipt_path = (
+        _prepare_observer_fixture(
+            tmp_path, runtime_context, installed_observer, monkeypatch
+        )
     )
-    env = _with_manifest_cli(env, tmp_path, repo_root)
     state_before = _tree_snapshot(state_root)
     cache_before = _tree_snapshot(cache_root)
     filename = "env_check.py" if entrypoint == "env-check" else "plugin_reconcile.py"
     script = bundle / "skills" / entrypoint / "scripts" / filename
 
-    completed = _run(script, "--json", env=env, cwd=tmp_path)
+    completed = _run(
+        script, "--json", "--receipt", str(receipt_path), env=env, cwd=tmp_path
+    )
     report = json.loads(completed.stdout)
 
     assert completed.returncode == 0, completed.stderr

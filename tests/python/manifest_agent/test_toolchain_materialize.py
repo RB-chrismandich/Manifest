@@ -82,3 +82,87 @@ def test_python_env_rejects_changed_project_metadata_before_materialization(
 
     assert outcome.status == "blocked"
     assert outcome.reason == f"toolchain: {bundle} project metadata digest mismatch"
+
+
+@pytest.mark.parametrize(
+    ("build_from_locked_environment", "expected"),
+    [
+        (
+            True,
+            [
+                [
+                    "--no-config",
+                    "--locked",
+                    "--no-dev",
+                    "--no-editable",
+                    "--no-install-project",
+                    "--no-build",
+                ],
+                [
+                    "--no-config",
+                    "--locked",
+                    "--no-dev",
+                    "--no-editable",
+                    "--no-build-isolation",
+                ],
+            ],
+        ),
+        (
+            False,
+            [["--no-config", "--locked", "--no-dev", "--no-editable"]],
+        ),
+    ],
+)
+def test_materialize_python_env_locked_build_sync_argv(
+    tmp_path: Path,
+    monkeypatch,
+    build_from_locked_environment: bool,
+    expected: list[list[str]],
+) -> None:
+    project = tmp_path / "config/toolchain"
+    project.mkdir(parents=True)
+    uv = tmp_path / "store/bin/uv"
+    provider = tmp_path / "python"
+    env_root = tmp_path / "env"
+    monkeypatch.setattr(toolchain_materialize, "_resolved_uv", lambda _: uv)
+    monkeypatch.setattr(toolchain_materialize, "_trusted_python", lambda _: provider)
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        toolchain_materialize,
+        "_run",
+        lambda argv, **kwargs: calls.append(argv),
+    )
+    monkeypatch.setattr(
+        toolchain_materialize, "_remove_virtualenv_bootstrap_pth", lambda _: None
+    )
+    context = toolchain_materialize.MaterializeContext(
+        lock={},
+        store=tmp_path / "store",
+        platform="linux-test",
+        repo_root=tmp_path,
+        env={},
+    )
+
+    toolchain_materialize.materialize_python_env(
+        context, env_root, build_from_locked_environment=build_from_locked_environment
+    )
+
+    assert len(calls) == len(expected)
+    assert calls == [
+        [
+            str(uv),
+            "sync",
+            *flags,
+            "--python",
+            str(provider),
+            "--project",
+            str(project),
+        ]
+        for flags in expected
+    ]
+    assert [
+        argv[2 : 2 + len(flags)] for argv, flags in zip(calls, expected, strict=True)
+    ] == expected
+    assert all(argv[0] == str(uv) and argv[1] == "sync" for argv in calls)
+    assert all("--no-config" in argv and "--locked" in argv for argv in calls)
+    assert all(not any("pip" in arg.casefold() for arg in argv) for argv in calls)
