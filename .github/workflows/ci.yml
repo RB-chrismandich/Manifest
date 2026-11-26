@@ -662,10 +662,11 @@ jobs:
       - name: Provision and validate attestation evidence
         env:
           ATTESTATION_PLATFORM: ${{ matrix.platform }}
-          NPM_CONFIG_USERCONFIG: /dev/null
-          NPM_CONFIG_GLOBALCONFIG: /dev/null
         run: |
           set -euo pipefail
+          NPM_CONFIG_USERCONFIG=$(mktemp "$RUNNER_TEMP/npm-user.XXXXXX")
+          NPM_CONFIG_GLOBALCONFIG=$(mktemp "$RUNNER_TEMP/npm-global.XXXXXX")
+          export NPM_CONFIG_USERCONFIG NPM_CONFIG_GLOBALCONFIG
           report="$RUNNER_TEMP/toolchain-attestation-report.json"
           metadata="$RUNNER_TEMP/toolchain-attestation-metadata.json"
           set +e
