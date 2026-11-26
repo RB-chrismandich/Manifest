@@ -662,6 +662,8 @@ jobs:
       - name: Provision and validate attestation evidence
         env:
           ATTESTATION_PLATFORM: ${{ matrix.platform }}
+          NPM_CONFIG_USERCONFIG: /dev/null
+          NPM_CONFIG_GLOBALCONFIG: /dev/null
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/toolchain-attestation-report.json"
@@ -788,51 +790,63 @@ jobs:
           metadata_path.write_text(json.dumps(metadata, sort_keys=True, indent=2) + "\n", encoding="utf-8")
           PY
 
-      - name: Fingerprint npm cache provenance
+      - name: Export strictly validated public npm cache
         if: matrix.platform == 'linux-arm64'
         run: |
-          .venv/bin/python -B - <<'PY'
-          import hashlib
+          set -euo pipefail
+          store="$RUNNER_TEMP/manifest-toolchain"
+          .venv/bin/python -B -m manifest_agent provision --lock config/toolchain.lock.json \
+            --platform linux-arm64 --store "$store" --offline --json > "$RUNNER_TEMP/offline-validation.json"
+          .venv/bin/python -B - "$store" "$RUNNER_TEMP/npm-cache.tar.gz" <<'PY'
           import json
-          import os
+          import re
+          import sys
+          import tarfile
           from pathlib import Path
-          from manifest_agent.checks import toolchain, toolchain_npm_cache as npm
+          from urllib.parse import urlsplit
+          from manifest_agent.checks import toolchain_npm_cache as npm
 
-          root = Path.cwd()
-          scratch = Path(os.environ["RUNNER_TEMP"])
-          store = scratch / "manifest-toolchain"
-          lock = toolchain.load_lock_file(root / "config/toolchain.lock.json", repo_root=root)
-          resolved = npm._resolve_npm_for_materialize(lock, store, "linux-arm64", root)
-          cache = scratch / "npm-cache-provenance"
-          project = root / npm.PROJECT_RELATIVE
-          npm._npm_ci_into_cache(
-              resolved_npm=resolved, package_json_bytes=(project / "package.json").read_bytes(),
-              package_lock_bytes=(project / "package-lock.json").read_bytes(), cache_dir=cache,
-              env={key: os.environ[key] for key in ("HOME", "GITHUB_ACTIONS", "CI") if key in os.environ},
-          )
-          def sha(value):
-              return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-          def leaves(value, path=""):
-              if isinstance(value, dict):
-                  for key, item in value.items():
-                      yield from leaves(item, f"{path}/{key}")
-              else:
-                  yield path, sha(value)
+          if sys.flags.optimize:
+              raise SystemExit("Cache export requires Python assertions")
+          package_lock = Path(npm.PROJECT_RELATIVE) / "package-lock.json"
+          locked_names = {
+              path.rsplit("node_modules/", 1)[-1]
+              for path in json.loads(package_lock.read_bytes())["packages"]
+              if "node_modules/" in path
+          }
+
+          cache = Path(sys.argv[1]) / "caches/node-cache/linux-arm64"
           index = cache / npm._INDEX_SUBDIR
-          records = {}
           for path in sorted(index.rglob("*")):
               if path.is_file():
                   npm._semantic_index_bytes(path, index)
                   for line in path.read_bytes().splitlines():
-                      if line:
-                          record = npm._stable_record(json.loads(line.split(b"\t", 1)[1]))
-                          records[sha(record["key"])] = dict(leaves(record))
-          content = cache / "_cacache/content-v2"
-          payloads = {p.relative_to(content).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-                      for p in content.rglob("*") if p.is_file()}
-          (scratch / "npm-cache-provenance.json").write_text(
-              json.dumps({"digest": npm.index_digest(cache), "records": records, "payloads": payloads}, sort_keys=True)
-          )
+                      if not line:
+                          continue
+                      record = json.loads(line.split(b"\t", 1)[1])
+                      if "metadata" not in record:
+                          kind, name, advisory = record["key"].split(":")
+                          assert kind == "security-advisory" and name in locked_names
+                          assert re.fullmatch(r"[A-Za-z0-9+/]{86}==", advisory)
+                          assert set(record) == {"key", "integrity", "time", "size"}
+                          continue
+                      metadata = record["metadata"]
+                      url = urlsplit(metadata["url"])
+                      assert url.scheme == "https" and url.netloc == "registry.npmjs.org"
+                      assert not (url.query or url.fragment)
+                      assert record["key"] == "make-fetch-happen:request-cache:" + metadata["url"]
+                      assert set(metadata["reqHeaders"]) <= {"accept", "accept-encoding", "cache-control"}
+                      assert set(metadata["resHeaders"]) <= {
+                          "cache-control", "content-encoding", "content-type", "date", "etag",
+                          "expires", "last-modified", "vary",
+                      }
+          with tarfile.open(sys.argv[2], "x:gz") as archive:
+              for directory in (index, cache / "_cacache/content-v2"):
+                  for path in sorted(directory.rglob("*")):
+                      assert not path.is_symlink()
+                      if path.is_file():
+                          assert path.stat().st_nlink == 1
+                          archive.add(path, arcname=path.relative_to(cache).as_posix(), recursive=False)
           PY
 
       - name: Upload Linux toolchain attestation
@@ -843,7 +857,8 @@ jobs:
           path: |
             ${{ runner.temp }}/toolchain-attestation-report.json
             ${{ runner.temp }}/toolchain-attestation-metadata.json
-            ${{ runner.temp }}/npm-cache-provenance.json
+            ${{ runner.temp }}/offline-validation.json
+            ${{ runner.temp }}/npm-cache.tar.gz
           if-no-files-found: warn
           retention-days: 14
 
