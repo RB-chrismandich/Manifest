@@ -1,0 +1,406 @@
+[
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/assets/manifest_agent/_model_policy/frontmatter.py",
+    "line": 11,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "26cabcb4b9fa9eb99b163093a4d0e871c482f136b095a5946feb0993e2c958cb",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "non-observer policy resolver default; lazy policy execution"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/assets/manifest_agent/_model_policy/policy_config.py",
+    "line": 10,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "894788134f94058164858546d1fdd7d0172b13305a03a3d3d5fc3957ecb29757",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "non-observer policy resolver default; lazy policy execution"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/assets/manifest_agent/_model_policy/policy_config.py",
+    "line": 15,
+    "value": "~/.claude/config",
+    "source_line": "_DEFAULT_CONFIG_DIR = Path(\"~/.claude/config\")",
+    "source_sha256": "894788134f94058164858546d1fdd7d0172b13305a03a3d3d5fc3957ecb29757",
+    "line_sha256": "db13af0a062ae5040b180c60b17f5a3398d179dd8530424e5d61c8031214c287",
+    "classification": "non-observer policy resolver default; lazy policy execution"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/assets/manifest_agent/_model_policy/skill_command.py",
+    "line": 10,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "f786dca11a929f8d502f60398de0326d2fb8170b2da22fb618cdec3276e1bf44",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "non-observer policy resolver default; lazy policy execution"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/capabilities.py",
+    "line": 11,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "4f7f484375f00a2ee1a81fec9c1e049e41252a3070c639ca5e689597e5f15e44",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/checks/cli.py",
+    "line": 10,
+    "value": "click",
+    "source_line": "import click",
+    "source_sha256": "427a5cc9e15387b595cf641606a4d7f4881157a19d7b85b548a135ad1122cc12",
+    "line_sha256": "76f34aeab5435eb20dc16b24cdf2568c6d8583fe89c8c9abed52a8e078733aca",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/checks/registry.py",
+    "line": 12,
+    "value": "jsonschema",
+    "source_line": "from jsonschema import Draft202012Validator",
+    "source_sha256": "29fa10e8587ad21ed6143a0b72d314d6e3f2a87c56c3c7dcdef7f31b0c188d88",
+    "line_sha256": "8818ae6d682987b481dcc93ad220d40fcd78818fced371e30fe1820e4b8b6384",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/checks/toolchain_cache.py",
+    "line": 89,
+    "value": "manifest smoke",
+    "source_line": "    # candidate too -- e.g. `manifest smoke run`'s JUnit report, which",
+    "source_sha256": "4cdea60fa7ad127cb9dfbc08444c0fb1c28625d8dc6e389957a01f590217b344",
+    "line_sha256": "54bdf85bac0d8fd2b56389a9a45770cd2e64f090fff5bed3fa74b3cf7d956f2d",
+    "classification": "commentary/example only"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/checks/toolchain_cli.py",
+    "line": 16,
+    "value": "click",
+    "source_line": "import click",
+    "source_sha256": "911aa6ee81f9470f6ed5dcc05f4b6fe72db98790ac175a23804429163f729153",
+    "line_sha256": "76f34aeab5435eb20dc16b24cdf2568c6d8583fe89c8c9abed52a8e078733aca",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/checks/toolchain_materialize_metadata.py",
+    "line": 18,
+    "value": "configs/claude/scripts",
+    "source_line": "        \"configs/claude/scripts/manifest_model_policy/pyproject.toml\",",
+    "source_sha256": "b03e915e44d39df6d84f9ece9d1c3024137c6abd639f2f905c1dffaaef8219f1",
+    "line_sha256": "b4aa72c1c2f023e0617adde3c7b755895ce484dfff871a5e697a3da61029acb1",
+    "classification": "toolchain materializer input metadata"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/checks/toolchain_materialize_metadata.py",
+    "line": 26,
+    "value": "configs/claude/scripts",
+    "source_line": "        \"configs/claude/scripts/manifest_model_policy/pyproject.toml\",",
+    "source_sha256": "b03e915e44d39df6d84f9ece9d1c3024137c6abd639f2f905c1dffaaef8219f1",
+    "line_sha256": "b4aa72c1c2f023e0617adde3c7b755895ce484dfff871a5e697a3da61029acb1",
+    "classification": "toolchain materializer input metadata"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/cli.py",
+    "line": 12,
+    "value": "click",
+    "source_line": "import click",
+    "source_sha256": "0952635ac295163e8f9170b21f79521c77f256640b22c9704a74c161066d2a6a",
+    "line_sha256": "76f34aeab5435eb20dc16b24cdf2568c6d8583fe89c8c9abed52a8e078733aca",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/cli.py",
+    "line": 236,
+    "value": "configs/claude/config",
+    "source_line": "                Path(__file__).parents[2] / \"configs/claude/config/model_policy.yml\"",
+    "source_sha256": "0952635ac295163e8f9170b21f79521c77f256640b22c9704a74c161066d2a6a",
+    "line_sha256": "856a3453ea9c717d20038fc9271d744b29fe8c4e67c4f83beaeebfe53d5bdf99",
+    "classification": "conditional skill-command management fallback"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/command_catalog.py",
+    "line": 8,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "b9d1de57ab71c5e4e84e224e1b6b996d9b9118c774d951ef2a9334488a4b61d6",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/contracts.py",
+    "line": 15,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "aadcbdca8840ec6ec4531ecd527d53340f8de67b772c4f99353b0697047d79b1",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/contracts.py",
+    "line": 16,
+    "value": "jsonschema",
+    "source_line": "from jsonschema import Draft202012Validator",
+    "source_sha256": "aadcbdca8840ec6ec4531ecd527d53340f8de67b772c4f99353b0697047d79b1",
+    "line_sha256": "8818ae6d682987b481dcc93ad220d40fcd78818fced371e30fe1820e4b8b6384",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/__init__.py",
+    "line": 1,
+    "value": "manifest-agent",
+    "source_line": "\"\"\"Package data used by manifest-agent at runtime.\"\"\"",
+    "source_sha256": "11977b02722d8be9288efece0efb41a68ae23504252b7de943cf01c8b5a93e7d",
+    "line_sha256": "94c93757c42ff278f2b62247c7534ec70a9245a57c8261620b7f140c8c92e74a",
+    "classification": "package docstring"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 110,
+    "value": "~/.claude/config",
+    "source_line": "    path: ~/.claude/config",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "d5cdf6585ca22e5f5c81e41206704df4f8724286ed2f78f793ba76ba5b850606",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 120,
+    "value": "~/.claude/config",
+    "source_line": "    path: ~/.claude/config/deploy_stamp",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "c1921c2385ba8f4358fa1697b6bef432cea99a03c0854795b4d25ac277eade99",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 130,
+    "value": "~/.claude/scripts",
+    "source_line": "    path: ~/.claude/scripts/apm_drift_report.sh",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "fae6d37d499154fbebb97ff22c58c92371d6368dcc90e997fe64d5780a3a1d71",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 200,
+    "value": "~/.claude/scripts",
+    "source_line": "    path: ~/.claude/scripts",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "89a0f6ae4a6f8cc72772de58561b930ea64d13d6ce72a550119ca5d020bf56e3",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 214,
+    "value": "~/.claude/config",
+    "source_line": "    ownership_proof: {type: symlink-target, value: ~/.claude/config}",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "6dc87787524520b2947131caff8554169b4bb1943eca743120613f54fdafc365",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 264,
+    "value": "~/.claude/config",
+    "source_line": "    ownership_proof: {type: symlink-target, value: ~/.claude/config}",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "6dc87787524520b2947131caff8554169b4bb1943eca743120613f54fdafc365",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 294,
+    "value": "~/.claude/config",
+    "source_line": "    ownership_proof: {type: symlink-target, value: ~/.claude/config}",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "6dc87787524520b2947131caff8554169b4bb1943eca743120613f54fdafc365",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 384,
+    "value": "~/.claude/scripts",
+    "source_line": "    ownership_proof: {type: symlink-target, value: ~/.claude/scripts}",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "1373a8ef9f587e2fd53c01bee7ff5553ee1bcd0f5860c445c37a7f60ffc6f03a",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/legacy_inventory.yml",
+    "line": 404,
+    "value": "~/.claude/scripts",
+    "source_line": "    ownership_proof: {type: symlink-target, value: ~/.claude/scripts}",
+    "source_sha256": "30a407b5f4588a0b1b5783814a9c3bbbbe1dbdf44dc015401262f3786c632be3",
+    "line_sha256": "1373a8ef9f587e2fd53c01bee7ff5553ee1bcd0f5860c445c37a7f60ffc6f03a",
+    "classification": "migration inventory data / legacy settings marker"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/hooks/claude_code.py",
+    "line": 5,
+    "value": "configs/claude/scripts",
+    "source_line": "files and `configs/claude/scripts/constitution_hook.py` \u2014 not from a live",
+    "source_sha256": "418319635a2e33aeb1c3250743c73a9964958f66fab53109f199a795324767fb",
+    "line_sha256": "49fe83b8837260ddcc2bc2de4a982ba4f6efdd392bf6ba74d4182f5a2198f2c2",
+    "classification": "module docstring describing hook contract"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/hooks/cli.py",
+    "line": 15,
+    "value": "click",
+    "source_line": "import click",
+    "source_sha256": "8f3666305e4599b97fa18064fcf74dacd4217728222c1dc50a349ea80aee017f",
+    "line_sha256": "76f34aeab5435eb20dc16b24cdf2568c6d8583fe89c8c9abed52a8e078733aca",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/migration.py",
+    "line": 25,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "d3b1c752476885cd9b03d1b9260439505189ac93224e27bed5a8ad9ae352871b",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "migration-only surgical legacy-settings marker",
+    "function_sha256": "8b6e018965c1913b0334abdf8477d2b70e505166bc58bdef909bcdc82403ff81"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/migration.py",
+    "function_offset": 32,
+    "value": "~/.claude/scripts",
+    "source_line": "        \"~/.claude/scripts/\",",
+    "source_sha256": "d3b1c752476885cd9b03d1b9260439505189ac93224e27bed5a8ad9ae352871b",
+    "line_sha256": "31a0bb08cbb259c25a11762aa3f775d079f332a186df4fd39bf6a0416f66298a",
+    "classification": "migration-only surgical legacy-settings marker",
+    "function_sha256": "8b6e018965c1913b0334abdf8477d2b70e505166bc58bdef909bcdc82403ff81"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/migration.py",
+    "function_offset": 34,
+    "value": "manifest-agent",
+    "source_line": "        \"manifest-agent\",",
+    "source_sha256": "d3b1c752476885cd9b03d1b9260439505189ac93224e27bed5a8ad9ae352871b",
+    "line_sha256": "9b234033471ff0d5f42bc4117af6308ed38a932bbf7aa9be1bc6b168b931c589",
+    "classification": "migration-only surgical legacy-settings marker",
+    "function_sha256": "8b6e018965c1913b0334abdf8477d2b70e505166bc58bdef909bcdc82403ff81"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/migration.py",
+    "function_offset": 56,
+    "value": "~/.claude/scripts",
+    "source_line": "        markers = (*markers, \"~/.claude/scripts/\")",
+    "source_sha256": "d3b1c752476885cd9b03d1b9260439505189ac93224e27bed5a8ad9ae352871b",
+    "line_sha256": "cf1264b99d37bf39c8f3e84ae3c9fe1708ea18480189f408fb510b96535060e0",
+    "classification": "migration-only surgical legacy-settings marker",
+    "function_sha256": "8b6e018965c1913b0334abdf8477d2b70e505166bc58bdef909bcdc82403ff81"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/plugin_view_renderers.py",
+    "line": 13,
+    "value": "manifest_model_policy",
+    "source_line": "    from manifest_model_policy import ModelFallbackMode, SkillModelPolicy",
+    "source_sha256": "3151f741712332ea94f71489dfb13dbd09bd13047280e977cb621fcf9d8afee5",
+    "line_sha256": "5300b8ae1a5d43028777beba00d564ae2903fb8e180c72988e541ddc7e743e45",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/protection.py",
+    "line": 27,
+    "value": "yaml",
+    "source_line": "import yaml",
+    "source_sha256": "cedce338d616935d4f4136eb955d996d630e9d61285e7e2035bd1705ab06dbb3",
+    "line_sha256": "1ba25a0ad00c4511b591046805e6342b82d740583998a6e7a79a83be33fa67bf",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/protection.py",
+    "line": 28,
+    "value": "jsonschema",
+    "source_line": "from jsonschema import Draft202012Validator",
+    "source_sha256": "cedce338d616935d4f4136eb955d996d630e9d61285e7e2035bd1705ab06dbb3",
+    "line_sha256": "8818ae6d682987b481dcc93ad220d40fcd78818fced371e30fe1820e4b8b6384",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/protection_cli.py",
+    "line": 24,
+    "value": "click",
+    "source_line": "import click",
+    "source_sha256": "049f2a1cf164c4a04437a146297c9aeb58520bde75b8d852f08a221c3984f323",
+    "line_sha256": "76f34aeab5435eb20dc16b24cdf2568c6d8583fe89c8c9abed52a8e078733aca",
+    "classification": "exact audited observer import dependency"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/release.py",
+    "line": 260,
+    "value": "configs/claude/scripts",
+    "source_line": "    # (configs/claude/scripts). Installing from a checkout runs under whatever",
+    "source_sha256": "910eaa938e77671b2e0fa670fdeeaf7b2404ec59f6e4cd052afaee28d1c5f738",
+    "line_sha256": "6ee22245cd9bbd271d4f44b3d1c82c089e5d8e01f2102390c5dc18acfa682782",
+    "classification": "source-release verifier management path"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/service.py",
+    "line": 443,
+    "value": "manifest-agent",
+    "source_line": "                \"uvx --from manifest-agent manifest migrate \"",
+    "source_sha256": "7eeaa8ae3d144b8b2537ddf92c8d0d7467e80a229fef4f1948b935f4bec4f4ed",
+    "line_sha256": "3066eeb8270de28d1ac30d1baf995aca502b938ee7b73def54c16ccbb7482b86",
+    "classification": "blocked migration resume diagnostic"
+  },
+  {
+    "kind": "forbidden-runtime-path",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/service.py",
+    "line": 443,
+    "value": "uvx --from manifest-agent",
+    "source_line": "                \"uvx --from manifest-agent manifest migrate \"",
+    "source_sha256": "7eeaa8ae3d144b8b2537ddf92c8d0d7467e80a229fef4f1948b935f4bec4f4ed",
+    "line_sha256": "3066eeb8270de28d1ac30d1baf995aca502b938ee7b73def54c16ccbb7482b86",
+    "classification": "blocked migration resume diagnostic"
+  },
+  {
+    "kind": "undeclared-python-dependency",
+    "path": "plugins/manifest-workspace/runtime/observer/src/manifest_agent/skill_run.py",
+    "line": 19,
+    "value": "manifest_model_policy",
+    "source_line": "    from manifest_model_policy.skill_run import (",
+    "source_sha256": "267562c0dbbc7bc56554bdb2ea0646d2df3ff5d7c84a9601e6ed0d954bc6268f",
+    "line_sha256": "8027e39b2562618ad08691752f0d82af5da7aba25962abaebf81556164302d1b",
+    "classification": "exact audited observer import dependency"
+  }
+]

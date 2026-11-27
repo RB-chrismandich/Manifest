@@ -5,17 +5,20 @@ The coordinator may use bootstrap-era paths while migrating a home.  A released
 bundle may not: this gate intentionally starts from each portable contract, then
 examines every declared runtime component and every ``SKILL.md`` instruction.
 It excludes only top-level ``evals/`` fixture trees, which do not ship as runtime
-surfaces; the only native-home exception is the precise Claude hook settings
-file below, which is a harness-owned registration surface.
+surfaces; the native-home exception below is a precise Claude hook registration
+surface. The observer audit exceptions are occurrence-bound evidence, not a claim
+that static scanning proves semantic reachability or call-graph isolation.
 """
 
 from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import re
 import sys
+import tomllib
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -24,6 +27,17 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+_OBSERVER_BUNDLE = "manifest-workspace"
+_OBSERVER_COMPONENT = "native-observer-runtime"
+_OBSERVER_RUNTIME = Path("plugins/manifest-workspace/runtime/observer")
+_OBSERVER_EVIDENCE = Path("tools/observer_runtime_path_evidence.json")
+_OBSERVER_IMPORT_DISTRIBUTIONS = {
+    "click": ("click", "8.4.2"),
+    "jsonschema": ("jsonschema", "4.26.0"),
+    "yaml": ("pyyaml", "6.0.3"),
+}
+_OBSERVER_VENDORED_POLICY_IMPORTS = frozenset({"manifest_model_policy"})
+
 DOMAIN_BUNDLES = (
     "manifest-code-quality",
     "manifest-docs",
@@ -346,7 +360,274 @@ def _allowed_native_path(bundle: str, kind: str, text: str) -> bool:
     return text in permitted
 
 
-def _path_violations(bundle: str, kind: str, path: Path, text: str) -> list[Violation]:
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _observer_evidence(repo_root: Path) -> list[dict[str, Any]]:
+    try:
+        records = json.loads(
+            (repo_root / _OBSERVER_EVIDENCE).read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        return []
+    return (
+        [record for record in records if isinstance(record, dict)]
+        if isinstance(records, list)
+        else []
+    )
+
+
+def _migration_occurrence(path: Path, line: int) -> tuple[int, str] | None:
+    try:
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return None
+    for node in tree.body:
+        if (
+            isinstance(node, ast.FunctionDef)
+            and node.name == "_surgical_mixed_cleanup"
+            and node.end_lineno is not None
+            and node.lineno <= line <= node.end_lineno
+        ):
+            text = "\n".join(source.splitlines()[node.lineno - 1 : node.end_lineno])
+            return line - node.lineno, _sha256_text(text)
+    return None
+
+
+def _observer_path_exception(
+    repo_root: Path, path: Path, pattern: str, line: int, source_line: str
+) -> bool:
+    """Match one audited observer occurrence, never a file or directory."""
+    try:
+        relative = path.resolve().relative_to(repo_root).as_posix()
+    except ValueError:
+        return False
+    migration = relative.endswith("/migration.py")
+    anchor = _migration_occurrence(path, line) if migration else None
+    if migration and anchor is None:
+        return False
+    matches = [
+        row
+        for row in _observer_evidence(repo_root)
+        if row.get("path") == relative
+        and row.get("kind") == "forbidden-runtime-path"
+        and row.get("value") == pattern
+        and (
+            (row.get("function_offset"), row.get("function_sha256")) == anchor
+            if migration
+            else row.get("line") == line
+        )
+    ]
+    if len(matches) != 1:
+        return False
+    row = matches[0]
+    actual_line = source_line.rstrip("\r\n")
+    if row.get("source_line") != actual_line or row.get("line_sha256") != _sha256_text(
+        actual_line
+    ):
+        return False
+    try:
+        if relative.startswith(
+            "plugins/manifest-workspace/runtime/observer/src/manifest_agent/"
+        ):
+            source = (
+                repo_root
+                / "src/manifest_agent"
+                / path.relative_to(repo_root / _OBSERVER_RUNTIME / "src/manifest_agent")
+            )
+        elif relative.startswith(
+            "plugins/manifest-workspace/runtime/observer/assets/manifest_agent/_model_policy/"
+        ):
+            source = (
+                repo_root
+                / "configs/claude/scripts/manifest_model_policy"
+                / path.relative_to(
+                    repo_root
+                    / _OBSERVER_RUNTIME
+                    / "assets/manifest_agent/_model_policy"
+                )
+            )
+        else:
+            return False
+        if source.read_bytes() != path.read_bytes():
+            return False
+    except (OSError, ValueError):
+        return False
+    if not relative.endswith("/migration.py"):
+        try:
+            if hashlib.sha256(path.read_bytes()).hexdigest() != matches[0].get(
+                "source_sha256"
+            ):
+                return False
+        except OSError:
+            return False
+
+    if (
+        relative.endswith("/_model_policy/policy_config.py")
+        or (relative.endswith("/cli.py") and pattern == "configs/claude/config")
+    ) and _observer_dependency_contract(repo_root) is None:
+        return False
+    return bool(matches[0].get("classification"))
+
+
+def _observer_dependency_contract(repo_root: Path) -> set[str] | None:
+    """Allow only direct imports with exact project pins and matching wheel evidence."""
+    runtime = repo_root / _OBSERVER_RUNTIME
+    try:
+        project = tomllib.loads(
+            (runtime / "pyproject.toml").read_text(encoding="utf-8")
+        )
+        lock = tomllib.loads((runtime / "uv.lock").read_text(encoding="utf-8"))
+        proof = json.loads(
+            (repo_root / "tools/observer_locked_wheel_evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        direct = project["project"]["dependencies"]
+        force = project["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    except (
+        OSError,
+        KeyError,
+        TypeError,
+        json.JSONDecodeError,
+        tomllib.TOMLDecodeError,
+    ):
+        return None
+    if (
+        not isinstance(project, dict)
+        or not isinstance(lock, dict)
+        or not isinstance(proof, dict)
+        or not isinstance(direct, list)
+        or not isinstance(force, dict)
+        or not isinstance(lock.get("package"), list)
+    ):
+        return None
+    expected = dict(_OBSERVER_IMPORT_DISTRIBUTIONS.values())
+    declared: dict[str, str] = {}
+    for requirement in direct:
+        if isinstance(requirement, str) and "==" in requirement:
+            name, version = requirement.split("==", 1)
+            normalized = name.lower().replace("_", "-")
+            if normalized in declared:
+                return None
+            declared[normalized] = version
+    if any(declared.get(name) != version for name, version in expected.items()):
+        return None
+    packages = {
+        row.get("name"): row for row in lock.get("package", []) if isinstance(row, dict)
+    }
+    for name, version in expected.items():
+        locked, audited = packages.get(name), proof.get(name)
+        if (
+            not isinstance(locked, dict)
+            or not isinstance(audited, dict)
+            or locked.get("version") != version
+            or audited.get("version") != version
+        ):
+            return None
+        locked_source, audited_source = locked.get("source"), audited.get("source")
+        if (
+            not isinstance(locked_source, dict)
+            or not isinstance(audited_source, dict)
+            or locked_source != audited_source
+            or locked_source.get("registry") != "https://pypi.org/simple"
+        ):
+            return None
+        locked_wheels, audited_wheels = locked.get("wheels"), audited.get("wheels")
+        if (
+            not isinstance(locked_wheels, list)
+            or not isinstance(audited_wheels, list)
+            or not locked_wheels
+            or any(
+                not isinstance(row, dict) for row in (*locked_wheels, *audited_wheels)
+            )
+        ):
+            return None
+        locked_pairs = {(row.get("url"), row.get("hash")) for row in locked_wheels}
+        audited_pairs = {(row.get("url"), row.get("hash")) for row in audited_wheels}
+        if locked_pairs != audited_pairs or len(locked_pairs) != len(locked_wheels):
+            return None
+        if any(
+            not str(row.get("hash", "")).startswith("sha256:") for row in locked_wheels
+        ):
+            return None
+    overlay = runtime / "assets/manifest_agent/_model_policy"
+    required_policy_files = frozenset(
+        {
+            "__init__.py",
+            "controller.py",
+            "failures.py",
+            "frontmatter.py",
+            "headless.py",
+            "policy_config.py",
+            "resolver.py",
+            "skill_command.py",
+            "skill_execution.py",
+            "skill_process.py",
+            "skill_recovery.py",
+            "skill_run.py",
+        }
+    )
+    modules = {path.name: path for path in overlay.glob("*.py")}
+    if set(modules) != required_policy_files or any(
+        force.get(f"assets/manifest_agent/_model_policy/{name}")
+        != f"manifest_agent/_model_policy/{name}"
+        for name in required_policy_files
+    ):
+        return None
+    canonical_policy = repo_root / "configs/claude/scripts/manifest_model_policy"
+    for name, path in modules.items():
+        try:
+            if (canonical_policy / name).read_bytes() != path.read_bytes():
+                return None
+        except OSError:
+            return None
+    for relative, snippet in (
+        (
+            "src/manifest_agent/skill_run.py",
+            "from manifest_agent._model_policy.skill_run import",
+        ),
+        (
+            "src/manifest_agent/plugin_view_renderers.py",
+            "from manifest_agent._model_policy import",
+        ),
+    ):
+        try:
+            source = (runtime / relative).read_text(encoding="utf-8")
+        except OSError:
+            return None
+        guard = (
+            "except ModuleNotFoundError as error:\n"
+            '    if error.name != "manifest_agent._model_policy":\n'
+            "        raise\n"
+        )
+        if snippet not in source or guard not in source:
+            return None
+    return set(_OBSERVER_IMPORT_DISTRIBUTIONS) | set(_OBSERVER_VENDORED_POLICY_IMPORTS)
+
+
+def _is_observer_runtime_path(
+    repo_root: Path, path: Path, bundle: str, component_id: str | None
+) -> bool:
+    if bundle != _OBSERVER_BUNDLE or component_id != _OBSERVER_COMPONENT:
+        return False
+    try:
+        path.resolve().relative_to((repo_root / _OBSERVER_RUNTIME).resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _path_violations(
+    bundle: str,
+    kind: str,
+    path: Path,
+    text: str,
+    repo_root: Path = ROOT,
+    component_id: str | None = None,
+) -> list[Violation]:
     violations: list[Violation] = []
     lowered = text.lower()
     for pattern in FORBIDDEN_RUNTIME_PATTERNS:
@@ -358,13 +639,27 @@ def _path_violations(bundle: str, kind: str, path: Path, text: str) -> list[Viol
             if position < 0:
                 break
             matched = text[position : position + len(pattern)]
-            if not _allowed_native_path(bundle, kind, matched) and not _illustrative(
-                path
+            line = _line_number(text, position)
+            source_line = text.splitlines(keepends=True)[line - 1]
+            observer_exception = (
+                bundle == _OBSERVER_BUNDLE
+                and component_id == _OBSERVER_COMPONENT
+                and path.resolve().is_relative_to(
+                    (repo_root / _OBSERVER_RUNTIME).resolve()
+                )
+                and _observer_path_exception(
+                    repo_root, path, matched, line, source_line
+                )
+            )
+            if (
+                not _allowed_native_path(bundle, kind, matched)
+                and not _illustrative(path)
+                and not observer_exception
             ):
                 violations.append(
                     Violation(
                         path,
-                        _line_number(text, position),
+                        line,
                         "forbidden-runtime-path",
                         matched,
                         f"{bundle} {kind} depends on forbidden runtime path {matched!r}",
@@ -374,13 +669,126 @@ def _path_violations(bundle: str, kind: str, path: Path, text: str) -> list[Viol
     return violations
 
 
+def _observer_import_exception(
+    repo_root: Path, path: Path, module: str, line: int
+) -> bool:
+    try:
+        relative = path.resolve().relative_to(repo_root).as_posix()
+    except ValueError:
+        return False
+    rows = [
+        row
+        for row in _observer_evidence(repo_root)
+        if row.get("kind") == "undeclared-python-dependency"
+        and row.get("path") == relative
+        and row.get("value") == module
+        and row.get("line") == line
+    ]
+    if len(rows) != 1:
+        return False
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return False
+    line_imports = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Import, ast.ImportFrom)) or node.lineno != line:
+            continue
+        if isinstance(node, ast.Import):
+            line_imports += sum(
+                alias.name.split(".", 1)[0] == module for alias in node.names
+            )
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            line_imports += int(node.module.split(".", 1)[0] == module)
+    if line_imports != len(rows):
+        return False
+
+    source_line = path.read_text(encoding="utf-8").splitlines()[line - 1]
+    if rows[0].get("source_line") != source_line or rows[0].get(
+        "line_sha256"
+    ) != _sha256_text(source_line):
+        return False
+    if not relative.endswith("/migration.py") and hashlib.sha256(
+        path.read_bytes()
+    ).hexdigest() != rows[0].get("source_sha256"):
+        return False
+    if relative.startswith(
+        "plugins/manifest-workspace/runtime/observer/src/manifest_agent/"
+    ):
+        source = (
+            repo_root
+            / "src/manifest_agent"
+            / path.relative_to(repo_root / _OBSERVER_RUNTIME / "src/manifest_agent")
+        )
+    elif relative.startswith(
+        "plugins/manifest-workspace/runtime/observer/assets/manifest_agent/_model_policy/"
+    ):
+        source = (
+            repo_root
+            / "configs/claude/scripts/manifest_model_policy"
+            / path.relative_to(
+                repo_root / _OBSERVER_RUNTIME / "assets/manifest_agent/_model_policy"
+            )
+        )
+    else:
+        return False
+    try:
+        return source.read_bytes() == path.read_bytes()
+    except OSError:
+        return False
+
+
+@dataclass(frozen=True)
+class _BundleScan:
+    repo_root: Path
+    name: str
+    root: Path
+    declared: set[str]
+    observer_imports: set[str] | None
+
+
+def _python_import_sites(tree: ast.AST) -> Iterable[tuple[int, str]]:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            yield from (
+                (node.lineno, alias.name.split(".", 1)[0]) for alias in node.names
+            )
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            yield node.lineno, node.module.split(".", 1)[0]
+
+
+def _declared_python_import(
+    path: Path, line: int, module: str, component_id: str | None, context: _BundleScan
+) -> bool:
+    if module in sys.stdlib_module_names:
+        return True
+    if any(
+        (candidate / f"{module}.py").exists()
+        or (candidate / module).is_dir()
+        or (candidate / "vendor" / module).is_dir()
+        for candidate in (*path.parents, context.root, context.root / "vendor")
+    ):
+        return True
+    capability = {"browser_use": "browser-use", "playwright": "playwright"}.get(module)
+    if capability in context.declared or module in _COMPONENT_DEGRADATION_IMPORTS.get(
+        (context.name, component_id), frozenset()
+    ):
+        return True
+    return (
+        context.observer_imports is not None
+        and module in context.observer_imports
+        and _is_observer_runtime_path(
+            context.repo_root, path, context.name, component_id
+        )
+        and _observer_import_exception(context.repo_root, path, module, line)
+    )
+
+
 def _python_import_violations(
     path: Path,
     text: str,
-    bundle: str,
-    bundle_root: Path,
     component_id: str | None,
-    declared: set[str],
+    context: _BundleScan,
 ) -> list[Violation]:
     try:
         tree = ast.parse(text, filename=str(path))
@@ -394,52 +802,17 @@ def _python_import_violations(
                 f"invalid Python: {error.msg}",
             )
         ]
-    stdlib = getattr(sys, "stdlib_module_names", frozenset())
-    violations: list[Violation] = []
-    for node in ast.walk(tree):
-        module = ""
-        level = 0
-        if isinstance(node, ast.Import):
-            names = [alias.name for alias in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            names = [node.module] if node.module else []
-            level = node.level
-        else:
-            continue
-        if level:
-            continue
-        for imported in names:
-            module = (imported or "").split(".", 1)[0]
-            local_package = any(
-                (candidate / f"{module}.py").exists()
-                or (candidate / module).is_dir()
-                or (candidate / "vendor" / module).is_dir()
-                for candidate in (*path.parents, bundle_root, bundle_root / "vendor")
-            )
-            capability_package = {
-                "browser_use": "browser-use",
-                "playwright": "playwright",
-            }.get(module)
-            explicit_degradation = module in _COMPONENT_DEGRADATION_IMPORTS.get(
-                (bundle, component_id), frozenset()
-            )
-            if (
-                module
-                and module not in stdlib
-                and not local_package
-                and capability_package not in declared
-                and not explicit_degradation
-            ):
-                violations.append(
-                    Violation(
-                        path,
-                        node.lineno,
-                        "undeclared-python-dependency",
-                        module,
-                        f"runtime Python import {module!r} is neither stdlib nor bundle-vendored",
-                    )
-                )
-    return violations
+    return [
+        Violation(
+            path,
+            line,
+            "undeclared-python-dependency",
+            module,
+            f"runtime Python import {module!r} is neither stdlib nor bundle-vendored",
+        )
+        for line, module in _python_import_sites(tree)
+        if not _declared_python_import(path, line, module, component_id, context)
+    ]
 
 
 def _node_import_violations(
@@ -675,6 +1048,108 @@ def _ungoverned_bundles(repo_root: Path) -> tuple[Violation, ...]:
     return tuple(found)
 
 
+def _component_shell_functions(
+    paths: tuple[tuple[Path, str, str | None], ...],
+) -> set[str]:
+    component_functions: set[str] = set()
+    for candidate, _kind, _component_id in paths:
+        if candidate.suffix != ".sh":
+            continue
+        try:
+            component_functions.update(
+                re.findall(
+                    r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)",
+                    candidate.read_text(encoding="utf-8"),
+                    re.M,
+                )
+            )
+        except (OSError, UnicodeDecodeError):
+            continue
+    return component_functions
+
+
+def _scan_bundle(
+    repo_root: Path, bundle: str, contract_path: Path, document: dict[str, Any]
+) -> list[Violation]:
+    violations: list[Violation] = []
+    declared = {
+        value
+        for group in document.get("capabilities", {}).get("executables", {}).values()
+        if isinstance(group, list)
+        for value in group
+        if isinstance(value, str)
+    }
+    paths = tuple(_component_paths(contract_path.parent, document))
+    has_observer = bundle == _OBSERVER_BUNDLE and any(
+        item.get("id") == _OBSERVER_COMPONENT
+        for item in document.get("components", {}).get("runtime", [])
+        if isinstance(item, dict)
+    )
+    observer_imports = (
+        _observer_dependency_contract(repo_root) if has_observer else None
+    )
+    if has_observer and observer_imports is None:
+        violations.append(
+            Violation(
+                repo_root / _OBSERVER_RUNTIME / "pyproject.toml",
+                1,
+                "invalid-observer-dependency-contract",
+                "",
+                "observer direct pins, lock wheel evidence, vendored policy force-includes, or internal-first fallback changed",
+            )
+        )
+    context = _BundleScan(
+        repo_root, bundle, contract_path.parent, declared, observer_imports
+    )
+    violations.extend(_scan_component_files(context, paths))
+    return violations
+
+
+def _scan_component_files(
+    context: _BundleScan,
+    paths: tuple[tuple[Path, str, str | None], ...],
+) -> list[Violation]:
+    violations: list[Violation] = []
+    component_functions = _component_shell_functions(paths)
+    for path, kind, component_id in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        except OSError as error:
+            violations.append(Violation(path, 1, "unreadable-runtime", "", str(error)))
+            continue
+        violations.extend(
+            _path_violations(
+                context.name, kind, path, text, context.repo_root, component_id
+            )
+        )
+        # Undeclared files are swept only for forbidden runtime paths. The
+        # dependency checks below are contract-conformance checks and are
+        # meaningful only for what the contract actually declares; running
+        # them over every shipped file would report undeclared imports for
+        # bundle tests and helper scripts that were never contract surfaces.
+        if kind == "undeclared":
+            continue
+        if path.suffix == ".py":
+            violations.extend(
+                _python_import_violations(path, text, component_id, context)
+            )
+        elif path.suffix in {".mjs", ".js"}:
+            violations.extend(
+                _node_import_violations(path, text, context.name, component_id)
+            )
+        elif path.suffix == ".sh" or (
+            text.startswith("#!") and "sh" in text.splitlines()[0]
+        ):
+            violations.extend(
+                _shell_command_violations(
+                    path, text, context.declared, component_functions
+                )
+            )
+    return violations
+
+
 def scan(repo_root: Path = ROOT) -> ScanReport:
     """Return all deterministic bundle-runtime violations under ``repo_root``."""
     repo_root = repo_root.resolve()
@@ -685,69 +1160,7 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                 Violation(contract_path, 1, "invalid-contract", "", document["_error"])
             )
             continue
-        declared = {
-            value
-            for group in document.get("capabilities", {})
-            .get("executables", {})
-            .values()
-            if isinstance(group, list)
-            for value in group
-            if isinstance(value, str)
-        }
-        paths = tuple(_component_paths(contract_path.parent, document))
-        component_functions: set[str] = set()
-        for candidate, _kind, _component_id in paths:
-            if candidate.suffix != ".sh":
-                continue
-            try:
-                component_functions.update(
-                    re.findall(
-                        r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)",
-                        candidate.read_text(encoding="utf-8"),
-                        re.M,
-                    )
-                )
-            except (OSError, UnicodeDecodeError):
-                continue
-        for path, kind, component_id in paths:
-            try:
-                text = path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                continue
-            except OSError as error:
-                violations.append(
-                    Violation(path, 1, "unreadable-runtime", "", str(error))
-                )
-                continue
-            violations.extend(_path_violations(bundle, kind, path, text))
-            # Undeclared files are swept only for forbidden runtime paths. The
-            # dependency checks below are contract-conformance checks and are
-            # meaningful only for what the contract actually declares; running
-            # them over every shipped file would report undeclared imports for
-            # bundle tests and helper scripts that were never contract surfaces.
-            if kind == "undeclared":
-                continue
-            if path.suffix == ".py":
-                violations.extend(
-                    _python_import_violations(
-                        path,
-                        text,
-                        bundle,
-                        contract_path.parent,
-                        component_id,
-                        declared,
-                    )
-                )
-            elif path.suffix in {".mjs", ".js"}:
-                violations.extend(
-                    _node_import_violations(path, text, bundle, component_id)
-                )
-            elif path.suffix == ".sh" or (
-                text.startswith("#!") and "sh" in text.splitlines()[0]
-            ):
-                violations.extend(
-                    _shell_command_violations(path, text, declared, component_functions)
-                )
+        violations.extend(_scan_bundle(repo_root, bundle, contract_path, document))
     ordered = tuple(
         sorted(
             violations,

@@ -344,3 +344,123 @@ def test_addon_bundle_files_are_scanned_not_merely_exempted(tmp_path) -> None:
     assert [v for v in report.violations if v.kind == "forbidden-runtime-path"], (
         "addon bundle was exempted from the ungoverned flag but never scanned"
     )
+
+
+def test_observer_path_exception_requires_exact_line_and_occurrence(
+    tmp_path: Path,
+) -> None:
+    """Audited path evidence is line-bound and cannot bless extra reuse."""
+    import hashlib
+    import json
+
+    checker = _checker_module()
+    relative = "plugins/manifest-workspace/runtime/observer/src/manifest_agent/data/__init__.py"
+    path = tmp_path / relative
+    source = tmp_path / "src/manifest_agent/data/__init__.py"
+    line = '"""Package data used by manifest-agent at runtime."""'
+    path.parent.mkdir(parents=True)
+    source.parent.mkdir(parents=True)
+    path.write_text(line + "\n", encoding="utf-8")
+    source.write_text(line + "\n", encoding="utf-8")
+    record = {
+        "kind": "forbidden-runtime-path",
+        "path": relative,
+        "line": 1,
+        "value": "manifest-agent",
+        "source_line": line,
+        "line_sha256": hashlib.sha256(line.encode()).hexdigest(),
+        "source_sha256": hashlib.sha256((line + "\n").encode()).hexdigest(),
+        "classification": "package docstring",
+    }
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/observer_runtime_path_evidence.json").write_text(
+        json.dumps([record]), encoding="utf-8"
+    )
+
+    assert checker._observer_path_exception(tmp_path, path, "manifest-agent", 1, line)
+    assert not checker._observer_path_exception(
+        tmp_path, path, "manifest-agent", 1, line + " manifest-agent"
+    )
+    path.write_text(
+        '"""Changed context mentions manifest-agent."""\n', encoding="utf-8"
+    )
+    assert not checker._observer_path_exception(
+        tmp_path,
+        path,
+        "manifest-agent",
+        1,
+        '"""Changed context mentions manifest-agent."""',
+    )
+
+
+def _copy_observer_contract_fixture(tmp_path: Path) -> Path:
+    import shutil
+
+    root = Path(__file__).resolve().parents[2]
+    runtime = tmp_path / "plugins/manifest-workspace/runtime/observer"
+    shutil.copytree(
+        root / "plugins/manifest-workspace/runtime/observer",
+        runtime,
+        ignore=shutil.ignore_patterns(".venv", "__pycache__"),
+    )
+    for relative in (
+        "tools/observer_locked_wheel_evidence.json",
+        "configs/claude/scripts/manifest_model_policy",
+        "src/manifest_agent",
+    ):
+        source = root / relative
+        destination = tmp_path / relative
+        if source.is_dir():
+            shutil.copytree(source, destination)
+        else:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+    return runtime
+
+
+def test_observer_dependency_contract_rejects_stale_pins_and_unlisted_imports(
+    tmp_path: Path,
+) -> None:
+    """Pins and hash-locked wheels are required; unrelated imports stay errors."""
+    checker = _checker_module()
+    runtime = _copy_observer_contract_fixture(tmp_path)
+
+    assert checker._observer_dependency_contract(tmp_path) == {
+        "click",
+        "jsonschema",
+        "yaml",
+        "manifest_model_policy",
+    }
+    lock = runtime / "uv.lock"
+    original_lock = lock.read_text(encoding="utf-8")
+    lock.write_text(
+        original_lock.replace(
+            'name = "click"\nversion = "8.4.2"', 'name = "click"\nversion = "8.4.3"'
+        ),
+        encoding="utf-8",
+    )
+    assert checker._observer_dependency_contract(tmp_path) is None
+    lock.write_text(original_lock, encoding="utf-8")
+
+    project = runtime / "pyproject.toml"
+    project.write_text(
+        project.read_text(encoding="utf-8").replace("click==8.4.2", "click==8.4.3"),
+        encoding="utf-8",
+    )
+    assert checker._observer_dependency_contract(tmp_path) is None
+
+    report = checker._python_import_violations(
+        runtime / "src/manifest_agent/unexpected.py",
+        "import requests\n",
+        "native-observer-runtime",
+        checker._BundleScan(
+            tmp_path,
+            "manifest-workspace",
+            runtime,
+            set(),
+            {"click", "jsonschema", "yaml", "manifest_model_policy"},
+        ),
+    )
+    assert [(item.kind, item.value) for item in report] == [
+        ("undeclared-python-dependency", "requests")
+    ]
