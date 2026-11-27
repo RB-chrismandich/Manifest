@@ -283,6 +283,10 @@ def offline_materializer_run(run):
         assert env.get("UV_OFFLINE") == "1" and env.get("UV_NO_INDEX") == "1"
         if argv[1] == "sync":
             _prime(argv, Path(cwd), env, run)
+            # Python 3.14 probes the staged venv interpreter during sync; that
+            # live query fails with EACCES under bubblewrap even when the base
+            # interpreter was cached in _prime. Offline env vars gate networking.
+            return run(argv, cwd=cwd, env=env)
         return run(_networkless(argv), cwd=cwd, env=env)
 
     return execute
