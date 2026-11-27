@@ -434,13 +434,22 @@ def external_python_identity(path: Path, pinned: dict[str, str] | None = None) -
     ).encode("utf-8")
 
 
+_PYTHON_LAUNCHER_NAME = re.compile(
+    r"python(?:\d+(?:\.\d+)?)?|\U0001d70bthon"
+)
+
+
 def is_python_launcher_role(relative: str) -> bool:
-    """Whether a path is the environment's attested `bin/python*` role."""
+    """Whether a path is the environment's attested `bin/python*` role.
+
+    Python 3.14 adds a UTF-8-only ``bin/𝜋thon`` symlink beside the normal
+    ``python*`` launchers; treat it as the same launcher role for attestation.
+    """
     path = Path(relative)
     return (
         len(path.parts) == 2
         and path.parts[0] == "bin"
-        and re.fullmatch(r"python(?:\d+(?:\.\d+)?)?", path.name) is not None
+        and _PYTHON_LAUNCHER_NAME.fullmatch(path.name) is not None
     )
 
 
