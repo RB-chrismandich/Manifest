@@ -16,7 +16,7 @@ from manifest_agent.models import (
 from manifest_agent.release import ResolvedRelease
 from manifest_agent.service import ManifestService
 from tests.python.manifest_agent._installed_observer_fixtures import (
-    installed_observer as installed_observer,
+    installed_observer as _installed_observer,
 )
 from tests.python.manifest_agent._omp_native_fixture import make_adapter
 from tests.python.plugin_runtime.workspace_runtime_helpers import (
@@ -32,6 +32,8 @@ from tests.python.plugin_runtime.workspace_runtime_helpers import (
 from tests.python.plugin_runtime.workspace_runtime_helpers import (
     workspace_bundle as _workspace_bundle_fixture,  # noqa: F401 - register the pytest fixture
 )
+
+installed_observer = _installed_observer
 
 _BUNDLES = (
     "manifest-code-quality",
@@ -144,6 +146,23 @@ def test_deploy_reconcile_empty_receipt_never_converges(
     assert report["status"] == "degraded"
     assert report["repair_required"] is True
     assert report["native_observed"] is False
+
+
+def test_receipt_bound_reconcile_renders_missing_receipt_diagnostics(
+    workspace_bundle: Path, tmp_path: Path
+) -> None:
+    script = workspace_bundle / "skills/deploy-reconcile/scripts/plugin_reconcile.py"
+    env = _isolated_env(tmp_path)
+    receipt = tmp_path / "absent.json"
+    result = _run(script, "--receipt", str(receipt), env=env, cwd=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "all: unverified - installation receipt is absent" in result.stdout
+    assert "repair required" in result.stdout
+
+    result = _run(script, "--receipt", str(receipt), "--json", env=env, cwd=tmp_path)
+    assert json.loads(result.stdout)["unverified"] == [
+        {"harness": "all", "reason": "installation receipt is absent"}
+    ]
 
 
 @pytest.mark.parametrize(

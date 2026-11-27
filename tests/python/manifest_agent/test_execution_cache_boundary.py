@@ -36,6 +36,8 @@ def _snapshot(root):
 def _fixture_store(store: Path, candidate: Path):
     environment = store / "tools/project-env/fixture"
     venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+    # CPython 3.14 can add this optional alias; it is not a pinned launcher role.
+    (environment / "bin" / "𝜋thon").unlink(missing_ok=True)
     provider = trusted_python_provider().lock_record()
     tree = distribution_set_digest(
         environment,

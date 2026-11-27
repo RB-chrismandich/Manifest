@@ -370,7 +370,9 @@ def reconcile_receipt_bound(
         "repair_required": bool(drift),
         "status": status,
         "authentication": "not_tested",
-        "unverified": assessment["problems"],
+        "unverified": [
+            {"harness": "all", "reason": problem} for problem in assessment["problems"]
+        ],
         "verified": not assessment["problems"] and receipt["valid"],
     }
 

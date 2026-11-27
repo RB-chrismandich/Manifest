@@ -11,6 +11,8 @@
   Shared toolchains retain their original attestation across failed generations.
   Installed acceptance uses explicit pinned UV/wheel fixtures and offline,
   checkout-denied public skill processes.
+- Receipt-bound deploy reconciliation prints unverified diagnostics and repair
+  guidance for missing or invalid receipts instead of raising a traceback.
 - Exclude source `.venv`, Python cache directories, and bytecode from Claude
   config deployment while preserving an existing destination runtime during
   backup-and-replace; dot-prefixed config such as `.plans` remains deployed.

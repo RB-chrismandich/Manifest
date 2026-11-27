@@ -113,6 +113,8 @@ def isolated_public_command(arguments, fixture):
         "--ro-bind",
         "/",
         "/",
+        "--dev",
+        "/dev",
         "--bind",
         str(fixture["base"]),
         str(fixture["base"]),

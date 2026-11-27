@@ -352,7 +352,7 @@ jobs:
           # Public-launch and materialization tests require real isolation.
           sudo apt-get update -qq
           sudo apt-get install -y bubblewrap
-          bwrap --bind / / --unshare-net -- /usr/bin/true
+          bwrap --bind / / --dev /dev --unshare-net -- sh -c 'cat </dev/null'
 
           project=plugins/manifest-workspace/runtime/observer
           fixture="$(mktemp -d "$RUNNER_TEMP/observer-fixtures.XXXXXXXX")"

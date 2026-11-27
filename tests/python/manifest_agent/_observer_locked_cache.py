@@ -213,7 +213,8 @@ def _networkless(argv):
         ]
     sandbox = shutil.which("bwrap")
     assert sandbox, "offline materialization requires an OS network sandbox"
-    return [sandbox, "--bind", "/", "/", "--unshare-net", "--", *argv]
+    # The ordinary root bind is nodev; UV needs a working /dev/null for children.
+    return [sandbox, "--bind", "/", "/", "--dev", "/dev", "--unshare-net", "--", *argv]
 
 
 def _prime(argv, cwd, env, run):
