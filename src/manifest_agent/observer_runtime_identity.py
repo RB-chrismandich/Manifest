@@ -250,8 +250,8 @@ def environment_inventory(root: Path, provider: dict) -> dict:
 def retirement_inventory(root: Path, provider: dict) -> dict:
     """Read literal survivors for comparison with an authenticated original tree.
 
-    Retirement may have removed an intermediate interpreter link already. This
-    inventory alone is not live-runtime evidence or deletion authorization.
+    Retirement may have removed an interpreter link or the lib64 alias's target
+    already. This inventory alone is not live evidence or deletion authorization.
     """
     return _environment_inventory(root, provider, resolve_links=False)
 
@@ -268,11 +268,18 @@ def _environment_inventory(root: Path, provider: dict, *, resolve_links: bool) -
         mode = path.lstat().st_mode
         entry = {"mode": stat.S_IMODE(mode)}
         if stat.S_ISLNK(mode):
-            target = path.readlink().as_posix()
-            if path.parent != root / "bin" or not path.name.startswith("python"):
+            target = os.readlink(path)
+            if relative == "lib64" and target == "lib":
+                # UV's Linux layout has exactly this root-local directory alias.
+                # A live proof requires the real directory; signed retirement
+                # compares literal survivors even after that directory is gone.
+                if resolve_links and not stat.S_ISDIR((root / "lib").lstat().st_mode):
+                    raise ValueError("observer lib64 target is not a regular directory")
+            elif path.parent == root / "bin" and path.name.startswith("python"):
+                if resolve_links and str(path.resolve(strict=True)) != provider["path"]:
+                    raise ValueError("observer symlink is not its pinned provider")
+            else:
                 raise ValueError(f"unexpected observer symlink: {relative}")
-            if resolve_links and str(path.resolve(strict=True)) != provider["path"]:
-                raise ValueError("observer symlink is not its pinned provider")
             entry.update(kind="symlink", target=target)
         elif stat.S_ISDIR(mode):
             entry.update(kind="directory")
