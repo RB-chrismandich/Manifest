@@ -10,7 +10,6 @@ from tests.python.manifest_agent._installed_observer_fixtures import (
     inventory,
     isolated_public_command,
     json,
-    materializer,
     os,
     provision,
     pytest,
@@ -21,7 +20,6 @@ from tests.python.manifest_agent._installed_observer_fixtures import (
     sys,
     write_receipt_atomic,
 )
-from tests.python.manifest_agent._observer_locked_cache import offline_materializer_run
 
 
 @pytest.mark.parametrize("harness", HARNESSES)
@@ -400,9 +398,7 @@ def _prepare_codex_observer_runtime(fixture, desired, harness, monkeypatch):
         "provision",
         lambda *args, **kwargs: provision(*args, **kwargs, fetcher=locked_fetch),
     )
-    monkeypatch.setattr(
-        materializer, "_run", offline_materializer_run(materializer._run)
-    )
+    # The installed_observer fixture keeps its offline wrapper active through yield.
     with installation_lock(fixture["receipt"].parent / "install.lock"):
         runtime.prepare_observer_runtime(desired, receipt_path=fixture["receipt"])
 
