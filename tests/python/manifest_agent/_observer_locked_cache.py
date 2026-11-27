@@ -261,6 +261,16 @@ def _prime(argv, cwd, env, run):
                 cwd=cwd,
                 env=prime_env,
             )
+        # Bubblewrap denies uv's live interpreter probe; cache metadata outside it.
+        run(
+            [argv[0], "python", "find", env["UV_PYTHON"]],
+            cwd=cwd,
+            env={
+                key: value
+                for key, value in env.items()
+                if key not in {"UV_OFFLINE", "UV_NO_INDEX", "UV_FIND_LINKS"}
+            },
+        )
         # Stop the only serving endpoint before either materialization phase.
 
 

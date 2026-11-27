@@ -69,6 +69,7 @@ def test_desired_state_fields_are_stable():
         "prior_harness_receipts",
         "source_bundle_checksums",
         "source_catalog_sha256",
+        "source_workspace_sha256",
     ]
 
 

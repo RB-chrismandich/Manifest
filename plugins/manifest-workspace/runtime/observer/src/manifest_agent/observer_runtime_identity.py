@@ -7,10 +7,24 @@ import hmac
 import json
 import os
 import platform as host_platform
+import re
 import stat
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
+
+# Keep in sync with manifest_agent.checks.toolchain_env_digest.is_python_launcher_role.
+_PYTHON_LAUNCHER_NAME = re.compile(r"python(?:\d+(?:\.\d+)?)?|\U0001d70bthon")
+
+
+def _is_python_launcher_role(relative: str) -> bool:
+    path = Path(relative)
+    return (
+        len(path.parts) == 2
+        and path.parts[0] == "bin"
+        and _PYTHON_LAUNCHER_NAME.fullmatch(path.name) is not None
+    )
+
 
 DOMAIN = "manifest-observer-runtime-v1"
 RECORD_FIELDS = {
@@ -269,7 +283,7 @@ def _environment_inventory(root: Path, provider: dict, *, resolve_links: bool) -
         entry = {"mode": stat.S_IMODE(mode)}
         if stat.S_ISLNK(mode):
             target = path.readlink().as_posix()
-            if path.parent != root / "bin" or not path.name.startswith("python"):
+            if not _is_python_launcher_role(relative):
                 raise ValueError(f"unexpected observer symlink: {relative}")
             if resolve_links and str(path.resolve(strict=True)) != provider["path"]:
                 raise ValueError("observer symlink is not its pinned provider")
