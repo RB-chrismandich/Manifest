@@ -434,9 +434,7 @@ def external_python_identity(path: Path, pinned: dict[str, str] | None = None) -
     ).encode("utf-8")
 
 
-_PYTHON_LAUNCHER_NAME = re.compile(
-    r"python(?:\d+(?:\.\d+)?)?|\U0001d70bthon"
-)
+_PYTHON_LAUNCHER_NAME = re.compile(r"python(?:\d+(?:\.\d+)?)?|\U0001d70bthon")
 
 
 def is_python_launcher_role(relative: str) -> bool:

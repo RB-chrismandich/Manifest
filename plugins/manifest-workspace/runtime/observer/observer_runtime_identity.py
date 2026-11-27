@@ -14,9 +14,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 # Keep in sync with manifest_agent.checks.toolchain_env_digest.is_python_launcher_role.
-_PYTHON_LAUNCHER_NAME = re.compile(
-    r"python(?:\d+(?:\.\d+)?)?|\U0001d70bthon"
-)
+_PYTHON_LAUNCHER_NAME = re.compile(r"python(?:\d+(?:\.\d+)?)?|\U0001d70bthon")
 
 
 def _is_python_launcher_role(relative: str) -> bool:
@@ -26,6 +24,7 @@ def _is_python_launcher_role(relative: str) -> bool:
         and path.parts[0] == "bin"
         and _PYTHON_LAUNCHER_NAME.fullmatch(path.name) is not None
     )
+
 
 DOMAIN = "manifest-observer-runtime-v1"
 RECORD_FIELDS = {
