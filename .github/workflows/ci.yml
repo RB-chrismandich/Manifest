@@ -346,6 +346,35 @@ jobs:
               pytest -vv tests/python/test_delegate_containment_native.py -m native
           ' bash "$venue" "$runner_user" "$PATH"
 
+      - name: Prepare locked archive observer test fixtures
+        run: |
+          set -euo pipefail
+          # Public-launch and materialization tests require real isolation.
+          sudo apt-get update -qq
+          sudo apt-get install -y bubblewrap
+          bwrap --bind / / --unshare-net -- /usr/bin/true
+
+          project=plugins/manifest-workspace/runtime/observer
+          fixture="$(mktemp -d "$RUNNER_TEMP/observer-fixtures.XXXXXXXX")"
+          lock="$project/uv-toolchain.lock.json"
+          pin="$(jq -ec '.tools.uv.platforms["linux-x64"]' "$lock")"
+          archive="$fixture/uv.tar.gz"
+          curl -fsSL --max-time 120 -o "$archive" "$(jq -er .url <<<"$pin")"
+          printf '%s  %s\n' "$(jq -er .sha256 <<<"$pin")" "$archive" | sha256sum -c -
+          member="$(jq -er .path_in_archive <<<"$pin")"
+          tar -xzf "$archive" -C "$fixture" -- "$member"
+          locked_uv="$fixture/$member"
+          printf '%s  %s\n' "$(jq -er .exe_sha256 <<<"$pin")" "$locked_uv" | sha256sum -c -
+          "$locked_uv" export --project "$project" --frozen --no-emit-project \
+            --output-file "$fixture/requirements.txt"
+          python -m pip --isolated download --index-url https://pypi.org/simple \
+            --require-hashes --only-binary=:all: --dest "$fixture/wheels" \
+            --requirement "$fixture/requirements.txt"
+          {
+            printf 'MANIFEST_TEST_UV_ARCHIVE=%s\n' "$archive"
+            printf 'MANIFEST_TEST_OBSERVER_WHEELS=%s\n' "$fixture/wheels"
+          } >> "$GITHUB_ENV"
+
       - name: Run Python tests (if any exist)
         run: |
           if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then
