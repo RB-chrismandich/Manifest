@@ -87,6 +87,36 @@ def test_both_public_receipt_consumers_match_state_decoder(tmp_path, entrypoint,
     assert receipt.read_bytes() == before
 
 
+@pytest.mark.parametrize("contents", ["null", "[]"], ids=["null", "array"])
+def test_portable_reconcile_rejects_non_object_receipt_with_harness(tmp_path, contents):
+    receipt = tmp_path / "explicit.json"
+    receipt.write_text(contents)
+    with pytest.raises(StateError):
+        read_receipt(receipt)
+
+    active = _harness_receipt("claude", ["manifest-workspace@manifest"])
+    evidence = _write_native_evidence(tmp_path, active)
+    script, evidence_flag = ENTRYPOINTS["deploy-reconcile-portable"]
+    result = _run(
+        SCRIPTS / script,
+        "--json",
+        "--receipt",
+        str(receipt),
+        "--harness",
+        "claude",
+        evidence_flag,
+        str(evidence),
+        env=_isolated_env(tmp_path),
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["status"] == "degraded"
+    assert report["verified"] is False
+    assert any("coordinator schema" in item["reason"] for item in report["drift"])
+    assert any("coordinator schema" in item["reason"] for item in report["unverified"])
+
+
 def _case_records(case):
     active = _harness_receipt("claude", ["manifest-workspace@manifest"])
     retired = _harness_receipt("gemini")

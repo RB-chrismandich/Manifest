@@ -15,8 +15,8 @@
   guidance for missing or invalid receipts instead of raising a traceback.
 - Portable deploy reconciliation (`--native-inspection`, `--inspect-omp`,
   `--harness`) now validates the receipt with the shared env-check decoder:
-  retired Gemini records are dropped, while malformed records and unknown
-  harnesses degrade the report instead of being reconciled.
+  retired Gemini records are dropped, while non-object receipts, malformed
+  records, and unknown harnesses degrade the report instead of being reconciled.
 - Exclude source `.venv`, Python cache directories, and bytecode from Claude
   config deployment while preserving an existing destination runtime during
   backup-and-replace; dot-prefixed config such as `.plans` remains deployed.

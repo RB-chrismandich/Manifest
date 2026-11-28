@@ -285,9 +285,10 @@ def reconcile(
     """Reconcile typed portable inventory using the established report schema."""
     path = receipt_override if receipt_override is not None else receipt_path()
     receipt, drift = _read_receipt(path)
+    loaded = not drift
     unverified = []
     active = None
-    if receipt is not None:
+    if loaded:
         env_check = shared_env_check()
         active = env_check["active_receipt_harnesses"](receipt)
         if active is None:
@@ -300,6 +301,8 @@ def reconcile(
                 }
             )
             unverified.append({"harness": "all", "reason": problem})
+        elif not active and not harness_filter:
+            unverified = [{"harness": "all", "reason": "receipt records no harnesses"}]
     harnesses, filter_drift = (
         _select_harnesses(active, harness_filter) if active is not None else ({}, [])
     )
@@ -320,8 +323,6 @@ def reconcile(
         )
         drift.extend(harness_drift)
         unverified.extend(harness_unverified)
-    if active is not None and not harnesses and not harness_filter:
-        unverified.append({"harness": "all", "reason": "receipt records no harnesses"})
     status = "degraded" if unverified else "drift" if drift else "converged"
     return {
         "drift": drift,
@@ -332,7 +333,7 @@ def reconcile(
         "status": status,
         "authentication": "not_tested",
         "unverified": unverified,
-        "verified": not unverified and active is not None,
+        "verified": loaded and not unverified,
     }
 
 
