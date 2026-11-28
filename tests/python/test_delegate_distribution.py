@@ -16,12 +16,13 @@ from _delegate_runtime_env import (
     _create_venv,
     _install_distribution_wheels,
     _install_offline_pyyaml,
+    _policyless_launcher,
     _require_isolated_venv,
     _trusted_policy_venv,
 )
 
 
-def test_unpacked_plugin_delegate_uses_root_model_policy_distribution(
+def test_unpacked_plugin_delegate_uses_bundled_policy_without_checkout(
     tmp_path: Path,
 ) -> None:
     repo_root = Path(__file__).resolve().parents[2]
@@ -31,10 +32,11 @@ def test_unpacked_plugin_delegate_uses_root_model_policy_distribution(
     environment["PYTHONPATH"] = ""
     environment["HOME"] = str(tmp_path / "empty-home")
     assert not (plugin / "manifest_model_policy").exists()
+    python = _policyless_launcher(tmp_path)
 
     result = subprocess.run(
         [
-            sys.executable,
+            str(python),
             "-c",
             (
                 "import importlib.metadata as m, pathlib, sys; "
@@ -54,7 +56,7 @@ def test_unpacked_plugin_delegate_uses_root_model_policy_distribution(
     assert result.returncode == 0, result.stderr
     lines = result.stdout.splitlines()
     assert lines[0] == "0.1.0"
-    assert not Path(lines[1]).is_relative_to(plugin)
+    assert Path(lines[1]).is_relative_to(plugin / "vendor/model-policy.zip")
 
 
 def test_unpacked_delegate_script_accepts_only_trusted_installed_policy(
@@ -144,6 +146,47 @@ def test_unpacked_delegate_rejects_plugin_local_policy_shadow(tmp_path: Path) ->
     assert "Delegate tasks/reviews" not in result.stdout
 
 
+def _assert_installed_policy_distribution(
+    venv: Path, environment: dict[str, str], cwd: Path
+) -> None:
+    metadata = subprocess.run(
+        [
+            str(venv / "bin/python"),
+            "-c",
+            "import importlib.metadata as m; "
+            "print(m.requires('manifest-delegate-runtime'))",
+        ],
+        cwd=cwd,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert metadata.returncode == 0, metadata.stderr
+    # The private package is shipped as pinned release bytes, never an index
+    # dependency. Check the distribution itself rather than the retired pin.
+    assert metadata.stdout.strip() == "None"
+    bundled = subprocess.run(
+        [
+            str(venv / "bin/python"),
+            "-c",
+            "import hashlib, zipfile; "
+            "from manifest_delegate_policy import POLICY_ARCHIVE, POLICY_SHA256; "
+            "assert hashlib.sha256(POLICY_ARCHIVE.read_bytes()).hexdigest() == POLICY_SHA256; "
+            "z=zipfile.ZipFile(POLICY_ARCHIVE); "
+            "assert b'Version: 0.1.0' in z.read('manifest_model_policy-0.1.0.dist-info/METADATA'); "
+            "print('trusted bundled manifest-model-policy==0.1.0')",
+        ],
+        cwd=cwd,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert bundled.returncode == 0, bundled.stderr
+    assert bundled.stdout.strip() == "trusted bundled manifest-model-policy==0.1.0"
+
+
 def test_installed_delegate_uses_explicit_model_policy_distribution(
     tmp_path: Path,
 ) -> None:
@@ -180,21 +223,7 @@ def test_installed_delegate_uses_explicit_model_policy_distribution(
     assert result.returncode == 0, result.stderr
     assert "Delegate tasks/reviews" in result.stdout
 
-    metadata = subprocess.run(
-        [
-            str(venv / "bin/python"),
-            "-c",
-            "import importlib.metadata as m; "
-            "print(m.requires('manifest-delegate-runtime'))",
-        ],
-        cwd=tmp_path,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert metadata.returncode == 0, metadata.stderr
-    assert "manifest-model-policy==0.1.0" in metadata.stdout
+    _assert_installed_policy_distribution(venv, environment, tmp_path)
 
 
 def test_module_cli_reports_malformed_skill_policy_without_traceback(
@@ -207,12 +236,7 @@ def test_module_cli_reports_malformed_skill_policy_without_traceback(
     environment.update(
         {
             "HOME": str(tmp_path / "empty-home"),
-            "PYTHONPATH": os.pathsep.join(
-                (
-                    str(repo_root / "plugins/manifest-delegate"),
-                    str(repo_root / "configs/claude/scripts"),
-                )
-            ),
+            "PYTHONPATH": str(repo_root / "plugins/manifest-delegate"),
         }
     )
 

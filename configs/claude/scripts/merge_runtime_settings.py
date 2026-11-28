@@ -68,7 +68,7 @@ def validate(settings: dict) -> None:
                 raise ValueError("hook must be an object")
 
 
-def merge_permissions(source: dict, target: dict) -> None:
+def merge_permissions(source: dict, target: dict, directory: Path) -> None:
     """Retain the existing legacy migration and order-stable allow-rule union."""
     retired = {
         "Bash(~/.claude/scripts/version_pin.sh:*)",
@@ -76,7 +76,17 @@ def merge_permissions(source: dict, target: dict) -> None:
         "Bash(~/.claude/scripts/guidance_hint.py:*)",
     }
     permissions = target.setdefault("permissions", {})
-    allow = [rule for rule in permissions.get("allow", []) if rule not in retired]
+    shipped = source.get("permissions", {}).get("allow", [])
+    allow = []
+    for rule in permissions.get("allow", []):
+        owned = (
+            rule.startswith("Bash(")
+            and rule.endswith(":*)")
+            and _is_guidance_hint_command(rule[5:-3], directory)
+        )
+        if rule in retired or (owned and (rule not in shipped or rule in allow)):
+            continue
+        allow.append(rule)
     for rule in source.get("permissions", {}).get("allow", []):
         if rule not in allow:
             allow.append(rule)
@@ -173,47 +183,103 @@ def _hook_targets_health_wrapper(command: object, directory: Path) -> bool:
 
 
 def _is_legacy_hook(event, entry, command, guidance, defaults):
-    return command in guidance or (
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        words = []
+    direct_guidance = command in guidance or (len(words) == 1 and words[0] in guidance)
+    return (
+        direct_guidance
+        and not (event == "PreToolUse" and entry.get("matcher") == "Bash")
+    ) or (
         event == "PreToolUse"
         and entry.get("matcher") == "Agent"
         and command in defaults
     )
 
 
-def _legacy_guidance_commands(directory: Path) -> set[str]:
-    """Return direct-script spellings that must be replaced during migration."""
-    path = str(directory / "scripts/guidance_hint.py")
-    return {"~/.claude/scripts/guidance_hint.py", path, shlex.quote(path)}
+def _legacy_script_commands(
+    directory: Path, script: str = "guidance_hint.py"
+) -> set[str]:
+    """Return recognized direct spellings for one deployed script."""
+    path = str(directory / "scripts" / script)
+    return {f"~/.claude/scripts/{script}", path, shlex.quote(path)}
 
 
-def merge_hooks(source: dict, target: dict, directory: Path) -> None:
-    """Resolve shipped commands at the target, preserving arbitrary user hooks."""
-    hooks = target.setdefault("hooks", {})
-    defaults = {
-        "~/.claude/scripts/subagent_model_default.py",
-        str(directory / "scripts/subagent_model_default.py"),
-        shlex.quote(str(directory / "scripts/subagent_model_default.py")),
+def _is_guidance_hint_command(command: object, directory: Path) -> bool:
+    """Recognize supported launchers for the deployed guidance script only."""
+    if not isinstance(command, str):
+        return False
+    if command in _legacy_script_commands(directory):
+        return True
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return False
+    scripts = {
+        "~/.claude/scripts/guidance_hint.py",
+        str(directory / "scripts/guidance_hint.py"),
     }
-    guidance = _legacy_guidance_commands(directory)
+    if not words or words[-1] not in scripts:
+        return False
+    if len(words) == 1:
+        return True
+    executable, *arguments = words[:-1]
+    if Path(executable).name in {"python", "python3", "python3.11"}:
+        return arguments in ([], ["-I"])
+    if Path(executable).name == "uv":
+        return arguments in (
+            ["run", "--no-project", "--with", "pyyaml", "--python", "3.11"],
+            ["run", "--quiet", "--no-project", "--with", "pyyaml", "--python", "3.11"],
+        )
+    return False
+
+
+def _merge_guidance_hooks(current: list, resolved: dict, directory: Path) -> None:
+    """Replace the first owned Bash hook in place and discard its duplicates."""
+    canonical = resolved["hooks"][0]
+    inserted = False
+    retained = []
+    for entry in current:
+        if entry.get("matcher") != "Bash":
+            retained.append(entry)
+            continue
+        kept = []
+        for hook in entry["hooks"]:
+            if not _is_guidance_hint_command(hook.get("command"), directory):
+                kept.append(hook)
+            elif not inserted:
+                kept.append({**hook, **canonical})
+                inserted = True
+        if kept:
+            retained.append({**entry, "hooks": kept})
+    if not inserted:
+        retained.append(resolved)
+    current[:] = retained
+
+
+def _retire_obsolete_hooks(hooks: dict, directory: Path) -> None:
+    """Remove previously owned hooks that are no longer shipped."""
+    defaults = _legacy_script_commands(directory, "subagent_model_default.py")
+    guidance = _legacy_script_commands(directory)
     managed_health_command = _health_receipt_command()
     for event, entries in hooks.items():
         retained = []
         for entry in entries:
             kept = [
-                h
-                for h in entry["hooks"]
+                hook
+                for hook in entry["hooks"]
                 if not (
-                    isinstance(h.get("command"), str)
+                    isinstance(hook.get("command"), str)
                     and (
-                        h["command"] == "~/.claude/scripts/version_pin_hook.sh"
-                        or h["command"].endswith("/.claude/scripts/version_pin_hook.sh")
+                        hook["command"].endswith("/.claude/scripts/version_pin_hook.sh")
                         or _is_legacy_hook(
-                            event, entry, h["command"], guidance, defaults
+                            event, entry, hook["command"], guidance, defaults
                         )
                         or (
                             event == "SessionStart"
-                            and _hook_targets_health_wrapper(h["command"], directory)
-                            and h["command"] != managed_health_command
+                            and _hook_targets_health_wrapper(hook["command"], directory)
+                            and hook["command"] != managed_health_command
                         )
                     )
                 )
@@ -221,6 +287,12 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
             if kept:
                 retained.append({**entry, "hooks": kept})
         hooks[event] = retained
+
+
+def merge_hooks(source: dict, target: dict, directory: Path) -> None:
+    """Resolve shipped commands at the target, preserving arbitrary user hooks."""
+    hooks = target.setdefault("hooks", {})
+    _retire_obsolete_hooks(hooks, directory)
     uv_absolute = str(Path.home() / ".local" / "bin" / "uv")
     for event, entries in source.get("hooks", {}).items():
         current = hooks.setdefault(event, [])
@@ -241,7 +313,16 @@ def merge_hooks(source: dict, target: dict, directory: Path) -> None:
                         for word in words
                     ]
                     hook["command"] = shlex.join(words)
-            if resolved not in current:
+            if (
+                event == "PreToolUse"
+                and entry.get("matcher") == "Bash"
+                and len(resolved["hooks"]) == 1
+                and _is_guidance_hint_command(
+                    resolved["hooks"][0].get("command"), directory
+                )
+            ):
+                _merge_guidance_hooks(current, resolved, directory)
+            elif resolved not in current:
                 current.append(resolved)
 
 
@@ -288,7 +369,7 @@ def seed_default(target: dict, version: str, previous: dict) -> str:
 
 def merge_document(source: dict, target: dict, directory: Path) -> None:
     """Retain scalar user-wins semantics; env belongs to the versioned default."""
-    merge_permissions(source, target)
+    merge_permissions(source, target, directory)
     for key, value in source.items():
         if key not in {"hooks", "permissions", "env", "_comment"}:
             target.setdefault(key, deepcopy(value))

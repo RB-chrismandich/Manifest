@@ -41,14 +41,17 @@ setup() {
     export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
     export MANIFEST_OUTPUT_DIR="$HOME/.manifest/outputs"
     export FORCE=false
+    export ENABLE_ANTIGRAVITY=true
+    CODEX_SYNC_MARKER="$SANDBOX/codex-sync-invoked"
 
     # Isolate heavy/secondary routines (network, profiles, other agents).
-    write_services_config()      { :; }
-    deploy_cursor_configs()      { :; }
+    write_services_config()       { :; }
+    deploy_cursor_configs()       { :; }
     retire_gemini_cli_deployment() { :; }
-    deploy_codex_configs()       { :; }
-    deploy_antigravity_configs() { :; }
-    deploy_sync_skills()         { :; }
+    deploy_codex_configs()        { :; }
+    deploy_sync_skills()          { :; }
+    sync_all_native_harnesses()   { :; }
+    deploy_devin_config()         { :; }
 
     # A live ~/.claude holding runtime state plus a STALE copy of repo-owned
     # config. "Stale" is the whole point: option 2 leaves it stale, option 4
@@ -78,6 +81,24 @@ assert_repo_config_refreshed() {
     assert_success
     run cmp -s "$TARGET_DIR/config/labels.yml" "$REPO_ROOT/configs/claude/config/labels.yml"
     assert_success
+}
+
+@test "merge deploy repairs a dangling agy config link before Codex sync" {
+    mkdir -p "$AGY_GEMINI_HOME"
+    ln -s "$SANDBOX/missing-config" "$AGY_GEMINI_HOME/config"
+    deploy_codex_configs() {
+        [[ -L "$AGY_GEMINI_HOME/config" &&
+           -d "$AGY_GEMINI_HOME/config" &&
+           "$(readlink "$AGY_GEMINI_HOME/config")" == "$TARGET_DIR/config" ]] || return 1
+        : > "$CODEX_SYNC_MARKER"
+    }
+
+    deploy_configs <<< "4"
+
+    [ -f "$CODEX_SYNC_MARKER" ]
+
+    [ -L "$AGY_GEMINI_HOME/config" ]
+    [ -d "$AGY_GEMINI_HOME/config" ]
 }
 
 @test "option 4 updates a repo-owned file whose content changed (the case merge misses)" {

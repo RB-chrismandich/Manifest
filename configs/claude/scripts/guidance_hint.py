@@ -30,8 +30,10 @@ from pathlib import Path
 
 try:
     import yaml
-except ImportError:
-    yaml = None
+except ModuleNotFoundError as exception:
+    if exception.name != "yaml":
+        raise
+    yaml = None  # type: ignore[assignment]
 
 # Python 3.9 compatibility: datetime.UTC was added in Python 3.11.
 UTC = timezone.utc  # noqa: UP017 -- datetime.UTC is unavailable on Python 3.9.
@@ -400,6 +402,14 @@ def main(argv=None) -> int:
     # --help precedes any registry/config load (cli-audit-help).
     args = _build_parser().parse_args(argv)
     if yaml is None:
+        if (
+            args.global_off
+            or args.global_on
+            or args.disable is not None
+            or args.enable is not None
+        ):
+            err("cannot write preferences: PyYAML is unavailable")
+            return 2
         return 0
     # Preference writes (opt-out/opt-in) report errors rather than failing open.
     write_rc = _handle_pref_write(args)

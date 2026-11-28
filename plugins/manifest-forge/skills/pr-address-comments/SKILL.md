@@ -5,11 +5,48 @@ description: "Use when your open PR receives review feedback (inline comments, C
 
 # Address PR Review Comments
 
+**Platform closure is mandatory.** Review and disposition every feedback item,
+and publish a how/why explanation directly on the originating PR/MR platform
+for every addressed item. After actionable feedback is fixed, verified, and
+successfully published, explicitly resolve every eligible thread/discussion
+using that platform's native resolution UI or API, then independently read back
+the final state. Local edits, commits, disposition tables, chat replies, or
+text saying “resolved” do not publish a platform reply or resolve a thread.
+Each reply must state what changed and why it satisfies the feedback (or give
+an evidence-backed rejection rationale); include the fix SHA and verification
+evidence when applicable. Reply in the exact originating thread/discussion
+where supported; otherwise post a linked platform reply.
+
 Resolve every piece of feedback truthfully. Ignore non-actionable service notices.
 Never call a thread resolved because a comment says “Resolved”.
 
 ## Procedure
 
+0. **Check for an idle human block before spawning work.** For each managed PR,
+   run `<plugin root>/runtime/bin/pr_merge_loop.sh address-status N`. This makes
+   one read-only observation and compares it with the existing repository-scoped
+   `fp_<scope-hash>_<PR>.json` record (`observed_at` is the last handled check).
+   On `blocked on human: #N`, emit only that line for the PR and stop if all
+   PRs are blocked; do not spawn subagents, poll again, or resolve threads.
+   `actionable: #N` admits normal work; new/edited feedback changes the
+   fingerprint even if its timestamp predates the last check. Missing state is
+   actionable, never proof of idle; failed observation is unverified.
+   The actual `pr_merge_loop.sh run` driver stops immediately when all managed
+   PRs have the persisted `hand-human` disposition. Across invocations it
+   compares each PR's existing fingerprint-state `observed_at`; after three
+   identical complete no-progress turns it emits `loop idle: waiting on human`
+   once. Each later invocation still makes one observation per PR and prints
+   its blocked line, but does not repeat the idle announcement. Changed
+   feedback reopens normal work; incomplete observation never advances idle.
+   This outer three-turn threshold is independent of both the five-empty-pass
+   inner stop and the three-revision limit. Reinvoke it to observe new feedback.
+   To establish a human-only disposition, first capture
+   `pr_merge_loop.sh address-status N --json`, then perform the final feedback
+   enumeration below. If only human work remains, pass that JSON's fingerprint
+   to `pr_merge_loop.sh record-human-blocked N FINGERPRINT`. A changed
+   observation refuses the write and requires re-enumeration; success persists
+   the per-PR check timestamp without resolving any thread. Never record a
+   failed/unavailable review as a human-only disposition.
 1. **Identify the provider and immutable target.** Use the configured override or
    the selected remote as documented in `runtime/references/git-platform.md`.
    Record the provider, PR/MR number, repository/project target, and host. Do
@@ -27,21 +64,28 @@ Never call a thread resolved because a comment says “Resolved”.
    in a resolvable thread must be fixed and verified before that thread can be
    resolved. If tests fail, a fix is unpublished, feedback is deferred, or a
    human disputes a rejection, reply truthfully and leave it unresolved.
-5. **Publish exact replies.** Reply in the eligible thread/discussion with the
-   fix SHA and verification evidence, or a rejection rationale and evidence.
-   A disputed rejection remains open until accepted. Top-level review bodies
-   and standalone comments get a linked reply and a summary disposition, but
-   are `not applicable` for formal resolution.
-6. **Resolve only verified eligible threads.** Re-read immediately before the
-   resolution mutation. New actionable feedback must be addressed first.
-   Already-resolved threads receive neither duplicate replies nor mutations on
-   rerun when the same disposition/fix is recorded.
+5. **Publish exact platform replies.** Successfully publish a how/why reply on
+   the PR/MR platform for each addressed item before attempting eligible
+   resolution. Reply in the exact thread/discussion with the fix SHA and
+   verification evidence, or an evidence-backed rejection rationale. A
+   disputed rejection remains open until accepted. Top-level review bodies,
+   standalone comments, and feedback without a formal thread get a linked
+   platform reply and summary disposition; report `addressed — not applicable`
+   for formal resolution when the provider has no native resolve capability.
+   A chat response is never a substitute.
+6. **Resolve only verified eligible threads.** Immediately before each
+   resolution mutation, re-read the target thread/discussion and its feedback
+   to detect new items. New actionable feedback must be addressed first. Resolve
+   only after the platform reply succeeds and all actionable items in that
+   thread are fixed, verified, and published. Already-resolved threads receive
+   neither duplicate replies nor mutations on rerun when the same disposition/
+   fix is recorded.
 7. **Independently read back state.** A CLI nonzero, GraphQL `errors`, null or
    missing mutation data, permission error, or false/missing readback is
    `unresolved—resolution failed`; report its exact link and error. Re-enumerate
    all feedback once at completion. Newly arrived/unaddressed feedback remains
    outstanding; never report “all addressed” merely because the first list was
-   exhausted.
+   exhausted. Do not report closure without independent platform readback.
 
 ## GitHub: complete feedback inventory and resolution
 
@@ -99,7 +143,8 @@ gh api graphql -f query='mutation($thread:ID!,$body:String!) {
 }' -f thread="$THREAD_ID" -f body="$BODY"
 ```
 
-Re-read the thread, then resolve it only after the reply succeeds:
+Re-read the thread immediately before resolving it, and resolve only after the
+platform reply succeeds:
 
 ```bash
 gh api graphql -f query='mutation($thread:ID!) {
@@ -140,11 +185,23 @@ note is resolved. Absence of resolvable notes is not success. A Developer,
 Maintainer, Owner, or author-of-change permission failure is reported and is
 never bypassed.
 
+## Other providers
+
+Use the provider's native comment/reply and resolution capabilities; do not
+invent endpoint examples or claim unsupported state. Publish the explanation
+on the originating PR/MR platform and verify any available resolution state.
+If formal resolution is unavailable, report `addressed — not applicable` and
+link the platform reply rather than implying a thread was resolved.
+
 ## Completion publication
 
-Post one summary disposition table with links, claim, action or rejection,
-fix SHA, verification evidence, and formal resolution state. A top-level
-review body or standalone comment is marked `addressed — not applicable` for
-formal resolution; a failed resolve is marked `unresolved—resolution failed`.
+Post a final disposition summary on the PR/MR platform, not only in assistant
+chat. Include links to each reply, claim, action or rejection rationale, fix
+SHA, verification evidence, and formal resolution state confirmed by
+independent readback. Top-level review bodies or standalone comments without a
+formal resolve capability are `addressed — not applicable`; a failed resolve
+or readback is `unresolved—resolution failed` and remains outstanding. Do not
+claim all feedback addressed while any item is deferred, disputed, unpublished,
+newly arrived, or otherwise unresolved.
 
 > Absorbed: address-pr-review-comments, address-review-comments (2026-06)

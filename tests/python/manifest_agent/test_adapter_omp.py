@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -236,7 +237,14 @@ def test_package_lifecycle_is_not_runtime_or_mcp_qualification(installed):
     desired, adapter, runner, service = installed
     result = service.reconcile()
     assert result.state is ResultState.READY
-    native = result.to_dict()["harnesses"]["omp"]["native_inspection"]
+    document = result.to_dict()
+    assert document["state"] == "DEGRADED"
+    item = document["harnesses"]["omp"]
+    assert item["state"] == "DEGRADED"
+    assert item["converged"] is False
+    assert item["verified"] is False
+    assert item["capabilities"]["package-lifecycle"] == "verified"
+    native = item["native_inspection"]
     assert native["activation"] == "not-observed"
     assert all(package["status"] == "verified" for package in native["packages"])
     assert any(
@@ -248,12 +256,99 @@ def test_package_lifecycle_is_not_runtime_or_mcp_qualification(installed):
         for component in native["components"]
     )
     assert all(
-        component["provenance"] == "native-resolver"
+        component["provenance"] == "omp-skill-list"
+        and component["status"] == "resolved"
         for component in native["components"]
         if component["kind"] == "skill"
     )
     assert not any("mcp" in command for command in runner.calls)
     assert adapter.inspect(desired).state is ResultState.READY
+
+
+@pytest.mark.parametrize(
+    "failure",
+    ["cli", "malformed", "warnings", "empty", "incomplete"],
+)
+def test_component_observation_failure_preserves_package_lifecycle(
+    installed,
+    monkeypatch,
+    failure,
+):
+    desired, adapter, runner, service = installed
+    original_run = runner.run
+
+    def run(argv, **kwargs):
+        result = original_run(argv, **kwargs)
+        if tuple(argv) != ("omp", "skill", "list", "--json"):
+            return result
+        if failure == "cli":
+            return replace(result, returncode=1, stderr="discovery unavailable")
+        if failure == "malformed":
+            return replace(result, stdout="{broken")
+        if failure in {"empty", "incomplete"}:
+            document = json.loads(result.stdout)
+            document["skills"] = [] if failure == "empty" else document["skills"][1:]
+            return replace(result, stdout=json.dumps(document))
+        document = json.loads(result.stdout)
+        document["warnings"] = [{"message": "discovery incomplete"}]
+        return replace(result, stdout=json.dumps(document))
+
+    monkeypatch.setattr(runner, "run", run)
+    result = adapter.inspect(desired)
+    assert result.state is ResultState.READY
+    assert result.errors == ()
+    assert result.capabilities["package-lifecycle"] == "verified"
+    native = result.native_inspection
+    assert all(package.status == "verified" for package in native.packages)
+    if failure not in {"empty", "incomplete"}:
+        assert native.inventory_errors
+    else:
+        assert any(row.status != "resolved" for row in native.components)
+    assert native.activation == "not-observed"
+    assert result.warnings
+    if failure == "warnings":
+        assert any(
+            row.kind == "skill" and row.status == "resolved"
+            for row in native.components
+        )
+    elif failure in {"cli", "malformed"}:
+        assert native.components == ()
+    report = service.reconcile()
+    assert report.state is ResultState.READY
+    assert report.harnesses["omp"].state is ResultState.READY
+    document = report.to_dict()
+    assert document["state"] == "DEGRADED"
+    item = document["harnesses"]["omp"]
+    assert item["state"] == "DEGRADED"
+    assert item["converged"] is False
+    assert item["verified"] is False
+    assert item["errors"] == []
+    assert item["capabilities"]["package-lifecycle"] == "verified"
+    assert item["native_inspection"]["activation"] == "not-observed"
+    if failure not in {"empty", "incomplete"}:
+        assert item["native_inspection"]["inventory_errors"]
+
+
+def test_complete_native_discovery_can_qualify_without_activation(installed):
+    desired, adapter, _runner, _service = installed
+    result = adapter.inspect(desired)
+    native = result.native_inspection
+    # Qualify discovery only; unsupported activation rows remain unverified
+    # in the normal coordinator report.
+    native = replace(
+        native,
+        components=tuple(row for row in native.components if row.kind == "skill"),
+    )
+    report = ServiceReport(
+        "inspect",
+        ResultState.READY,
+        {"omp": replace(result, native_inspection=native)},
+    )
+    item = report.to_dict()["harnesses"]["omp"]
+    assert item["state"] == "READY"
+    assert item["converged"] is True
+    assert item["verified"] is True
+    assert item["native_inspection"]["activation"] == "not-observed"
 
 
 def test_skill_resolver_sibling_prefix_never_counts_as_native_resolution(
@@ -267,14 +362,20 @@ def test_skill_resolver_sibling_prefix_never_counts_as_native_resolution(
     )
     sibling.parent.mkdir()
     sibling.write_text("foreign\n")
-    runner.skill_override = sibling
+    expected = sibling.parent.parent / "manifest-docs-skill/SKILL.md"
+    expected.unlink()
     native = adapter.inspect(desired).native_inspection
-    assert all(
-        component.status == "unresolved"
+    assert any(
+        component.status == "unresolved" and component.resolved_path == str(expected)
         for component in native.components
         if component.kind == "skill"
     )
+    assert any(
+        component.status == "resolved" and component.resolved_path == str(sibling)
+        for component in native.components
+    )
     assert native.activation == "not-observed"
+    assert not any(command[1] == "read" for command in runner.calls)
 
 
 def test_combine_results_preserves_rightmost_native_inspection_not_merged_facts():
