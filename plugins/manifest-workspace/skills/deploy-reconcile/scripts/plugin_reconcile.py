@@ -165,11 +165,8 @@ def _read_receipt(path: Path) -> tuple[Any, list[dict[str, str]]]:
 
 
 def _select_harnesses(
-    receipt: object, harness_filter: tuple[str, ...]
-) -> tuple[dict[str, Any], list[dict[str, str]]]:
-    harnesses = receipt.get("harnesses", {}) if isinstance(receipt, dict) else {}
-    if not isinstance(harnesses, dict):
-        harnesses = {}
+    harnesses: dict[str, dict], harness_filter: tuple[str, ...]
+) -> tuple[dict[str, dict], list[dict[str, str]]]:
     drift = []
     if harness_filter:
         harnesses = {
@@ -235,18 +232,13 @@ def _native_component_drift(
 
 def _reconcile_harness(
     harness: str,
-    record: object,
+    record: dict,
     native_report: dict[str, Any] | None,
     inspection_error: str,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     drift = []
     unverified = []
-    plugins = (
-        record.get("plugins", record.get("plugin_ids", []))
-        if isinstance(record, dict)
-        else []
-    )
-    installed = {_plugin_name(item) for item in plugins if isinstance(item, str)}
+    installed = {_plugin_name(item) for item in record["plugin_ids"]}
     missing = sorted(EXPECTED_BUNDLES - installed)
     if missing:
         drift.append(
@@ -293,7 +285,24 @@ def reconcile(
     """Reconcile typed portable inventory using the established report schema."""
     path = receipt_override if receipt_override is not None else receipt_path()
     receipt, drift = _read_receipt(path)
-    harnesses, filter_drift = _select_harnesses(receipt, harness_filter)
+    unverified = []
+    active = None
+    if receipt is not None:
+        env_check = shared_env_check()
+        active = env_check["active_receipt_harnesses"](receipt)
+        if active is None:
+            problem = env_check["RECEIPT_SCHEMA_PROBLEM"]
+            drift.append(
+                {
+                    "capability": "installation-receipt",
+                    "harness": "all",
+                    "reason": problem,
+                }
+            )
+            unverified.append({"harness": "all", "reason": problem})
+    harnesses, filter_drift = (
+        _select_harnesses(active, harness_filter) if active is not None else ({}, [])
+    )
     drift.extend(filter_drift)
     native_report, inspection_error = (
         _load_inspection(inspection_source)
@@ -305,14 +314,13 @@ def reconcile(
 
         native_report = inspection_report()["harnesses"]
         inspection_error = None
-    unverified = []
     for harness, record in sorted(harnesses.items()):
         harness_drift, harness_unverified = _reconcile_harness(
             str(harness), record, native_report, str(inspection_error)
         )
         drift.extend(harness_drift)
         unverified.extend(harness_unverified)
-    if receipt is not None and not harnesses and not harness_filter:
+    if active is not None and not harnesses and not harness_filter:
         unverified.append({"harness": "all", "reason": "receipt records no harnesses"})
     status = "degraded" if unverified else "drift" if drift else "converged"
     return {
@@ -324,7 +332,7 @@ def reconcile(
         "status": status,
         "authentication": "not_tested",
         "unverified": unverified,
-        "verified": not unverified and receipt is not None,
+        "verified": not unverified and active is not None,
     }
 
 

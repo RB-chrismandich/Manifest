@@ -51,6 +51,7 @@ HARNESSES = {
     "omp": "omp",
 }
 RETIRED_HARNESSES = frozenset({"gemini"})
+RECEIPT_SCHEMA_PROBLEM = "installation receipt does not match the coordinator schema"
 NOT_TESTED = "not_tested"
 
 
@@ -240,6 +241,21 @@ def _valid_receipt(document: object) -> bool:
     return _valid_receipt_identity(document) and _valid_harnesses(document)
 
 
+def active_receipt_harnesses(document: object) -> dict[str, dict] | None:
+    """Return a coordinator-valid receipt's active records, else None.
+
+    Like read_receipt, retired records are decoded and then dropped.
+    """
+    if not _valid_receipt(document):
+        return None
+    assert isinstance(document, dict)
+    return {
+        name: record
+        for name, record in document["harnesses"].items()
+        if name not in RETIRED_HARNESSES
+    }
+
+
 def evaluate_receipt(path: Path) -> dict[str, Any]:
     """Return receipt claims, or an explicit reason the receipt is unusable."""
     document, error = load_receipt(path)
@@ -254,17 +270,10 @@ def evaluate_receipt(path: Path) -> dict[str, Any]:
     if error is not None:
         summary["problems"].append(error)
         return summary
-    if not _valid_receipt(document):
-        summary["problems"].append(
-            "installation receipt does not match the coordinator schema"
-        )
+    harnesses = active_receipt_harnesses(document)
+    if harnesses is None:
+        summary["problems"].append(RECEIPT_SCHEMA_PROBLEM)
         return summary
-    assert document is not None
-    harnesses = {
-        name: value
-        for name, value in document["harnesses"].items()
-        if name not in RETIRED_HARNESSES
-    }
     if not harnesses:
         summary["problems"].append("installation receipt selects no harness")
         return summary
