@@ -30,6 +30,7 @@ def repo_root() -> Path:
 def _copy_health_source(repo_root: Path, destination: Path) -> Path:
     relative_sources = (
         "plugins/manifest-workspace/skills/env-check/scripts/env_check.py",
+        "plugins/manifest-workspace/skills/env-check/scripts/env_check_native.py",
         "plugins/manifest-workspace/skills/env-check/scripts/mcp_health.py",
         "plugins/manifest-workspace/skills/env-check/scripts/health_report.py",
         "plugins/manifest-workspace/skills/env-check/scripts/health_report_collect.py",
@@ -168,6 +169,7 @@ def _assert_installation_manifest(source_root: Path, env: dict[str, str]) -> Pat
     assert installation["installed_at"].endswith("Z")
     assert set(installation["files"]) == {
         "env_check.py",
+        "env_check_native.py",
         "health_report.py",
         "health_report_collect.py",
         "health_report_common.py",

@@ -137,7 +137,10 @@ class CodexInstallMixin:
             (),
             {},
             owned_entries=catalog_owned_entries(
-                desired, self._env, marketplace_identity
+                desired,
+                self._env,
+                marketplace_identity,
+                key_path=self._ownership_key_path,
             ),
         )
         return combine_results(*failures, capabilities, inspected, ownership)

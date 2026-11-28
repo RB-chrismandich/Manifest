@@ -1,6 +1,6 @@
 # Layout Reference
 
-> Configuration-file map and the `~/.claude/` file tree. Referenced from CLAUDE.md.
+> Configuration-file map and current harness deployment paths. Referenced from `CLAUDE.md`.
 
 ## Configuration Files
 
@@ -18,40 +18,60 @@
 
 ```text
 ~/.claude/
-├── CLAUDE.md                        # This orchestration guide
-├── skills/                          # Plugin skill library (source: .apm/skills/)
-│   ├── code-audit/SKILL.md          # Auto-triggered quality/security
-│   ├── docs-generate-diagrams/SKILL.md
-│   ├── docs-improve/SKILL.md
-│   ├── docs-improve-readme/SKILL.md
-│   ├── env-check/SKILL.md
-│   ├── issue-prioritize/SKILL.md
-│   ├── issue-triage/SKILL.md
-│   ├── plan-manage/SKILL.md
-│   ├── git-commit/SKILL.md
-│   ├── python-refactor/SKILL.md
-│   ├── shell-refactor/SKILL.md
-│   └── config-audit/SKILL.md
-├── prompts/
-│   ├── context_monitor.md
-│   ├── preflight_analysis.md
-│   └── validation.md
-├── config/
-│   ├── command_config.yml
-│   ├── model_policy.yml             # Single-provider model and CLI policy
-│   ├── tracker_triage.yml
-│   ├── mcp_servers.yml
-│   ├── services.yml
-│   └── validation_criteria.yml
-├── .plans/                          # Plan management
-│   ├── .archive/                    # Completed plans
-│   ├── .abandoned/                  # Stale/abandoned plans
-│   ├── TEMPLATE.md
-│   └── README.md
-└── scripts/
-    ├── manifest_cli/                # `manifest` command router
-    ├── manifest_model_policy/       # Policy loader and headless CLI helpers
-    ├── generate_cursor_rules.sh     # Regenerate .cursor/rules from SKILL.md
-    ├── git_platform.sh              # Platform detection
-    └── linear_ops.sh                # Linear API operations
+├── CLAUDE.md                        # Claude-specific orchestration guide
+├── plugins/                         # Native plugin-manager state
+├── config/                           # Shared Manifest configuration
+├── prompts/                          # Prompt templates
+├── .plans/                           # Plan management
+└── scripts/                          # Shared scripts and CLI entry points
 ```
+
+## Bootstrap Options
+
+Bootstrap is the supported installation and deployment path. Supported hosts:
+macOS (Intel and Apple Silicon) and Linux (Debian/Ubuntu, RHEL/Fedora, Arch,
+openSUSE).
+
+```bash
+./bootstrap.sh
+./bootstrap.sh --disable-cursor
+./bootstrap.sh --disable-codex --disable-cursor
+./bootstrap.sh --skip-auth --force
+./bootstrap.sh --install-mcp
+```
+
+Service and optional-feature switches:
+
+```text
+--enable-claude / --disable-claude
+--enable-cursor / --disable-cursor
+--enable-codex / --disable-codex
+--enable-antigravity / --disable-antigravity
+--enable-devin / --disable-devin
+--enable-skillclaw / --disable-skillclaw
+--enable-browser-use / --disable-browser-use
+--enable-smoke / --disable-smoke
+--enable-gh / --disable-gh
+--enable-glab / --disable-glab
+--install-mcp
+```
+
+Install each harness CLI using its current vendor-supported method; these
+switches configure deployment and do not install every external CLI.
+
+## Skill and Harness Deployment
+
+The canonical skills are maintained under `plugins/<bundle>/skills/`.
+`.apm/skills/` is a generated mirror; it is not the canonical source.
+
+| Harness | Deployment and skill path |
+|---|---|
+| Claude Code | Manifest bundles use Claude's native plugin manager; the flat catalog is not installed under `~/.claude/skills/` after cutover. |
+| Cursor | Per-skill rules are generated under `~/.cursor/rules/`; its flat skill fallback points to `~/.manifest/skills/`. |
+| Codex | `~/.codex/AGENTS.md` is deployed separately; bundles use Codex's native plugin mechanism. A safe legacy flat-catalog fallback may link `~/.codex/skills/` to `~/.manifest/skills/`. |
+| Antigravity | `~/.antigravity/skills/` links to `~/.manifest/skills/`; shared config and plans link to `~/.claude/`. The `agy` CLI reads its guide from `~/.gemini/GEMINI.md`. |
+| Devin | Bootstrap configures `read_config_from.claude`; Devin reads the Claude skills and guide directly rather than receiving a duplicate skills link. |
+
+Use `./bootstrap.sh` for deployment. Manual copies or blanket symlinks can
+conflict with native plugin installation, generated rules, or user-managed
+state; inspect `bootstrap/lib/deploy.sh` before attempting a manual equivalent.

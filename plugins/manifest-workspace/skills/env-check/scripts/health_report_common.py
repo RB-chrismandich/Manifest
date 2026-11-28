@@ -74,6 +74,7 @@ EXPECTED_RUNTIME_FILES = frozenset(
         "health_install_reconcile.py",
         "health_install_scheduler.py",
         "health_install_scheduler_systemd.py",
+        "env_check_native.py",
         "env_check.py",
         "hook_smoke.py",
         "hook_smoke_support.py",

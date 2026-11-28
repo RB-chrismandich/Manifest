@@ -8,6 +8,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -66,7 +67,6 @@ from manifest_agent.state import (
     receipt_digest,
     receipt_for_persistence,
     retired_receipt_rebinding,
-    write_receipt_atomic,
 )
 
 NO_PRIOR_RECEIPT_V1 = "NO_PRIOR_RECEIPT_V1"
@@ -915,18 +915,7 @@ class BootstrapSyncService:
 
     # constitution: exempt C-SIZE -- lock, journal, native state, and receipt commit share rollback scope.
     def run(self, desired=None):
-        if desired is None:
-            desired, error = self.service._desired_state()
-            if error is not None:
-                return report("bootstrap-sync", {}, errors=(error,))
-        assert desired is not None
-        selected, detections, missing, notes = self.service._detect_requested()
-        if missing:
-            return report("bootstrap-sync", missing, notes)
-        if "codex" not in selected:
-            return report("bootstrap-sync", {}, notes)
-        adapter = self.service.adapters["codex"]
-        durable_codex = isinstance(adapter, CodexAdapter) and hasattr(adapter, "runner")
+        notes = ()
         journal = _journal_path(self.service.receipt_path)
         home = Path(os.environ.get("HOME", str(Path.home())))
         manifest_skills = Path(
@@ -945,16 +934,34 @@ class BootstrapSyncService:
         prior_resolved = False
         synchronized: dict[str, HarnessResult] = {}
         try:
-            with self.service.lock_factory(
-                self.service.receipt_path.parent / "install.lock"
+            with (
+                self.service.lock_factory(
+                    self.service.receipt_path.parent / "install.lock"
+                ),
+                ExitStack() as observer_scope,
             ):
                 key_path = self.service.receipt_path.parent / "ownership.key"
+                previous = read_receipt(self.service.receipt_path)
+                saga = _read_journal(journal)
+                if desired is None:
+                    desired, error = self.service._desired_state()
+                    if error is not None:
+                        return report("bootstrap-sync", {}, errors=(error,))
+                assert desired is not None
+                selected, detections, missing, notes = self.service._detect_requested()
+                if missing:
+                    return report("bootstrap-sync", missing, notes)
+                if "codex" not in selected:
+                    return report("bootstrap-sync", {}, notes)
                 ensure_bootstrap_journal_authority(
                     key_path,
                     receipt_exists=self.service.receipt_path.exists(),
                     journal_exists=journal.exists(),
                 )
-                previous = read_receipt(self.service.receipt_path)
+                adapter = self.service.adapters["codex"]
+                durable_codex = isinstance(adapter, CodexAdapter) and hasattr(
+                    adapter, "runner"
+                )
                 desired = with_prior_harness_receipts(desired, previous)
                 prior_desired = desired
                 prior_digest = (
@@ -966,7 +973,6 @@ class BootstrapSyncService:
                 identity_changed = previous is not None and bool(
                     identity_errors(previous, desired, bundle_checksums(desired))
                 )
-                saga = _read_journal(journal)
                 recovered_transaction = saga is not None
                 if saga is not None:
                     if _is_empty_prepared_saga(saga):
@@ -1023,6 +1029,12 @@ class BootstrapSyncService:
                         recovered_transaction = False
                     else:
                         _write_journal(journal, saga)
+                # Recovery and receipt authorization precede runtime acquisition.
+                from manifest_agent.observer_runtime import ObserverTransaction
+
+                observer_transaction = observer_scope.enter_context(
+                    ObserverTransaction(desired, self.service.receipt_path)
+                )
                 if saga is None:
                     saga = ReconciliationSaga(
                         "prepared",
@@ -1443,7 +1455,7 @@ class BootstrapSyncService:
                 )
                 _write_journal(journal, saga)
                 try:
-                    write_receipt_atomic(self.service.receipt_path, receipt)
+                    observer_transaction.persist(receipt)
                 except Exception as write_error:
                     try:
                         visible = read_receipt(self.service.receipt_path)
@@ -1461,6 +1473,7 @@ class BootstrapSyncService:
                         # The rename reached the authoritative path; recovery must
                         # promote this prepared commit instead of compensating it.
                         receipt_committed = True
+                        observer_transaction.committed = True
                     elif visible_digest != saga.prior_receipt_digest:
                         rollback_allowed = False
                         raise RuntimeError(

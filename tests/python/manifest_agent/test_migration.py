@@ -385,6 +385,69 @@ def test_completed_migration_is_idempotent(tmp_path: Path):
     assert events == []
 
 
+def test_observer_provision_failure_precedes_any_migration_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    import manifest_agent.migration as migration_module
+
+    events: list[str] = []
+    home, link = _legacy_home(tmp_path)
+    original_target = link.readlink()
+    service = _service(tmp_path, MigrationAdapter(events))
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+
+    class FailedObserver:
+        def __init__(self, desired, receipt_path):
+            del desired, receipt_path
+
+        def __enter__(self):
+            raise RuntimeError("observer provisioning failed")
+
+    monkeypatch.setattr(migration_module, "ObserverTransaction", FailedObserver)
+    monkeypatch.setattr(migration_module, "requires_observer", lambda desired: True)
+
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+    result = migration.migrate(desired)
+    assert result.state is ResultState.BLOCKED
+    assert events == []
+    assert link.is_symlink() and link.readlink() == original_target
+    assert not service.receipt_path.exists()
+
+
+def test_already_migrated_requires_observer_retry_and_preserves_receipt_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    import manifest_agent.migration as migration_module
+
+    events: list[str] = []
+    home, _link = _legacy_home(tmp_path)
+    service = _service(tmp_path, MigrationAdapter(events))
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+    assert migration.migrate(desired).state is ResultState.READY
+    original_receipt = service.receipt_path.read_bytes()
+
+    class FailedObserver:
+        def __init__(self, desired, receipt_path):
+            del desired, receipt_path
+
+        def __enter__(self):
+            raise RuntimeError("observer runtime unavailable")
+
+    monkeypatch.setattr(migration_module, "ObserverTransaction", FailedObserver)
+    monkeypatch.setattr(migration_module, "requires_observer", lambda desired: True)
+
+    result = migration.migrate(desired)
+    assert result.state is ResultState.BLOCKED
+    assert service.receipt_path.read_bytes() == original_receipt
+
+
 def test_partial_migration_resumes_after_rechecking_shadow(tmp_path: Path):
     events: list[str] = []
     home, _link = _legacy_home(tmp_path)

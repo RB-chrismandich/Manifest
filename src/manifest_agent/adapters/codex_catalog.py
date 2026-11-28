@@ -255,7 +255,10 @@ def _add_lifecycle_evidence(desired: DesiredState, evidence: set[str]) -> set[st
 
 
 def receipt_plugin_ids(
-    receipt: HarnessReceipt, env: Mapping[str, str] | None = None
+    receipt: HarnessReceipt,
+    env: Mapping[str, str] | None = None,
+    *,
+    key_path: Path | None = None,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     entries = tuple(
         entry for entry in receipt.owned_entries if entry.kind == "codex-catalog"
@@ -263,7 +266,9 @@ def receipt_plugin_ids(
     if len(entries) != 1:
         return (), ("receipt lacks one canonical Codex catalog snapshot",)
     try:
-        snapshot, ownership_errors = codex_catalog_ownership(entries[0], env=env)
+        snapshot, ownership_errors = codex_catalog_ownership(
+            entries[0], env=env, key_path=key_path
+        )
     except (TypeError, ValueError):
         return (), ("receipt Codex catalog snapshot is invalid",)
     if ownership_errors or snapshot is None:
@@ -290,26 +295,34 @@ def receipt_plugin_ids(
 
 
 def authenticated_catalog(
-    receipt: HarnessReceipt, env: Mapping[str, str] | None
+    receipt: HarnessReceipt,
+    env: Mapping[str, str] | None,
+    *,
+    key_path: Path | None = None,
 ) -> list[dict[str, str]] | None:
     entries = tuple(
         entry for entry in receipt.owned_entries if entry.kind == "codex-catalog"
     )
     if len(entries) != 1:
         return None
-    value, errors = codex_catalog_ownership(entries[0], env=env)
+    value, errors = codex_catalog_ownership(entries[0], env=env, key_path=key_path)
     return value if not errors else None
 
 
 def authenticated_marketplace(
-    receipt: HarnessReceipt, env: Mapping[str, str] | None
+    receipt: HarnessReceipt,
+    env: Mapping[str, str] | None,
+    *,
+    key_path: Path | None = None,
 ) -> AdapterMarketplaceState | None:
     entries = tuple(
         entry for entry in receipt.owned_entries if entry.kind == "codex-catalog"
     )
     if len(entries) != 1:
         return None
-    identity, errors = codex_marketplace_ownership(entries[0], env=env)
+    identity, errors = codex_marketplace_ownership(
+        entries[0], env=env, key_path=key_path
+    )
     if errors or identity is None:
         return None
     try:
@@ -375,12 +388,16 @@ def catalog_owned_entries(
     desired: DesiredState,
     env: Mapping[str, str] | None = None,
     marketplace: AdapterMarketplaceState | None = None,
+    *,
+    key_path: Path | None = None,
 ) -> tuple[OwnedEntry, ...]:
     snapshot = catalog_snapshot(desired)
     identity = marketplace or desired_marketplace_identity(desired)
     return (
         OwnedEntry("marketplace", MARKETPLACE, "manifest"),
-        owned_codex_catalog_entry(snapshot, marketplace=asdict(identity), env=env),
+        owned_codex_catalog_entry(
+            snapshot, marketplace=asdict(identity), env=env, key_path=key_path
+        ),
     )
 
 

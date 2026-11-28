@@ -114,10 +114,14 @@ class CodexUninstallMixin:
 def _prepare_uninstall(
     adapter: CodexUninstallMixin, receipt: HarnessReceipt
 ) -> tuple[_UninstallRun | None, HarnessResult | None]:
-    receipt_errors = codex_receipt_ownership_errors(receipt, env=adapter._env)
+    receipt_errors = codex_receipt_ownership_errors(
+        receipt, env=adapter._env, key_path=adapter._ownership_key_path
+    )
     if receipt_errors:
         return None, blocked("; ".join(receipt_errors))
-    expected = authenticated_marketplace(receipt, adapter._env)
+    expected = authenticated_marketplace(
+        receipt, adapter._env, key_path=adapter._ownership_key_path
+    )
     if expected is None:
         return None, blocked("receipt Codex marketplace ownership proof is invalid")
     try:
@@ -126,13 +130,17 @@ def _prepare_uninstall(
         return None, blocked(str(error))
     if observed is not None and observed != expected:
         return None, blocked("Codex marketplace source was replaced before uninstall")
-    plugin_ids, id_errors = receipt_plugin_ids(receipt, adapter._env)
+    plugin_ids, id_errors = receipt_plugin_ids(
+        receipt, adapter._env, key_path=adapter._ownership_key_path
+    )
     # Codex's canonical inventory is its own signed catalog snapshot, not the
     # static bundle list: a release may legitimately carry bundles this build
     # does not know. Deriving the expected set from the authenticated catalog
     # keeps the completeness check real instead of comparing plugin_ids to
     # itself, which can never fail.
-    authenticated = authenticated_catalog(receipt, adapter._env)
+    authenticated = authenticated_catalog(
+        receipt, adapter._env, key_path=adapter._ownership_key_path
+    )
     expected_plugin_ids = (
         tuple(f"{row['name']}@{MARKETPLACE}" for row in authenticated)
         if authenticated is not None
@@ -227,7 +235,9 @@ def _remove_owned_plugins(
     run: _UninstallRun,
     capabilities: HarnessResult,
 ) -> HarnessResult | None:
-    catalog = authenticated_catalog(run.receipt, adapter._env)
+    catalog = authenticated_catalog(
+        run.receipt, adapter._env, key_path=adapter._ownership_key_path
+    )
     if catalog is None:
         return blocked("receipt Codex catalog ownership proof does not match")
     versions = {f"{row['name']}@{MARKETPLACE}": row["version"] for row in catalog}
@@ -305,7 +315,9 @@ def _remove_owned_marketplace(
     adapter: CodexUninstallMixin, run: _UninstallRun
 ) -> HarnessResult | None:
     step = "remove:marketplace:manifest"
-    expected = authenticated_marketplace(run.receipt, adapter._env)
+    expected = authenticated_marketplace(
+        run.receipt, adapter._env, key_path=adapter._ownership_key_path
+    )
     if expected is None:
         return blocked("receipt Codex marketplace ownership proof is invalid")
     observation = _prepare_marketplace_removal(adapter, run, step, expected)

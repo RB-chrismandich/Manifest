@@ -32,11 +32,13 @@ from manifest_agent.models import (
     InstallationReceipt,
     ResultState,
 )
+from manifest_agent.observer_runtime import ObserverTransaction, requires_observer
 from manifest_agent.paths import XdgPaths
 from manifest_agent.service_state import (
     ServiceReport,
     bind_adapter_authorities,
     build_receipt,
+    bundle_checksums,
     diagnostic,
     operation_desired_state,
     ordered,
@@ -400,6 +402,19 @@ class MigrationService:
                 if receipt_errors:
                     return report("migrate", {}, errors=receipt_errors)
                 if self._already_migrated(completed, selected):
+                    # Release labels alone do not authorize a new runtime for
+                    # bytes different from the completed migration's binding.
+                    if bundle_checksums(desired) != completed.bundle_checksums:
+                        return report(
+                            "migrate",
+                            {},
+                            errors=(
+                                "migration receipt bundle checksums differ from requested state",
+                            ),
+                        )
+                    with ObserverTransaction(desired, self.receipt_path) as runtime:
+                        if requires_observer(desired):
+                            runtime.persist(completed)
                     return report("migrate", {})
                 return self._migrate_locked(desired, selected, completed)
         # constitution: exempt C-ERR -- migration boundary returns a redacted report.
@@ -462,6 +477,14 @@ class MigrationService:
         unproven = self._unproven_legacy_writers(active)
         if unproven:
             return report("migrate", {}, errors=unproven)
+        with ObserverTransaction(desired, self.receipt_path) as runtime:
+            return self._migrate_after_preflight(
+                desired, previous, active, detections, runtime
+            )
+
+    def _migrate_after_preflight(
+        self, desired, previous, active, detections, runtime
+    ) -> ServiceReport:
         state = self._load_or_snapshot(active, desired)
         results: dict[str, HarnessResult] = {}
         for name in active:
@@ -481,22 +504,22 @@ class MigrationService:
             self.harness_order,
             previous=previous,
         )
-        backup = state["backup"]
-        write_receipt_atomic(
-            self.receipt_path,
-            InstallationReceipt(
-                receipt.schema_version,
-                receipt.coordinator_version,
-                receipt.release_version,
-                receipt.source_commit,
-                receipt.source_dirty,
-                receipt.archive_sha256,
-                receipt.bundle_checksums,
-                receipt.selected_optional,
-                receipt.harnesses,
-                backup,
-            ),
+        committed_receipt = InstallationReceipt(
+            receipt.schema_version,
+            receipt.coordinator_version,
+            receipt.release_version,
+            receipt.source_commit,
+            receipt.source_dirty,
+            receipt.archive_sha256,
+            receipt.bundle_checksums,
+            receipt.selected_optional,
+            receipt.harnesses,
+            state["backup"],
         )
+        if requires_observer(desired):
+            runtime.persist(committed_receipt)
+        else:
+            write_receipt_atomic(self.receipt_path, committed_receipt)
         self._event("commit-receipt")
         for name in active:
             state["harnesses"][name]["phase"] = "committed"

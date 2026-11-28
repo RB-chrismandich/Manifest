@@ -56,6 +56,7 @@ def apply_capability_plan(
     env: Mapping[str, str] | None = None,
     native_mcp_inventory: Collection[str] | Mapping[str, McpDefinition] | None = None,
     cursor_mcp_path: Path | None = None,
+    ownership_key_path: Path | None = None,
     configure_mcp: bool = True,
     configure_executables: bool = True,
 ) -> HarnessResult:
@@ -79,6 +80,7 @@ def apply_capability_plan(
             _run,
             _success,
             _failure,
+            ownership_key_path,
         )
         results.extend(apply_mcp(context, plan, name) for name in plan.selected_mcp)
     return _combine(harness, results)
@@ -91,6 +93,7 @@ def remove_owned_capabilities(
     runner: CommandRunner,
     env: Mapping[str, str] | None = None,
     cursor_mcp_path: Path | None = None,
+    ownership_key_path: Path | None = None,
 ) -> HarnessResult:
     """Remove only executable and Cursor MCP entries proven owned by a receipt."""
     if receipt.harness != harness:
@@ -102,6 +105,7 @@ def remove_owned_capabilities(
     ownership_errors = capability_ownership_errors(
         receipt,
         env=env,
+        key_path=ownership_key_path,
         expected_cursor_path=(
             cursor_mcp_path or default_cursor_mcp_path(env)
             if harness == "cursor"

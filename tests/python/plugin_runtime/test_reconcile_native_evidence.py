@@ -29,6 +29,10 @@ from tests.python.manifest_agent._omp_native_fixture import (
     make_service,
     put_json,
 )
+from tests.python.plugin_runtime.workspace_runtime_helpers import (
+    _harness_receipt,
+    _valid_receipt,
+)
 
 SCRIPT = (
     Path(__file__).resolve().parents[3]
@@ -37,6 +41,11 @@ SCRIPT = (
 spec = importlib.util.spec_from_file_location("reconciler", SCRIPT)
 reconciler = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reconciler)
+
+
+def _omp_receipt(plugins) -> dict:
+    """Coordinator-schema receipt recording these OMP plugins."""
+    return _valid_receipt({"omp": _harness_receipt("omp", sorted(plugins))})
 
 
 def package(name, status="verified"):
@@ -71,11 +80,7 @@ def test_fresh_cli_preserves_component_and_typed_package_evidence(
     state = tmp_path / "state"
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True)
-    receipt.write_text(
-        json.dumps(
-            {"harnesses": {"omp": {"plugins": sorted(reconciler.EXPECTED_BUNDLES)}}}
-        )
-    )
+    receipt.write_text(json.dumps(_omp_receipt(reconciler.EXPECTED_BUNDLES)))
     packages = tuple(
         package(name, "missing" if diagnostic else "verified")
         for name in sorted(reconciler.EXPECTED_BUNDLES)
@@ -157,11 +162,7 @@ def test_standalone_without_native_evidence_is_degraded(tmp_path):
     state = tmp_path / "state"
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True)
-    receipt.write_text(
-        json.dumps(
-            {"harnesses": {"omp": {"plugins": sorted(reconciler.EXPECTED_BUNDLES)}}}
-        )
-    )
+    receipt.write_text(json.dumps(_omp_receipt(reconciler.EXPECTED_BUNDLES)))
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--json"],
         env=dict(os.environ, XDG_STATE_HOME=str(state)),
@@ -172,12 +173,9 @@ def test_standalone_without_native_evidence_is_degraded(tmp_path):
     report = json.loads(result.stdout)
     assert report["status"] == "degraded"
     assert report["verified"] is False
-    assert report["unverified"] == [
-        {
-            "harness": "omp",
-            "reason": "no native inspection supplied (--native-inspection)",
-        }
-    ]
+    assert report["native_observed"] is False
+    assert report["receipt"] == str(receipt)
+    assert report["unverified"]
 
 
 @pytest.mark.parametrize("contents", [None, "{malformed", '{"harnesses":{"omp":{}}}'])
@@ -185,11 +183,7 @@ def test_fresh_missing_or_malformed_observation_never_converges(tmp_path, conten
     state = tmp_path / "state"
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True)
-    receipt.write_text(
-        json.dumps(
-            {"harnesses": {"omp": {"plugins": sorted(reconciler.EXPECTED_BUNDLES)}}}
-        )
-    )
+    receipt.write_text(json.dumps(_omp_receipt(reconciler.EXPECTED_BUNDLES)))
     source = tmp_path / "inspection.json"
     if contents is not None:
         source.write_text(contents)
@@ -217,11 +211,7 @@ def test_malformed_native_package_field_never_converges(tmp_path, field, value):
     state = tmp_path / "state"
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True)
-    receipt.write_text(
-        json.dumps(
-            {"harnesses": {"omp": {"plugins": sorted(reconciler.EXPECTED_BUNDLES)}}}
-        )
-    )
+    receipt.write_text(json.dumps(_omp_receipt(reconciler.EXPECTED_BUNDLES)))
     packages = tuple(package(name) for name in sorted(reconciler.EXPECTED_BUNDLES))
     native = NativeInspection(
         "omp",
@@ -307,17 +297,7 @@ def _run_native_reconcile(tmp_path, desired, observed):
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True, exist_ok=True)
     receipt.write_text(
-        json.dumps(
-            {
-                "harnesses": {
-                    "omp": {
-                        "plugins": sorted(
-                            contract.name for contract in desired.contracts
-                        )
-                    }
-                }
-            }
-        )
+        json.dumps(_omp_receipt(contract.name for contract in desired.contracts))
     )
     source = tmp_path / "inspection.json"
     source.write_text(json.dumps(report))
@@ -362,11 +342,7 @@ def test_malformed_component_path_never_converges(tmp_path):
     state = tmp_path / "state"
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True, exist_ok=True)
-    receipt.write_text(
-        json.dumps(
-            {"harnesses": {"omp": {"plugins": sorted(reconciler.EXPECTED_BUNDLES)}}}
-        )
-    )
+    receipt.write_text(json.dumps(_omp_receipt(reconciler.EXPECTED_BUNDLES)))
     native = NativeInspection(
         "omp",
         "user",
@@ -416,7 +392,7 @@ def test_unverified_inventory_takes_status_precedence_over_receipt_drift(tmp_pat
     state = tmp_path / "state"
     receipt = state / "manifest/installation.json"
     receipt.parent.mkdir(parents=True, exist_ok=True)
-    receipt.write_text(json.dumps({"harnesses": {"omp": {"plugins": []}}}))
+    receipt.write_text(json.dumps(_omp_receipt(())))
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--json"],
         env=dict(os.environ, XDG_STATE_HOME=str(state)),

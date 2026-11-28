@@ -9,6 +9,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tests.python.plugin_runtime.workspace_runtime_helpers import (
+    _harness_receipt,
+    _valid_receipt,
+)
+
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ROOT / "plugins/manifest-workspace/skills/deploy-reconcile/scripts"
 
@@ -126,7 +131,7 @@ def _write_omp_shim(tmp_path: Path) -> Path:
 def _write_installation_receipt(state: Path) -> None:
     put(
         state / "manifest/installation.json",
-        {"harnesses": {"omp": {"plugins": ["manifest-workspace"]}}},
+        _valid_receipt({"omp": _harness_receipt("omp", ["manifest-workspace"])}),
     )
 
 
@@ -153,8 +158,14 @@ def _isolated_environment(
 
 
 def build_portable(tmp_path: Path) -> tuple[Path, Path, dict[str, str], Path]:
-    scripts = tmp_path / "portable"
+    # Keep the bundle's skill layout: reconcile loads the sibling env-check
+    # receipt contract.
+    skills = tmp_path / "portable/skills"
+    scripts = skills / "deploy-reconcile/scripts"
     shutil.copytree(SCRIPTS, scripts)
+    shutil.copytree(
+        SCRIPTS.parents[1] / "env-check/scripts", skills / "env-check/scripts"
+    )
     home = tmp_path / "home"
     root = home / ".omp"
     source = tmp_path / "release"

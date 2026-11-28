@@ -6,9 +6,9 @@
 
 ## Features
 
-- **Native task batches**: OMP batches independent units through `task` and
-  `hub`; Claude Code uses discovered native Agents. The parent validates
-  attributed evidence and aggregates results.
+- **Native task batches**: OMP dispatches independent units through `task`;
+  Claude Code uses discovered native Agents. The parent validates attributed
+  evidence and aggregates results.
 - **Clear degraded mode**: If the current host's native dispatch is unavailable,
   ordinary interactive work proceeds inline and reports `DEGRADED`; explicitly
   requested external backend work remains parent-owned dispatcher work.

@@ -86,6 +86,13 @@
         "reason": "antigravity native manifest cannot encode runtime component 'learning-capture-seed' at 'skills/learning-capture/data'"
       },
       {
+        "component_id": "native-observer-runtime",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/observer",
+        "reason": "antigravity native manifest cannot encode runtime component 'native-observer-runtime' at 'runtime/observer'"
+      },
+      {
         "component_id": "pr-smoke-scripts",
         "component_type": "runtime",
         "mode": "degraded",

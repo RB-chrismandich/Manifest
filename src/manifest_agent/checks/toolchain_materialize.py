@@ -29,82 +29,14 @@ from typing import Any
 from . import toolchain
 from .toolchain_cache import OS_BASELINE_PATH
 from .toolchain_env_digest import trusted_python_provider
+from .toolchain_materialize_metadata import (
+    MaterializationError as MaterializationError,
+)
+from .toolchain_materialize_metadata import (
+    python_project_metadata_digest as python_project_metadata_digest,
+)
 
 _SYNC_TIMEOUT_SECONDS = 600.0
-_PYTHON_PROJECT_METADATA = {
-    "project-env": (
-        "pyproject.toml",
-        "configs/claude/scripts/manifest_model_policy/pyproject.toml",
-    ),
-    "config-env": (
-        "pyproject.toml",
-        "uv.lock",
-        "configs/pyproject.toml",
-        "configs/uv.lock",
-        "configs/claude/pyproject.toml",
-        "configs/claude/scripts/manifest_model_policy/pyproject.toml",
-    ),
-    "python-env": (
-        "pyproject.toml",
-        "uv.lock",
-        "config/pyproject.toml",
-        "config/uv.lock",
-        "config/toolchain/pyproject.toml",
-    ),
-}
-
-
-def python_project_metadata_digest(repo_root: Path, bundle: str) -> str:
-    """Hash every local project file that can select uv/Hatch build behavior."""
-    relative_paths = _PYTHON_PROJECT_METADATA.get(bundle)
-    if relative_paths is None:
-        raise MaterializationError(f"unknown python environment bundle: {bundle}")
-    root = repo_root.resolve(strict=True)
-    hasher = hashlib.sha256()
-    for relative in relative_paths:
-        candidate = root / relative
-        cursor = root
-        for component in Path(relative).parts:
-            cursor /= component
-            if cursor.is_symlink():
-                raise MaterializationError(f"unsafe project metadata: {relative}")
-        content = None
-        if candidate.exists():
-            path = candidate.resolve(strict=True)
-            if not path.is_relative_to(root):
-                raise MaterializationError(f"unsafe project metadata: {relative}")
-            nofollow = getattr(os, "O_NOFOLLOW", 0)
-            try:
-                with open(
-                    path,
-                    "rb",
-                    opener=lambda name, flags, nofollow=nofollow: os.open(
-                        name, flags | nofollow
-                    ),
-                ) as stream:
-                    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-                        raise MaterializationError(
-                            f"unsafe project metadata: {relative}"
-                        )
-                    content = stream.read()
-            except OSError as error:
-                raise MaterializationError(
-                    f"unreadable project metadata: {relative}: {error}"
-                ) from error
-        name = relative.encode()
-        hasher.update(len(name).to_bytes(8, "big"))
-        hasher.update(name)
-        if content is None:
-            hasher.update(b"M")
-            continue
-        hasher.update(b"F")
-        hasher.update(len(content).to_bytes(8, "big"))
-        hasher.update(content)
-    return hasher.hexdigest()
-
-
-class MaterializationError(ValueError):
-    """A python-env/node-env materialization step failed or was blocked."""
 
 
 @dataclass(frozen=True)
@@ -225,25 +157,58 @@ def materialize_python_env(
     env_root: Path,
     *,
     project_relative: str = "config/toolchain",
+    build_from_locked_environment: bool = False,
 ) -> None:
-    """`uv sync --locked --no-dev` a python-env bundle into `env_root`,
-    directly against `project_relative`'s OWN real `pyproject.toml` /
-    `uv.lock` -- used for bundles that need a real, installed project
-    (its own `[project.scripts]` entry point), e.g. `config-env`'s
-    `bin/manifest` (`configs/claude/`). `project-env` (the ROOT project)
-    uses `materialize_project_env` below instead -- it deliberately never
-    installs the local project package.
+    """Materialize a locked Python environment with verified local tools."""
+    _materialize_python_env(
+        ctx,
+        env_root,
+        project_relative=project_relative,
+        build_from_locked_environment=build_from_locked_environment,
+    )
 
-    The engine is the store-attested `uv` (never ambient); the interpreter
-    behind the venv is the ambient `python3` (out of scope for pinning --
-    Correction 3, rule 2). Raises `MaterializationError` -- including when
-    `uv` itself is not provisioned -- rather than ever falling back to a
-    `PATH`-found `uv`.
-    """
+
+def _materialize_python_env(
+    ctx: MaterializeContext,
+    env_root: Path,
+    *,
+    project_relative: str = "config/toolchain",
+    build_from_locked_environment: bool = False,
+) -> None:
+    """Sync a locked Python project with verified tools and environment."""
     uv_executable = _resolved_uv(ctx)
     provider = _trusted_python(ctx)
     project = ctx.repo_root / project_relative
     run_env = _python_sync_env(ctx, env_root, uv_executable, provider)
+    build_cache = (
+        tempfile.TemporaryDirectory(prefix="manifest-observer-build-")
+        if build_from_locked_environment
+        else None
+    )
+    if build_from_locked_environment:
+        # Keep build artifacts outside the environment being constructed.
+        run_env["UV_CACHE_DIR"] = build_cache.name
+        run_env["PYTHONDONTWRITEBYTECODE"] = "1"
+        for name in ("UV_FIND_LINKS", "UV_NO_INDEX", "UV_OFFLINE"):
+            if name in ctx.env:
+                run_env[name] = ctx.env[name]
+    try:
+        _run_python_syncs(
+            uv_executable,
+            provider,
+            project,
+            run_env,
+            build_from_locked_environment,
+        )
+        _remove_virtualenv_bootstrap_pth(env_root)
+    finally:
+        if build_cache is not None:
+            build_cache.cleanup()
+
+
+def _run_python_syncs(
+    uv_executable, provider, project, run_env, build_from_locked_environment
+):
     _run(
         [
             str(uv_executable),
@@ -252,6 +217,11 @@ def materialize_python_env(
             "--locked",
             "--no-dev",
             "--no-editable",
+            *(
+                ["--no-install-project", "--no-build"]
+                if build_from_locked_environment
+                else []
+            ),
             "--python",
             str(provider),
             "--project",
@@ -260,7 +230,24 @@ def materialize_python_env(
         cwd=project,
         env=run_env,
     )
-    _remove_virtualenv_bootstrap_pth(env_root)
+    if build_from_locked_environment:
+        _run(
+            [
+                str(uv_executable),
+                "sync",
+                "--no-config",
+                "--locked",
+                "--no-dev",
+                "--no-editable",
+                "--no-build-isolation",
+                "--python",
+                str(provider),
+                "--project",
+                str(project),
+            ],
+            cwd=project,
+            env=run_env,
+        )
 
 
 def materialize_project_env(ctx: MaterializeContext, env_root: Path) -> None:

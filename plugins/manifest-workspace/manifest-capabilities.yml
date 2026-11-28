@@ -231,6 +231,7 @@ components:
           mode: unsupported
           reason: This hook provides automatic context through Claude/Codex lifecycle registration, which is not available to this bundle in OMP.
   runtime:
+    - {id: native-observer-runtime, path: runtime/observer}
     - {id: session-continuity-scripts, path: skills/session-checkpoint/scripts}
     - {id: session-checkpoint-references, path: skills/session-checkpoint/references}
     - {id: learning-capture-scripts, path: skills/learning-capture/scripts}

@@ -79,6 +79,7 @@ class McpApplyContext:
     run: Callable[..., tuple[HarnessResult, CommandResult | None]]
     success: Callable[..., HarnessResult]
     failure: Callable[..., HarnessResult]
+    ownership_key_path: Path | None = None
 
 
 def apply_mcp(
@@ -180,7 +181,11 @@ def _apply_cursor_mcp(
                 raise CapabilityConflict(f"conflicting Cursor MCP entry {key}")
             return context.success(context.harness, identity, "verified")
         owned_entry = owned_capability_entry(
-            "mcp", definition.name, str(path), env=context.env
+            "mcp",
+            definition.name,
+            str(path),
+            env=context.env,
+            key_path=context.ownership_key_path,
         )
         servers[key] = desired
         write_json_atomic(path, document)
@@ -216,7 +221,12 @@ def _install_http_mcp(
             identity,
         )
     try:
-        owned_entry = owned_capability_entry("mcp", definition.name, env=context.env)
+        owned_entry = owned_capability_entry(
+            "mcp",
+            definition.name,
+            env=context.env,
+            key_path=context.ownership_key_path,
+        )
     except OwnershipError as error:
         return context.failure(context.harness, tier, str(error), identity)
     timeout = _INTERACTIVE_LOGIN_TIMEOUT_SECONDS.get(context.harness)

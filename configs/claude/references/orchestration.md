@@ -6,9 +6,9 @@
 ## Dispatch workflow
 
 1. Split only genuinely independent work into bounded units.
-2. On OMP, dispatch every ready unit in one `task` call and use `hub` to
-   coordinate. On Claude Code, use its discovered native Agent mechanism and
-   native background collection; use no guessed agent name.
+2. On OMP, dispatch every ready unit in one `task` call. On Claude Code, use its
+   discovered native Agent mechanism and background collection; use no guessed
+   agent name.
 3. OMP selects documented specialist roles; Claude uses only discovered agent
    types.
 4. Apply the [shared dispatch contract](sub-agent-dispatch.md) for child
@@ -34,7 +34,6 @@ source, and keeps mutation sequential after review.
 ```text
 Parent:
   task([{ reviewer: security lens }, { reviewer: compatibility lens }])
-  hub: wait for both workers
   validate each finding against the change
   aggregate evidence and report the outcome
 ```

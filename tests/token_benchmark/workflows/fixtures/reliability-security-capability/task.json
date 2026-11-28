@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "reliability-security-capability",
+  "kind": "cross_harness_reliability",
+  "conditions": ["none", "slim", "full"],
+  "instruction": "Assess what the connector capability record establishes about security. Do not turn API support or scopes into a finding. State event count, unique entities, denominator, observed outcomes, and unknowns as separate structured evidence fields.",
+  "artifacts": {
+    "connector-capabilities.json": "{\"connector\":\"gitlab\",\"http_status\":200,\"capabilities\":[\"list_projects\",\"read_merge_requests\"],\"scopes\":[\"read_api\"],\"security_events\":null,\"historical_conclusion\":\"no security incident occurred\"}"
+  },
+  "output_contract": {
+    "scenario_id": "string",
+    "completion": {"state": "string", "reason_code": "string"},
+    "required_interventions": ["string"],
+    "factual_corrections": ["string"],
+    "retained_constraints": ["string"],
+    "evidence": "structured object with event_count, unique_entity_count, denominator, observed_outcomes, and unknowns as separate fields"
+  }
+}

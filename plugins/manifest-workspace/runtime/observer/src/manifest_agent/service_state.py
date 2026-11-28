@@ -1,0 +1,487 @@
+"""Receipt, snapshot, checksum, and reporting support for lifecycle services."""
+
+from __future__ import annotations
+
+import hashlib
+import os
+import shutil
+from dataclasses import dataclass, replace
+from pathlib import Path
+
+from manifest_agent import __version__
+from manifest_agent.adapters.base import Detection, HarnessAdapter
+from manifest_agent.adapters.convergence import has_undeclared_degradation
+from manifest_agent.models import (
+    DesiredState,
+    HarnessReceipt,
+    HarnessResult,
+    InstallationReceipt,
+    OwnedEntry,
+    ResultState,
+)
+from manifest_agent.observer_runtime_identity import bundle_tree_sha256
+from manifest_agent.ownership import (
+    OWNED_STATUS,
+    advance_owned_file_entry,
+    ownership_key_path,
+)
+from manifest_agent.process import redact_text
+from manifest_agent.service_redaction import _safe_result
+from manifest_agent.state import write_receipt_atomic
+
+STATE_PRIORITY = {
+    ResultState.READY: 0,
+    ResultState.DEGRADED: 1,
+    ResultState.DRIFTED: 2,
+    ResultState.BLOCKED: 3,
+}
+NON_SUCCESS = {
+    "blocked",
+    "degraded",
+    "drifted",
+    "failed",
+    "not-installed",
+    "not_installed",
+    "skipped",
+    "unavailable",
+    "unsupported",
+}
+
+
+def bind_adapter_authorities(adapters, receipt_path: Path) -> None:
+    """Bind optional native authority hooks to the trusted service receipt parent."""
+    for adapter in adapters.values():
+        bind = getattr(adapter, "bind_ownership_authority", None)
+        if callable(bind):
+            bind(receipt_path.parent / "ownership.key")
+
+
+@dataclass(frozen=True)
+class ServiceReport:
+    """Stable, secret-free result returned by every lifecycle operation."""
+
+    operation: str
+    state: ResultState
+    harnesses: dict[str, HarnessResult]
+    notes: tuple[str, ...] = ()
+    errors: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "harnesses",
+            {name: _safe_result(result) for name, result in self.harnesses.items()},
+        )
+        object.__setattr__(self, "notes", tuple(map(redact_text, self.notes)))
+        object.__setattr__(self, "errors", tuple(map(redact_text, self.errors)))
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a deterministic JSON-compatible report."""
+        harnesses = {}
+        state = self.state
+        for name, result in self.harnesses.items():
+            item, harness_state = _serialize_harness(name, result)
+            state = max((state, harness_state), key=STATE_PRIORITY.__getitem__)
+            harnesses[name] = item
+        return {
+            "operation": self.operation,
+            "state": state.value,
+            "harnesses": harnesses,
+            "notes": list(self.notes),
+            "errors": list(self.errors),
+        }
+
+
+def _serialize_harness(
+    name: str, result: HarnessResult
+) -> tuple[dict[str, object], ResultState]:
+    """Serialize one harness, qualifying OMP only from native inspection."""
+    native_unverified = name == "omp" and _omp_native_unverified(result)
+    harness_state = result.state
+    if native_unverified:
+        harness_state = max(
+            (harness_state, ResultState.DEGRADED),
+            key=STATE_PRIORITY.__getitem__,
+        )
+    item: dict[str, object] = {
+        "state": harness_state.value,
+        "installed_plugin_ids": list(result.installed_plugin_ids),
+        "capabilities": dict(sorted(result.capabilities.items())),
+        "components": _grouped_components(result.capabilities),
+        "converged": not native_unverified
+        and (
+            harness_state is ResultState.READY
+            or (
+                harness_state is ResultState.DEGRADED
+                and not has_undeclared_degradation(result)
+            )
+        ),
+        "verified": not native_unverified
+        and harness_state in {ResultState.READY, ResultState.DEGRADED},
+        "version": result.native_version,
+        "errors": list(result.errors),
+        "warnings": list(result.warnings),
+    }
+    if result.native_inspection is not None:
+        item["native_inspection"] = _serialize_native_inspection(
+            result.native_inspection
+        )
+    return item, harness_state
+
+
+def _serialize_native_inspection(native) -> dict[str, object]:
+    """Serialize the adapter's native inspection without inferring activation."""
+    return {
+        "harness": native.harness,
+        "profile": native.profile,
+        "native_root": native.native_root,
+        "activation": native.activation,
+        "inventory_errors": list(native.inventory_errors),
+        "packages": [
+            {
+                "package_id": package.package_id,
+                "package_name": package.package_name,
+                "marketplace": package.marketplace,
+                "source_uri": package.source_uri,
+                "source_provenance": package.source_provenance,
+                "version": package.version,
+                "scope": package.scope,
+                "enabled": package.enabled,
+                "native_root": package.native_root,
+                "install_path": package.install_path,
+                "status": package.status,
+            }
+            for package in native.packages
+        ],
+        "components": [
+            {
+                "kind": component.kind,
+                "identifier": component.identifier,
+                "status": component.status,
+                "provenance": component.provenance,
+                "resolved_path": component.resolved_path,
+            }
+            for component in native.components
+        ],
+    }
+
+
+def _omp_native_unverified(result: HarnessResult) -> bool:
+    """Package lifecycle success alone cannot qualify native reconciliation."""
+    native = result.native_inspection
+    return (
+        native is None
+        or bool(native.inventory_errors)
+        or not native.packages
+        or any(
+            package.status != "verified" or package.enabled is not True
+            for package in native.packages
+        )
+        or not native.components
+        or any(
+            component.status != "resolved"
+            or component.provenance == "not-observed"
+            or not component.resolved_path
+            for component in native.components
+        )
+    )
+
+
+_COMPONENT_KINDS = frozenset({"skill", "agent", "hook", "runtime", "guidance"})
+
+
+def _grouped_components(capabilities: dict[str, str]) -> dict[str, list[str]]:
+    """Group truthfully verified `bundle:kind:id` evidence by bundle.
+
+    This is the same identity shape `normalize_component_identity` writes into
+    `HarnessResult.capabilities` (`adapters/contract_verification.py`), scoped
+    to the contract/skill/agent/hook/runtime/guidance kinds
+    `render_plugin_capability_matrix.py::_inspection_records` treats as
+    "components" rather than "capabilities". Only entries genuinely marked
+    `verified` are admitted -- a `missing`/`blocked`/`unsupported` identity
+    must never masquerade as installed component evidence.
+    """
+    grouped: dict[str, list[str]] = {}
+    for identity, status in capabilities.items():
+        if status != "verified":
+            continue
+        parts = identity.split(":", 2)
+        if len(parts) != 3:
+            continue
+        bundle, kind, stable_id = parts
+        if kind not in _COMPONENT_KINDS:
+            continue
+        grouped.setdefault(bundle, []).append(f"{kind}:{stable_id}")
+    for entries in grouped.values():
+        entries.sort()
+    return grouped
+
+
+def report(operation, harnesses, notes=(), errors=()) -> ServiceReport:
+    """Aggregate the strongest truthful result without exposing diagnostics."""
+    state = ResultState.BLOCKED if errors else ResultState.READY
+    if harnesses:
+        state = max(
+            (state, *(result.state for result in harnesses.values())),
+            key=STATE_PRIORITY.__getitem__,
+        )
+    return ServiceReport(
+        operation,
+        state,
+        dict(harnesses),
+        tuple(redact_text(note) for note in notes),
+        tuple(redact_text(error) for error in errors),
+    )
+
+
+def diagnostic(exception: Exception) -> str:
+    """Redact an exception at the service boundary."""
+    return redact_text(f"{type(exception).__name__}: {exception}")
+
+
+def with_prior_harness_receipts(
+    desired: DesiredState, receipt: InstallationReceipt | None
+) -> DesiredState:
+    """Carry exact prior receipt context after a real producer receipt read."""
+    return replace(
+        desired,
+        prior_harness_receipts=(
+            tuple(receipt.harnesses.values()) if receipt is not None else ()
+        ),
+    )
+
+
+def operation_desired_state(desired, adapter, result):
+    """Bind actual partial creation authority before post-operation inspection."""
+    hook = getattr(adapter, "inspection_desired_state", None)
+    return hook(desired, result) if callable(hook) and result is not None else desired
+
+
+def ordered(values, harness_order):
+    """Return harness-keyed values in the public deterministic order."""
+    unknown = set(values) - set(harness_order)
+    if unknown:
+        raise ValueError(f"unsupported harness keys: {', '.join(sorted(unknown))}")
+    return {name: values[name] for name in harness_order if name in values}
+
+
+def identity_errors(receipt, desired, checksums) -> tuple[str, ...]:
+    """Compare durable immutable identity against the selected release."""
+    errors = []
+    comparisons = (
+        (receipt.release_version, desired.release_version, "release version"),
+        (receipt.source_commit, desired.source_commit, "source commit"),
+        (receipt.archive_sha256, desired.archive_sha256, "release checksum"),
+        (receipt.bundle_checksums, checksums, "bundle checksums"),
+        (
+            receipt.selected_optional,
+            tuple(sorted(desired.selected_optional)),
+            "optional capability selection",
+        ),
+    )
+    for observed, expected, label in comparisons:
+        if observed != expected:
+            errors.append(f"{label} differs from the receipt")
+    return tuple(errors)
+
+
+def bundle_checksums(desired: DesiredState) -> dict[str, str]:
+    """Digest each complete portable bundle using stable relative identities."""
+    return {
+        contract.name: bundle_tree_sha256(desired.bundle_path(contract.name))
+        for contract in desired.all_contracts
+    }
+
+
+def with_source_fingerprints(desired: DesiredState) -> DesiredState:
+    """Freeze the source bytes validated by the service, before native mutation."""
+    catalog = desired.release_root / ".claude-plugin/marketplace.json"
+    from manifest_agent.release import deterministic_tree_sha256
+
+    workspace = (
+        deterministic_tree_sha256(desired.release_root)
+        if (desired.release_root / ".git").exists()
+        else bundle_tree_sha256(desired.release_root)
+    )
+    return replace(
+        desired,
+        source_bundle_checksums=tuple(sorted(bundle_checksums(desired).items())),
+        source_catalog_sha256=(
+            hashlib.sha256(catalog.read_bytes()).hexdigest()
+            if catalog.is_file()
+            else None
+        ),
+        source_workspace_sha256=workspace,
+    )
+
+
+def build_receipt(
+    desired,
+    results,
+    detections,
+    adapters,
+    harness_order,
+    previous=None,
+) -> InstallationReceipt:
+    """Create a truthful partial or complete receipt from effective results."""
+    harnesses = dict(previous.harnesses) if previous is not None else {}
+    for name, result in results.items():
+        harnesses[name] = _harness_receipt(
+            adapters.get(name),
+            detections.get(name),
+            result,
+            harnesses.get(name),
+        )
+    return InstallationReceipt(
+        1,
+        __version__,
+        desired.release_version,
+        desired.source_commit,
+        desired.source_dirty,
+        desired.archive_sha256,
+        bundle_checksums(desired),
+        tuple(sorted(desired.selected_optional)),
+        ordered(harnesses, harness_order),
+        previous.migration_backup if previous is not None else None,
+    )
+
+
+def _downgraded_status(key: str, value: str, result: HarnessResult) -> str:
+    """Restate a capability at the harness verdict without erasing ownership.
+
+    A non-verified harness has its successful capability values replaced by the
+    harness state, so a harness that genuinely CREATED a capability and then
+    failed something unrelated used to land `installed-by-manifest` -> `blocked`
+    while its OwnedEntry survived. capability_ownership_errors then reported
+    "receipt lacks Manifest-created capability evidence", and the receipt could
+    not be written at all -- observed against release 0.3.0 for a harness whose
+    MCP add succeeded before its extension install hit a consent banner.
+
+    Ownership evidence is a record of a mutation Manifest performed, not a
+    success claim, so it survives the downgrade. Dropping it instead would
+    orphan the created server: uninstall could never clean up what the receipt
+    no longer admits to creating.
+    """
+    if value == OWNED_STATUS or value.lower() in NON_SUCCESS:
+        return value
+    return result.state.value.lower()
+
+
+def _harness_receipt(
+    adapter: HarnessAdapter | None,
+    detection: Detection | None,
+    result: HarnessResult,
+    previous: HarnessReceipt | None,
+) -> HarnessReceipt:
+    verified = result.state in {ResultState.READY, ResultState.DEGRADED}
+    capabilities = dict(result.capabilities)
+    errors = () if verified else result.errors or (f"{result.state.value} result",)
+    if not verified:
+        capabilities = {
+            key: _downgraded_status(key, value, result)
+            for key, value in capabilities.items()
+        }
+    plugin_ids = result.installed_plugin_ids or (
+        previous.plugin_ids if previous is not None else ()
+    )
+    receipt_plugin_ids = getattr(adapter, "receipt_plugin_ids", None)
+    if callable(receipt_plugin_ids):
+        plugin_ids = tuple(receipt_plugin_ids(result, previous))
+    merge_entries = getattr(adapter, "merge_owned_entries", None)
+    if callable(merge_entries):
+        owned_entries = tuple(merge_entries(previous, result))
+    else:
+        previous_entries = previous.owned_entries if previous is not None else ()
+        replacements = {
+            (entry.kind, entry.identifier): entry for entry in result.owned_entries
+        }
+        owned_entries_list: list[OwnedEntry] = []
+        for entry in previous_entries:
+            replacement = replacements.pop((entry.kind, entry.identifier), None)
+            if replacement is not None and entry.kind == "owned-file":
+                entry = advance_owned_file_entry(
+                    entry,
+                    replacement,
+                    env=getattr(adapter, "_env", None),
+                    key_path=ownership_key_path(getattr(adapter, "_env", None)),
+                )
+            owned_entries_list.append(entry)
+        owned_entries_list.extend(replacements.values())
+        owned_entries = tuple(dict.fromkeys(owned_entries_list))
+    native_version = (
+        detection.version if detection is not None and detection.version else "unknown"
+    )
+    return HarnessReceipt(
+        result.harness,
+        getattr(adapter, "adapter_version", "unknown"),
+        native_version,
+        plugin_ids,
+        owned_entries,
+        capabilities,
+        verified,
+        tuple(redact_text(error) for error in errors),
+    )
+
+
+def snapshot_declared(selected, desired, adapters, snapshot_root, *, preflight=False):
+    """Copy only existing files explicitly declared by selected adapters."""
+    failures = {}
+    for name in selected:
+        declaration = getattr(adapters[name], "snapshot_paths", None)
+        if declaration is None:
+            continue
+        try:
+            for value in declaration(desired):
+                source = Path(value)
+                if not source.exists():
+                    continue
+                if not source.is_file():
+                    raise ValueError("declared snapshot path must be a file")
+                if preflight:
+                    source.read_bytes()
+                    continue
+                digest = hashlib.sha256(str(source).encode()).hexdigest()[:16]
+                destination = snapshot_root / name / f"{digest}-{source.name}.bak"
+                destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                shutil.copy2(source, destination)
+        # constitution: exempt C-ERR -- adapter declarations are a trust boundary.
+        except Exception as exception:
+            failures[name] = HarnessResult(
+                name,
+                ResultState.BLOCKED,
+                (),
+                {},
+                errors=(diagnostic(exception),),
+            )
+    return failures
+
+
+def persist_remaining(receipt_path, receipt, remaining, harness_order) -> None:
+    """Retain failed/unselected ownership or remove the exhausted receipt."""
+    if remaining:
+        write_receipt_atomic(
+            receipt_path,
+            replace(receipt, harnesses=ordered(remaining, harness_order)),
+        )
+        return
+    receipt_path.unlink(missing_ok=True)
+    descriptor = os.open(
+        receipt_path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    )
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+__all__ = [
+    "ServiceReport",
+    "build_receipt",
+    "bundle_checksums",
+    "diagnostic",
+    "identity_errors",
+    "ordered",
+    "persist_remaining",
+    "report",
+    "snapshot_declared",
+]

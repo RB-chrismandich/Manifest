@@ -128,21 +128,6 @@
       "value": "docs/README.md"
     },
     {
-      "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
-      "kind": "cross-bundle-path",
-      "value": "docs/GETTING_STARTED.md"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
-      "kind": "cross-bundle-path",
-      "value": "docs/KNOWLEDGE_BASE.md"
-    },
-    {
-      "path": "plugins/manifest-forge/skills/git-commit/SKILL.md",
-      "kind": "cross-bundle-path",
-      "value": "docs/README.md"
-    },
-    {
       "path": "plugins/manifest-forge/skills/issue-dev-auto/SKILL.md",
       "kind": "cross-bundle-path",
       "value": "docs/MODEL-POLICY.md"

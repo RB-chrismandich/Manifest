@@ -26,9 +26,9 @@ from health_install_files import (
 )
 from health_install_scheduler import SYSTEMD_UNIT_NAME
 
-# Receipts recorded before the scheduler modules were split out do not carry
-# either split runtime-file row.
+# Receipts recorded before these runtime splits do not carry their file rows.
 _SPLIT_RUNTIME_EXEMPT = {
+    "env_check_native.py",
     "health_install_scheduler.py",
     "health_install_scheduler_systemd.py",
 }
@@ -41,6 +41,14 @@ RUNTIME_SOURCES = {
         "env-check",
         "scripts",
         "env_check.py",
+    ),
+    "env_check_native.py": Path(
+        "plugins",
+        "manifest-workspace",
+        "skills",
+        "env-check",
+        "scripts",
+        "env_check_native.py",
     ),
     "health_report.py": Path(
         "plugins",

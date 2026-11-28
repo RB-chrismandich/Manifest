@@ -5,10 +5,10 @@
 
 ## Current-host native dispatch
 
-Use the current host's supported native dispatch. On OMP, the parent submits all
-ready independent units in one `task` call and coordinates them with `hub`;
-each task states its bounded unit, acceptance criteria, and read/write scope.
-Choose the narrowest OMP role:
+Use the current host's supported native dispatch. On OMP, submit all ready
+independent units in one `task` call. Each task states its bounded unit,
+acceptance criteria, and read/write scope. Choose the narrowest suitable agent;
+the parent supervises results, validates evidence, and aggregates findings.
 
 | Work | `task` agent |
 |---|---|

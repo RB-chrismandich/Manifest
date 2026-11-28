@@ -13,6 +13,23 @@ WORKFLOW_IDS = {
     "documentation",
     "implementation",
     "security-triage",
+    "reliability-commit-publication",
+    "reliability-dependency-unavailable",
+    "reliability-documented-route",
+    "reliability-python-unavailable",
+    "reliability-empty-receipt",
+    "reliability-gitlab-cli",
+    "reliability-overlapping-evidence",
+    "reliability-resume-continuity",
+    "reliability-security-capability",
+    "reliability-stale-ci",
+    "reliability-zero-tests",
+}
+RELIABILITY_WORKFLOW_IDS = WORKFLOW_IDS - {
+    "code-review",
+    "documentation",
+    "implementation",
+    "security-triage",
 }
 CONDITIONS = {"none", "slim", "full"}
 
@@ -38,23 +55,48 @@ def _manifest() -> dict[str, object]:
     return json.loads((FIXTURE_ROOT / "manifest.json").read_text(encoding="utf-8"))
 
 
-def test_manifest_captures_the_four_workflows_and_three_conditions() -> None:
+def test_manifest_captures_workflows_and_three_conditions() -> None:
     manifest = _manifest()
 
     assert manifest["schema_version"] == 1
     workflows = manifest["workflows"]
     assert set(workflows) == WORKFLOW_IDS
     for workflow_id in WORKFLOW_IDS:
+        entry = workflows[workflow_id]
         workflow_root = FIXTURE_ROOT / workflow_id
         task = json.loads((workflow_root / "task.json").read_text(encoding="utf-8"))
         assert set(task["conditions"]) == CONDITIONS
-        assert (workflow_root / "slim.md").is_file()
-        full_context = FIXTURE_ROOT / _safe_relative(
-            workflows[workflow_id]["full_context"]
-        )
+        slim_context = FIXTURE_ROOT / _safe_relative(entry["slim_context"])
+        full_context = FIXTURE_ROOT / _safe_relative(entry["full_context"])
+        assert slim_context.is_file()
         assert full_context.is_file()
         assert full_context.name == "SKILL.md"
         assert (workflow_root / "expected.json").is_file()
+
+
+def test_reliability_fixtures_store_structured_bad_and_corrected_outputs() -> None:
+    workflows = _manifest()["workflows"]
+    for fixture_id in RELIABILITY_WORKFLOW_IDS:
+        assert workflows[fixture_id]["kind"] == "cross_harness_reliability"
+        expected = json.loads(
+            (FIXTURE_ROOT / fixture_id / "expected.json").read_text(encoding="utf-8")
+        )
+        assert expected["scenario_id"] == fixture_id
+        assert set(expected) == {
+            "scenario_id",
+            "required",
+            "historical_bad_output",
+            "corrected_output",
+        }
+        assert expected["historical_bad_output"]["scenario_id"] == fixture_id
+        assert expected["corrected_output"]["scenario_id"] == fixture_id
+        assert set(expected["required"]) == {
+            "completion",
+            "required_interventions",
+            "factual_corrections",
+            "retained_constraints",
+            "evidence",
+        }
 
 
 def test_manifest_hashes_match_every_captured_source_and_fixture_file() -> None:

@@ -24,6 +24,10 @@ from pathlib import Path
 
 import pytest
 
+from tests.python.manifest_agent._installed_observer_fixtures import installed_observer
+
+__all__ = ["installed_observer"]
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolated_home(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:

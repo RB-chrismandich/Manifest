@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -18,12 +19,13 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
+from manifest_agent.observer_runtime_identity import bundle_tree_sha256
 from manifest_agent.ownership import (
     OWNED_STATUS,
     advance_owned_file_entry,
     ownership_key_path,
 )
-from manifest_agent.process import CommandRunner, redact_text
+from manifest_agent.process import redact_text
 from manifest_agent.service_redaction import _safe_result
 from manifest_agent.state import write_receipt_atomic
 
@@ -286,7 +288,7 @@ def identity_errors(receipt, desired, checksums) -> tuple[str, ...]:
 def bundle_checksums(desired: DesiredState) -> dict[str, str]:
     """Digest each complete portable bundle using stable relative identities."""
     return {
-        contract.name: _tree_checksum(desired.bundle_path(contract.name))
+        contract.name: bundle_tree_sha256(desired.bundle_path(contract.name))
         for contract in desired.all_contracts
     }
 
@@ -294,6 +296,13 @@ def bundle_checksums(desired: DesiredState) -> dict[str, str]:
 def with_source_fingerprints(desired: DesiredState) -> DesiredState:
     """Freeze the source bytes validated by the service, before native mutation."""
     catalog = desired.release_root / ".claude-plugin/marketplace.json"
+    from manifest_agent.release import deterministic_tree_sha256
+
+    workspace = (
+        deterministic_tree_sha256(desired.release_root)
+        if (desired.release_root / ".git").exists()
+        else bundle_tree_sha256(desired.release_root)
+    )
     return replace(
         desired,
         source_bundle_checksums=tuple(sorted(bundle_checksums(desired).items())),
@@ -302,105 +311,8 @@ def with_source_fingerprints(desired: DesiredState) -> DesiredState:
             if catalog.is_file()
             else None
         ),
+        source_workspace_sha256=workspace,
     )
-
-
-def _bundle_relative_paths(root: Path, repository: Path | None) -> list[str]:
-    if repository is None:
-        return sorted(
-            path.relative_to(root).as_posix()
-            for path in root.rglob("*")
-            if not _is_python_cache_path(path.relative_to(root).as_posix())
-        )
-    result = CommandRunner().run(
-        (
-            "git",
-            "-C",
-            str(root),
-            "ls-files",
-            "-z",
-            "--cached",
-            "--full-name",
-        )
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"unable to inventory tracked bundle files: {result.stderr.strip()}"
-        )
-    prefix = root.relative_to(repository).as_posix()
-    if prefix == ".":
-        prefix = ""
-    entries: set[str] = set()
-    for tracked in result.stdout.split("\0"):
-        if not tracked:
-            continue
-        if prefix:
-            if not tracked.startswith(prefix + "/"):
-                continue
-            relative = tracked[len(prefix) + 1 :]
-        else:
-            relative = tracked
-        if not relative or _is_python_cache_path(relative):
-            continue
-        entries.add(relative)
-        parts = relative.split("/")
-        for index in range(1, len(parts)):
-            parent = "/".join(parts[:index])
-            if not _is_python_cache_path(parent):
-                entries.add(parent)
-    return sorted(entries)
-
-
-def _digest_bundle_paths(root: Path, relative_paths: list[str]) -> str:
-    digest = hashlib.sha256()
-    for relative in relative_paths:
-        path = root / relative
-        try:
-            metadata = path.lstat()
-        except FileNotFoundError:
-            continue
-        except OSError as error:
-            raise RuntimeError(f"unable to inspect bundle path {relative!r}") from error
-        encoded = relative.encode("utf-8", errors="surrogateescape")
-        digest.update(len(encoded).to_bytes(8, "big"))
-        digest.update(encoded)
-        if path.is_symlink():
-            target = (
-                path.readlink().as_posix().encode("utf-8", errors="surrogateescape")
-            )
-            digest.update(b"l" + len(target).to_bytes(8, "big") + target)
-            continue
-        if metadata.st_mode & 0o170000 == 0o040000:
-            digest.update(b"d")
-            continue
-        digest.update(b"f")
-        try:
-            with path.open("rb") as stream:
-                while chunk := stream.read(1024 * 1024):
-                    digest.update(chunk)
-        except OSError as error:
-            raise RuntimeError(f"unable to read bundle file {relative!r}") from error
-    return digest.hexdigest()
-
-
-def _tree_checksum(root: Path) -> str:
-    root = root.expanduser().resolve()
-    repository = _git_checkout_root(root)
-    return _digest_bundle_paths(root, _bundle_relative_paths(root, repository))
-
-
-def _git_checkout_root(path: Path) -> Path | None:
-    candidate = path
-    while True:
-        if (candidate / ".git").exists():
-            return candidate
-        if candidate.parent == candidate:
-            return None
-        candidate = candidate.parent
-
-
-def _is_python_cache_path(relative: str) -> bool:
-    return "__pycache__" in relative.split("/") or relative.endswith((".pyc", ".pyo"))
 
 
 def build_receipt(
@@ -511,7 +423,7 @@ def _harness_receipt(
     )
 
 
-def snapshot_declared(selected, desired, adapters, snapshot_root):
+def snapshot_declared(selected, desired, adapters, snapshot_root, *, preflight=False):
     """Copy only existing files explicitly declared by selected adapters."""
     failures = {}
     for name in selected:
@@ -525,6 +437,9 @@ def snapshot_declared(selected, desired, adapters, snapshot_root):
                     continue
                 if not source.is_file():
                     raise ValueError("declared snapshot path must be a file")
+                if preflight:
+                    source.read_bytes()
+                    continue
                 digest = hashlib.sha256(str(source).encode()).hexdigest()[:16]
                 destination = snapshot_root / name / f"{digest}-{source.name}.bak"
                 destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -550,6 +465,13 @@ def persist_remaining(receipt_path, receipt, remaining, harness_order) -> None:
         )
         return
     receipt_path.unlink(missing_ok=True)
+    descriptor = os.open(
+        receipt_path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    )
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 __all__ = [

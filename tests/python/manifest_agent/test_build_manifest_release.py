@@ -71,6 +71,43 @@ def _clean_fixture(repo_root: Path, tmp_path: Path) -> Path:
             assert payload is not None
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(payload.read())
+    # Include the candidate under review, including newly generated package
+    # mirrors. Archiving only HEAD silently tested the pre-repair package.
+    import shutil
+
+    names = (
+        subprocess.run(
+            (
+                "git",
+                "-C",
+                str(repo_root),
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "-z",
+            ),
+            check=True,
+            capture_output=True,
+        )
+        .stdout.decode()
+        .split("\0")
+    )
+    for name in filter(None, names):
+        source, target = repo_root / name, fixture / name
+        if not source.exists() and not source.is_symlink():
+            if target.is_file() or target.is_symlink():
+                target.unlink()
+            continue
+        if source.is_dir():
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_symlink():
+            target.unlink()
+        if source.is_symlink():
+            target.symlink_to(source.readlink())
+        else:
+            shutil.copy2(source, target)
     _git(fixture, "init")
     _git(fixture, "config", "user.email", "manifest@example.invalid")
     _git(fixture, "config", "user.name", "Manifest Test")
@@ -109,8 +146,14 @@ def test_builds_exact_deterministic_eight_bundle_release(
     assert first.archive.name == f"manifest-plugins-{version}.tar.gz"
     assert first.archive.read_bytes() == second.archive.read_bytes()
     assert first.metadata.read_bytes() == second.metadata.read_bytes()
-
     metadata = json.loads(first.metadata.read_text(encoding="utf-8"))
+    _assert_release_metadata(source, first, version, metadata)
+    files = metadata["files"]
+    _assert_bundle_inventory(files, metadata, version)
+    _assert_archive_members(first, files, version)
+
+
+def _assert_release_metadata(source, first, version, metadata):
     assert set(metadata) == {
         "archive_sha256",
         "archive_url",
@@ -153,8 +196,28 @@ def test_builds_exact_deterministic_eight_bundle_release(
         for name in DOMAIN_BUNDLES
     }
 
-    files = metadata["files"]
+
+def _assert_bundle_inventory(files, metadata, version):
     assert all(set(record) == {"mode", "sha256", "size"} for record in files.values())
+    observer = "plugins/manifest-workspace/runtime/observer/"
+    required_observer_members = {
+        "pyproject.toml",
+        "uv.lock",
+        "uv-toolchain.lock.json",
+        "observe.py",
+        "observer_runtime_identity.py",
+        "src/manifest_agent/cli.py",
+        "src/manifest_agent/observer_runtime.py",
+        "src/manifest_agent/observer_runtime_identity.py",
+        "src/manifest_agent/_observer_store.py",
+        "src/manifest_agent/native_observation.py",
+        "assets/manifest_agent/data/manifest-capabilities.schema.json",
+        "assets/manifest_agent/data/project-checks.schema.json",
+        "assets/manifest_agent/data/model_policy.yml",
+        "assets/manifest_agent/_model_policy/__init__.py",
+        "assets/manifest_agent/_model_policy/controller.py",
+    }
+    assert {observer + member for member in required_observer_members} <= set(files)
     assert ".claude-plugin/marketplace.json" in files
     assert all(
         path == ".claude-plugin/marketplace.json"
@@ -175,6 +238,8 @@ def test_builds_exact_deterministic_eight_bundle_release(
         assert metadata["bundles"][name]["contract_schema_version"] == 1
         assert metadata["bundles"][name]["sha256"] == _bundle_digest(name, files)
 
+
+def _assert_archive_members(first, files, version):
     prefix = f"manifest-plugins-{version}/"
     marketplace_contents = b""
     with tarfile.open(first.archive, mode="r:gz") as bundle:
@@ -198,7 +263,6 @@ def test_builds_exact_deterministic_eight_bundle_release(
             assert member.uid == member.gid == 0
             if path == ".claude-plugin/marketplace.json":
                 marketplace_contents = contents
-
     marketplace = json.loads(marketplace_contents)
     assert tuple(plugin["name"] for plugin in marketplace["plugins"]) == DOMAIN_BUNDLES
 

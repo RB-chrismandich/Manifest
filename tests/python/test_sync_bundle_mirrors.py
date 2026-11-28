@@ -29,6 +29,8 @@ def mirror_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     _git(repo, "init", "-q")
     _git(repo, "add", "-A")
     monkeypatch.setattr(sbm, "ROOT", repo)
+    # These fixture repositories exercise only the generic mirror pairs.
+    monkeypatch.setattr(sbm, "observer_assets", lambda: {})
     monkeypatch.setattr(
         sbm,
         "MIRRORS",
@@ -68,6 +70,14 @@ def test_default_mode_restores_sync(mirror_repo: Path) -> None:
     assert sbm.main([]) == 0
     assert target.read_bytes() == (mirror_repo / "src/pkg/shared.py").read_bytes()
     assert sbm.main(["--check"]) == 0
+
+
+def test_sync_ignores_untracked_source(mirror_repo: Path) -> None:
+    untracked = mirror_repo / "src/pkg/untracked.py"
+    untracked.write_bytes(b"untracked = True\n")
+
+    assert sbm.main([]) == 0
+    assert not (mirror_repo / "bundle/pkg/untracked.py").exists()
 
 
 def test_real_repo_mirrors_are_in_sync(capsys) -> None:

@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
+from manifest_agent.observer_runtime_identity import bundle_tree_sha256
 from manifest_agent.release import (
     ReleaseError,
     deterministic_tree_sha256,
     resolve_release,
 )
-from manifest_agent.service_state import _tree_checksum
 from tests.python.manifest_agent._release_test_helpers import _git, _local_checkout
 
 
@@ -323,26 +323,26 @@ def test_bundle_checksum_ignores_untracked_python_runtime_files(tmp_path):
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "ignore runtime bytecode")
     bundle = repo / "plugins"
-    original = _tree_checksum(bundle)
+    original = bundle_tree_sha256(bundle)
     cache = bundle / "__pycache__"
     cache.mkdir()
     (cache / "bundle.cpython-313.pyc").write_bytes(b"runtime")
 
-    assert _tree_checksum(bundle) == original
+    assert bundle_tree_sha256(bundle) == original
     (bundle / "bundle.txt").write_text("tracked change\n", encoding="utf-8")
-    assert _tree_checksum(bundle) != original
+    assert bundle_tree_sha256(bundle) != original
 
 
 def test_extracted_bundle_checksum_excludes_python_cache_paths(tmp_path):
     bundle = tmp_path / "extracted" / "plugins"
     bundle.mkdir(parents=True)
     (bundle / "bundle.txt").write_text("portable\n", encoding="utf-8")
-    original = _tree_checksum(bundle)
+    original = bundle_tree_sha256(bundle)
     cache = bundle / "__pycache__"
     cache.mkdir()
     (cache / "bundle.pyc").write_bytes(b"runtime")
     (bundle / "bundle.pyc").write_bytes(b"runtime")
 
-    assert _tree_checksum(bundle) == original
+    assert bundle_tree_sha256(bundle) == original
     (bundle / "bundle.txt").write_text("changed\n", encoding="utf-8")
-    assert _tree_checksum(bundle) != original
+    assert bundle_tree_sha256(bundle) != original

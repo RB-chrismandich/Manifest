@@ -55,6 +55,8 @@ class CursorAdapter(CapabilityAdapterMixin):
         repository_url: str = REPOSITORY_URL,
         native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
+        from manifest_agent.ownership import ownership_key_path
+
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
@@ -62,6 +64,13 @@ class CursorAdapter(CapabilityAdapterMixin):
         self._native_mcp_inventory = normalize_native_mcp_inventory(
             native_mcp_inventory
         )
+        self._ownership_key_path = ownership_key_path(env)
+
+    def bind_ownership_authority(self, key_path) -> None:
+        """Use the receipt directory's trusted capability authority."""
+        from pathlib import Path
+
+        self._ownership_key_path = Path(key_path)
 
     def detect(self) -> Detection:
         """Report Cursor Agent availability and its native version."""

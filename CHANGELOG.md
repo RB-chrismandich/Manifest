@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Observer runtimes use one private XDG-state authority across receipt parents.
+  Uninstall authenticates cleanup intent and durably retires the receipt before
+  resumable deletion that rechecks signed inventory membership, bytes, modes,
+  and literal links at each removal. Incomplete stages and unsigned partial
+  toolchains are retained with durable unresolved evidence, not recursively
+  deleted; segregated stores and distinct attempt names allow later installs.
+  Shared toolchains retain their original attestation across failed generations.
+  Installed acceptance uses explicit pinned UV/wheel fixtures and offline,
+  checkout-denied public skill processes.
+- Receipt-bound deploy reconciliation prints unverified diagnostics and repair
+  guidance for missing or invalid receipts instead of raising a traceback.
+- Portable deploy reconciliation (`--native-inspection`, `--inspect-omp`,
+  `--harness`) now validates the receipt with the shared env-check decoder:
+  retired Gemini records are dropped, while non-object receipts, malformed
+  records, and unknown harnesses degrade the report instead of being reconciled.
 - Exclude source `.venv`, Python cache directories, and bytecode from Claude
   config deployment while preserving an existing destination runtime during
   backup-and-replace; dot-prefixed config such as `.plans` remains deployed.

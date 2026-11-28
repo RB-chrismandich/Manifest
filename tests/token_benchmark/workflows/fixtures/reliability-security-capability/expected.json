@@ -1,0 +1,26 @@
+{
+  "scenario_id": "reliability-security-capability",
+  "required": {
+    "completion": {"state": "unknown", "reason_code": "insufficient_event_evidence"},
+    "required_interventions": ["obtain_security_event_evidence"],
+    "factual_corrections": ["connector_capability_is_not_security_event_evidence"],
+    "retained_constraints": ["do_not_claim_security_outcomes_without_events", "report_unknowns_explicitly"],
+    "evidence": {"event_count": null, "unique_entity_count": null, "denominator": null, "observed_outcomes": [], "unknowns": ["event_count", "unique_entity_count", "denominator", "observed_outcomes"]}
+  },
+  "historical_bad_output": {
+    "scenario_id": "reliability-security-capability",
+    "completion": {"state": "complete", "reason_code": "no_incident"},
+    "required_interventions": [],
+    "factual_corrections": [],
+    "retained_constraints": [],
+    "evidence": {"event_count": 0, "unique_entity_count": 0, "denominator": 0, "observed_outcomes": ["no incident"], "unknowns": []}
+  },
+  "corrected_output": {
+    "scenario_id": "reliability-security-capability",
+    "completion": {"state": "unknown", "reason_code": "insufficient_event_evidence"},
+    "required_interventions": ["obtain_security_event_evidence"],
+    "factual_corrections": ["connector_capability_is_not_security_event_evidence"],
+    "retained_constraints": ["do_not_claim_security_outcomes_without_events", "report_unknowns_explicitly"],
+    "evidence": {"event_count": null, "unique_entity_count": null, "denominator": null, "observed_outcomes": [], "unknowns": ["event_count", "unique_entity_count", "denominator", "observed_outcomes"]}
+  }
+}

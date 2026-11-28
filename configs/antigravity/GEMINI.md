@@ -1,7 +1,7 @@
 # Antigravity Orchestration Guide
 
-This document defines OMP-native sub-agent dispatch, planning, and validation
-for the Antigravity CLI (`agy`).
+This guide defines Antigravity configuration, planning, and validation
+boundaries; it does not grant the Antigravity CLI OMP sub-agent tools.
 
 **Why this file is `~/.gemini/GEMINI.md`**: `agy` is Gemini-CLI lineage. It
 reads this context file and its config from `~/.gemini/`, never from
@@ -35,13 +35,11 @@ Apply at all times, in every session:
 
 ## OMP Sub-Agent Dispatch
 
-The Antigravity CLI has no separate native sub-agent API in this configuration. Its
-supported interactive dispatch mechanism is OMP `task` and `hub`: for workload
-decomposition, submit ready independent units in one `task` call and use the
-documented OMP specialist roles. Children execute their unit directly and never
-redispatch. The parent validates evidence and aggregates results. If OMP is
-unavailable, work inline and report `DEGRADED`; do not infer Claude-native or
-delegate-runner capabilities for Antigravity.
+The Antigravity CLI has no separate native sub-agent API in this configuration.
+When working through OMP, the parent dispatches independent units with `task`
+and selects the narrowest suitable agent; the parent validates evidence and
+aggregates results. Do not infer that OMP tools are available inside the
+Antigravity CLI or assume Claude-native or delegate-runner capabilities there.
 
 ## Proactive Decision Framework
 
@@ -154,8 +152,8 @@ non-blocking.
 
 ## Configuration Files
 
-All configuration is symlinked from `~/.claude/` to ensure both Claude and `agy`
-operate from identical orchestration rules.
+Shared configuration and plans are linked from `~/.claude/`; skills are
+deployed through the harness catalog under `~/.manifest/skills/`.
 
 | File | Purpose |
 |------|---------|
@@ -173,11 +171,11 @@ operate from identical orchestration rules.
 ```text
 ~/.gemini/                           # agy's home (Gemini-CLI lineage)
 ├── GEMINI.md                        # This orchestration guide
-└── config/ -> ~/.claude/config/     # Symlinked shared configs (agy plugins live here)
+└── config/ -> ~/.claude/config/     # Shared config
 ~/.antigravity/
-├── skills/ -> ~/.manifest/skills/   # Symlinked shared skills
-├── config/ -> ~/.claude/config/     # Symlinked shared configs
-└── .plans/ -> ~/.claude/.plans/     # Symlinked shared plans
+├── skills/ -> ~/.manifest/skills/   # Shared flat catalog
+├── config/ -> ~/.claude/config/     # Shared config
+└── .plans/ -> ~/.claude/.plans/     # Shared plans
 ```
 
 ---

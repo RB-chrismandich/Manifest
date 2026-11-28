@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 import manifest_agent.bootstrap_sync as bootstrap_module
+import manifest_agent.observer_runtime as observer_module
 from manifest_agent.codex_plugin_backup import (
     read_owned_file_backup,
 )
@@ -122,14 +123,14 @@ def test_prior_visible_receipt_failure_compensates_archive_and_retires_journal(
         service_factory, state_home, target, prior, installed, claude
     )
     recorded = recording_journal_writer(monkeypatch)
-    real_write_receipt = bootstrap_module.write_receipt_atomic
+    real_write_receipt = observer_module.write_receipt_atomic
 
     def fail_before_receipt_rename(path, receipt):
         del path, receipt
         raise OSError("injected prior-visible receipt failure")
 
     monkeypatch.setattr(
-        bootstrap_module, "write_receipt_atomic", fail_before_receipt_rename
+        observer_module, "write_receipt_atomic", fail_before_receipt_rename
     )
 
     result = service.bootstrap_sync()
@@ -146,7 +147,7 @@ def test_prior_visible_receipt_failure_compensates_archive_and_retires_journal(
     # A rolled-back run must leave no handle behind that poisons the next one:
     # retiring the journal is only half the contract, the other half is that a
     # third run re-prepares from the restored prior and actually lands.
-    monkeypatch.setattr(bootstrap_module, "write_receipt_atomic", real_write_receipt)
+    monkeypatch.setattr(observer_module, "write_receipt_atomic", real_write_receipt)
 
     retried = service.bootstrap_sync()
 

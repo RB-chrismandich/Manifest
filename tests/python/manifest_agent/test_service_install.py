@@ -227,12 +227,14 @@ def make_service_factory(tmp_path):
 
     release = fake_release(tmp_path)
 
-    def make(adapters, *, harnesses=("claude", "codex")):
+    def make(
+        adapters, *, harnesses=("claude", "codex"), receipt_path: Path | None = None
+    ):
         return ManifestService(
             source=release.release_root,
             harnesses=harnesses,
             adapters=adapters,
-            receipt_path=tmp_path / "state" / "installation.json",
+            receipt_path=receipt_path or tmp_path / "state" / "installation.json",
             release_resolver=lambda selector: release,
             contract_loader=lambda root: fake_contracts(),
             capability_planner=lambda contracts, selected: object(),
@@ -792,3 +794,95 @@ def test_downgraded_harness_preserves_existing_failure_values() -> None:
     receipt = _harness_receipt(None, None, result, None)
 
     assert receipt.capabilities["mcp:context7"] == "failed"
+
+
+@pytest.mark.parametrize("operation", ["install", "bootstrap_sync"])
+def test_invalid_receipt_precedes_resolution_detection_and_runtime(
+    service_factory, monkeypatch, operation
+):
+    adapter = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": adapter}, harnesses=("claude",))
+    service.receipt_path.parent.mkdir(parents=True)
+    service.receipt_path.write_text('{"schema_version": "invalid"}')
+    before = service.receipt_path.read_bytes()
+    touched = []
+
+    def forbidden(*args, **kwargs):
+        touched.append((args, kwargs))
+        raise AssertionError("invalid receipt crossed authorization boundary")
+
+    monkeypatch.setattr(service, "release_resolver", forbidden)
+    monkeypatch.setattr(service_module, "ObserverTransaction", forbidden)
+    result = getattr(service, operation)()
+    assert result.state is ResultState.BLOCKED
+    errors = (
+        result.errors if operation == "install" else result.harnesses["codex"].errors
+    )
+    assert "invalid schema" in " ".join(errors)
+    assert not touched
+    assert adapter.calls == []
+    assert service.receipt_path.read_bytes() == before
+
+
+def test_preflight_failure_precedes_runtime_snapshot_and_native_mutation(
+    service_factory, tmp_path, monkeypatch
+):
+    adapter = FakeAdapter("claude", harness_result("claude"))
+    directory = tmp_path / "not-a-snapshot-file"
+    directory.mkdir()
+    adapter.snapshot_files = (directory,)
+    service = service_factory({"claude": adapter}, harnesses=("claude",))
+    touched = []
+
+    def forbidden(*args, **kwargs):
+        touched.append((args, kwargs))
+        raise AssertionError("failed preflight acquired an observer runtime")
+
+    monkeypatch.setattr(service_module, "ObserverTransaction", forbidden)
+    result = service.install()
+    assert result.state is ResultState.BLOCKED
+    assert "declared snapshot path must be a file" in " ".join(
+        result.harnesses["claude"].errors
+    )
+    assert not touched
+    assert adapter.calls == ["detect"]
+    assert not service.snapshot_root.exists()
+    assert not service.receipt_path.exists()
+
+
+@pytest.mark.parametrize("publication", ("before-retirement", "after-retirement"))
+def test_uninstall_never_deletes_runtime_before_durable_receipt_retirement(
+    tmp_path, monkeypatch, publication
+):
+    adapter = FakeAdapter("claude", harness_result("claude"))
+    service = make_service_factory(tmp_path)({"claude": adapter}, harnesses=("claude",))
+    assert service.install().state is ResultState.READY
+    events = []
+
+    def queue(path):
+        assert read_receipt(path) is not None
+        events.append("signed-cleanup-intent")
+
+    def cleanup(path):
+        assert read_receipt(path) is None
+        events.append("runtime-cleanup")
+
+    monkeypatch.setattr(service_module, "queue_observer_cleanup", queue)
+    monkeypatch.setattr(service_module, "remove_observer", cleanup)
+    persist = service_module._persist_progress
+
+    def interrupted(*args):
+        assert events == ["signed-cleanup-intent"]
+        if publication == "after-retirement":
+            persist(*args)
+        raise OSError("injected receipt publication failure")
+
+    monkeypatch.setattr(service_module, "_persist_progress", interrupted)
+    assert service.uninstall().state is ResultState.BLOCKED
+    assert events == ["signed-cleanup-intent"]
+    assert (read_receipt(service.receipt_path) is not None) == (
+        publication == "before-retirement"
+    )
+    if publication == "after-retirement":
+        service.uninstall()
+        assert events == ["signed-cleanup-intent", "runtime-cleanup"]
