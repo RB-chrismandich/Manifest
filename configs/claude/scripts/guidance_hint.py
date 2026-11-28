@@ -402,6 +402,14 @@ def main(argv=None) -> int:
     # --help precedes any registry/config load (cli-audit-help).
     args = _build_parser().parse_args(argv)
     if yaml is None:
+        if (
+            args.global_off
+            or args.global_on
+            or args.disable is not None
+            or args.enable is not None
+        ):
+            err("cannot write preferences: PyYAML is unavailable")
+            return 2
         return 0
     # Preference writes (opt-out/opt-in) report errors rather than failing open.
     write_rc = _handle_pref_write(args)

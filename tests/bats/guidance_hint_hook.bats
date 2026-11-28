@@ -2,6 +2,8 @@
 # T017 — guidance_hint.py fires a one-shot hint at a recognized Workflow Moment
 # and stays silent on unrelated actions (spec 362, US2; SC-003 mechanism).
 
+bats_require_minimum_version 1.5.0
+
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
@@ -56,6 +58,20 @@ teardown() {
         assert_success
         assert_output ""
     done
+}
+
+@test "missing PyYAML fails open before processing the hook" {
+    local import_dir state_dir
+    import_dir="$SANDBOX/imports"
+    state_dir="$SANDBOX/guidance-state"
+    mkdir -p "$import_dir"
+    printf '%s\n' 'raise ModuleNotFoundError("PyYAML intentionally unavailable", name="yaml")' > "$import_dir/yaml.py"
+    export GUIDANCE_STATE_DIR="$state_dir"
+    run --separate-stderr env -u PYTHONHOME PYTHONPATH="$import_dir" python3 "$HINT" <<< '{"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}'
+    assert_success
+    assert_output ""
+    [[ -z "$stderr" ]] || return 1
+    [[ ! -e "$state_dir/last_fired.json" ]]
 }
 
 # Simulate a Claude Code PreToolUse Bash payload on stdin.
