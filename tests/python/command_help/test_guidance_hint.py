@@ -439,7 +439,24 @@ def test_load_last_fired_coerces_naive_timestamp_to_utc(tmp_path, monkeypatch):
     assert suppressed == []  # 10m ago < 30m window
 
 
-def test_missing_yaml_dependency_exits_silently_before_hook_processing():
+@pytest.mark.parametrize(
+    ("argv", "expected_status"),
+    [
+        ([], 0),
+        (["--moment", "pre-commit"], 0),
+        (["--global-off"], 2),
+        (["--global-on"], 2),
+        (["--disable", "reminders"], 2),
+        (["--enable", "reminders"], 2),
+    ],
+)
+def test_missing_yaml_dependency_respects_command_intent(
+    argv, expected_status, tmp_path, monkeypatch
+):
+    local = tmp_path / "guidance_local.yml"
+    state = tmp_path / "state"
+    monkeypatch.setenv("GUIDANCE_LOCAL", str(local))
+    monkeypatch.setenv("GUIDANCE_STATE_DIR", str(state))
     script = Path(gh.__file__).resolve()
     blocker = (
         "import importlib.abc, runpy, sys\n"
@@ -449,17 +466,22 @@ def test_missing_yaml_dependency_exits_silently_before_hook_processing():
         "            raise ModuleNotFoundError('blocked yaml', name='yaml')\n"
         "sys.meta_path.insert(0, BlockYaml())\n"
         "script = sys.argv[1]\n"
-        "sys.argv = [script]\n"
+        "sys.argv = [script, *sys.argv[2:]]\n"
         "runpy.run_path(script, run_name='__main__')\n"
     )
     result = subprocess.run(
-        [sys.executable, "-c", blocker, str(script)],
+        [sys.executable, "-c", blocker, str(script), *argv],
         input='{"tool_name":"Bash","tool_input":{"command":"git commit"}}',
         capture_output=True,
         text=True,
         check=False,
     )
 
-    assert result.returncode == 0
+    assert result.returncode == expected_status
     assert result.stdout == ""
-    assert result.stderr == ""
+    if expected_status:
+        assert "cannot write preferences: PyYAML is unavailable" in result.stderr
+    else:
+        assert result.stderr == ""
+    assert not local.exists()
+    assert not state.exists()
